@@ -63,6 +63,18 @@ def _core_io(root, name):
     return target
 
 
+def _private_core_output(root):
+    from stage2_workflow.store import _io
+
+    ordinary = private_output(root)
+    target = _io(ordinary)
+    if target != ordinary:
+        # Inspect the same private-root markers when ordinary lstat cannot
+        # observe a deep Windows ancestor. Keep the ordinary logical root.
+        private_output(target)
+    return ordinary
+
+
 def _read_file(root, name):
     return _core_io(root, name).read_bytes()
 
@@ -76,7 +88,7 @@ def _write_file(root, name, raw):
 
 def retain_core_source(deliverable_root, handoff_path, output, records):
     """Copy direct reproducibility artifacts only; this is not source admission."""
-    output = private_output(output)
+    output = _private_core_output(output)
     descriptor = {
         "kind": "Stage1CoreSource",
         "schema_version": "1.0.0",
@@ -116,7 +128,7 @@ def copy_files(packet, source_root, output_root):
     refs = file_refs(packet)
     if not refs:
         return
-    output_root = private_output(output_root)
+    output_root = _private_core_output(output_root)
     for ref in refs:
         raw = _read_file(source_root, ref["path"])
         if sha(raw) != ref["sha256"]:
