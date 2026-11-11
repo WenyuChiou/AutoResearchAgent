@@ -50,6 +50,30 @@ def _artifact_names(records):
     return sorted(set(names))
 
 
+def _core_io(root, name):
+    from stage2_workflow.store import _io
+
+    # Check the original root before safe_path resolves Windows aliases.
+    _io(Path(root))
+    path = safe_path(root, name)
+    target = _io(path)
+    if target != path:
+        # Ordinary lstat can report a deep existing entry as missing.
+        reject_links(target)
+    return target
+
+
+def _read_file(root, name):
+    return _core_io(root, name).read_bytes()
+
+
+def _write_file(root, name, raw):
+    path = _core_io(root, name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("xb") as stream:
+        stream.write(raw)
+
+
 def retain_core_source(deliverable_root, handoff_path, output, records):
     """Copy direct reproducibility artifacts only; this is not source admission."""
     output = private_output(output)
@@ -72,12 +96,10 @@ def retain_core_source(deliverable_root, handoff_path, output, records):
     entries.append(("handoff.json", Path(handoff_path)))
     for name, original in entries:
         reject_links(original)
+        # The trusted Stage1 package already owns its source I/O paths.
         raw = original.read_bytes()
         relative = PREFIX + "/" + name
-        destination = safe_path(output, relative)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        with destination.open("xb") as stream:
-            stream.write(raw)
+        _write_file(output, relative, raw)
         descriptor["files"].append({"path": relative, "sha256": sha(raw)})
     return descriptor
 
@@ -96,17 +118,12 @@ def copy_files(packet, source_root, output_root):
         return
     output_root = private_output(output_root)
     for ref in refs:
-        original = safe_path(source_root, ref["path"])
-        reject_links(original)
-        raw = original.read_bytes()
+        raw = _read_file(source_root, ref["path"])
         if sha(raw) != ref["sha256"]:
             from .contract import Stage2Error
 
             raise Stage2Error("stage1-core-artifact-hash-mismatch")
-        destination = safe_path(output_root, ref["path"])
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        with destination.open("xb") as stream:
-            stream.write(raw)
+        _write_file(output_root, ref["path"], raw)
 
 
 def validate_core_source(packet, root):
@@ -147,13 +164,14 @@ def validate_core_source(packet, root):
         )
         for ref in refs:
             require(ref["path"].startswith(PREFIX + "/"), "path-namespace")
-            path = safe_path(root, ref["path"])
-            reject_links(path)
-            require(sha(path.read_bytes()) == ref["sha256"], "artifact-hash-mismatch")
-        base = safe_path(root, PREFIX)
-        raw_records = safe_path(base, "records.original.json").read_bytes()
-        raw_manifest = safe_path(base, "provenance_manifest.json").read_bytes()
-        raw_handoff = safe_path(base, "handoff.json").read_bytes()
+            require(
+                sha(_read_file(root, ref["path"])) == ref["sha256"],
+                "artifact-hash-mismatch",
+            )
+        base = Path(root) / PREFIX
+        raw_records = _read_file(base, "records.original.json")
+        raw_manifest = _read_file(base, "provenance_manifest.json")
+        raw_handoff = _read_file(base, "handoff.json")
         records = json.loads(raw_records)
         manifest = json.loads(raw_manifest)
         handoff = json.loads(raw_handoff)
@@ -173,9 +191,13 @@ def validate_core_source(packet, root):
             )
         }
         require(set(paths) == expected, "artifact-closure-mismatch")
-        core_records.read_artifacts(records, base)
+
+        def read_artifact(name):
+            return _read_file(base, name)
+
+        core_records.validate_artifacts(records, read_artifact)
         if records["schema_version"] == "1.2.0":
-            screening_records.read_artifacts(records, base)
+            screening_records.validate_artifacts(records, read_artifact)
         upstream = packet["upstream"]
         require(
             sha(raw_records) == upstream["stage1_records_sha256"], "records-binding"
