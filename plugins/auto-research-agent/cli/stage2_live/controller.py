@@ -11,6 +11,7 @@ import copy
 import hashlib
 import json
 import shutil
+import stat
 import subprocess
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
@@ -31,6 +32,10 @@ from stage2_workflow.delivery import inspect_delivery
 from stage2_workflow.orchestration import prepare_review_batch, reconcile_batch
 from stage2_workflow.reviews import REVIEW_VIEW_VERSION_CURRENT
 from stage2_workflow.store import (
+    _IS_WINDOWS,
+    _entries,
+    _io,
+    _resolved,
     _workflow_bytes,
     add_snapshot,
     finish_action,
@@ -290,13 +295,53 @@ def _matching_ideation_snapshots(state, next_packet):
     ]
 
 
+def _input_view_path_info(path):
+    try:
+        info = _io(path).lstat()
+    except FileNotFoundError:
+        return None
+    if (
+        stat.S_ISLNK(info.st_mode)
+        or getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+    ):
+        raise Stage2Error(f"controller-input-view-linked-path: {path}")
+    return info
+
+
+def _guard_input_view_path(path):
+    if _IS_WINDOWS:
+        _io(path)
+        for parent in reversed(path.absolute().parents):
+            info = _input_view_path_info(parent)
+            if info is not None and not stat.S_ISDIR(info.st_mode):
+                raise Stage2Error(
+                    f"controller-input-view-parent-not-directory: {parent}"
+                )
+        _input_view_path_info(path)
+    return path
+
+
+def _input_view_files(root):
+    if not _IS_WINDOWS:
+        yield from (path for path in root.rglob("*") if path.is_file())
+        return
+    for path in _entries(root):
+        info = _input_view_path_info(path)
+        if info is not None and stat.S_ISDIR(info.st_mode):
+            yield from _input_view_files(path)
+        elif info is not None and stat.S_ISREG(info.st_mode):
+            yield path
+        else:
+            raise Stage2Error(f"controller-input-view-inventory-mismatch: {path}")
+
+
 def _portable_input_path(root, relative):
+    if not isinstance(relative, str) or not relative:
+        raise Stage2Error(f"controller-input-view-path-invalid: {relative!r}")
     posix = PurePosixPath(relative)
     windows = PureWindowsPath(relative)
     if (
-        not isinstance(relative, str)
-        or not relative
-        or posix.is_absolute()
+        posix.is_absolute()
         or windows.is_absolute()
         or windows.drive
         or "\\" in relative
@@ -304,8 +349,8 @@ def _portable_input_path(root, relative):
         or any(part in {"", ".", ".."} for part in posix.parts)
     ):
         raise Stage2Error(f"controller-input-view-path-invalid: {relative!r}")
-    path = root.joinpath(*posix.parts)
-    if not path.resolve().is_relative_to(root.resolve()):
+    path = _guard_input_view_path(root.joinpath(*posix.parts))
+    if not _resolved(path).is_relative_to(_resolved(root)):
         raise Stage2Error(f"controller-input-view-path-escape: {relative}")
     return path
 
@@ -320,7 +365,7 @@ def materialize_snapshot_input_root(snapshot, controller_dir, *, create=True):
 
     snapshot_sha256 = _snapshot_hash(snapshot)
     checker = snapshot["checker"]
-    checker_root = Path(checker["root"]).resolve()
+    checker_root = _resolved(_guard_input_view_path(Path(checker["root"])))
     manifest = checker["manifest"]
     artifacts = [
         {
@@ -367,12 +412,19 @@ def materialize_snapshot_input_root(snapshot, controller_dir, *, create=True):
         "artifacts": artifacts,
     }
     view_manifest["manifest_sha256"] = canonical_hash(view_manifest)
-    root = Path(controller_dir).resolve() / "prior_work_inputs" / snapshot_sha256
+    controller_root = _resolved(_guard_input_view_path(Path(controller_dir)))
+    root = _guard_input_view_path(
+        controller_root / "prior_work_inputs" / snapshot_sha256
+    )
+    root_io = _io(root)
     manifest_path = root / "input_manifest.json"
 
     def verify():
+        _guard_input_view_path(root)
         try:
-            saved = json.loads(manifest_path.read_text(encoding="utf-8"))
+            saved = json.loads(
+                _io(_guard_input_view_path(manifest_path)).read_text(encoding="utf-8")
+            )
         except (OSError, ValueError) as error:
             raise Stage2Error("controller-input-view-manifest-invalid") from error
         if saved != view_manifest:
@@ -380,35 +432,35 @@ def materialize_snapshot_input_root(snapshot, controller_dir, *, create=True):
         expected_paths = {row["path"] for row in artifacts}
         actual_paths = {
             path.relative_to(root).as_posix()
-            for path in root.rglob("*")
-            if path.is_file() and path != manifest_path
+            for path in _input_view_files(root)
+            if path != manifest_path
         }
         if actual_paths != expected_paths:
             raise Stage2Error("controller-input-view-inventory-mismatch")
         for row in artifacts:
             path = _portable_input_path(root, row["path"])
             if (
-                path.is_symlink()
-                or hashlib.sha256(path.read_bytes()).hexdigest() != row["sha256"]
+                _io(path).is_symlink()
+                or hashlib.sha256(_io(path).read_bytes()).hexdigest() != row["sha256"]
             ):
                 raise Stage2Error("controller-input-view-artifact-mismatch")
         validate_packet(snapshot["packet"], root)
         return root
 
-    if root.exists():
+    if root_io.exists():
         return verify()
     if not create:
         raise Stage2Error("controller-input-view-missing")
-    root.parent.mkdir(parents=True, exist_ok=True)
+    root_io.parent.mkdir(parents=True, exist_ok=True)
     try:
-        root.mkdir()
+        root_io.mkdir()
     except FileExistsError:
         return verify()
     try:
         copied = {}
         for row in artifacts:
             source = _portable_input_path(checker_root, row["stored_path"])
-            raw = source.read_bytes()
+            raw = _io(source).read_bytes()
             if hashlib.sha256(raw).hexdigest() != row["sha256"]:
                 raise Stage2Error("controller-input-view-source-mismatch")
             previous = copied.get(row["path"])
@@ -416,13 +468,16 @@ def materialize_snapshot_input_root(snapshot, controller_dir, *, create=True):
                 raise Stage2Error("controller-input-view-path-conflict")
             destination = _portable_input_path(root, row["path"])
             if previous is None:
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_bytes(raw)
+                destination_io = _io(destination)
+                destination_io.parent.mkdir(parents=True, exist_ok=True)
+                with destination_io.open("xb") as stream:
+                    stream.write(raw)
                 copied[row["path"]] = row["sha256"]
-        manifest_path.write_bytes(_json_bytes(view_manifest))
+        with _io(_guard_input_view_path(manifest_path)).open("xb") as stream:
+            stream.write(_json_bytes(view_manifest))
         return verify()
     except Exception:
-        shutil.rmtree(root)
+        shutil.rmtree(_io(_guard_input_view_path(root)))
         raise
 
 
