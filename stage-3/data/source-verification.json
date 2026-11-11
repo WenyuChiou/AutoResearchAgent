@@ -1,0 +1,19 @@
+{
+  "bls": {
+    "url": "https://www.bls.gov/cex/tables/calendar-year/mean-item-share-average-standard-error/reference-person-age-ranges-2025.xlsx",
+    "basis": "Saved verified workbook extraction",
+    "workbook_sha256": "57605e6da1f947bd3122e4be653810d748d24548dde3dc1c305ae689c96b6443",
+    "profile_sha256": "6a532b4064c4ac14f6fdfac2ee9ace7770bc927c669c37751e3969eb67e53c89",
+    "count_cells": {
+      "B4": 137994,
+      "I4": 22568,
+      "J4": 17310
+    },
+    "matched_spending_cells": 12
+  },
+  "goel_figure_1": {
+    "url": "https://arxiv.org/html/2512.23707v1/Fig2_methodology.png",
+    "sha256": "122f75d2c151a5f31e0191b4086c07f47d5bc01821453ac618edbb687cf22747",
+    "license": "CC BY 4.0"
+  }
+}
