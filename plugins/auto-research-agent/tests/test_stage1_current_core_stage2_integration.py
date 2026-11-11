@@ -255,6 +255,7 @@ class CurrentCoreStage2AdapterIntegrationTests(unittest.TestCase):
             stage1_projection_hash,
         )
         from stage2_workflow import initialize_workflow, inspect_workflow
+        from stage2_workflow.store import _io
 
         with current_core_stage1_case(screened=screened) as fixture:
             case, ref = fixture["case"], fixture["project_ref"]
@@ -388,7 +389,7 @@ class CurrentCoreStage2AdapterIntegrationTests(unittest.TestCase):
                 for row in packet["core_source"]["files"]
                 if "/core_claim_artifacts/" in row["path"]
             )
-            path = root / artifact["path"]
+            path = _io(root / artifact["path"])
             raw = path.read_bytes()
             try:
                 path.unlink()
