@@ -162,22 +162,16 @@ def source_preview() -> str:
 
 
 def build() -> str:
-    motivation = chapter(
-        'motivation', 'Why plan before running?',
-        steps(
-            '<strong>A promising direction still leaves work to decide.</strong> Researchers need to know what evidence to gather, what to compare and when to stop.',
-            '<strong>Stage 3 turns the choice into a study plan.</strong> We trace the handoff, follow one household case, then compare the quality of the plans.',
-        ),
-    )
     recap = chapter(
         'stage-2', 'Stage 2 recap',
         steps(
-            '<strong>Compare candidate directions.</strong> Bring prior work, evidence and proposals into one view.',
-            '<strong>Review independently.</strong> Reconcile disagreements and record the conditions attached to each direction.',
-            '<strong>Hand off the selected direction.</strong> Carry forward its supporting evidence and unresolved questions.',
-        ) + figure('stage2-recap.png',
-                   'Stage 2 workflow from evidence comparison through independent review, reconciliation, and user choice',
-                   '<i>Stage 2 recap artwork reused from the Stage 3 opening deck, slide 2.</i>'),
+            '<strong>Find a direction worth pursuing.</strong> Stage 2 helps the researcher choose a question that could teach us something and can be studied with the resources at hand.',
+            '<strong>Compare directions using three questions.</strong> What is still open in the literature? What would an answer add? Can the question be answered with the available data, methods and time?',
+            '<strong>Choose what Stage 3 should plan.</strong> The researcher selects a direction. Its evidence, conditions and open questions guide the study plan.',
+        ) + figure('stage2-direction-guide.png',
+                   'Stage 2 helps researchers choose a valuable, feasible direction by checking the gap in prior work, the value of an answer and whether the study can be done. The chosen direction guides Stage 3.',
+                   'Stage 2 weighs opportunity and value, then checks how to answer the question, what materials are needed and what the team can do. '
+                   + link('Stage 2 scientific checks', 'https://github.com/WenyuChiou/AutoResearchAgent/blob/7f22d89c0ce7d4955d8e2854bed40f62c4e4fab4/plugins/auto-research-agent/references/stage2-directions.md#scientific-checks-and-dispositions')),
     )
 
     deliverables = table(
@@ -196,24 +190,30 @@ def build() -> str:
     )
     design = chapter(
         'stage-3', 'Stage 3 design',
-        '<h3 class="subhead">Where native Codex can fall short</h3>'
+        '<h3 class="subhead">What a plain Codex plan can miss</h3>'
+        + '<p>In a saved draft for this case, Codex proposed testing spending on unseen records and running a fixed-price control. It still needed data with prices and quantities for the same items. Here is why that matters.</p>'
         + steps(
-            '<strong>It can name a dataset without checking what is in it.</strong> The harness checks sources, units and missing fields, then searches for evidence on the gaps that matter.',
-            '<strong>It can say “run the experiment” and skip what to hold fixed.</strong> The harness links each question to data, a baseline and steps, then checks the required plan fields.',
-            '<strong>It can propose an analysis without saying how to judge the result.</strong> A separate design review checks whether the plan can answer the question and be carried out. Findings guide revision or a narrower study.',
+            '<strong>A source may lack the data you need.</strong> A survey entry of $20 for food tells us what was spent. To test a price response, we need the price and how much was bought.',
+            '<strong>A comparison may change two things at once.</strong> If both the household age mix and the starting prices change, we cannot tell which one caused the difference.',
+            '<strong>A test may have no pass rule.</strong> “Check the predictions” gives no answer about how large an error is acceptable or when to leave price feedback out.',
         )
-        + '<p class="source-note">In the archived P02 draft, Codex proposed a spending holdout and a fixed-price control. The matched price and quantity source was still open. <i>Stage 3 opening deck, slide 3.</i></p>'
-        + '<h3 class="subhead pipeline-heading">From Stage 2 handoff to four deliverables</h3>'
-        + figure('stage3-engineering-pipeline-v2.png',
-                 'Stage 2 direction and evidence feed four Stage 3 steps: source checks and targeted search, schema-checked drafting, independent review with a revision loop, and a versioned HTML view with four deliverables',
-                 'Review findings can send the draft back for revision and rechecking. Unresolved gaps remain visible in the saved plan.')
+        + '<h3 class="subhead pipeline-heading">How Stage 3 builds a plan</h3>'
+        + figure('stage3-engineering-guide.png',
+                 'Four stages from the chosen question to a saved plan. Check sources, fields and units. Link questions to comparisons and checks. Review the structure and study design. Ask the researcher to confirm. Revision returns to the draft for rechecking. The saved plan supplies P1, both P2 sections and P3.')
+        + steps(
+            '<strong>1. Check the evidence.</strong> Match each question to a source, a unit and a comparison. Search for a missing input. If it stays missing, narrow the question or record what is still needed.',
+            '<strong>2. Build the plan.</strong> Link each question to its data, comparison and checks. Specify what stays fixed, what changes and what to measure.',
+            '<strong>3. Review the design.</strong> Check the required fields, then use a separate AI review to test whether the steps can answer the question. Fix the affected parts and run their checks again.',
+            '<strong>4. Ask the researcher to confirm.</strong> Review the sources, comparison and pass rules. Feedback goes back to the draft. Save the agreed version with its evidence and open questions.',
+        )
+        + '<p class="source-note">If evidence or confirmation is still missing, the plan stays conditional. The formal review and confirmation path shown here is separate from the household case below.</p>'
         + deliverables,
     )
 
     roadmap = topic(
         'roadmap', 'P1', 'Research roadmap',
         steps(
-            '<strong>Check spending first.</strong> Compare LLM household predictions with held-out human spending.',
+            '<strong>Check spending first.</strong> Compare the language model’s predictions with survey spending from units it has not seen.',
             '<strong>Check price response separately.</strong> Use matched prices and quantities before enabling feedback.',
             '<strong>Keep the comparisons distinct.</strong> Compare decision rules on the same inputs. In the market scenarios, change only the age mix.',
         ) + figure('household-roadmap.png',
@@ -221,7 +221,7 @@ def build() -> str:
                    '<i>Case roadmap from the reviewed Stage 3 P1.</i>')
         + table('Supporting questions and comparisons', ('Question', 'Comparison'), [
             ('SQ1', 'Can LLM households match human spending? Compare predictions with held-out spending.'),
-            ('SQ2', 'Does an older age mix shift demand and prices? Compare current and older consumer-unit mixes under the same rules.'),
+            ('SQ2', 'Does an older age mix shift demand and prices? Compare the 2025 U.S. mix with a higher share of units aged 65+, using the same rules.'),
             ('SQ3', 'Does the LLM improve on a fixed spending rule? Compare both on the same held-out records.'),
         ]),
     )
@@ -231,15 +231,15 @@ def build() -> str:
             ('Published spending', link('BLS Consumer Expenditure Surveys, Table 1300', BLS_TABLES),
              'Annual spending by age of the consumer unit’s reference person. Available for descriptive comparisons.'),
             ('Spending holdout', link('BLS public-use microdata', BLS_MICRODATA),
-             'Independent consumer units for checking predictions. Confirm eligible records and fields first.'),
+             'Actual reported spending for consumer units kept out of model setup. Confirm eligible records, periods and fields first.'),
             ('Age composition', link('Census population projections', CENSUS),
              'People by age. Check observed consumer units per person before converting projected counts into consumer-unit weights.'),
             ('Price response', 'Matched prices and quantities',
              'Verify product, place and time alignment before testing price response. Source still pending.'),
             ('LLM household', 'Allowed pre-outcome household fields',
-             'Predict spending with the same profiles and budget constraints as the baseline.'),
+             'Give both methods the same household profiles and budget rules. The LLM predicts dollars by category.'),
             ('Fixed-rule baseline', 'Separate reference records',
-             'Estimate a transparent spending rule before either method sees the held-out outcomes.'),
+             'Set the simple spending rule using other survey records before either method sees the test answers.'),
         ],
     )
     values, _, _ = spending_table()
@@ -276,24 +276,38 @@ def build() -> str:
     )
 
     checks = topic(
-        'validation', 'P3', 'Study validation plan',
-        '<p>P3 checks the household model and the market study. The later Codex comparison evaluates the quality of the plans.</p>'
+        'validation', 'P3', 'How we would check the household model',
+        '<p>We would compare predictions with survey records the models did not see during setup. The survey spending is the observed answer we score against. Published group averages show broad patterns; checking predictions for each unit needs individual survey records.</p>'
+        + table('What we would compare and measure', ('Check', 'Observed data', 'Proposed measure'), [
+            ('Spending and model comparison',
+             link('BLS survey spending records', BLS_MICRODATA) + ' for the same U.S. consumer units, periods and categories. Eligible records still need to be confirmed.',
+             'Mean absolute error in dollars by category. Give the LLM and the simple rule the same inputs. Also report signed error by age group and the share of LLM outputs that break the budget rules.'),
+            ('Price response', 'Units bought before and after a price change for the same product, place and period. A suitable source and a credible price change still need to be confirmed.',
+             'Compare the predicted and observed percentage change in quantity. Report the error in percentage points and whether the direction agrees.'),
+            ('Market scenario', 'No observed outcome for the hypothetical older U.S. population mix.',
+             'Repeat the run and compare with prices held fixed. Check whether demand and price paths change when key assumptions change.'),
+        ])
         + steps(
-            '<strong>Spending fit.</strong> Freeze both methods and save their predictions before opening the held-out human spending records. Compare prediction error with a preset tolerance.',
-            '<strong>Value added by the LLM.</strong> Give both methods the same inputs. Compare their errors on the same records against a preset improvement margin and record invalid outputs.',
-            '<strong>Price response.</strong> Check predicted quantity changes against observed responses to price changes. Run the age-mix market scenarios only after both spending fit and price response pass.',
+            '<strong>Set the pass rules before seeing the answers.</strong> The researcher chooses an acceptable spending error and a minimum improvement over the simple rule. Set a separate price-response rule once the data are confirmed.',
+            '<strong>Save both predictions before revealing the answers.</strong> Keep all records from a consumer unit on the same side of the split. Score both methods on the same unseen units and spending categories.',
+            '<strong>Use only the evidence that passes.</strong> If spending records are unavailable, report the published averages. If the LLM fails, retain the simple rule for the supported spending comparison. If the price check fails, stop before price feedback.',
         ) + figure('same-input-holdout.png',
-                   'Proposed same-input holdout: freeze LLM and baseline, record predictions, then unseal outcomes',
-                   '<i>Planned spending validation.</i> If an independent spending target is unavailable, report the published spending comparison. If price-response evidence is unavailable, stop before feedback.'),
+                   'Save predictions from the language model and the simple rule before revealing observed spending.',
+                   '<i>Proposed check. The survey holdout and the price-response test are still open.</i>'),
     )
 
     case = chapter(
-        'household-case', 'Case · LLM households and spending',
-        steps('<strong>Can households represented by a language model reproduce human spending?</strong> If the decision rule passes validation, compare demand and prices under two age mixes.')
-        + roadmap + data + workflow + checks,
+        'household-case', 'Case · Can an LLM predict U.S. household spending by age?',
+        steps(
+            '<strong>Can a language model predict what U.S. households spend?</strong> Compare its dollar predictions for housing, food, transport, health care and entertainment with a simple spending rule.',
+            '<strong>Who counts as a household here?</strong> We use the survey’s consumer unit: one person or a group that shares major expenses. We group units by the age of the person listed as the reference person.',
+            '<strong>What would we simulate next?</strong> In a national U.S. scenario, raise the share of units with a reference person aged 65 or older. Test how spending and, if separately supported, prices could change under the same market rules.',
+        ) + roadmap + data + workflow + checks,
     )
     rubric = 'https://arxiv.org/html/2512.23707v1'
     paper = 'https://proceedings.mlr.press/v306/goel26b.html'
+    ideas = 'https://arxiv.org/html/2409.04109#S4.SS4'
+    judge = 'https://proceedings.neurips.cc/paper_files/paper/2023/hash/91f18a1287b398d378ef22505bf41832-Abstract-Datasets_and_Benchmarks.html'
     criteria = table(
         'Five criteria for comparing research plans',
         ('Criterion', 'What it means', 'How to score', 'Source'),
@@ -309,31 +323,33 @@ def build() -> str:
              link('[1]', rubric + '#A3.SS6.SSS3')),
             ('Feasibility', 'Whether the work fits the available resources.',
              'Check data access, time, compute and staffing. Look for a workable fallback.',
-             link('[1]', rubric + '#A3.SS6.SSS4')),
+             link('[1]', rubric + '#A3.SS6.SSS4') + ' ' + link('[2]', ideas)),
             ('Predicted Outcomes', 'The usefulness of the evidence the proposed work could produce.',
              'Check whether the expected outputs would answer the question and support the next decision.',
-             link('[1]', rubric + '#A3.SS6.SSS5')),
+             link('[1]', rubric + '#A3.SS6.SSS5') + ' ' + link('[2]', ideas)),
         ],
         reveal_rows=True,
     )
     evaluation = chapter(
-        'harness-evaluation', 'Evaluation · Codex vs. Codex + Harness',
+        'harness-evaluation', 'Evaluation · How good were the research plans?',
         steps(
-            '<strong>Compare the plans the two setups produce.</strong> Use the same task and model in six pairs. One Codex reviewer scored the plans with the setup visible.',
-            '<strong>Ask whether another researcher can use the plan.</strong> The five criteria come from Goel et al. The reviewer adapted the paper’s 1–10 overall scale to each criterion.',
+            '<strong>What was scored?</strong> Full plans for the same U.S. spending question. Compare Codex alone with Codex using the Stage 3 planning process.',
+            '<strong>How many runs?</strong> Six paired runs, with one plan per setup in each pair: 12 plans in total.',
+            '<strong>Who scored them?</strong> One Codex reviewer read both plans in each pair and gave each plan five scores and written reasons. The reviewer could see which setup produced each plan.',
+            '<strong>What was the scale?</strong> Each criterion runs from 1 (very weak) to 10 (very strong). We adapted Goel et al.’s overall scale to five separate scores.',
         ) + criteria
-        + '<aside class="reference-card" aria-label="Reference for the evaluation rubric">'
-        + '<div><h3>[1] <i>Training AI Co-Scientists Using Rubric Rewards</i></h3>'
-        + '<p class="source-note"><i>Shashwat Goel et al. · ICML 2026 · PMLR 306</i></p>'
-        + '<p>The paper explains how to judge research plans when running every proposed study is impractical. Appendix C lists the criteria and the overall scale.</p>'
-        + '<p>' + link('Paper', paper) + ' · ' + link('Rubric and scale', rubric + '#A3') + '</p></div>'
+        + '<aside class="reference-card" aria-label="References for the plan evaluation">'
+        + '<div><h3>Why these criteria and checks?</h3>'
+        + '<p>' + link('[1] Goel et al. (2026)', paper) + ' define the five criteria for research plans. Their appendix gives an overall 1–10 score.</p>'
+        + '<p>' + link('[2] Si et al. (2025)', ideas) + ' use separate 1–10 scores for feasibility and expected effectiveness in a study with blinded human reviewers.</p>'
+        + '<p>' + link('[3] Zheng et al. (2023)', judge) + ' show that a language model judge can favor the first answer or a longer answer. Their results motivate hiding setup labels, swapping order and checking agreement with people in a later study.</p></div>'
         + figure('goel-methodology.png', 'Goel et al. Figure 1, overview of research plan generation and rubric-based grading',
                  '<i>Goel et al., Figure 1, arXiv version.</i> ' + link('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'))
         + '</aside>'
-        + '<p class="source-note">Reviewer scores favored the harness on soundness and clear execution and Codex on the other three criteria. The chart uses hypothetical adjusted Harness scores. Bars show means and error bars show 95% paired bootstrap intervals for the plotted values. '
-          '<a href="data/stage3-criteria-plus-one.csv" download>Score data (CSV)</a>.</p>'
-        + figure('stage3-criteria-plus-one.png',
-                 'Grouped means with 95% paired bootstrap intervals. The Harness bars use hypothetical adjusted scores. See Score data for original and plotted values.'),
+        + '<p><strong>Illustration with adjusted scores.</strong> The chart adds one point to each Harness score before averaging the six pairs. Error bars show 95% intervals from resampling the pairs. The original reviewer scores favored the Harness on soundness and clear execution, and Codex on the other three criteria.</p>'
+        + figure('stage3-criteria-plus-one-labelled.png',
+                 'Five mean scores for Codex and Codex with Harness, with numeric labels and 95 percent paired bootstrap intervals. Each Harness score is increased by one point in this illustration.')
+        + '<p class="source-note"><a href="data/stage3-criteria-plus-one.csv" download>Score data (CSV)</a> includes the original scores, the reasons and the illustrated values.</p>',
     )
 
     future_work = chapter(
@@ -342,9 +358,11 @@ def build() -> str:
                'The original roadmap shows the Stage 1 research goal passing through Stage 2 candidate selection into the Stage 3 plan, evidence and checks. Stages 4–6 are future work.',
                'Confirm the complete Stage 1–3 handoff before extending the workflow to Stages 4–6.')
         + steps(
-            '<strong>Stabilize Stages 1–3.</strong> Trace the research goal from Stage 1 to the selected direction in Stage 2. Verify that Stage 3 saves the complete, versioned plan with its evidence and checks. Test whether interrupted work can resume without losing the selection or evidence.',
-            '<strong>Evaluate on more research cases.</strong> Compare complete plans with the same rubric and balanced presentation order. Add independent reviewers and track which criteria improve.',
-            '<strong>Develop Stages 4–6.</strong> Prototype the later stages after the first three are stable. Define what each stage receives, what it delivers, and how researchers verify the result.',
+            '<strong>1. Test Stages 1–3 with a new topic.</strong> Start from a short user prompt. Choose a direction in Stage 2 and check that its sources, limits and open questions reach the Stage 3 plan.',
+            '<strong>2. Test an interrupted session.</strong> Close and reopen the project, return to the same plan and check that the system keeps the choice, evidence and latest saved version without running the same job again.',
+            '<strong>3. Check the research inputs.</strong> Verify the U.S. survey records for the spending holdout. Look for matched prices and quantities. Keep the study at the spending comparison if the price evidence remains insufficient.',
+            '<strong>4. Test the planner on more topics.</strong> Hide setup labels, score the plans in both orders, and ask people to score a sample. Report where judges agree and which criteria change.',
+            '<strong>5. Build Stages 4–6 after the handoff is stable.</strong> Define how each later stage will take the saved plan, produce evidence and hand verified results to the next stage.',
         ),
     )
 
@@ -381,17 +399,16 @@ def build() -> str:
       <output id="position" aria-live="polite" aria-label="Point"></output></div>
     <label class="jump"><span class="sr-only">Jump to section</span><select id="jump">
       <option value="">Jump to section…</option>
-      <option value="motivation">Why plan before running?</option>
       <option value="stage-2">Stage 2 recap</option>
       <option value="stage-3">Stage 3 design</option>
       <optgroup label="Household spending case">
-        <option value="household-case">Household spending case</option>
+        <option value="household-case">Case · U.S. household spending and aging</option>
         <option value="roadmap">P1 · Research roadmap</option>
         <option value="data-methods">P2 · Data and methods</option>
         <option value="study-workflow">P2 · Study workflow</option>
-        <option value="validation">P3 · Study validation plan</option>
+        <option value="validation">P3 · How we would check the household model</option>
       </optgroup>
-      <option value="harness-evaluation">Evaluation · Codex vs. Codex + Harness</option>
+      <option value="harness-evaluation">Evaluation · How good were the research plans?</option>
       <option value="future-work">Future Work</option>
     </select></label>
   </nav>
@@ -400,7 +417,7 @@ def build() -> str:
   <div class="source-preview" id="source-preview" aria-label="Excerpt from build.py">
     <pre><code>{source_preview()}</code></pre>
   </div>
-  {motivation}{recap}{design}{case}{evaluation}{future_work}
+  {recap}{design}{case}{evaluation}{future_work}
 </main>
 <dialog id="figure-dialog" aria-label="Enlarged figure">
   <form method="dialog"><button aria-label="Close enlarged figure" autofocus>Close ×</button></form>

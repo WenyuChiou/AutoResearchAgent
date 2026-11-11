@@ -1,43 +1,49 @@
 # Stage 3 speaker notes
 
-Open [the playback report](index.html). Use the chapter menu to jump. Turn on Step, then press ← or →, or right-click the report text, to advance. Click a figure to enlarge it and press Esc to close it. Turn off Step to read all points. Code controls the Python excerpts and Vars controls the P2 variables.
+Open [the report](index.html). Use the chapter menu, or turn on Step and advance with ← or →. Select a figure to enlarge it and press Esc to close it. Code shows the Python excerpts. Vars shows the inputs and result during the P2 calculation.
 
 | Web section | Original material |
 | --- | --- |
-| [Motivation](index.html#motivation) | Stage 3 opening deck, slide 1 and its speaker notes |
-| [Stage 2 recap](index.html#stage-2) | Stage 3 opening deck, slide 2. The original PNG is embedded in that slide. |
-| [Stage 3 design](index.html#stage-3) | Opening slide 3 and the approved Stage 3 engineering diagram and deliverables |
-| [P1 · Research roadmap](index.html#roadmap) | Reviewed P1 roadmap and supporting questions, opening slide 4 |
-| [P2 · Data and methods](index.html#data-methods) | Original P2 source table, spending trend and BLS operands |
-| [P2 · Study workflow](index.html#study-workflow) | Reviewed operations diagram, opening slides 4–5 and their notes |
-| [P3 · Study validation plan](index.html#validation) | Reviewed P3 same-input holdout diagram and plan |
-| [Evaluation](index.html#harness-evaluation) | Prior six-pair criteria chart, score CSV and Goel et al., Appendix C |
-| [Future Work](index.html#future-work) | Original Stage 1–3 handoff artwork and report notes |
+| [Stage 2 recap](index.html#stage-2) | Stage 3 opening deck, slide 2 and the Stage 2 scientific checks |
+| [Stage 3 design](index.html#stage-3) | Opening slide 3, saved case draft and Stage 3 planning workflow |
+| [U.S. household spending case](index.html#household-case) | Original household spending request and the chosen direction |
+| [P1 · Research roadmap](index.html#roadmap) | Reviewed P1 roadmap and supporting questions |
+| [P2 · Data and methods](index.html#data-methods) | P2 source table, spending trend and published BLS values |
+| [P2 · Study workflow](index.html#study-workflow) | Reviewed operations diagram and proposed market settings |
+| [P3 · Model checks](index.html#validation) | Same-input spending test and proposed measures |
+| [Evaluation](index.html#harness-evaluation) | Original six-pair reviewer scores and three references |
+| [Future Work](index.html#future-work) | Original Stage 1–6 handoff artwork and proposed checks |
 
-## [Motivation and handoff](index.html#motivation)
-“Stage 2 narrows the candidate directions. Stage 3 records what someone would need to run the chosen study.” Advance twice, then point out where the Stage 2 diagram records the selection, evidence and unknowns. 中文提示：先講為什麼選題完成後還需要研究設計，再講哪些資訊會交接。
+## [Stage 2 recap](index.html#stage-2)
+
+Start with the goal: give the researcher a direction that is valuable and feasible. Follow the three questions on the figure. First, show what the closest studies leave open. Then explain what an answer would add. Finally, ask what evidence could answer the question and whether the needed data, time and resources are available. The researcher chooses the direction. Stage 3 turns it into a study plan using the evidence and the gaps that remain.
 
 ## [Stage 3 design](index.html#stage-3)
-Advance through the three gaps. In the saved P02 example, public spending data and inflation series helped frame the study. The plan still needed matched prices and quantities. Trace source checks and targeted search, schema checks, separate design review, revision and the saved plan. Point to the four deliverables before jumping to the case.
 
-## [P1 · Research roadmap](index.html#roadmap)
-“Can a language model reproduce spending, does it beat a simple rule, and under what conditions can we compare age mixes?” On the diagram, follow the spending check first and the price-response check separately. Point to the fallback if either check fails. SQ3 compares decision rules on the same inputs. SQ2 changes the age mix under fixed rules after validation.
+Use the $20 example. Dollars spent cannot tell us how quantity responds to a price change. Trace the four numbered steps, from checking sources to saving the version after the researcher confirms. A missing input sends us back to search or narrows the plan. The design reviewer can ask for changes. The researcher checks the sources, comparisons and pass rules before confirming a version. The four links under the figure show what the saved plan gives us.
+
+## [U.S. household spending case](index.html#household-case)
+
+We focus on U.S. household spending in five categories. A consumer unit means one person or a group that shares major expenses. Age refers to the survey’s reference person. Use the [P1 diagram](index.html#roadmap) to show the same-input LLM comparison, the separate price check and the older-mix scenario.
 
 ## [P2 · Data and methods](index.html#data-methods)
-Point to the national U.S. scope. The time series uses annual survey group means in 2024 dollars. Holdout validation requires eligible independent records. Published aggregate spending describes spending by age of the consumer unit’s reference person.
 
-At [the Python calculation](index.html#share-calculation), scroll to “What does a one-point shift change?” and advance through its three bullets. Open Python calculation. Use 106,658 (F51) and 69,333 (I51) in nominal 2025 dollars. With both means fixed, moving one percentage point from ages 45–54 to 65–74 changes the weighted annual mean by −373.25 USD per consumer unit. Show the signed result and move on to clear the variables. 中文提示：這是兩組公開平均數的試算，並未使用市場模擬的權重。
+The trend shows published U.S. group averages in 2024 dollars. At [the Python calculation](index.html#share-calculation), reveal the two means, the one-point shift and its result. Using the nominal 2025 means of $106,658 and $69,333, the weighted average falls by $373.25 per consumer unit. This calculation keeps the group means fixed.
 
-Sources: [BLS Table 1300 workbook](https://www.bls.gov/cex/tables/calendar-year/mean-item-share-average-standard-error/reference-person-age-ranges-2025.xlsx), [reproduction inputs](data/ce-age-means-2025.csv), and the series links under the trend chart.
+Sources: [BLS Table 1300 workbook](https://www.bls.gov/cex/tables/calendar-year/mean-item-share-average-standard-error/reference-person-age-ranges-2025.xlsx), [calculation inputs](data/ce-age-means-2025.csv) and the series links under the trend chart.
 
 ## [P2 · Study workflow](index.html#study-workflow)
-Trace the LLM or fixed decision rule, then the market. The rule requests purchases. The market determines allocation, actual purchases, prices and the next state. Explain S0 using 39,878 / 137,994 thousand consumer units and S1 as a proposed five-point increase in the 65+ share. Compare the same quantities in both scenarios and use a separate fixed-price control. A dated forecast requires verified future consumer-unit weights.
 
-## [P3 · Study validation plan](index.html#validation)
-Point to the sealed spending outcomes. Both methods get the same inputs and save predictions before scoring. Price response requires a separate matched quantity check. If the required evidence is unavailable, stop at the supported spending comparison. 中文提示：本節驗證家庭與市場研究，下一節比較的是規劃品質。
+The household model requests purchases. The market allocates supply and updates prices. S0 uses the 2025 mix. S1 adds five percentage points to the 65+ share. Both would use the same budget, starting prices and rules. The older mix is a proposed scenario.
+
+## [P3 · Model checks](index.html#validation)
+
+Point to observed spending from survey units kept out of setup. Compare both methods with those same records and measure the average dollar error. A price-response test needs its own matched data and rule. The hypothetical market scenario can be checked for repeatability and against a fixed-price run. The team still needs to confirm data and freeze the pass rules.
 
 ## [Evaluation](index.html#harness-evaluation)
-Advance one criterion at a time. The source paper gives criteria-wise preferences and an overall 1–10 scale. This report’s reviewer adapted that scale to each criterion. The six pairs concern one task and one visible setup comparison by one Codex reviewer. The original ratings favor the harness for soundness and clear execution and favor Codex for the other three. The Harness bars and intervals use hypothetical adjusted scores. Use the original reviewer ratings when describing the observed comparison. See [Score data (CSV)](data/stage3-criteria-plus-one.csv) for the raw ratings, plotted values and reviewer reasons. Bootstrap intervals resample the six pairs.
+
+This compares the quality of plans. One Codex reviewer scored 12 plans in six visible pairs, using 1–10 for each criterion. [Goel et al.](https://proceedings.mlr.press/v306/goel26b.html) define the criteria, [Si et al.](https://arxiv.org/html/2409.04109#S4.SS4) support separate feasibility and expected effectiveness ratings, and [Zheng et al.](https://arxiv.org/abs/2306.05685) motivate order and human agreement checks for a later evaluation. The chart illustrates what happens when each Harness score increases by one point. The labels show the resulting means. Error bars resample the six pairs. The CSV contains the original reviewer scores. [Score data](data/stage3-criteria-plus-one.csv) preserves the ratings, reasons and earlier illustrative values.
 
 ## [Future Work](index.html#future-work)
-Use the original roadmap to trace the Stage 1 research goal, the Stage 2 choice and the Stage 3 saved plan. Test the handoff and recovery from interrupted work. Test other research questions with independent reviewers. Define the inputs, outputs and checks for Stages 4–6 after the first three are stable.
+
+Start with a fresh topic and an interrupted session to test the whole Stage 1–3 handoff. Verify the spending holdout and price data. Compare plans across more topics with blind, order-balanced review and a human check. Show how later stages would use the saved plan once the handoff is stable.
