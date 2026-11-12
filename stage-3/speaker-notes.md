@@ -9,8 +9,8 @@ Open [the report](index.html). Use the chapter menu, or turn on Step and advance
 | [U.S. household spending case](index.html#household-case) | Original household spending request and the chosen direction |
 | [P1 · Research roadmap](index.html#roadmap) | Reviewed P1 roadmap and supporting questions |
 | [P2 · Data and methods](index.html#data-methods) | P2 source table, spending trend and published BLS values |
-| [P2 · Study workflow](index.html#study-workflow) | Reviewed operations diagram and proposed market settings |
-| [P3 · Model checks](index.html#validation) | Same-input spending test and proposed measures |
+| [P2 · Study workflow](index.html#study-workflow) | S0 and S1, the food market loop and the fixed-price control |
+| [P3 · Study validation](index.html#validation) | Spending, price response and scenario comparisons |
 | [Evaluation](index.html#harness-evaluation) | Original six-pair reviewer scores and three references |
 | [Future Work](index.html#future-work) | Original Stage 1–6 handoff artwork and proposed checks |
 
@@ -38,11 +38,19 @@ Sources: [BLS Table 1300 workbook](https://www.bls.gov/cex/tables/calendar-year/
 
 ## [P2 · Study workflow](index.html#study-workflow)
 
-“That calculation kept group spending fixed. In the planned simulation, purchases and prices can respond.” Walk through one round. A household requests purchases, the market allocates available supply, and the next round uses the updated prices. S0 uses the 2025 mix. S1 adds five percentage points to the share aged 65 and over. Start both runs with the same budget, prices and rules.
+Start with the timeline. We use the 2023 U.S. spending diaries to set a simple rule and show reference examples to the language model. Then we give both methods the same household profiles from January through December 2024 and ask for one week's spending on food at home. The survey's reported dollars are kept for scoring. The historical chart covers 2010–2025 and gives background on spending by age.
 
-## [P3 · Model checks](index.html#validation)
+Now point to the top of the market figure. S0 uses the 2023 U.S. age mix from BLS Table 12. In S1, the share of consumer units with a reference person aged 65 or older rises from 27.63% to 32.63%. The two cases start with the same profile pool, weekly budgets, prices and supply. We propose running each case from week 1 to week 52. The older mix is hypothetical and has no forecast year.
 
-“Before we run that market scenario, how do we know the model is ready?” Point to the unseen survey spending used to score both methods. Then explain the separate price check. It needs observed changes in the amount bought when prices move. The team still needs to confirm the data and decide what counts as a pass.
+Follow one week through the three boxes. The LLM sees the consumer unit’s age band, size and income band, its weekly food budget, the available foods and current unit prices. It asks for a quantity of each food. Code checks the budget and the market allocates available supply. The market then updates the prices that households see the following week. The price and quantity data still have to pass the check on the next page before we turn on that loop.
+
+## [P3 · Study validation](index.html#validation)
+
+Start with spending. Give the LLM and the simple rule the same household profiles from the reserved 2024 diary weeks. Keep both weeks from any one consumer unit together. The researcher holding the spending answers opens them only after both sets of predictions are saved. Score the average absolute error in dollars per unit per week, overall and by age band. Set the acceptance rules before opening the answers.
+
+Next ask how well the model responds to prices. When a product’s price changes, compare the predicted change in quantity with what people actually bought. The two changes must refer to the same product, place and period. The matched data are still needed.
+
+Finally, return to S0 and S1. After both checks pass, compare the two 52-week paths with price updates and repeat with the starting prices held fixed. The change in the gap shows what the price rule contributes inside this model. If the price check cannot pass, report the historical spending comparison.
 
 ## [Evaluation](index.html#harness-evaluation)
 
