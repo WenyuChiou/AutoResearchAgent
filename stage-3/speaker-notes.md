@@ -20,30 +20,36 @@ Start with the goal: give the researcher a direction that is valuable and feasib
 
 ## [Stage 3 design](index.html#stage-3)
 
-Use the $20 example. Dollars spent cannot tell us how quantity responds to a price change. Trace the four numbered steps, from checking sources to saving the version after the researcher confirms. A missing input sends us back to search or narrows the plan. The design reviewer can ask for changes. The researcher checks the sources, comparisons and pass rules before confirming a version. The four links under the figure show what the saved plan gives us.
+“With a direction chosen, the next job is to design a study. In our U.S. spending example, the draft proposed checking spending predictions. A survey record tells us what a household spent. To see how buying responds to a price change, we also need the price and the amount bought.” Trace the four steps on the figure. When evidence is missing, the planner looks for it or narrows the question. Design review can send the plan back for changes before the researcher confirms it. Point to the four outputs in the order they appear below. The household case shows them in a conditional plan. Its price evidence and formal confirmation are still open.
 
 ## [U.S. household spending case](index.html#household-case)
 
-We focus on U.S. household spending in five categories. A consumer unit means one person or a group that shares major expenses. Age refers to the survey’s reference person. Use the [P1 diagram](index.html#roadmap) to show the same-input LLM comparison, the separate price check and the older-mix scenario.
+“Let’s follow those four outputs using the same U.S. spending example.” Name the five spending categories. Explain that a consumer unit means one person or a group that shares major expenses. Age refers to the survey’s reference person.
+
+## [P1 · Research roadmap](index.html#roadmap)
+
+“Before we simulate an older population, we need to know whether our models can predict spending and whether they respond plausibly when prices move.” Follow those two checks on the roadmap. The simple rule gets the same inputs as the language model. Once the checks support a model, the scenario changes the age mix.
 
 ## [P2 · Data and methods](index.html#data-methods)
 
-The trend shows published U.S. group averages in 2024 dollars. At [the Python calculation](index.html#share-calculation), reveal the two means, the one-point shift and its result. Using the nominal 2025 means of $106,658 and $69,333, the weighted average falls by $373.25 per consumer unit. This calculation keeps the group means fixed.
+“What data can answer those questions? We already have published averages by age group. To score predictions for an individual household, we’ll need separate survey records that the models haven’t seen.” Point out that the trend uses 2024 dollars. At the Python calculation, reveal the two means, the one-point shift and its result. Using the nominal 2025 means of $106,658 and $69,333, the weighted average falls by $373.25 per consumer unit. This calculation keeps the group means fixed. [Python calculation](index.html#share-calculation)
 
 Sources: [BLS Table 1300 workbook](https://www.bls.gov/cex/tables/calendar-year/mean-item-share-average-standard-error/reference-person-age-ranges-2025.xlsx), [calculation inputs](data/ce-age-means-2025.csv) and the series links under the trend chart.
 
 ## [P2 · Study workflow](index.html#study-workflow)
 
-The household model requests purchases. The market allocates supply and updates prices. S0 uses the 2025 mix. S1 adds five percentage points to the 65+ share. Both would use the same budget, starting prices and rules. The older mix is a proposed scenario.
+“That calculation kept group spending fixed. In the planned simulation, purchases and prices can respond.” Walk through one round. A household requests purchases, the market allocates available supply, and the next round uses the updated prices. S0 uses the 2025 mix. S1 adds five percentage points to the share aged 65 and over. Start both runs with the same budget, prices and rules.
 
 ## [P3 · Model checks](index.html#validation)
 
-Point to observed spending from survey units kept out of setup. Compare both methods with those same records and measure the average dollar error. A price-response test needs its own matched data and rule. The hypothetical market scenario can be checked for repeatability and against a fixed-price run. The team still needs to confirm data and freeze the pass rules.
+“Before we run that market scenario, how do we know the model is ready?” Point to the unseen survey spending used to score both methods. Then explain the separate price check. It needs observed changes in the amount bought when prices move. The team still needs to confirm the data and decide what counts as a pass.
 
 ## [Evaluation](index.html#harness-evaluation)
 
-This compares the quality of plans. One Codex reviewer scored 12 plans in six visible pairs, using 1–10 for each criterion. [Goel et al.](https://proceedings.mlr.press/v306/goel26b.html) define the criteria, [Si et al.](https://arxiv.org/html/2409.04109#S4.SS4) support separate feasibility and expected effectiveness ratings, and [Zheng et al.](https://arxiv.org/abs/2306.05685) motivate order and human agreement checks for a later evaluation. The chart illustrates what happens when each Harness score increases by one point. The labels show the resulting means. Error bars resample the six pairs. The CSV contains the original reviewer scores. [Score data](data/stage3-criteria-plus-one.csv) preserves the ratings, reasons and earlier illustrative values.
+“We just covered how the proposed study would check its predictions. Now we’re comparing the quality of the plans themselves.” One Codex reviewer scored 12 plans in six visible pairs, using 1–10 for each criterion. Introduce the rubric and the reviewer’s access to the setup labels before showing the chart. [Goel et al.](https://proceedings.mlr.press/v306/goel26b.html) · [Si et al.](https://arxiv.org/html/2409.04109#S4.SS4) · [Zheng et al.](https://arxiv.org/abs/2306.05685)
+
+Say which criteria each setup led on in the original ratings. Then introduce the chart aloud. “This illustration adds one point to every Harness rating before taking the six-pair averages.” The chart’s error bars resample the six pairs. [Original ratings and illustrated values](data/stage3-criteria-plus-one.csv)
 
 ## [Future Work](index.html#future-work)
 
-Start with a fresh topic and an interrupted session to test the whole Stage 1–3 handoff. Verify the spending holdout and price data. Compare plans across more topics with blind, order-balanced review and a human check. Show how later stages would use the saved plan once the handoff is stable.
+“We’ve looked at one topic with one reviewer. Next we’ll see whether the workflow holds up on a fresh topic and when a session is interrupted.” Confirm the missing spending and price data. Compare plans across more topics with hidden setup labels, balanced order and human review. Once the Stage 1–3 handoff is stable, later stages can build on the saved plan.
