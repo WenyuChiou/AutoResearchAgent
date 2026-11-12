@@ -15,5 +15,13 @@
     "url": "https://arxiv.org/html/2512.23707v1/Fig2_methodology.png",
     "sha256": "122f75d2c151a5f31e0191b4086c07f47d5bc01821453ac618edbb687cf22747",
     "license": "CC BY 4.0"
+  },
+  "market_age_mix_2023": {
+    "url": "https://www.bls.gov/opub/reports/consumer-expenditures/2023/home.htm",
+    "table": 12,
+    "consumer_units_thousands": {
+      "all": 134556,
+      "reference_person_65_plus": 37173
+    }
   }
 }
