@@ -114,6 +114,20 @@ jobs:
         run: uv run --frozen --project scripts ruff check plugins/auto-research-agent .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/ci_test_routing.py .github/scripts/test_ci_test_routing.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
       - name: Check plugin spelling
         run: uvx --from codespell==2.4.3 codespell AGENTS.md plugins/auto-research-agent .agents/plugins/marketplace.json .github/pull_request_template.md .github/scripts/fixtures/pr_bodies .github/scripts/fixtures/pr_evidence .github/scripts/criterion-submetric-map.v1.json .github/scripts/invariant-registry.v1.json .github/scripts/ci_scope.py .github/scripts/test_ci_scope.py .github/scripts/ci_test_routing.py .github/scripts/test_ci_test_routing.py .github/scripts/stage1_test_scope.py .github/scripts/test_stage1_test_scope.py .github/scripts/validate_research_pr.py .github/scripts/test_validate_research_pr.py .github/scripts/check_research_pr_dependencies.py .github/scripts/test_check_research_pr_dependencies.py .github/scripts/test_stage1_ci_quality.py
+      - name: Prepare pinned Wiki browser dependencies
+        if: ${{ (needs.scope.outputs.plugin_test_scope == 'ui' || needs.scope.outputs.plugin_test_scope == 'full') && (matrix.os != 'windows-latest' || env.PLUGIN_TEST_PROFILE == 'full') }}
+        shell: pwsh
+        run: |
+          python harness-ui/setup_vendor.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $wikiBrowserRoot = Join-Path $env:RUNNER_TEMP ("wiki-browser-" + [guid]::NewGuid())
+          npm install --prefix $wikiBrowserRoot --ignore-scripts --no-audit --no-fund --save-exact playwright@1.62.1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $playwrightModule = Join-Path $wikiBrowserRoot "node_modules/playwright"
+          node (Join-Path $playwrightModule "cli.js") install --with-deps chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "PLAYWRIGHT_MODULE=$playwrightModule" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "PROJECT_WIKI_COMPLETION_EVIDENCE_ROOT=$(Join-Path $env:RUNNER_TEMP 'project-wiki-completion')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Plugin loading and stage contracts
         if: ${{ needs.scope.outputs.plugin_test_scope != 'governance' }}
         env:

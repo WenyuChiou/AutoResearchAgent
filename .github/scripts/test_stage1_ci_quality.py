@@ -4,6 +4,7 @@ import os
 import re
 from pathlib import Path
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -193,6 +194,91 @@ class Stage1CiQualityTests(unittest.TestCase):
                     names[name]["run"],
                     "python .github/scripts/stage1_test_scope.py" + suffix,
                 )
+
+    def test_wiki_dependency_setup_propagates_failures_before_exporting_paths(self):
+        workflow = yaml.load(
+            (REPO_ROOT / ".github/workflows/stage1-plugin.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        steps = workflow["jobs"]["contracts"]["steps"]
+        names = {step.get("name"): step for step in steps}
+        setup = names["Prepare pinned Wiki browser dependencies"]
+        self.assertEqual(setup["shell"], "pwsh")
+        self.assertEqual(
+            setup["if"],
+            "${{ (needs.scope.outputs.plugin_test_scope == 'ui' || "
+            "needs.scope.outputs.plugin_test_scope == 'full') && "
+            "(matrix.os != 'windows-latest' || env.PLUGIN_TEST_PROFILE == 'full') }}",
+        )
+        self.assertLess(
+            steps.index(setup), steps.index(names["Plugin loading and stage contracts"])
+        )
+        shell = shutil.which("pwsh")
+        self.assertIsNotNone(shell, "CI dependency setup requires PowerShell")
+        for failed_command in ("python", "npm", "node", None):
+            with self.subTest(failed_command=failed_command):
+                with tempfile.TemporaryDirectory(prefix="wiki-deps-") as directory:
+                    temporary = Path(directory)
+                    calls = temporary / "calls.txt"
+                    exports = temporary / "github-env.txt"
+                    script = temporary / "setup.ps1"
+                    stubs = ""
+                    for command in ("python", "npm", "node"):
+                        exit_code = 23 if command == failed_command else 0
+                        stubs += (
+                            f'function {command} {{ "{command} $args" | '
+                            "Out-File $env:TEST_CALLS -Append -Encoding utf8; "
+                            f"$global:LASTEXITCODE = {exit_code} }}\n"
+                        )
+                    script.write_text(stubs + setup["run"], encoding="utf8")
+                    result = subprocess.run(
+                        [shell, "-NoProfile", "-NonInteractive", "-File", str(script)],
+                        env={
+                            **os.environ,
+                            "RUNNER_TEMP": str(temporary),
+                            "GITHUB_ENV": str(exports),
+                            "TEST_CALLS": str(calls),
+                        },
+                        capture_output=True,
+                        text=True,
+                        encoding="utf8",
+                        timeout=30,
+                    )
+                    self.assertEqual(
+                        result.returncode, 23 if failed_command else 0, result.stderr
+                    )
+                    commands = calls.read_text(encoding="utf-8-sig").splitlines()
+                    expected_count = (
+                        ("python", "npm", "node").index(failed_command) + 1
+                        if failed_command
+                        else 3
+                    )
+                    self.assertEqual(len(commands), expected_count)
+                    self.assertEqual(exports.exists(), failed_command is None)
+                    if failed_command is None:
+                        self.assertEqual(
+                            commands[0], "python harness-ui/setup_vendor.py"
+                        )
+                        self.assertIn("--ignore-scripts", commands[1])
+                        self.assertIn("playwright@1.62.1", commands[1])
+                        self.assertTrue(
+                            commands[2].endswith("install --with-deps chromium")
+                        )
+                        values = dict(
+                            line.split("=", 1)
+                            for line in exports.read_text(
+                                encoding="utf-8-sig"
+                            ).splitlines()
+                        )
+                        self.assertEqual(
+                            set(values),
+                            {
+                                "PLAYWRIGHT_MODULE",
+                                "PROJECT_WIKI_COMPLETION_EVIDENCE_ROOT",
+                            },
+                        )
+                        for value in values.values():
+                            self.assertTrue(Path(value).is_relative_to(temporary))
 
     def test_contract_environment_keeps_spawned_and_nested_imports_read_only(self):
         workflow = yaml.load(
