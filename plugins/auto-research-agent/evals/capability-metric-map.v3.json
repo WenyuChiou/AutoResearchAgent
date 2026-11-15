@@ -487,7 +487,9 @@
         "plugins/auto-research-agent/tests/test_project_stage1_review_regressions.py",
         "plugins/auto-research-agent/tests/test_project_stage1_factory_adapter.py",
         "plugins/auto-research-agent/tests/test_project_selection_read_sources.py",
-        "plugins/auto-research-agent/tests/test_project_stage3_read_verification.py"
+        "plugins/auto-research-agent/tests/test_project_stage3_read_verification.py",
+        "plugins/auto-research-agent/tests/test_project_completion.py",
+        "plugins/auto-research-agent/tests/test_project_wiki_completion_e2e.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,
@@ -620,6 +622,11 @@
         "plugins/auto-research-agent/tests/test_project_stage2_selection_oneclick.cjs",
         "plugins/auto-research-agent/tests/test_project_stage2_selection_embedded.cjs",
         "plugins/auto-research-agent/tests/browser/project-stage3-wiki.cjs"
+      ],
+      "projecthost_completion_evidence_contract": "Read-only current ProjectHost submission and saved Stage 3 plan inspection uses the existing authenticated services, exact project/input/delivery/submission/job/plan pins and caller-supplied trusted browser observations. The generic completion adapter imports no code from JSON, dispatches no jobs, distinguishes tentative advice from formal selection, and never claims human identity or research execution authority.",
+      "projecthost_completion_evidence_test_refs": [
+        "plugins/auto-research-agent/tests/test_project_completion.py",
+        "plugins/auto-research-agent/tests/test_project_wiki_completion_e2e.py"
       ]
     },
     {
