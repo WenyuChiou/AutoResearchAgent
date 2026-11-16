@@ -7,10 +7,13 @@ run normally, retaining unverified claims and source/version/hash provenance.
 
 from copy import deepcopy
 import json
+import os
 import shutil
 from pathlib import Path
+import stat
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -23,9 +26,95 @@ from stage1_deliverable.common import sha
 from stage1_ledger.journal import LedgerError, canonical
 from stage2_common import Stage2Error, canonical_hash
 from stage2_workflow import build_stage2_seed
+from stage2_workflow.store import _io
 import test_research_brief as brief_fixture
 import test_stage1_deliverable as package_fixture
 import test_stage1_stage2_handoff as handoff_fixture
+
+
+def _windows_fixture_identities(root):
+    identities = []
+    for path in (*reversed(root.parents), root):
+        info = _io(path).lstat()
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or info.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT
+        ):
+            raise RuntimeError(
+                f"Stage 2 fixture directory is linked or invalid: {path}"
+            )
+        identities.append((info.st_dev, info.st_ino))
+    return identities
+
+
+def _remove_windows_fixture_root(root, expected):
+    if _windows_fixture_identities(root) != expected:
+        raise RuntimeError(f"Stage 2 fixture directory identity changed: {root}")
+    shutil.rmtree(_io(root))
+
+
+def _new_project_stage2_root(test):
+    if os.name != "nt":
+        temporary = tempfile.TemporaryDirectory(prefix="project-stage2-")
+        test.addCleanup(temporary.cleanup)
+        return Path(temporary.name).resolve()
+
+    parent = Path(tempfile.gettempdir())
+    ancestry = _windows_fixture_identities(parent)
+    # Use mkdtemp so a rejected cleanup cannot be retried by a finalizer.
+    root = Path(tempfile.mkdtemp(prefix="project-stage2-", dir=parent))
+    if root.parent != parent:
+        raise RuntimeError(f"Stage 2 fixture directory is outside its parent: {root}")
+    expected = _windows_fixture_identities(root)
+    if expected[:-1] != ancestry:
+        raise RuntimeError(f"Stage 2 fixture parent identity changed: {root}")
+    test.addCleanup(_remove_windows_fixture_root, root, expected)
+    return root
+
+
+@unittest.skipUnless(os.name == "nt", "Windows long-path fixture cleanup")
+class ProjectStage2FixtureCleanupTests(unittest.TestCase):
+    def test_owned_fixture_cleanup_removes_deep_files(self):
+        root = _new_project_stage2_root(self)
+        for length in (295, 306):
+            path = root / "actions" / ("x" * 100) / ("y" * 60)
+            leaf = path / ("z" * (length - len(str(path)) - 1))
+            self.assertEqual(len(str(leaf)), length)
+            _io(path).mkdir(parents=True, exist_ok=True)
+            _io(leaf).write_bytes(b"owned synthetic fixture")
+            self.assertEqual(_io(leaf).read_bytes(), b"owned synthetic fixture")
+        self.assertTrue(self.doCleanups())
+        self.assertFalse(root.exists())
+
+    def test_owned_fixture_cleanup_refuses_reparse_and_replacement(self):
+        with tempfile.TemporaryDirectory(prefix="stage2-cleanup-control-") as directory:
+            root = Path(directory) / "owned"
+            root.mkdir()
+            expected = _windows_fixture_identities(root)
+            root_info = _io(root).lstat()
+            real_lstat = Path.lstat
+
+            def reparse_at_root(path):
+                if path == _io(root):
+                    return SimpleNamespace(
+                        st_mode=root_info.st_mode,
+                        st_file_attributes=stat.FILE_ATTRIBUTE_REPARSE_POINT,
+                    )
+                return real_lstat(path)
+
+            with patch.object(Path, "lstat", reparse_at_root):
+                with self.assertRaisesRegex(RuntimeError, "linked or invalid"):
+                    _remove_windows_fixture_root(root, expected)
+            self.assertTrue(root.is_dir())
+
+            original = root.rename(root.with_name("original"))
+            root.mkdir()
+            marker = root / "replacement.txt"
+            marker.write_bytes(b"replacement fixture")
+            with self.assertRaisesRegex(RuntimeError, "identity changed"):
+                _remove_windows_fixture_root(root, expected)
+            self.assertEqual(marker.read_bytes(), b"replacement fixture")
+            self.assertTrue(original.is_dir())
 
 
 class ProjectStage2Tests(unittest.TestCase):
@@ -45,9 +134,7 @@ class ProjectStage2Tests(unittest.TestCase):
         cls.handoff = deepcopy(handoff.handoff)
 
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix="project-stage2-")
-        self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name).resolve()
+        self.root = _new_project_stage2_root(self)
         self.store_root = self.root / "projects"
         self.authenticate = lambda key: "researcher" if key == "own" else "other"
         self.intake = ProjectIntakeService(
