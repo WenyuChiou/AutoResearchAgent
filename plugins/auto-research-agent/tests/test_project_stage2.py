@@ -77,8 +77,16 @@ class ProjectStage2FixtureCleanupTests(unittest.TestCase):
     def test_owned_fixture_cleanup_removes_deep_files(self):
         root = _new_project_stage2_root(self)
         for length in (295, 306):
-            path = root / "actions" / ("x" * 100) / ("y" * 60)
-            leaf = path / ("z" * (length - len(str(path)) - 1))
+            path = root
+            remaining = length - len(str(root)) - 1
+            self.assertGreater(
+                remaining, 0, f"fixture root leaves no filename at {length} characters"
+            )
+            while remaining > 120:
+                directory = "x" * 100
+                path /= directory
+                remaining -= len(directory) + 1
+            leaf = path / ("z" * remaining)
             self.assertEqual(len(str(leaf)), length)
             _io(path).mkdir(parents=True, exist_ok=True)
             _io(leaf).write_bytes(b"owned synthetic fixture")
