@@ -5,6 +5,9 @@ import copy
 import hashlib
 import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
+import stat
+
+from stage1_deliverable.common import DeliverableError, reject_links
 
 
 def _require(condition, message, error_type):
@@ -12,7 +15,9 @@ def _require(condition, message, error_type):
         raise error_type(message)
 
 
-def _receipt_path(root, relative, error_type):
+def _receipt_path(root, relative, error_type, *, require_file=True):
+    from stage2_workflow.store import _io, _resolved
+
     _require(
         isinstance(relative, str), "prior-work receipt path must be text", error_type
     )
@@ -23,19 +28,33 @@ def _receipt_path(root, relative, error_type):
         and not windows.is_absolute()
         and windows.drive == ""
         and "\\" not in relative
+        and ":" not in relative
         and relative == posix.as_posix()
         and all(part not in {"", ".", ".."} for part in posix.parts),
         f"prior-work receipt path must be portable and relative: {relative}",
         error_type,
     )
-    root = Path(root).resolve()
-    path = (root / Path(*posix.parts)).resolve()
+    root = Path(root)
+    path = root.joinpath(*posix.parts)
+    target = _io(path)
     try:
-        path.relative_to(root)
+        # Check the supplied path before resolution can conceal a reparse point.
+        reject_links(target)
+    except DeliverableError as error:
+        raise error_type(
+            f"prior-work receipt path is linked: {relative}: {error}"
+        ) from error
+    try:
+        _resolved(path).relative_to(_resolved(root))
     except ValueError as error:
         raise error_type(f"prior-work receipt path escapes root: {relative}") from error
-    _require(path.is_file(), f"prior-work receipt missing: {relative}", error_type)
-    return path
+    if require_file:
+        try:
+            regular = stat.S_ISREG(target.stat().st_mode)
+        except (FileNotFoundError, NotADirectoryError):
+            regular = False
+        _require(regular, f"prior-work receipt missing: {relative}", error_type)
+    return target
 
 
 def _strict_json(raw, label, error_type):

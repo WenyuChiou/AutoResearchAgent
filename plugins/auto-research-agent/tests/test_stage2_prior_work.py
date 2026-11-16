@@ -7,9 +7,11 @@ import io
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from types import SimpleNamespace
 
 
@@ -47,6 +49,7 @@ from stage2_workflow.evaluation_delivery import (  # noqa: E402
 )
 from stage2_workflow.reviews import prepare_review  # noqa: E402
 from stage2_workflow.store import (  # noqa: E402
+    _io,
     add_snapshot,
     initialize_workflow,
     inspect_workflow,
@@ -441,6 +444,141 @@ class Stage2PriorWorkTests(unittest.TestCase):
         retained_receipt.write_text("{}", encoding="utf-8")
         with self.assertRaisesRegex(Stage2Error, "input-view-artifact-mismatch"):
             materialize_snapshot_input_root(snapshot, self.root / "combined-input-view")
+
+    @unittest.skipUnless(os.name == "nt", "Windows prior-work I/O")
+    def test_checker_copies_and_reads_long_prior_work_receipt(self):
+        run = self.root / "checker-long-prior-work"
+        original = (self.source_root / self.receipt_path).read_bytes()
+        prefix = self.source_root / "receipts"
+        name = "r" * (249 - len(str(prefix)) - len(".json") - 1) + ".json"
+        source = prefix / name
+        source.write_bytes(original)
+        relative = f"receipts/{name}"
+        search = self.packet["prior_work_reviews"][0]["searches"][0]
+        search["raw_path"] = relative
+        expected = search["raw_sha256"]
+        packet_path = self.root / "packet-long.json"
+        packet_path.write_bytes(
+            json.dumps(
+                self.packet, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+            ).encode()
+        )
+        packet_sha = canonical_hash(self.packet)
+        stored = run / "prior_work_receipts" / relative
+        self.assertEqual(len(str(source)), 249)
+        self.assertGreaterEqual(len(str(stored)), 262)
+        print(
+            f"prior-work source={len(str(source))}, target={len(str(stored))}, sha256={expected}",
+            flush=True,
+        )
+        manifest = initialize_run(packet_path, self.source_root, run, packet_sha)
+        self.assertEqual(_io(stored).read_bytes(), original)
+        (snapshot,) = manifest["prior_work_receipts"]
+        self.assertEqual(snapshot["original_path"], relative)
+        self.assertEqual(snapshot["stored_path"], "prior_work_receipts/" + relative)
+        self.assertEqual(snapshot["sha256"], expected)
+        self.assertEqual(hashlib.sha256(_io(stored).read_bytes()).hexdigest(), expected)
+        state = inspect_run(run)
+        self.assertEqual(state["manifest"], manifest)
+        self.assertEqual(
+            initialize_run(packet_path, self.source_root, run, packet_sha), manifest
+        )
+
+        self.addCleanup(_io(stored).unlink)
+        _io(stored).write_bytes(b"tampered synthetic receipt")
+        with self.assertRaisesRegex(Stage2Error, "prior-work receipt hash mismatch"):
+            inspect_run(run)
+
+        aborted = self.root / "aborted-long-prior-work"
+        aborted_leaf = aborted / "prior_work_receipts" / relative
+
+        def fail_after_copy(*_):
+            self.assertEqual(_io(aborted_leaf).read_bytes(), original)
+            raise RuntimeError("authored error after prior-work copy")
+
+        with (
+            patch("stage2_check.run._write_new", side_effect=fail_after_copy),
+            self.assertRaisesRegex(
+                RuntimeError, "authored error after prior-work copy"
+            ),
+        ):
+            initialize_run(packet_path, self.source_root, aborted, packet_sha)
+        self.assertFalse(_io(aborted).exists())
+        self.assertEqual(source.read_bytes(), original)
+
+        alias = self.root / "source-junction"
+        subprocess.run(
+            ["cmd.exe", "/d", "/c", "mklink", "/J", str(alias), str(self.source_root)],
+            check=True,
+            capture_output=True,
+        )
+        self.addCleanup(alias.rmdir)
+        rejected = self.root / "junction-must-not-build"
+        with self.assertRaisesRegex(Stage2Error, "reparse point"):
+            initialize_run(packet_path, alias, rejected, packet_sha)
+        self.assertFalse(rejected.exists())
+        self.assertEqual(source.read_bytes(), original)
+
+        long_source = source.with_name("long-source-" + source.name)
+        self.assertGreaterEqual(len(str(long_source)), 260)
+        _io(long_source).write_bytes(original)
+        self.addCleanup(_io(long_source).unlink)
+        search["raw_path"] = "receipts/" + long_source.name
+        packet_path.write_text(json.dumps(self.packet), encoding="utf-8")
+        second = self.root / "checker-long-source"
+        second_leaf = second / "prior_work_receipts" / search["raw_path"]
+        self.addCleanup(_io(second_leaf).unlink, missing_ok=True)
+        manifest = initialize_run(
+            packet_path, self.source_root, second, canonical_hash(self.packet)
+        )
+        self.assertEqual(_io(second_leaf).read_bytes(), original)
+        self.assertEqual(inspect_run(second)["manifest"], manifest)
+
+    def test_prior_work_conflict_and_replaced_run_never_overwrite_or_delete_foreign_bytes(
+        self,
+    ):
+        packet_path = self.root / "packet-conflict.json"
+        packet_path.write_bytes(
+            json.dumps(
+                self.packet, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+            ).encode()
+        )
+        packet_sha = canonical_hash(self.packet)
+        run = self.root / "checker-conflict"
+        receipt = run / "prior_work_receipts" / self.receipt_path
+
+        def occupy(*_):
+            receipt.parent.mkdir(parents=True)
+            receipt.write_bytes(b"reserved by another writer")
+
+        with (
+            patch("stage2_common.core_source.copy_files", side_effect=occupy),
+            self.assertRaises(FileExistsError),
+        ):
+            initialize_run(packet_path, self.source_root, run, packet_sha)
+        self.assertFalse(run.exists())
+
+        reserved = self.root / "displaced-owned-run"
+        foreign = run / "foreign-marker"
+        failure = RuntimeError("authored failure after replacing the run directory")
+
+        def replace(*_):
+            run.rename(reserved)
+            run.mkdir()
+            foreign.write_bytes(b"foreign run")
+            raise failure
+
+        with (
+            patch("stage2_common.core_source.copy_files", side_effect=replace),
+            self.assertRaises(RuntimeError) as caught,
+        ):
+            initialize_run(packet_path, self.source_root, run, packet_sha)
+        self.assertIs(caught.exception, failure)
+        self.assertIn(
+            "checker rollback directory identity changed", failure.__notes__[0]
+        )
+        self.assertTrue((reserved / "events").is_dir())
+        self.assertEqual(foreign.read_bytes(), b"foreign run")
 
     def test_checker_revision_invalidates_only_current_dossier_projection(self):
         packet_path = self.root / "packet-revision.json"

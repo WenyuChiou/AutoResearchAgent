@@ -13,8 +13,9 @@ import os
 from pathlib import Path, PurePosixPath
 import shutil
 
-from stage1_deliverable.common import DeliverableError, private_output
+from stage1_deliverable.common import DeliverableError, private_output, reject_links
 from stage2_common import Stage2Error, canonical_hash, source_set_hash, validate_packet
+from stage2_common.prior_work import _receipt_path
 
 from .contracts import decode_json, latest_candidates, validate_assessment
 from .report import render_proposal
@@ -84,6 +85,17 @@ def _source_path(root, relative):
     if not path.resolve().is_relative_to(root.resolve()):
         raise Stage2Error(f"escaping-source-path: {relative}")
     return path
+
+
+def _private_run_output(path, prior_work):
+    if prior_work:
+        from stage2_workflow.store import _io
+
+        # Inspect deep Git and link markers on the originally supplied path.
+        io_path = _io(path)
+        if io_path != path:
+            private_output(io_path)
+    return private_output(path)
 
 
 def _manifest_hash(manifest):
@@ -311,14 +323,18 @@ def _current_packet(packet, histories):
 def inspect_run(run_dir, *, expected_event_head=None):
     """Validate an initialized run and its complete immutable history."""
 
-    root = Path(run_dir).absolute()
+    requested_root = Path(run_dir)
+    root = requested_root.absolute()
     manifest = _read_json(root / "run_manifest.json")
     _validate_manifest(manifest)
     packet_path = root / manifest["packet_path"]
     packet = _read_json(packet_path)
     if packet.get("schema_version") in BOUND_PACKET_VERSIONS:
         try:
-            root = private_output(root)
+            root = _private_run_output(
+                requested_root,
+                packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS,
+            )
         except DeliverableError as error:
             raise Stage2Error(f"stage2-private-output-invalid: {error}") from error
     else:
@@ -377,7 +393,7 @@ def inspect_run(run_dir, *, expected_event_head=None):
         search = expected_receipts[key]
         if snapshot.get("stored_path") != search["raw_path"]:
             raise Stage2Error("prior-work-receipt-snapshot-binding-mismatch")
-        path = _source_path(root, snapshot["stored_path"])
+        path = _receipt_path(root, snapshot["stored_path"], Stage2Error)
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if digest != search["raw_sha256"] or digest != snapshot.get("sha256"):
             raise Stage2Error("prior-work-receipt-snapshot-hash-mismatch")
@@ -426,9 +442,11 @@ def initialize_run(
     """Create or inspect an exclusive source-bound Stage 2 checker run."""
 
     packet_file = Path(packet_path).resolve()
-    source_root = Path(source_root).resolve()
+    receipt_root = Path(source_root)
+    source_root = receipt_root.resolve()
     source_packet = _read_json(packet_file)
     packet_sha256 = canonical_hash(source_packet)
+    prior_work = source_packet.get("schema_version") in PRIOR_WORK_PACKET_VERSIONS
     if source_packet.get("schema_version") in BOUND_PACKET_VERSIONS:
         if expected_packet_sha256 is None:
             raise Stage2Error("stage2-v2-expected-packet-sha256-required")
@@ -438,21 +456,26 @@ def initialize_run(
         raise Stage2Error("stage2-external-packet-hash-mismatch")
     try:
         output = (
-            private_output(Path(output_dir).absolute())
+            _private_run_output(Path(output_dir), prior_work)
             if source_packet.get("schema_version") in BOUND_PACKET_VERSIONS
             else Path(output_dir).resolve()
         )
     except DeliverableError as error:
         raise Stage2Error(f"stage2-private-output-invalid: {error}") from error
-    validate_packet(source_packet, source_root)
-    if output.exists():
+    validate_packet(source_packet, receipt_root if prior_work else source_root)
+    output_io = output
+    if prior_work:
+        from stage2_workflow.store import _io
+
+        output_io = _io(output)
+    if output_io.exists():
         state = inspect_run(output)
         if state["manifest"]["packet_sha256"] != packet_sha256:
             raise Stage2Error("existing-run-packet-mismatch")
         return state["manifest"]
 
     try:
-        output.mkdir(parents=False)
+        output_io.mkdir(parents=False)
     except FileExistsError:
         state = inspect_run(output)
         if state["manifest"]["packet_sha256"] != packet_sha256:
@@ -461,7 +484,14 @@ def initialize_run(
     except OSError as error:
         raise Stage2Error(f"run-directory-create-failed: {output}: {error}") from error
 
+    owned_identity = None
     try:
+        if prior_work:
+            reject_links(output_io)
+            created = output_io.lstat()
+            if not created.st_ino:
+                raise Stage2Error("checker rollback directory identity unavailable")
+            owned_identity = (created.st_dev, created.st_ino)
         (output / "events").mkdir()
         snapshots = []
         receipt_snapshots = []
@@ -503,8 +533,10 @@ def initialize_run(
                     continue
                 relative = search["raw_path"]
                 stored_relative = f"prior_work_receipts/{relative}"
-                original = _source_path(source_root, relative)
-                destination = _source_path(output, stored_relative)
+                original = _receipt_path(receipt_root, relative, Stage2Error)
+                destination = _receipt_path(
+                    output, stored_relative, Stage2Error, require_file=False
+                )
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 digest = hashlib.sha256(original.read_bytes()).hexdigest()
                 previous = copied_receipts.get(stored_relative)
@@ -598,9 +630,19 @@ def initialize_run(
         _write_new(output / "run_manifest.json", manifest)
         inspect_run(output)
         return manifest
-    except Exception:
+    except Exception as error:
         # Only this call's newly-created directory is removed; no pre-existing run is touched.
-        shutil.rmtree(output)
+        if not prior_work:
+            shutil.rmtree(output)
+            raise
+        try:
+            reject_links(output_io)
+            current = output_io.lstat()
+            if owned_identity != (current.st_dev, current.st_ino):
+                raise Stage2Error("checker rollback directory identity changed")
+            shutil.rmtree(output_io)
+        except Exception as cleanup_error:
+            error.add_note(f"checker rollback failed for {output}: {cleanup_error}")
         raise
 
 
