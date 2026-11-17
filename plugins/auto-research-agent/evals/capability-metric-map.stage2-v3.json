@@ -134,7 +134,7 @@
         "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ],
-      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible. On Windows, checker initialization exclusively copies checked prior-work receipt bytes and validates the copied hash. Reopening uses the guarded receipt path. A failed copy only withdraws checker output still owned by that initialization.",
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
@@ -522,9 +522,11 @@
       "decision_card_material_mapping_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_decision_cards.py"
       ],
-      "prior_work_delivery_input_mechanism": "Ordinary delivery validates the authenticated checker storage projection against its root and requires exact restored original packet binding. A temporary, hash-checked original-path namespace combines retained source and prior-work receipt snapshots for the separate delivery checker, without rewriting the workflow, sources or captures. Portable inspection retains receipt identity and hash checks; unknowns, missing independent reviews, human selection and Stage3 execution gates remain unchanged. Mechanical delivery repair does not establish research acceptance or scientific improvement.",
+      "prior_work_delivery_input_mechanism": "Ordinary delivery validates the authenticated checker storage projection against its root and requires exact restored original packet binding. A temporary, hash-checked original-path namespace combines retained source and prior-work receipt snapshots for the separate delivery checker, without rewriting the workflow, sources or captures. Portable inspection retains receipt identity and hash checks; unknowns, missing independent reviews, human selection and Stage3 execution gates remain unchanged. Mechanical delivery repair does not establish research acceptance or scientific improvement. On Windows, ordinary delivery reuses the checked filesystem path representation to read retained snapshots after package-path validation, before checking the original SHA-256 and rebuilding the original-path namespace.",
       "prior_work_delivery_input_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py",
+        "plugins/auto-research-agent/tests/test_stage123_projecthost_e2e.py",
+        "plugins/auto-research-agent/tests/test_stage123_imported_selection_recovery_e2e.py",
         "plugins/auto-research-agent/tests/test_stage2_delivery.py",
         "plugins/auto-research-agent/tests/test_stage2_planning_handoff.py"
       ],
@@ -1042,7 +1044,7 @@
         "plugins/auto-research-agent/tests/test_stage2_literature_versions.py",
         "plugins/auto-research-agent/tests/test_stage2_comparison_versions.py"
       ],
-      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible.",
+      "prior_work_positioning_mechanism": "Opt-in packet2.4 binds candidate/source bytes to versioned prior-work comparisons and captured search receipts; current-only views and same-data Markdown/HTML/Wiki preserve evidence levels, bounded search limits and unknowns. Schema completeness never establishes novelty, a P5 score, native execution or human approval. Previous packet/view versions remain reconstructible. For Windows prior-work receipt I/O, validate portable-relative syntax, reject links and verify resolved containment under the receipt root. Reads require a regular file and still verify receipt bytes against the recorded hash. Extended paths are used for filesystem access only.",
       "prior_work_positioning_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_prior_work.py",
         "plugins/auto-research-agent/tests/test_stage2_prior_work_delivery.py"
