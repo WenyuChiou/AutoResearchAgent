@@ -14,13 +14,15 @@ import test_stage123_projecthost_e2e as imported_e2e
 from research_workspace_native.project_stage2 import ProjectStage2Service
 from research_workspace_native.session_api import SessionApiError
 from stage2_workflow import inspect_workflow
+from stage2_workflow.store import _io
 from stage3_plan.intake import admit_intake
 
 
 def raw_files(root):
+    io_root = _io(root)
     return {
-        file.relative_to(root): file.read_bytes()
-        for file in root.rglob("*")
+        file.relative_to(io_root): file.read_bytes()
+        for file in io_root.rglob("*")
         if file.is_file()
     }
 
