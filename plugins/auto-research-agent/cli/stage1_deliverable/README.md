@@ -123,6 +123,14 @@ manifests and `papers/` selected lawful full sources. `records.original.json`
 preserves exact input. `sources/<source_id>/` preserves original receipts,
 every declared raw attempt, extracted text and public-validator observations.
 
+Markdown and DOCX group saved decisions and source access by work and version.
+The Core screening library stores decisions at work scope. A version-specific
+review is shown only when it explicitly names a saved decision. Source
+receipts and archived observations appear under their bound versions, including
+historical failures and unfinished attempts. Missing reasons or source records
+display as Unknown. The existing claim section preserves the recorded evidence
+relations independently of access and screening.
+
 The provenance manifest binds canonical records, input, inventory, exporter,
 interpreter, installed dependencies and counts. Replay uses the public offline
 validator on a disposable relocated copy, checks historical validator evidence
@@ -130,6 +138,11 @@ and rebuilds every view. Rehashing edited views or extracted text does not
 bypass semantic replay. Package directories can move within the same declared
 runtime; different runtime bytes are rejected. Build/replay never acquire new
 sources.
+
+New manifests bind the `screening-and-sources-v1` review format. Validate an
+older package with the exporter and dependencies originally pinned to it.
+An existing independently bound HostReplay receipt can also replay the older
+review format, with the original view bytes and inventory checked in full.
 
 Each attempt records URI, time, MIME, byte count/hash, access note and parser.
 No parser invocation is represented by null parser/version and

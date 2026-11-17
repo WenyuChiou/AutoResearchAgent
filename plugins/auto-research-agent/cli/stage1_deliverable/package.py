@@ -241,6 +241,7 @@ def build(records_path, output, expected_records_sha256):
         "original_input_sha256": expected_records_sha256,
         "runtime": runtime,
         "docx": DOCX,
+        "review_format": views.REVIEW_FORMAT,
         "counts": _counts(records, manifests),
         "files": inventory(output),
     }
@@ -272,6 +273,7 @@ def validate(root, expected_sha256, *, host_replay=None):
             "original_input_sha256",
             "runtime",
             "docx",
+            *(("review_format",) if "review_format" in manifest else ()),
             "counts",
             "files",
         ),
@@ -283,8 +285,10 @@ def validate(root, expected_sha256, *, host_replay=None):
         or manifest["experimental"] is not True
         or manifest["improvement"] != "not yet demonstrated"
         or manifest["docx"] != DOCX
+        or manifest.get("review_format", views.REVIEW_FORMAT) != views.REVIEW_FORMAT
     ):
         raise DeliverableError("unsupported package contract")
+    review_format = manifest.get("review_format")
     records = validate_records(manifest["canonical_records"])
     if manifest["schema_version"] != records["schema_version"]:
         raise DeliverableError("package and canonical record versions differ")
@@ -297,11 +301,17 @@ def validate(root, expected_sha256, *, host_replay=None):
     runtime = sources.runtime_binding()
     if host_replay is not None:
         host_replay.package(root, expected_sha256, manifest, runtime)
+        if review_format is None and (
+            manifest["runtime"]["exporter_sha256"] == runtime["exporter_sha256"]
+        ):
+            raise DeliverableError("current exporter requires a bound review format")
         # Historical metadata is only used to reconstruct historical view bytes.
         # The receipt separately verifies the complete current validator runtime.
         runtime = manifest["runtime"]
     elif manifest["runtime"] != runtime:
         raise DeliverableError("exporter or dependency runtime bytes changed")
+    elif review_format is None:
+        raise DeliverableError("current exporter requires a bound review format")
     if inventory(root) != manifest["files"]:
         raise DeliverableError("package file inventory or bytes differ")
     manifests, paper_files = derive(
@@ -310,7 +320,7 @@ def validate(root, expected_sha256, *, host_replay=None):
         runtime,
         **({"host_replay": host_replay} if host_replay is not None else {}),
     )
-    generated = views.render(records, manifests)
+    generated = views.render(records, manifests, review_format=review_format)
     generated.update(paper_files)
     generated["papers.jsonl"] = _jsonl(records["papers"])
     generated["paper_manifest.jsonl"] = _jsonl(manifests)

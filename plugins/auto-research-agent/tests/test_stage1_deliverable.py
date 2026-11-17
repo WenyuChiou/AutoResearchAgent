@@ -356,6 +356,79 @@ class ResearchDeliverableTests(unittest.TestCase):
         report = self.build()
         self.assertEqual(report["counts"]["acquired_full_text"]["pdf"], 1)
 
+    def test_report_preserves_decisions_and_failed_attempt_before_success(self):
+        records = self.make_records()
+        failed_dir = self.inputs / "first-attempt"
+        with (
+            patch(
+                "research_hub.source_fetch._resolve_host_addresses",
+                return_value=("93.184.216.34",),
+            ),
+            patch(
+                "requests.Session.get",
+                return_value=Response(b"", "text/html", 429),
+            ),
+        ):
+            fetch_public_source(
+                output_dir=failed_dir, url="https://example.org/initial", title=TITLE
+            )
+        failed_receipt = failed_dir / "source-fetch-result.json"
+        failed = dict(
+            records["sources"][0],
+            source_id="first",
+            result_path=failed_receipt.relative_to(self.inputs).as_posix(),
+            result_sha256=sha(failed_receipt.read_bytes()),
+        )
+        records["sources"].insert(0, failed)
+        records["papers"][0]["source_ids"].insert(0, "first")
+        records["screening"].append(
+            dict(
+                records["screening"][0],
+                decision_id="decision2",
+                status="include",
+                reason="Recorded reason: synthetic setting matches.",
+                observed_at="2026-09-28T00:01:00+00:00",
+            )
+        )
+        report = self.build(records)
+        self.assertEqual(report["status"], "passed")
+        md = (self.output / "literature_review.md").read_text(encoding="utf-8")
+        docx = "\n".join(
+            p.text for p in Document(self.output / "literature_review.docx").paragraphs
+        )
+        attempts = [
+            json.loads(line)
+            for line in (self.output / "paper_manifest.jsonl").read_bytes().splitlines()
+        ]
+        self.assertEqual(
+            [row["state"] for row in attempts], ["rate-limited", "available"]
+        )
+        for text in (md, docx):
+            for index, row in enumerate(records["screening"]):
+                label = "current" if index else "earlier"
+                self.assertIn(
+                    f"Decision {row['decision_id']} ({label}, {row['observed_at']}): {row['status']}.\n"
+                    f"Reason: {row['reason']}",
+                    text,
+                )
+            lines = [
+                f"Source {row['source_id']}, attempt {row['attempt']} ({row['observed_at']}): {row['state']}."
+                for row in attempts
+            ]
+            self.assertLess(text.index(lines[0]), text.index(lines[1]))
+            self.assertIn(
+                "Full text: validated receipt recorded for this version.", text
+            )
+            self.assertIn("unverified; full-text;", text)
+        self.assertEqual(
+            (self.output / "records.original.json").read_bytes(),
+            self.records.read_bytes(),
+        )
+        self.assertEqual(
+            (self.output / "sources/first/original.json").read_bytes(),
+            failed_receipt.read_bytes(),
+        )
+
     def test_readable_reports_preserve_exact_evidence_and_offsets(self):
         cases = (
             (
@@ -799,6 +872,8 @@ class ResearchDeliverableTests(unittest.TestCase):
             ("experimental", False),
             ("improvement", "improved"),
             ("docx", {"status": "unavailable"}),
+            ("review_format", "unrecognized"),
+            ("review_format", None),
         ):
             changed = copy.deepcopy(original)
             changed[key] = value
@@ -808,6 +883,10 @@ class ResearchDeliverableTests(unittest.TestCase):
                 self.assertRaisesRegex(DeliverableError, "contract"),
             ):
                 package.validate(self.output, self.rehash())
+        original.pop("review_format")
+        write_json(path, original)
+        with self.assertRaisesRegex(DeliverableError, "bound review format"):
+            package.validate(self.output, self.rehash())
 
     def test_json_credential_in_source_rejected_before_archive(self):
         raw = HTML.replace(

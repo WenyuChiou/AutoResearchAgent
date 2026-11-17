@@ -8,6 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
+from docx import Document
 from openpyxl import load_workbook
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
@@ -233,6 +234,7 @@ class ScreeningRecordsTests(unittest.TestCase):
             )
             for name in ("first", "second")
         ]
+        metadata.append(dict(metadata[0], version="v2"))
         raw = ledger.save_bytes(canonical(metadata), producer=backend)
         empty = ledger.save_bytes(b"", producer=backend)
         ledger.finish(
@@ -246,6 +248,35 @@ class ScreeningRecordsTests(unittest.TestCase):
         )
         ledger.complete_query(query)
         self.assertEqual(ledger.extract()["works"], 2)
+        candidate = next(
+            row
+            for row in ledger.candidates().values()
+            if row["discoveries"][-1]["record"]["doi"] == metadata[0]["doi"]
+        )
+        historical, selected = candidate["version_ids"]
+        old_uri = "https://example.org/previous-version"
+        old_attempt = ledger.start_source(
+            work_id=candidate["work_id"],
+            version_id=historical,
+            source_uri=old_uri,
+            tool="fixture",
+            request={"public_only": True},
+            actor="fixture",
+            reason="Saved offline attempt.",
+        )
+        reason = "Earlier version requested; synthetic rate limit.\vEnd of note."
+        observed_at = ledger.clock()
+        ledger.finish_source(
+            attempt_id=old_attempt,
+            outcome="rate_limited",
+            observed_at=observed_at,
+            http_status=429,
+            resolved_uri=old_uri,
+            raw_ref=ledger.save_bytes(b"authored failure", producer=old_attempt),
+            text_ref=None,
+            extraction=None,
+            reason=reason,
+        )
         ledger.checkpoint()
         report = validate_run(ledger.root)
         self.assertTrue(report["valid"], report)
@@ -313,6 +344,37 @@ class ScreeningRecordsTests(unittest.TestCase):
             validate_package(output, receipt["manifest_sha256"])["status"], "passed"
         )
         self.assertEqual((output / "records.original.json").read_bytes(), original)
+        markdown = (output / "literature_review.md").read_text(encoding="utf-8")
+        view = Document(output / "literature_review.docx")
+        word = "\n".join(
+            ("## " if p.style.name == "Heading 1" else "") + p.text
+            for p in view.paragraphs
+        )
+        for text in (markdown, word):
+            section = text.split("## " + candidate["work_id"] + " — ", 1)[1]
+            section = section.split("\n## ", 1)[0]
+            current_section, historical_section = section.split(
+                f"Historical version: {historical}", 1
+            )
+            self.assertIn(f"Version: {selected}", current_section)
+            self.assertIn("Screening: Unknown (no decision recorded).", current_section)
+            self.assertIn("Reason: Unknown.", current_section)
+            self.assertIn(
+                "Unknown (no source attempt or import recorded for this version).",
+                current_section,
+            )
+            self.assertNotIn(old_attempt, current_section)
+            self.assertNotIn(old_uri, current_section)
+            self.assertIn(
+                f"Saved source attempt {old_attempt} ({observed_at}): rate_limited.",
+                historical_section,
+            )
+            self.assertIn(f"Requested URI: {old_uri}", historical_section)
+            self.assertIn(
+                "Recorded reason: Earlier version requested; synthetic rate limit."
+                "\\u000bEnd of note.",
+                historical_section,
+            )
         expected_headers = list(self.records["screening"][0])
         rows = list(
             csv.reader(
@@ -583,6 +645,15 @@ class ScreeningRecordsTests(unittest.TestCase):
         )
         self.assertEqual(
             (excluded["counts"]["discoveries"], excluded["counts"]["reversals"]), (2, 1)
+        )
+        markdown = (output / "literature_review.md").read_text(encoding="utf-8")
+        section = markdown.split("## " + excluded["work_id"] + " — ", 1)[1]
+        section = section.split("\n## ", 1)[0]
+        self.assertIn("Screening history (work-level):", section)
+        self.assertIn("Reason: Saved include reason.", section)
+        self.assertIn("Reason: Saved exclude reason.", section)
+        self.assertIn(
+            "Screening version: Unknown (no version-specific review binding).", section
         )
         self.assertIn(
             b"Saved exclude reason.",

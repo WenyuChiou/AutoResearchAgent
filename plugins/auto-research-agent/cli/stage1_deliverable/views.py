@@ -16,7 +16,10 @@ from openpyxl.utils import get_column_letter
 
 from .common import DeliverableError, canonical
 from .core_records import extended
+from .review_details import by_work
 from .screening_records import extended as screened
+
+REVIEW_FORMAT = "screening-and-sources-v1"
 
 
 def cell(value):
@@ -231,7 +234,7 @@ def workbook_bytes(all_tables):
     return _zip_bytes(out.getvalue())
 
 
-def review_lines(records):
+def review_lines(records, details=None):
     lines = [
         "# Literature review",
         "",
@@ -242,6 +245,13 @@ def review_lines(records):
         "Experimental researcher package. Source and interpretation checks remain separate; no P1-P3 improvement is established.",
         "",
     ]
+    if details is not None:
+        lines.extend(
+            [
+                "Screening, source acquisition, and the evidence relation for each claim are recorded separately.",
+                "",
+            ]
+        )
     for paper in records["papers"]:
         lines.extend(
             [
@@ -252,6 +262,9 @@ def review_lines(records):
                 "",
             ]
         )
+        if details is not None:
+            selected, historical = details[paper["work_id"]]
+            lines.extend(selected)
         for key, value in paper["findings"].items():
             lines.extend([key.replace("_", " ").capitalize() + ": " + value, ""])
         lines.extend(
@@ -262,6 +275,8 @@ def review_lines(records):
                 "",
             ]
         )
+        if details is not None:
+            lines.extend(historical)
     lines.extend(["## Evidence and limitations", ""])
     for claim in records["claims"]:
         if extended(records):
@@ -384,12 +399,13 @@ def bibtex(records):
     return ("\n\n".join(entries) + "\n").encode("utf-8")
 
 
-def render(records, sources):
+def render(records, sources, *, review_format=REVIEW_FORMAT):
     # JSON object order is not research data. Match the manifest's canonical
     # ordering while preserving authored array order and original input bytes.
     records = json.loads(canonical(records))
     all_tables = tables(records, sources)
-    lines = review_lines(records)
+    details = by_work(records, sources) if review_format == REVIEW_FORMAT else None
+    lines = review_lines(records, details)
     markdown = "\n".join(html.escape(line, quote=False) for line in lines) + "\n"
     coverage = [
         "# Coverage and stopping record",
