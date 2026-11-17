@@ -16,6 +16,7 @@ from research_workspace_native.project_stage2 import ProjectStage2Service
 from research_workspace_native.session_api import SessionApiError
 from stage1_deliverable.common import sha
 import test_saved_source_stage2_intake as saved
+from test_project_stage2 import _new_owned_fixture_root
 
 
 class ImportedStage1ProjectTests(unittest.TestCase):
@@ -29,9 +30,7 @@ class ImportedStage1ProjectTests(unittest.TestCase):
     def setUp(self):
         fixture = self.shared
         self.f = fixture
-        temporary = tempfile.TemporaryDirectory(prefix="stage1-project-import-")
-        self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name).resolve()
+        self.root = _new_owned_fixture_root(self, prefix="stage1-project-import-")
         self.auth = lambda token: "alice" if token == "own" else "bob"
         self.intake = ProjectIntakeService(self.root, authenticate=self.auth)
         self.addCleanup(lambda: self.intake.close())

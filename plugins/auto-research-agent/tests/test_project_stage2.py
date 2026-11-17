@@ -53,16 +53,16 @@ def _remove_windows_fixture_root(root, expected):
     shutil.rmtree(_io(root))
 
 
-def _new_project_stage2_root(test):
+def _new_owned_fixture_root(test, *, prefix="project-stage2-"):
     if os.name != "nt":
-        temporary = tempfile.TemporaryDirectory(prefix="project-stage2-")
+        temporary = tempfile.TemporaryDirectory(prefix=prefix)
         test.addCleanup(temporary.cleanup)
         return Path(temporary.name).resolve()
 
     parent = Path(tempfile.gettempdir())
     ancestry = _windows_fixture_identities(parent)
     # Use mkdtemp so a rejected cleanup cannot be retried by a finalizer.
-    root = Path(tempfile.mkdtemp(prefix="project-stage2-", dir=parent))
+    root = Path(tempfile.mkdtemp(prefix=prefix, dir=parent))
     if root.parent != parent:
         raise RuntimeError(f"Stage 2 fixture directory is outside its parent: {root}")
     expected = _windows_fixture_identities(root)
@@ -75,7 +75,7 @@ def _new_project_stage2_root(test):
 @unittest.skipUnless(os.name == "nt", "Windows long-path fixture cleanup")
 class ProjectStage2FixtureCleanupTests(unittest.TestCase):
     def test_owned_fixture_cleanup_removes_deep_files(self):
-        root = _new_project_stage2_root(self)
+        root = _new_owned_fixture_root(self)
         for length in (295, 306):
             path = root
             remaining = length - len(str(root)) - 1
@@ -142,7 +142,7 @@ class ProjectStage2Tests(unittest.TestCase):
         cls.handoff = deepcopy(handoff.handoff)
 
     def setUp(self):
-        self.root = _new_project_stage2_root(self)
+        self.root = _new_owned_fixture_root(self)
         self.store_root = self.root / "projects"
         self.authenticate = lambda key: "researcher" if key == "own" else "other"
         self.intake = ProjectIntakeService(
