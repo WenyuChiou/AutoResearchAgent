@@ -18,7 +18,7 @@ from stage2_check import (
 from stage2_check.contracts import decode_json
 from stage2_common import Stage2Error, canonical_hash, validate_packet
 from stage2_workflow import inspect_workflow
-from stage2_workflow.store import _restore_packet
+from stage2_workflow.store import _io, _restore_packet
 from stage2_workflow.orchestration import reconcile_batch
 from stage2_workflow.revision_provenance import (
     capture_revision_provenance,
@@ -173,7 +173,7 @@ def _delivery_source_inputs(checker, source_root):
         copy_files(checker["packet"], checker["root"], root)
         for record in [*checker["manifest"]["source_snapshots"], *receipts]:
             stored = _safe_package_path(checker["root"], record["stored_path"])
-            raw = stored.read_bytes()
+            raw = _io(stored).read_bytes()
             if hashlib.sha256(raw).hexdigest() != record["sha256"]:
                 raise Stage2Error("delivery-input-snapshot-hash-mismatch")
             target = _safe_package_path(root, record["original_path"])
