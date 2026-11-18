@@ -5,11 +5,12 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import re
 import sys
 import threading
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from test_project_stage3_feedback import Stage3FeedbackFixture
 from test_project_stage3_planning_http import Handler
@@ -21,7 +22,11 @@ from research_workspace_native.session_api import SessionApiError
 from research_workspace_native.http import MAX_BODY, MAX_RESPONSE, SessionHandler
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "harness-ui"))
-from test_stage3_material_capacity import MaterialsHttpHarness, synthetic_payload
+from test_stage3_material_capacity import (
+    MaterialRequestHandler,
+    MaterialsHttpHarness,
+    synthetic_payload,
+)
 
 
 class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
@@ -272,6 +277,7 @@ class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
             {name: saved[name] for name in ("receipt_sha256", "record")},
             json.loads(raw)["feedback"]["records"],
         )
+        revisions = [saved]
         for key, field, value, expected_refs in (
             ("inherited", "method", "A separate method edit", record["material_refs"]),
             ("replaced", "materials", "A replacement without the prior attachment", []),
@@ -286,14 +292,100 @@ class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
                 changes=[{"question_ref": "q1", "field": field, "value": value}],
             )
             status, raw = http.request(route + "/revise", body)
-            self.assertEqual(status, 200)
+            self.assertEqual(
+                status,
+                200,
+                f"revise key={key} field={field} HTTP {status} "
+                f"error={_stage3_error_code(raw)}"
+                if status != 200
+                else None,
+            )
             saved = json.loads(raw)
             self.assertEqual(saved["record"]["material_refs"], expected_refs)
             self.assertEqual(
                 saved["record"]["plan"]["question_plans"][0]["unknowns"],
                 ["Rights remain unknown"],
             )
+            revisions.append(saved)
+        status, raw = http.request(route)
+        self.assertEqual(status, 200)
+        view = json.loads(raw)
+        self.assertEqual(view["plan"], original["plan"])
+        records = view["feedback"]["records"]
+        self.assertEqual(len(records), 1 + len(revisions))
+        for parent, revision in zip(revisions, revisions[1:]):
+            self.assertEqual(
+                revision["record"]["parent_revision"],
+                {
+                    "key": parent["record"]["request"]["key"],
+                    "sha256": parent["receipt_sha256"],
+                },
+            )
+        for revision in revisions:
+            self.assertIn(
+                {name: revision[name] for name in ("receipt_sha256", "record")},
+                records,
+            )
+            self.assertFalse(revision["execution_authorized"])
         self.assertEqual(self.view, original)
+
+    def test_next_revision_after_complete_reply_preserves_response_drain(self):
+        http = MaterialsHttpHarness(self.root / "materials", transport=self.transport)
+        self.addCleanup(http.close)
+        route = "/api/projects/authored-ref/stage3/planning/revise"
+        comment = self.comment()
+        first = dict(
+            self.request("first-revision"),
+            comments=[{"key": "comment-1", "sha256": comment["receipt_sha256"]}],
+            parent_revision=None,
+            changes=[
+                {"question_ref": "q1", "field": "materials", "value": "Data pending"}
+            ],
+        )
+        reply_written = threading.Event()
+        allow_finish = threading.Event()
+        original_reply = MaterialRequestHandler._reply
+
+        def observe_reply(handler, status, value):
+            original_reply(handler, status, value)
+            if status == 200 and value["record"]["request"]["key"] == first["key"]:
+                reply_written.set()
+                if not allow_finish.wait(10):
+                    raise AssertionError("First reply did not finish in time")
+
+        with patch.object(MaterialRequestHandler, "_reply", observe_reply):
+            try:
+                status, raw = http.request(route, first)
+                self.assertEqual(status, 200)
+                self.assertTrue(reply_written.wait(5))
+                parent = json.loads(raw)
+                second = dict(
+                    first,
+                    key="next-revision",
+                    parent_revision={
+                        "key": first["key"],
+                        "sha256": parent["receipt_sha256"],
+                    },
+                    changes=[
+                        {
+                            "question_ref": "q1",
+                            "field": "method",
+                            "value": "An updated method",
+                        }
+                    ],
+                )
+                status, raw = http.request(route, second)
+                self.assertEqual(status, 200, _stage3_error_code(raw))
+                self.assertEqual(
+                    json.loads(raw)["record"]["parent_revision"],
+                    second["parent_revision"],
+                )
+                self.assertFalse(self.transport.close()["threads_joined"])
+                self.assertEqual(self.closed, [])
+            finally:
+                allow_finish.set()
+        self.assertTrue(self.transport.close()["threads_joined"])
+        self.assertEqual(self.closed, [1])
 
     def test_material_reference_mismatches_incomplete_and_stale_requests_do_not_write(
         self,
@@ -448,6 +540,13 @@ class Stage3FeedbackHttpTests(Stage3FeedbackFixture, unittest.TestCase):
         self.addCleanup(release.set)
         thread.start()
         self.assertTrue(entered.wait(2))
+        conflict = self.handler(
+            "comment", dict(self.comment_body(), key="other-comment")
+        )
+        handle_planning(conflict, "POST")
+        self.assertEqual(
+            conflict.replies, [(409, {"error": "stage3-planning-project-busy"})]
+        )
         self.assertFalse(self.transport.close()["threads_joined"])
         self.assertEqual(self.closed, [])
         release.set()
@@ -505,3 +604,17 @@ def read_records(case):
     from research_workspace_native.project_stage3_feedback import read_feedback
 
     return read_feedback(case.jobs, "authored-ref", case.view)["records"]
+
+
+def _stage3_error_code(raw):
+    """Report only a bounded, recognisable Stage 3 error code."""
+    if len(raw) > 1024:
+        return "unavailable"
+    try:
+        payload = json.loads(raw)
+    except (ValueError, RecursionError):
+        return "unavailable"
+    code = payload.get("error") if isinstance(payload, dict) else None
+    if isinstance(code, str) and re.fullmatch(r"stage3-[a-z0-9-]{1,80}", code):
+        return code
+    return "unavailable"
