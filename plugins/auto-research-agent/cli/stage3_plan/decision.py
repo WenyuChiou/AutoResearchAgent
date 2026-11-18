@@ -6,7 +6,7 @@ from stage2_workflow.interaction import _user_text
 
 from .contracts import Stage3Error, digest
 from .review import plan_status, validate_review
-from .storage import inspect_package, private_output, read_bytes, read_json, write_new
+from .storage import decode_json, inspect_package, private_output, read_bytes, write_new
 
 
 def record_plan_decision(
@@ -50,7 +50,7 @@ def record_plan_decision(
     review_bytes = read_bytes(review_path)
     if hashlib.sha256(review_bytes).hexdigest() != expected_review_sha256:
         raise Stage3Error("review external hash mismatch")
-    review = read_json(review_path)
+    review = decode_json(review_bytes, label=review_path)
     validate_review(plan, intake, review)
     if decision not in {"confirm", "revise", "defer"}:
         raise Stage3Error("unsupported plan decision")

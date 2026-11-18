@@ -19,6 +19,7 @@ from stage3_plan.decision import record_plan_decision, revision_impact  # noqa: 
 from stage3_plan.planner import draft_plan  # noqa: E402
 from stage3_plan.report import render_plan  # noqa: E402
 from stage3_plan.review import RUBRIC, plan_status, review_plan, validate_review  # noqa: E402
+from stage3_plan.storage import MAX_ARTIFACT_BYTES  # noqa: E402
 from stage3_plan_fixtures import make_intake, make_plan  # noqa: E402
 
 
@@ -88,15 +89,19 @@ class Stage3DecisionTests(unittest.TestCase):
         self.review = semantic_review(self.plan, self.intake)
         self.review_path = self.root / "review.json"
         self.review_path.write_bytes(canonical_bytes(self.review))
+        self.decision_output = self.root / "decision"
+        self.message = self.root / "user.jsonl"
         self.user_text = (
             "Confirm this displayed synthetic plan version 1 for planning only."
         )
-        self.message = self.root / "user.jsonl"
+        self.write_user_message(self.user_text)
+
+    def write_user_message(self, text):
         self.message.write_text(
             json.dumps(
                 {
                     "type": "event_msg",
-                    "payload": {"type": "user_message", "message": self.user_text},
+                    "payload": {"type": "user_message", "message": text},
                 }
             ),
             encoding="utf-8",
@@ -106,17 +111,18 @@ class Stage3DecisionTests(unittest.TestCase):
         args = dict(
             expected_manifest_sha256=self.saved["manifest"]["manifest_sha256"],
             review_path=self.review_path,
-            expected_review_sha256=hashlib.sha256(
-                self.review_path.read_bytes()
-            ).hexdigest(),
             native_message=self.message,
             message_index=0,
             user_text=self.user_text,
             decision="confirm",
-            output_dir=self.root / "decision",
+            output_dir=self.decision_output,
             current_intake=self.intake,
         )
         args.update(overrides)
+        if "expected_review_sha256" not in args:
+            args["expected_review_sha256"] = hashlib.sha256(
+                args["review_path"].read_bytes()
+            ).hexdigest()
         current = args.pop("current_intake")
         with patch("stage3_plan.intake.admit_intake", return_value=current):
             return record_plan_decision(
@@ -141,25 +147,92 @@ class Stage3DecisionTests(unittest.TestCase):
         self.assertEqual(plan_status(self.plan, self.intake, synthetic), "draft")
 
     def test_confirmation_records_exact_user_text_and_never_executes(self):
-        result = self.decide()
+        review_bytes = json.dumps(self.review, indent=2).encode("utf-8") + b"\n"
+        self.review_path.write_bytes(review_bytes)
+        review_sha256 = hashlib.sha256(review_bytes).hexdigest()
+        with patch.object(Path, "open", autospec=True, side_effect=Path.open) as opened:
+            result = self.decide(expected_review_sha256=review_sha256)
+        review_opens = [
+            call for call in opened.call_args_list if call.args[0] == self.review_path
+        ]
+        self.assertEqual(len(review_opens), 1)
+
+        archived = (self.decision_output / "semantic-review.json").read_bytes()
+        recorded = json.loads((self.decision_output / "decision.json").read_bytes())
+        self.assertEqual(archived, review_bytes)
+        self.assertEqual(recorded, result)
+        self.assertEqual(recorded["review_sha256"], review_sha256)
+        self.assertEqual(
+            recorded["review_sha256"], hashlib.sha256(archived).hexdigest()
+        )
+        self.assertEqual(
+            recorded["plan_status"],
+            plan_status(
+                self.plan,
+                self.intake,
+                json.loads(archived),
+                admission_scope=self.saved["artifacts"]["request.json"][
+                    "admission_scope"
+                ],
+            ),
+        )
         self.assertEqual(
             result["decision_status"], "decision-recorded-pending-host-verification"
         )
-        self.assertNotEqual(result["plan_status"], "plan-confirmed")
+        self.assertEqual(result["plan_status"], "ready-for-plan-review")
+        self.assertEqual(result["decision"], "confirm")
         self.assertFalse(result["execution_authorized"])
         self.assertFalse(result["identity_authenticated"])
         self.assertEqual(result["user_text"], self.user_text)
         self.assertEqual(
-            (self.root / "decision/native-user-message.jsonl").read_bytes(),
+            (self.decision_output / "native-user-message.jsonl").read_bytes(),
             self.message.read_bytes(),
         )
         self.assertEqual(self.callback.call_count, 1)
 
+    def test_missing_or_oversized_review_file_blocks_decision(self):
+        oversized_review = self.root / "oversized-review.json"
+        oversized_review.write_bytes(
+            canonical_bytes(self.review) + b" " * MAX_ARTIFACT_BYTES
+        )
+        for review_path in (self.root / "missing-review.json", oversized_review):
+            with self.subTest(review=review_path.name):
+                with self.assertRaisesRegex(
+                    Stage3Error, "artifact missing, nonregular or over bounded size"
+                ):
+                    self.decide(
+                        review_path=review_path, expected_review_sha256="b" * 64
+                    )
+                self.assertFalse(self.decision_output.exists())
+
+    def test_duplicate_review_key_blocks_decision(self):
+        self.review_path.write_bytes(
+            b'{"kind": "Stage3SemanticReview", "kind": "Stage3SemanticReview"}'
+        )
+        with self.assertRaisesRegex(Stage3Error, "invalid JSON: .*duplicate key: kind"):
+            self.decide()
+        self.assertFalse(self.decision_output.exists())
+
+    def test_needs_revision_blocks_confirmation_but_allows_deferral(self):
+        review = semantic_review(self.plan, self.intake, status="needs-revision")
+        self.review_path.write_bytes(canonical_bytes(review))
+        with self.assertRaisesRegex(Stage3Error, "blockers prevent plan confirmation"):
+            self.decide()
+        self.assertFalse(self.decision_output.exists())
+
+        text = "Defer this displayed synthetic plan until it is revised."
+        self.write_user_message(text)
+        result = self.decide(decision="defer", user_text=text)
+        self.assertEqual(result["decision"], "defer")
+        self.assertEqual(result["plan_status"], "needs-revision")
+        self.assertFalse(result["execution_authorized"])
+
     def test_stale_plan_review_selection_and_misquoted_user_fail(self):
         with self.assertRaises(Stage3Error):
             self.decide(expected_manifest_sha256="b" * 64)
-        with self.assertRaises(Stage3Error):
+        with self.assertRaisesRegex(Stage3Error, "review external hash mismatch"):
             self.decide(expected_review_sha256="b" * 64)
+        self.assertFalse(self.decision_output.exists())
         with self.assertRaises(Stage3Error):
             self.decide(user_text="An agent invented an approval.")
         changed = copy.deepcopy(self.intake)
@@ -178,15 +251,7 @@ class Stage3DecisionTests(unittest.TestCase):
                 "Confirm version 0, not the current version 1.",
             )
         ):
-            self.message.write_text(
-                json.dumps(
-                    {
-                        "type": "event_msg",
-                        "payload": {"type": "user_message", "message": text},
-                    }
-                ),
-                encoding="utf-8",
-            )
+            self.write_user_message(text)
             result = self.decide(user_text=text, output_dir=self.root / str(index))
             self.assertNotEqual(result["plan_status"], "plan-confirmed")
             self.assertFalse(result["semantic_authorization_verified"])
