@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from docx import Document
+from markdown_it import MarkdownIt
 from openpyxl import load_workbook
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
@@ -356,6 +357,8 @@ class ScreeningRecordsTests(unittest.TestCase):
             current_section, historical_section = section.split(
                 f"Historical version: {historical}", 1
             )
+            if text is markdown:
+                historical_section = MarkdownIt("commonmark").render(historical_section)
             self.assertIn(f"Version: {selected}", current_section)
             self.assertIn("Screening: Unknown (no decision recorded).", current_section)
             self.assertIn("Reason: Unknown.", current_section)
@@ -655,6 +658,22 @@ class ScreeningRecordsTests(unittest.TestCase):
         self.assertIn(
             "Screening version: Unknown (no version-specific review binding).", section
         )
+        saved = [
+            row["current_review"]
+            for row in library["rows"]
+            if row["current_review"] is not None
+        ]
+        self.assertTrue(saved)
+        word = "\n".join(
+            p.text for p in Document(output / "literature_review.docx").paragraphs
+        )
+        for review in saved:
+            binding = (
+                f"Version named in the saved review of decision "
+                f"{review['decision_event_id']}: {review['version_id']}."
+            )
+            self.assertIn(binding, markdown)
+            self.assertIn(binding, word)
         self.assertIn(
             b"Saved exclude reason.",
             files[

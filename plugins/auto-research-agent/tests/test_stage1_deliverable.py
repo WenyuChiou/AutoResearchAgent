@@ -2,6 +2,7 @@
 
 import copy
 import csv
+import html
 import io
 import json
 import os
@@ -15,6 +16,7 @@ from unittest.mock import patch
 
 import bibtexparser
 from bibtexparser.latexenc import latex_to_unicode
+from markdown_it import MarkdownIt
 from openpyxl import load_workbook
 from requests import Timeout
 from requests.structures import CaseInsensitiveDict
@@ -381,12 +383,15 @@ class ResearchDeliverableTests(unittest.TestCase):
         )
         records["sources"].insert(0, failed)
         records["papers"][0]["source_ids"].insert(0, "first")
+        records["screening"][0]["reason"] = (
+            "Synthetic record remains unverified.\n\n    # Margin note: p * q"
+        )
         records["screening"].append(
             dict(
                 records["screening"][0],
                 decision_id="decision2",
                 status="include",
-                reason="Recorded reason: synthetic setting matches.",
+                reason="Included because n = m*p*q, with [alpha](example) and <x>.",
                 observed_at="2026-09-28T00:01:00+00:00",
             )
         )
@@ -403,12 +408,23 @@ class ResearchDeliverableTests(unittest.TestCase):
         self.assertEqual(
             [row["state"] for row in attempts], ["rate-limited", "available"]
         )
+        saved = read_json(self.output / "provenance_manifest.json")[
+            "canonical_records"
+        ]["screening"]
+        self.assertEqual(saved, records["screening"])
+        rendered = MarkdownIt("commonmark").render(md)
+        for row in saved:
+            expected = "Reason: " + row["reason"]
+            self.assertIn(html.escape(expected, quote=False), rendered)
+            self.assertIn(expected, docx)
+        self.assertNotIn("<h1>Margin note", rendered)
+        self.assertNotIn("<em>", rendered)
+        self.assertNotIn('<a href="example">', rendered)
         for text in (md, docx):
-            for index, row in enumerate(records["screening"]):
+            for index, row in enumerate(saved):
                 label = "current" if index else "earlier"
                 self.assertIn(
-                    f"Decision {row['decision_id']} ({label}, {row['observed_at']}): {row['status']}.\n"
-                    f"Reason: {row['reason']}",
+                    f"Decision {row['decision_id']} ({label}, {row['observed_at']}): {row['status']}.",
                     text,
                 )
             lines = [

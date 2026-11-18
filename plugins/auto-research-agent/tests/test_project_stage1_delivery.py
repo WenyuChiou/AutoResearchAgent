@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
+from docx import Document
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 
 import test_stage1_deliverable as package_fixture
@@ -415,6 +417,22 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
         )["canonical_records"]
         self.assertEqual(delivered["papers"][0]["version_id"], version)
         self.assertEqual(delivered["claims"][0]["claim_id"], claim_id)
+        self.assertEqual(delivered["screening"], records["screening"])
+        root = Path(binding["deliverable_dir"])
+        markdown = (root / "literature_review.md").read_text(encoding="utf-8")
+        word = "\n".join(
+            p.text for p in Document(root / "literature_review.docx").paragraphs
+        )
+        for text in (markdown, word):
+            self.assertIn(f"Version: {version}", text)
+            self.assertIn(
+                "Screening version: Unknown (no original version binding recorded).",
+                text,
+            )
+            self.assertNotIn("Screening history (canonical work/version)", text)
+            row = next(d for d in delivered["screening"] if d["status"] == "include")
+            self.assertIn(f"Decision {row['decision_id']}", text)
+            self.assertIn(f"Reason: {row['reason']}", text)
         self.assertEqual(ledger.event(review["event_id"]), review)
         self.assertEqual(len(ledger.candidates()[work]["discoveries"]), 2)
         self.assertFalse(binding["eligible_for_stage2"])

@@ -16,10 +16,11 @@ from openpyxl.utils import get_column_letter
 
 from .common import DeliverableError, canonical
 from .core_records import extended
-from .review_details import by_work
+from .review_details import LiteralLine, by_work
 from .screening_records import extended as screened
 
 REVIEW_FORMAT = "screening-and-sources-v1"
+_MARKDOWN_ESCAPES = str.maketrans({char: "\\" + char for char in "\\`*_[]{}#+-!=|~"})
 
 
 def cell(value):
@@ -399,6 +400,16 @@ def bibtex(records):
     return ("\n\n".join(entries) + "\n").encode("utf-8")
 
 
+def _markdown_line(line):
+    if isinstance(line, LiteralLine):
+        if any(whitespace in line for whitespace in ("\n", "\r", "\t", "  ")):
+            # Preserve authored spacing without letting continuation lines
+            # become Markdown headings, lists, or indented code.
+            return "<pre>" + html.escape(line, quote=False) + "</pre>"
+        line = line.translate(_MARKDOWN_ESCAPES)
+    return html.escape(line, quote=False)
+
+
 def render(records, sources, *, review_format=REVIEW_FORMAT):
     # JSON object order is not research data. Match the manifest's canonical
     # ordering while preserving authored array order and original input bytes.
@@ -406,7 +417,7 @@ def render(records, sources, *, review_format=REVIEW_FORMAT):
     all_tables = tables(records, sources)
     details = by_work(records, sources) if review_format == REVIEW_FORMAT else None
     lines = review_lines(records, details)
-    markdown = "\n".join(html.escape(line, quote=False) for line in lines) + "\n"
+    markdown = "\n".join(map(_markdown_line, lines)) + "\n"
     coverage = [
         "# Coverage and stopping record",
         "",

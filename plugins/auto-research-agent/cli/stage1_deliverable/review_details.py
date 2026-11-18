@@ -4,6 +4,10 @@ from collections import defaultdict
 from datetime import datetime
 
 
+class LiteralLine(str):
+    """Recorded text that the Markdown view must present literally."""
+
+
 def _display_text(value):
     # The Core source journal can carry text that DOCX's XML cannot represent.
     return "".join(
@@ -25,7 +29,7 @@ def _screening_lines(decisions, *, core=False, review=None):
     lines = [
         "Screening history (work-level):"
         if core
-        else "Screening history (canonical work/version):",
+        else "Screening history (saved records):",
         "",
     ]
     for index, decision in enumerate(decisions):
@@ -33,7 +37,7 @@ def _screening_lines(decisions, *, core=False, review=None):
         lines.extend(
             [
                 f"Decision {decision[event_id]} ({label}, {decision[at]}): {decision[status]}.",
-                f"Reason: {_display_text(decision[reason])}",
+                LiteralLine(f"Reason: {_display_text(decision[reason])}"),
                 "",
             ]
         )
@@ -43,6 +47,15 @@ def _screening_lines(decisions, *, core=False, review=None):
                 f"Version named in the saved review of decision {review['decision_event_id']}: {review['version_id']}."
                 if review is not None
                 else "Screening version: Unknown (no version-specific review binding).",
+                "",
+            ]
+        )
+    else:
+        # A legacy version_id labels the canonical projection. It may have
+        # been filled from the selected paper version after a Core decision.
+        lines.extend(
+            [
+                "Screening version: Unknown (no original version binding recorded).",
                 "",
             ]
         )
@@ -57,7 +70,7 @@ def _receipt_lines(receipts):
         lines.extend(
             [
                 f"Source {row['source_id']}, attempt {row['attempt']} ({row['observed_at']}): {row['state']}.",
-                f"Requested URI: {_display_text(row['requested_uri'])}",
+                LiteralLine(f"Requested URI: {_display_text(row['requested_uri'])}"),
                 "",
             ]
         )
@@ -85,9 +98,13 @@ def _source_lines(receipts, attempts, imports):
             if finish is not None
             else f"Saved source attempt {event_id} ({start['created_at']}): pending (no result recorded)."
         )
-        lines.append(f"Requested URI: {_display_text(start['source_uri'])}")
+        lines.append(
+            LiteralLine(f"Requested URI: {_display_text(start['source_uri'])}")
+        )
         if finish is not None:
-            lines.append(f"Recorded reason: {_display_text(finish['reason'])}")
+            lines.append(
+                LiteralLine(f"Recorded reason: {_display_text(finish['reason'])}")
+            )
         lines.append("")
     for source_receipts in receipts_by_id.values():
         lines.extend(_receipt_lines(source_receipts))
