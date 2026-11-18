@@ -337,6 +337,9 @@ def docx_bytes(lines):
         elif line.startswith("## "):
             paragraph = document.add_heading(line[3:], 1)
         else:
+            if isinstance(line, LiteralLine):
+                # python-docx turns CR and LF into separate breaks.
+                line = line.replace("\r\n", "\n")
             document.add_paragraph(line)
             continue
         for run in paragraph.runs:

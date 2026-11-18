@@ -358,6 +358,54 @@ class ResearchDeliverableTests(unittest.TestCase):
         report = self.build()
         self.assertEqual(report["counts"]["acquired_full_text"]["pdf"], 1)
 
+    def test_screening_reason_crlf_renders_one_line_break(self):
+        records = self.make_records()
+        reason = "Study spans two recordings.\r\n    Read the retained margin line."
+        records["screening"][0]["reason"] = reason
+        original = (json.dumps(records, ensure_ascii=False, indent=2) + "\n").encode(
+            "utf-8"
+        )
+        self.records.write_bytes(original)
+        input_sha = sha(original)
+        exported = subprocess.run(
+            [
+                sys.executable,
+                "-X",
+                "utf8",
+                "-m",
+                "stage1_deliverable",
+                "build",
+                str(self.records),
+                str(self.output),
+                "--records-sha256",
+                input_sha,
+            ],
+            env=dict(os.environ, PYTHONPATH=str(PLUGIN / "cli")),
+            capture_output=True,
+            encoding="utf-8",
+        )
+        self.assertEqual(exported.returncode, 0, exported.stdout + exported.stderr)
+        receipt = json.loads(exported.stdout)
+        self.assertEqual(receipt["status"], "passed")
+        self.assertEqual(receipt["records_sha256"], input_sha)
+        manifest = read_json(self.output / "provenance_manifest.json")
+        self.assertEqual(manifest["original_input_sha256"], input_sha)
+        self.assertEqual(
+            manifest["canonical_records"]["screening"][0]["reason"], reason
+        )
+        self.assertEqual(self.records.read_bytes(), original)
+        self.assertEqual((self.output / "records.original.json").read_bytes(), original)
+
+        expected = (
+            "Reason: Study spans two recordings.\n    Read the retained margin line."
+        )
+        markdown = (self.output / "literature_review.md").read_bytes().decode("utf-8")
+        rendered = MarkdownIt("commonmark").render(markdown)
+        self.assertIn(f"<pre>{expected}</pre>", rendered)
+        word = Document(self.output / "literature_review.docx")
+        reasons = [p.text for p in word.paragraphs if p.text.startswith("Reason: ")]
+        self.assertEqual(reasons, [expected])
+
     def test_report_preserves_decisions_and_failed_attempt_before_success(self):
         records = self.make_records()
         failed_dir = self.inputs / "first-attempt"
