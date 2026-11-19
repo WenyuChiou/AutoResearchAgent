@@ -144,8 +144,10 @@
         "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
       ],
       "test_refs": [
-        "plugins/auto-research-agent/tests/test_stage2_direct_request.py"
+        "plugins/auto-research-agent/tests/test_stage2_direct_request.py",
+        "plugins/auto-research-agent/tests/test_stage2_report_evaluation.py"
       ],
+      "evaluation_dimensions_presentation_contract": "The standalone rendered v3 evaluation keeps all six dimensions columns in a named, focusable horizontal scroll region. The original dimensions markup and report bytes remain available for versioned delivery replay. Scores, denominator, audit state, and evidence links remain bound to the same projection.",
       "projection_resume_contract": "Optional strict projection resume compares exact deterministic existing JSON/Markdown/decision/validator/stage-result bytes and writes only missing projections. Differing or linked evidence is retained and rejected; default explicit export still rebuilds projections. No model, assessment event, authority or rubric changes.",
       "projection_resume_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_atomic_delivery.py"
@@ -512,6 +514,11 @@
     },
     {
       "capability_id": "cli:stage2-workflow",
+      "evaluation_dimensions_presentation_contract": "New evaluated deliveries use presentation1.4, with the Dimensions table scrolling inside the report. Content-gate applicability and provisional audit labels remain bound to their original inputs. Inspection reconstructs the declared presentation, pins both fresh and legacy bytes, and rejects rehashed HTML changes. No evaluation dispatch, scientific promotion, or selection authority changes.",
+      "evaluation_dimensions_presentation_test_refs": [
+        "plugins/auto-research-agent/tests/test_stage2_content_delivery.py",
+        "plugins/auto-research-agent/tests/test_stage2_daily_v3.py"
+      ],
       "windows_atomic_publication_contract": "The guarded workflow I/O lifecycle represents checked Windows paths only for atomic publication, readback, directory creation/removal, enumeration, resolution and real status observation. Root-plus-relative bytes and logical inventory interfaces also serve controller summary reads, explicit interaction replay and the registered-history dependency whitelist without persisting extended paths. Original lexical/root/source/hash/link predicates remain strict; non-missing read/stat/enumeration errors propagate. Ordinary public relative Path inputs retain cwd-relative behavior without normalizing traversal or unsafe UNC/device/ADS/alias inputs into acceptance. Temporary creation remains xb, flush/fsync precede same-directory exclusive hard-link publication, existing targets are never replaced, and cleanup removes only a temporary file created by the current call. Non-Windows I/O semantics, producer binding and incomplete-state replay guards remain unchanged. This fixed-layout engineering compatibility grants no execution authority or scientific improvement.",
       "windows_atomic_publication_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_windows_atomic_io.py",

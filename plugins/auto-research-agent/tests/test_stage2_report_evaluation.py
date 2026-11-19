@@ -1,6 +1,7 @@
 """Tests for the transparent external Stage 2 v3 evaluation report."""
 
 import copy
+import hashlib
 import json
 import sys
 import unittest
@@ -99,6 +100,22 @@ def completed_view():
 
 
 class Stage2EvaluationReportTests(unittest.TestCase):
+    def test_dimensions_scroll_region_preserves_legacy_table_and_report_bytes(self):
+        view = completed_view()
+        legacy = render_evaluation_html(view, scroll_dimensions=False)
+        self.assertEqual(
+            hashlib.sha256(legacy).hexdigest(),
+            "f11e639ea8c8332ae7f31a523fb521a4e2b94bbda43aec77f449f8cf42f286d1",
+        )
+        table = legacy.split(b"<h2>Dimensions</h2>", 1)[1].split(b"</section>", 1)[0]
+        rendered = render_evaluation_html(view)
+        self.assertIn(b".table-wrap{overflow-x:auto}", rendered)
+        self.assertIn(
+            b'<h2>Dimensions</h2><div class="table-wrap" tabindex="0" role="region" '
+            b'aria-label="Evaluation dimensions">' + table + b"</div></section>",
+            rendered,
+        )
+
     def test_balanced_nine_criteria_use_fixed_dimension_math_without_total(self):
         view = completed_view()
         projected = validate_projection(view)

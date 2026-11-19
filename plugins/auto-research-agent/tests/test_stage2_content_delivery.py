@@ -105,10 +105,17 @@ class ContentDeliveryTests(unittest.TestCase):
 
     def test_import_to_evaluated_reports_and_wiki_use_same_gate(self):
         manifest = self.deliver()
-        self.assertEqual(manifest["presentation_version"], "1.3.0")
+        self.assertEqual(manifest["presentation_version"], "1.4.0")
         inspect_evaluated_delivery(
             self.root / "evaluated",
             expected_manifest_sha256=manifest["manifest_sha256"],
+        )
+        html = (self.root / "evaluated/selection.html").read_text(encoding="utf-8")
+        self.assertIn(".table-wrap{overflow-x:auto}", html)
+        self.assertIn(
+            '<h2>Dimensions</h2><div class="table-wrap" tabindex="0" role="region" '
+            'aria-label="Evaluation dimensions"><table>',
+            html,
         )
         gate = json.loads((self.root / "evaluated/content_gate.json").read_bytes())
         self.assertEqual(gate["status"], "content-complete")
@@ -209,6 +216,32 @@ class ContentDeliveryTests(unittest.TestCase):
             inspect_evaluated_delivery(
                 self.root / "evaluated",
                 expected_manifest_sha256=manifest["manifest_sha256"],
+            )
+
+    def test_rehash_tamper_of_evaluation_dimensions_is_rejected(self):
+        manifest = self.deliver()
+        root = self.root / "evaluated"
+        html_path = root / "selection.html"
+        html = html_path.read_bytes()
+        edited = html.replace(
+            b'aria-label="Evaluation dimensions"', b'aria-label="Other dimensions"', 1
+        )
+        self.assertNotEqual(html, edited)
+        html_path.write_bytes(edited)
+        artifact = next(
+            row for row in manifest["artifacts"] if row["path"] == "selection.html"
+        )
+        artifact.update(sha256=hashlib.sha256(edited).hexdigest(), bytes=len(edited))
+        manifest.pop("manifest_sha256")
+        manifest["manifest_sha256"] = canonical_hash(manifest)
+        (root / "evaluation_manifest.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+        with self.assertRaisesRegex(
+            Stage2Error, "evaluation-delivery-rendering-changed"
+        ):
+            inspect_evaluated_delivery(
+                root, expected_manifest_sha256=manifest["manifest_sha256"]
             )
 
 
