@@ -240,7 +240,8 @@ test('accepted one-click planning notifies parent exactly once with bound projec
  assert.equal(f.navigations.length,1);assert.equal(f.navigations[0][0],'accepted');assert.equal(f.navigations[0][1].projectRef,'project-a');assert.equal(f.navigations[0][1].language,'zh-TW');assert.equal(f.navigations[0][1].request.key,'plan-key');
  assert.equal(f.writes.filter(x=>x.url.endsWith('/run')).length,1);
 });
-test('suspended accepted planning response cannot notify or navigate a different project',async()=>{
+// Bound direct Node runs when both the request signal and submission stay pending.
+test('suspended accepted planning response cannot notify or navigate a different project',{timeout: 10_000},async()=>{
  const f = harness({holdRun:true});
  await tick();
  f.selectRadio();
