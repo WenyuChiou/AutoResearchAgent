@@ -31,6 +31,8 @@ function harness(options={}) {
  const brief=real?real.before.brief_sha256:'a'.repeat(64);let ack='b'.repeat(64), selectReceipt=null;
  const binding=real?{project_ref:real.before.project_ref,input_version:real.before.input_version,revision:options.preselected?real.after.revision:real.before.revision,brief_sha256:real.before.brief_sha256}:{project_ref:'project-a',input_version:1,revision:1,brief_sha256:brief};
  let selected=!!options.preselected, current=true, writes=[], reads=[], uuid=0, release, waitSelect=false, intent=!!options.intent, prepared=false, readRelease, holdRead=!!options.holdRead, runRelease, intentRelease, holdIntent=false, intentReceipt=options.existingIntent||null, historyRelease;
+ let signalRunStarted;
+ const runStarted = new Promise(resolve => { signalRunStarted = resolve; });
  if(real && options.preselected){selectReceipt=real.after.selection_receipt;ack=real.post.request_sha256;}
  const card={candidate_id:chosen.candidate_id,candidate_version:chosen.candidate_version,candidate_question:'Bounded question',suggested_approach:'A method',closest_prior_work:{review:null},contribution:[],scientific_questions:[],requirements:[],unmapped_resources:[],limitations:[],alternatives:[],next_checks:[]};
  const view=()=>real?{...structuredClone(selected?real.after:real.before),delivery_workflow_head_sha256:real.before.workflow_head_sha256}:({ ...binding,delivery_workflow_head_sha256:'d'.repeat(64),revision:(selected||intentReceipt)?2:1,delivery_manifest_sha256:'c'.repeat(64),workflow_head_sha256:selected?'9'.repeat(64):'d'.repeat(64),snapshot_sha256:'e'.repeat(64),eligible:options.empty?[]:[chosen],selection_status:selected?'recorded':'pending',selection_receipt:selected?selectReceipt:null,planning_input:selected?{questions:[],legacy_candidates:[],selection_conditions:['keep'],unresolved:['unknown'],execution_authorized:false}:null,planning_status:selected?'verified':'pending',execution_authorized:false,direction_intent:intentReceipt || (intent?{intent_sha256:'f'.repeat(64)}:null),cards:{cards:options.cards || [card]},...(options.versionMismatch?{input_version:'1'}:{}),...(selected && options.driftAfterSave?{workflow_head_sha256:'0'.repeat(64)}:{}) });
@@ -58,7 +60,12 @@ function harness(options={}) {
   if(url.endsWith('/stage3/planning')) return response({project_ref:'project-a',input_version:1,revision:2,brief_sha256:brief,selection_status:'recorded',selection_request_sha256:ack,planning_configured:true,default_request:{key:'plan-key',selection_request_sha256:ack,...(prepared?{request_sha256:'1'.repeat(64)}:{})},job:prepared?{status:'intent-recorded',request_sha256:'1'.repeat(64)}:null,submission_in_progress:false,submission_error:null});
   if(url.endsWith('/stage3/planning/prepare')) {prepared=true;if(options.losePrepareResponse)throw Error('synthetic prepare response lost');return response({status:'intent-recorded',request_sha256:'1'.repeat(64)});}
   if(url.endsWith('/stage3/planning/run')) {
-   if(options.holdRun) await new Promise(resolve=>{runRelease=resolve});
+   if(options.holdRun) {
+    await new Promise(resolve => {
+     runRelease = resolve;
+     signalRunStarted();
+    });
+   }
    const flags={execution_authorized:false,evaluation_calls_authorized:false,formal_execution_enabled:false,external_claim_ready:false,usable_for_formal_pairing:false};
    return response({kind:'ProjectStage3PlanningSubmission',submission_status:'accepted',...flags,job:{kind:options.intentReady?'ProjectStage3DirectionPlanningJob':'ProjectStage3PlanningJob',...(options.intentReady?{mode:'direction-intent',formal_selected_receiver:false}:{}),project_ref:options.badRunProject?'project-b':'project-a',key:'plan-key',request_sha256:'1'.repeat(64),status:'intent-recorded',...flags}},202);
   }
@@ -75,7 +82,7 @@ function harness(options={}) {
  const handle=options.deferMount?null:window.STAGE2_SELECTION.mount(root,args);
  function selectRadio(){const radio=descendants(els.get('cards')).find(n=>n.name==='direction');assert.ok(radio);radio.checked=true;}
  function form(){els.get('confirmed').checked=true;els.get('actor').value='Synthetic';els.get('message').value='Synthetic choice';els.get('rationale').value='Synthetic reason';els.get('conditions').value='keep';els.get('unresolved').value='unknown';}
- return {els,root,window,args,handle,writes,reads,navigations,recoveryNotifications,selectRadio,form,setCurrent:v=>{current=v},waitSelect:()=>{waitSelect=true},release:()=>release(),uuids:()=>uuid,setIntent:()=>{intent=true},releaseRead:()=>readRelease(),releaseRun:()=>runRelease(),waitIntent:()=>{holdIntent=true},releaseIntent:()=>intentRelease(),releaseHistory:()=>historyRelease(),store,binding};
+ return {els,root,window,args,handle,writes,reads,navigations,recoveryNotifications,selectRadio,form,setCurrent:v=>{current=v},waitSelect:()=>{waitSelect=true},release:()=>release(),uuids:()=>uuid,setIntent:()=>{intent=true},releaseRead:()=>readRelease(),runStarted,releaseRun:()=>runRelease(),waitIntent:()=>{holdIntent=true},releaseIntent:()=>intentRelease(),releaseHistory:()=>historyRelease(),store,binding};
 }
 
 module.exports={harness,Element,descendants,memoryStorage,memoryLocks};
@@ -234,8 +241,21 @@ test('accepted one-click planning notifies parent exactly once with bound projec
  assert.equal(f.writes.filter(x=>x.url.endsWith('/run')).length,1);
 });
 test('suspended accepted planning response cannot notify or navigate a different project',async()=>{
- const f=harness({holdRun:true});await tick();f.selectRadio();f.form();const first=f.els.get('choice').onsubmit({preventDefault(){},submitter:f.els.get('submit-and-start')});for(let i=0;i<500 && !f.writes.some(x=>x.url.endsWith('/run'));i++)await tick();
- assert.equal(f.writes.filter(x=>x.url.endsWith('/run')).length,1);f.handle.suspend();f.setCurrent(false);f.releaseRun();await first;assert.equal(f.navigations.length,0);assert.equal(f.writes.length,3);
+ const f = harness({holdRun:true});
+ await tick();
+ f.selectRadio();
+ f.form();
+ const first = f.els.get('choice').onsubmit({preventDefault(){},submitter:f.els.get('submit-and-start')});
+ // Completion without a dispatch must still fail the request count assertion.
+ await Promise.race([f.runStarted, first]);
+ assert.equal(f.writes.filter(x=>x.url.endsWith('/run')).length,1);
+ f.handle.suspend();
+ f.setCurrent(false);
+ f.releaseRun();
+ await first;
+ assert.equal(f.navigations.length,0);
+ assert.equal(f.writes.length,3);
+ assert.equal(f.writes.filter(x=>x.url.endsWith('/run')).length,1);
 });
 test('manual planning links preserve locale and notify only on explicit current click',async()=>{
  const f=harness({intent:true});await tick();f.selectRadio();f.form();await f.els.get('choice').onsubmit({preventDefault(){},submitter:f.els.get('submit')});
