@@ -145,7 +145,11 @@ class DailyV3Tests(unittest.TestCase):
             html.index('id="evaluation-overview"'), html.index('id="brief"')
         )
         self.assertIn("100% (6/6)", html)
-        self.assertEqual(manifest["presentation_version"], "1.2.0")
+        self.assertEqual(manifest["presentation_version"], "1.4.0")
+        self.assertNotIn(
+            "content_gate.json", {row["path"] for row in manifest["artifacts"]}
+        )
+        self.assertIn('aria-label="Evaluation dimensions"><table>', html)
         self.assertFalse(manifest["stage3_authorized"])
         self.assertFalse(bundle["improvement_demonstrated"])
 
