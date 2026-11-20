@@ -31,6 +31,9 @@ from stage2_check.report_evaluation import (
     evaluation_wiki_projection,
 )
 
+_SCROLLING_PRESENTATION = "1.4.0"
+_PROVISIONAL_PRESENTATIONS = ("1.2.0", "1.3.0", _SCROLLING_PRESENTATION)
+
 
 def _utf8(value):
     return value.decode("utf-8") if isinstance(value, bytes) else value
@@ -38,12 +41,16 @@ def _utf8(value):
 
 def _evaluation_fragment(view, presentation_version="1.0.0"):
     """Embed only the body of our escaped, validated standalone assessment."""
-    document = _utf8(render_evaluation_html(view))
+    document = _utf8(
+        render_evaluation_html(
+            view, scroll_dimensions=presentation_version == _SCROLLING_PRESENTATION
+        )
+    )
     if "<body>" not in document or "</body>" not in document:
         raise Stage2Error("evaluation-delivery-invalid-rendered-body")
     body = document.split("<body>", 1)[1].split("</body>", 1)[0]
     if (
-        presentation_version in {"1.2.0", "1.3.0"}
+        presentation_version in _PROVISIONAL_PRESENTATIONS
         and view["evaluation_status"] == "audit-required"
     ):
         for label in ("score", "status", "rationale"):
@@ -56,7 +63,7 @@ def _evaluation_fragment(view, presentation_version="1.0.0"):
 def _evaluation_markdown_fragment(view, presentation_version="1.0.0"):
     document = _utf8(render_evaluation_markdown(view))
     if (
-        presentation_version in {"1.2.0", "1.3.0"}
+        presentation_version in _PROVISIONAL_PRESENTATIONS
         and view["evaluation_status"] == "audit-required"
     ):
         lines = document.splitlines(keepends=True)
@@ -98,13 +105,20 @@ def _evaluation_overview(view):
     )
 
 
+def _has_content_gate(selection, presentation_version):
+    return presentation_version == "1.3.0" or (
+        presentation_version == _SCROLLING_PRESENTATION
+        and selection["evaluation_packet"]["schema_version"] in TABLE_PACKET_VERSIONS
+    )
+
+
 def _evaluated_html(
     selection, snapshots, view, presentation_version, *, receipt_prefix=None
 ):
     document = _utf8(
         render_selection_html(selection, snapshots, receipt_prefix=receipt_prefix)
     )
-    if presentation_version in {"1.1.0", "1.2.0", "1.3.0"}:
+    if presentation_version in ("1.1.0", *_PROVISIONAL_PRESENTATIONS):
         document = document.replace(
             "</section>", "</section>" + _evaluation_overview(view), 1
         ).replace(
@@ -114,7 +128,7 @@ def _evaluated_html(
         )
     elif presentation_version != "1.0.0":
         raise Stage2Error("evaluation-delivery-presentation-version-invalid")
-    if presentation_version == "1.3.0":
+    if _has_content_gate(selection, presentation_version):
         document = document.replace(
             "</section>",
             "</section>" + render_content_gate_html(derive_content_gate(selection)),
@@ -368,12 +382,12 @@ def build_evaluated_delivery(
     view = evaluation_projection(
         bundle, selection, source_root, expected_bundle_sha256=expected_bundle_sha256
     )
-    presentation_version = (
-        "1.3.0"
-        if selection["evaluation_packet"]["schema_version"] in TABLE_PACKET_VERSIONS
-        else "1.2.0"
+    presentation_version = _SCROLLING_PRESENTATION
+    gate = (
+        derive_content_gate(selection)
+        if _has_content_gate(selection, presentation_version)
+        else None
     )
-    gate = derive_content_gate(selection) if presentation_version == "1.3.0" else None
     html = _evaluated_html(
         selection,
         source_snapshots,
@@ -478,15 +492,17 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
             raise Stage2Error("evaluation-delivery-artifact-changed")
     selection = json.loads((root / "core_selection.json").read_bytes())
     version = manifest.get("presentation_version", "1.0.0")
-    if version == "1.3.0":
+    gate = None
+    if _has_content_gate(selection, version):
         if (
             selection["evaluation_packet"]["schema_version"]
             not in TABLE_PACKET_VERSIONS
         ):
             raise Stage2Error("evaluation-delivery-content-gate-version-mismatch")
-        if "content_gate.json" not in names or json.loads(
-            (root / "content_gate.json").read_bytes()
-        ) != derive_content_gate(selection):
+        if "content_gate.json" not in names:
+            raise Stage2Error("evaluation-delivery-content-gate-changed")
+        gate = derive_content_gate(selection)
+        if json.loads((root / "content_gate.json").read_bytes()) != gate:
             raise Stage2Error("evaluation-delivery-content-gate-changed")
     elif "content_gate.json" in names:
         raise Stage2Error("evaluation-delivery-unexpected-content-gate")
@@ -511,7 +527,7 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
         selection,
         snapshots,
         projection,
-        manifest.get("presentation_version", "1.0.0"),
+        version,
         receipt_prefix="sources",
     )
     markdown = render_proposal(
@@ -523,13 +539,9 @@ def inspect_evaluated_delivery(output_dir, *, expected_manifest_sha256):
     )
     if isinstance(markdown, bytes):
         markdown = markdown.decode("utf-8")
-    if version == "1.3.0":
-        markdown += "\n\n" + render_content_gate_markdown(
-            derive_content_gate(selection)
-        )
-    markdown += "\n\n" + _evaluation_markdown_fragment(
-        projection, manifest.get("presentation_version", "1.0.0")
-    )
+    if gate is not None:
+        markdown += "\n\n" + render_content_gate_markdown(gate)
+    markdown += "\n\n" + _evaluation_markdown_fragment(projection, version)
     if (root / "selection.html").read_bytes() != html.encode("utf-8") or (
         root / "selection.md"
     ).read_bytes() != markdown.encode("utf-8"):

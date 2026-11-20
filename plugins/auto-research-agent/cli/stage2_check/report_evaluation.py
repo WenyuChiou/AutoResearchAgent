@@ -418,8 +418,8 @@ def _html_evidence(refs):
     return "<ul>" + "".join(items) + "</ul>"
 
 
-def render_evaluation_html(view):
-    """Render a validated v3 view as safe standalone UTF-8 HTML bytes."""
+def render_evaluation_html(view, *, scroll_dimensions=True):
+    """Render a validated v3 view, with the original layout for sealed deliveries."""
     data = validate_projection(view)
     dimensions = "".join(
         f"<tr><th>{name}</th><td>{_h(row['score'])}</td><td>{_h(row['sum'])}</td><td>6</td><td>{row['assessed']}</td><td>3</td></tr>"
@@ -458,5 +458,17 @@ def render_evaluation_html(view):
         f"<dt>{_h(key)}</dt><dd><code>{_h(value)}</code></dd>"
         for key, value in data["provenance"].items()
     )
-    document = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>External Stage 2 v3 evaluation</title><style>body{{max-width:1100px;margin:auto;padding:2rem;font:16px/1.5 system-ui;color:#172033}}section,article{{border:1px solid #d9dfeb;border-radius:8px;padding:1rem;margin:1rem 0}}.notice{{background:#fff2c7}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #d9dfeb;padding:.5rem;text-align:left}}dl{{display:grid;grid-template-columns:minmax(140px,220px) 1fr;gap:.35rem 1rem}}dd{{margin:0;overflow-wrap:anywhere}}code{{overflow-wrap:anywhere}}details{{margin:.6rem 0;padding:.4rem;border:1px solid #e3e7ef}}@media(max-width:650px){{dl{{grid-template-columns:1fr}}}}</style></head><body><header><h1>External Stage 2 v3 evaluation</h1><p>Rubric: {_h(data["rubric_id"])}</p><p>Status: {_h(data["evaluation_status"])}</p></header>{incomplete}<section><h2>Dimensions</h2><table><thead><tr><th>Dimension</th><th>Score</th><th>Sum</th><th>Maximum</th><th>Assessed</th><th>Required</th></tr></thead><tbody>{dimensions}</tbody></table></section>{errors}<section><h2>Criterion details</h2>{"".join(criteria) or "<p>No criterion results are available.</p>"}</section><section><h2>Provenance</h2><dl>{provenance}</dl></section></body></html>"""
+    dimension_table = (
+        "<table><thead><tr><th>Dimension</th><th>Score</th><th>Sum</th>"
+        "<th>Maximum</th><th>Assessed</th><th>Required</th></tr></thead>"
+        f"<tbody>{dimensions}</tbody></table>"
+    )
+    scroll_style = ""
+    if scroll_dimensions:
+        dimension_table = (
+            '<div class="table-wrap" tabindex="0" role="region" '
+            f'aria-label="Evaluation dimensions">{dimension_table}</div>'
+        )
+        scroll_style = ".table-wrap{overflow-x:auto}"
+    document = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>External Stage 2 v3 evaluation</title><style>body{{max-width:1100px;margin:auto;padding:2rem;font:16px/1.5 system-ui;color:#172033}}section,article{{border:1px solid #d9dfeb;border-radius:8px;padding:1rem;margin:1rem 0}}.notice{{background:#fff2c7}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #d9dfeb;padding:.5rem;text-align:left}}dl{{display:grid;grid-template-columns:minmax(140px,220px) 1fr;gap:.35rem 1rem}}dd{{margin:0;overflow-wrap:anywhere}}code{{overflow-wrap:anywhere}}details{{margin:.6rem 0;padding:.4rem;border:1px solid #e3e7ef}}@media(max-width:650px){{dl{{grid-template-columns:1fr}}}}{scroll_style}</style></head><body><header><h1>External Stage 2 v3 evaluation</h1><p>Rubric: {_h(data["rubric_id"])}</p><p>Status: {_h(data["evaluation_status"])}</p></header>{incomplete}<section><h2>Dimensions</h2>{dimension_table}</section>{errors}<section><h2>Criterion details</h2>{"".join(criteria) or "<p>No criterion results are available.</p>"}</section><section><h2>Provenance</h2><dl>{provenance}</dl></section></body></html>"""
     return document.encode("utf-8")
