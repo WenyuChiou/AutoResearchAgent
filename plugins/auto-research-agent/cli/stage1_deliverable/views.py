@@ -19,7 +19,8 @@ from .core_records import extended
 from .review_details import LiteralLine, by_work
 from .screening_records import extended as screened
 
-REVIEW_FORMAT = "screening-and-sources-v1"
+PREVIOUS_REVIEW_FORMAT = "screening-and-sources-v1"
+REVIEW_FORMAT = "screening-and-sources-v2"
 _MARKDOWN_ESCAPES = str.maketrans({char: "\\" + char for char in "\\`*_[]{}#+-!=|~"})
 
 
@@ -413,12 +414,20 @@ def _markdown_line(line):
     return html.escape(line, quote=False)
 
 
-def render(records, sources, *, review_format=REVIEW_FORMAT):
+def render(records, sources, *, review_format=REVIEW_FORMAT, journal=None):
     # JSON object order is not research data. Match the manifest's canonical
     # ordering while preserving authored array order and original input bytes.
     records = json.loads(canonical(records))
     all_tables = tables(records, sources)
-    details = by_work(records, sources) if review_format == REVIEW_FORMAT else None
+    details = (
+        by_work(
+            records,
+            sources,
+            journal=journal if review_format == REVIEW_FORMAT else None,
+        )
+        if review_format is not None
+        else None
+    )
     lines = review_lines(records, details)
     markdown = "\n".join(map(_markdown_line, lines)) + "\n"
     coverage = [

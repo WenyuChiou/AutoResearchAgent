@@ -951,6 +951,10 @@ class ResearchDeliverableTests(unittest.TestCase):
         write_json(path, original)
         with self.assertRaisesRegex(DeliverableError, "bound review format"):
             package.validate(self.output, self.rehash())
+        original["review_format"] = package.views.PREVIOUS_REVIEW_FORMAT
+        write_json(path, original)
+        with self.assertRaisesRegex(DeliverableError, "bound review format"):
+            package.validate(self.output, self.rehash())
 
     def test_json_credential_in_source_rejected_before_archive(self):
         raw = HTML.replace(

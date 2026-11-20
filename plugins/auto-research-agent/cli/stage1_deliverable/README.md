@@ -139,8 +139,10 @@ bypass semantic replay. Package directories can move within the same declared
 runtime; different runtime bytes are rejected. Build/replay never acquire new
 sources.
 
-New manifests bind the `screening-and-sources-v1` review format. Validate an
-older package with the exporter and dependencies originally pinned to it.
+New manifests bind the `screening-and-sources-v2` review format. Core reports
+use the verified journal to retain explicit historical version bindings for
+screening decisions and show Unknown when a decision has no unique binding.
+Validate an older package with the exporter and dependencies originally pinned to it.
 An existing independently bound HostReplay receipt can also replay the older
 review format, with the original view bytes and inventory checked in full.
 

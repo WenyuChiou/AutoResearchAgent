@@ -18,7 +18,48 @@ def _display_text(value):
     )
 
 
-def _screening_lines(decisions, *, core=False, review=None):
+def _review_version_line(decision_id, version):
+    if version is None:
+        return "Screening version: Unknown (no version-specific review binding)."
+    return f"Version named in the saved review of decision {decision_id}: {version}."
+
+
+def _saved_review_versions(journal, library):
+    """Resolve review scope at the time of recording, without selecting a version."""
+    known_versions = {
+        work: {version["version_id"] for version in row["versions"]}
+        for work, row in library.items()
+    }
+    candidates, decisions = {}, {}
+    observed_versions = defaultdict(set)
+    for entry in journal:
+        event = entry["payload"]
+        kind = event["kind"]
+        if kind == "CandidateRevision":
+            candidates[event["work_id"]] = event
+        elif kind == "DecisionEvent":
+            decisions[event["subject_id"]] = event
+        elif kind == "CoverageWorkReview":
+            work, version = event["work_id"], event["version_id"]
+            candidate, decision = candidates.get(work), decisions.get(work)
+            if (
+                candidate is not None
+                and candidate["event_id"] == event["candidate_event_id"]
+                and version in candidate["version_ids"]
+                and version in known_versions.get(work, ())
+                and decision is not None
+                and decision["event_id"] == event["decision_event_id"]
+                and decision["new_decision"] == "include"
+            ):
+                observed_versions[work, decision["event_id"]].add(version)
+    return {
+        key: next(iter(versions))
+        for key, versions in observed_versions.items()
+        if len(versions) == 1
+    }
+
+
+def _screening_lines(decisions, *, core=False, review=None, versions=None):
     if not decisions:
         return ["Screening: Unknown (no decision recorded).", "Reason: Unknown.", ""]
     status, reason, event_id, at = (
@@ -41,16 +82,19 @@ def _screening_lines(decisions, *, core=False, review=None):
                 "",
             ]
         )
-    if core:
+        if versions is not None:
+            key = decision[event_id]
+            lines.extend([_review_version_line(key, versions.get(key)), ""])
+    if core and versions is None:
         lines.extend(
             [
-                f"Version named in the saved review of decision {review['decision_event_id']}: {review['version_id']}."
+                _review_version_line(review["decision_event_id"], review["version_id"])
                 if review is not None
-                else "Screening version: Unknown (no version-specific review binding).",
+                else _review_version_line(None, None),
                 "",
             ]
         )
-    else:
+    elif not core:
         # A legacy version_id labels the canonical projection. It may have
         # been filled from the selected paper version after a Core decision.
         lines.extend(
@@ -123,7 +167,7 @@ def _source_lines(receipts, attempts, imports):
     return lines
 
 
-def by_work(records, receipts):
+def by_work(records, receipts, *, journal=None):
     """Index by the validated work/version pair; Core decisions have work scope."""
     sources_by_version = defaultdict(list)
     for row in receipts:
@@ -132,6 +176,7 @@ def by_work(records, receipts):
         row["work_id"]: row
         for row in records.get("screening_library", {}).get("rows", [])
     }
+    bindings = _saved_review_versions(journal, library) if journal is not None else None
     decisions_by_version = defaultdict(list)
     if not library:
         for row in records["screening"]:
@@ -154,7 +199,17 @@ def by_work(records, receipts):
             continue
 
         lines = _screening_lines(
-            row["decision_history"], core=True, review=row["current_review"]
+            row["decision_history"],
+            core=True,
+            review=row["current_review"],
+            versions=(
+                {
+                    decision["event_id"]: bindings.get((work, decision["event_id"]))
+                    for decision in row["decision_history"]
+                }
+                if bindings is not None
+                else None
+            ),
         )
         attempts = defaultdict(list)
         for item in row["source_attempts"]:
