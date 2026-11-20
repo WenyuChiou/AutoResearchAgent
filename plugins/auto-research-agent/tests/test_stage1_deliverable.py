@@ -2,6 +2,7 @@
 
 import copy
 import csv
+import html
 import io
 import json
 import os
@@ -15,6 +16,7 @@ from unittest.mock import patch
 
 import bibtexparser
 from bibtexparser.latexenc import latex_to_unicode
+from markdown_it import MarkdownIt
 from openpyxl import load_workbook
 from requests import Timeout
 from requests.structures import CaseInsensitiveDict
@@ -355,6 +357,141 @@ class ResearchDeliverableTests(unittest.TestCase):
         self.make_records(full_source_pdf(), "application/pdf")
         report = self.build()
         self.assertEqual(report["counts"]["acquired_full_text"]["pdf"], 1)
+
+    def test_screening_reason_crlf_renders_one_line_break(self):
+        records = self.make_records()
+        reason = "Study spans two recordings.\r\n    Read the retained margin line."
+        records["screening"][0]["reason"] = reason
+        original = (json.dumps(records, ensure_ascii=False, indent=2) + "\n").encode(
+            "utf-8"
+        )
+        self.records.write_bytes(original)
+        input_sha = sha(original)
+        exported = subprocess.run(
+            [
+                sys.executable,
+                "-X",
+                "utf8",
+                "-m",
+                "stage1_deliverable",
+                "build",
+                str(self.records),
+                str(self.output),
+                "--records-sha256",
+                input_sha,
+            ],
+            env=dict(os.environ, PYTHONPATH=str(PLUGIN / "cli")),
+            capture_output=True,
+            encoding="utf-8",
+        )
+        self.assertEqual(exported.returncode, 0, exported.stdout + exported.stderr)
+        receipt = json.loads(exported.stdout)
+        self.assertEqual(receipt["status"], "passed")
+        self.assertEqual(receipt["records_sha256"], input_sha)
+        manifest = read_json(self.output / "provenance_manifest.json")
+        self.assertEqual(manifest["original_input_sha256"], input_sha)
+        self.assertEqual(
+            manifest["canonical_records"]["screening"][0]["reason"], reason
+        )
+        self.assertEqual(self.records.read_bytes(), original)
+        self.assertEqual((self.output / "records.original.json").read_bytes(), original)
+
+        expected = (
+            "Reason: Study spans two recordings.\n    Read the retained margin line."
+        )
+        markdown = (self.output / "literature_review.md").read_bytes().decode("utf-8")
+        rendered = MarkdownIt("commonmark").render(markdown)
+        self.assertIn(f"<pre>{expected}</pre>", rendered)
+        word = Document(self.output / "literature_review.docx")
+        reasons = [p.text for p in word.paragraphs if p.text.startswith("Reason: ")]
+        self.assertEqual(reasons, [expected])
+
+    def test_report_preserves_decisions_and_failed_attempt_before_success(self):
+        records = self.make_records()
+        failed_dir = self.inputs / "first-attempt"
+        with (
+            patch(
+                "research_hub.source_fetch._resolve_host_addresses",
+                return_value=("93.184.216.34",),
+            ),
+            patch(
+                "requests.Session.get",
+                return_value=Response(b"", "text/html", 429),
+            ),
+        ):
+            fetch_public_source(
+                output_dir=failed_dir, url="https://example.org/initial", title=TITLE
+            )
+        failed_receipt = failed_dir / "source-fetch-result.json"
+        failed = dict(
+            records["sources"][0],
+            source_id="first",
+            result_path=failed_receipt.relative_to(self.inputs).as_posix(),
+            result_sha256=sha(failed_receipt.read_bytes()),
+        )
+        records["sources"].insert(0, failed)
+        records["papers"][0]["source_ids"].insert(0, "first")
+        records["screening"][0]["reason"] = (
+            "Synthetic record remains unverified.\n\n    # Margin note: p * q"
+        )
+        records["screening"].append(
+            dict(
+                records["screening"][0],
+                decision_id="decision2",
+                status="include",
+                reason="Included because n = m*p*q, with [alpha](example) and <x>.",
+                observed_at="2026-09-28T00:01:00+00:00",
+            )
+        )
+        report = self.build(records)
+        self.assertEqual(report["status"], "passed")
+        md = (self.output / "literature_review.md").read_text(encoding="utf-8")
+        docx = "\n".join(
+            p.text for p in Document(self.output / "literature_review.docx").paragraphs
+        )
+        attempts = [
+            json.loads(line)
+            for line in (self.output / "paper_manifest.jsonl").read_bytes().splitlines()
+        ]
+        self.assertEqual(
+            [row["state"] for row in attempts], ["rate-limited", "available"]
+        )
+        saved = read_json(self.output / "provenance_manifest.json")[
+            "canonical_records"
+        ]["screening"]
+        self.assertEqual(saved, records["screening"])
+        rendered = MarkdownIt("commonmark").render(md)
+        for row in saved:
+            expected = "Reason: " + row["reason"]
+            self.assertIn(html.escape(expected, quote=False), rendered)
+            self.assertIn(expected, docx)
+        self.assertNotIn("<h1>Margin note", rendered)
+        self.assertNotIn("<em>", rendered)
+        self.assertNotIn('<a href="example">', rendered)
+        for text in (md, docx):
+            for index, row in enumerate(saved):
+                label = "current" if index else "earlier"
+                self.assertIn(
+                    f"Decision {row['decision_id']} ({label}, {row['observed_at']}): {row['status']}.",
+                    text,
+                )
+            lines = [
+                f"Source {row['source_id']}, attempt {row['attempt']} ({row['observed_at']}): {row['state']}."
+                for row in attempts
+            ]
+            self.assertLess(text.index(lines[0]), text.index(lines[1]))
+            self.assertIn(
+                "Full text: validated receipt recorded for this version.", text
+            )
+            self.assertIn("unverified; full-text;", text)
+        self.assertEqual(
+            (self.output / "records.original.json").read_bytes(),
+            self.records.read_bytes(),
+        )
+        self.assertEqual(
+            (self.output / "sources/first/original.json").read_bytes(),
+            failed_receipt.read_bytes(),
+        )
 
     def test_readable_reports_preserve_exact_evidence_and_offsets(self):
         cases = (
@@ -799,6 +936,8 @@ class ResearchDeliverableTests(unittest.TestCase):
             ("experimental", False),
             ("improvement", "improved"),
             ("docx", {"status": "unavailable"}),
+            ("review_format", "unrecognized"),
+            ("review_format", None),
         ):
             changed = copy.deepcopy(original)
             changed[key] = value
@@ -808,6 +947,14 @@ class ResearchDeliverableTests(unittest.TestCase):
                 self.assertRaisesRegex(DeliverableError, "contract"),
             ):
                 package.validate(self.output, self.rehash())
+        original.pop("review_format")
+        write_json(path, original)
+        with self.assertRaisesRegex(DeliverableError, "bound review format"):
+            package.validate(self.output, self.rehash())
+        original["review_format"] = package.views.PREVIOUS_REVIEW_FORMAT
+        write_json(path, original)
+        with self.assertRaisesRegex(DeliverableError, "bound review format"):
+            package.validate(self.output, self.rehash())
 
     def test_json_credential_in_source_rejected_before_archive(self):
         raw = HTML.replace(

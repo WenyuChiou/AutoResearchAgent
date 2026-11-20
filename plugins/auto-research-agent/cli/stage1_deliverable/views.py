@@ -16,7 +16,12 @@ from openpyxl.utils import get_column_letter
 
 from .common import DeliverableError, canonical
 from .core_records import extended
+from .review_details import LiteralLine, by_work
 from .screening_records import extended as screened
+
+PREVIOUS_REVIEW_FORMAT = "screening-and-sources-v1"
+REVIEW_FORMAT = "screening-and-sources-v2"
+_MARKDOWN_ESCAPES = str.maketrans({char: "\\" + char for char in "\\`*_[]{}#+-!=|~"})
 
 
 def cell(value):
@@ -231,7 +236,7 @@ def workbook_bytes(all_tables):
     return _zip_bytes(out.getvalue())
 
 
-def review_lines(records):
+def review_lines(records, details=None):
     lines = [
         "# Literature review",
         "",
@@ -242,6 +247,13 @@ def review_lines(records):
         "Experimental researcher package. Source and interpretation checks remain separate; no P1-P3 improvement is established.",
         "",
     ]
+    if details is not None:
+        lines.extend(
+            [
+                "Screening, source acquisition, and the evidence relation for each claim are recorded separately.",
+                "",
+            ]
+        )
     for paper in records["papers"]:
         lines.extend(
             [
@@ -252,6 +264,9 @@ def review_lines(records):
                 "",
             ]
         )
+        if details is not None:
+            selected, historical = details[paper["work_id"]]
+            lines.extend(selected)
         for key, value in paper["findings"].items():
             lines.extend([key.replace("_", " ").capitalize() + ": " + value, ""])
         lines.extend(
@@ -262,6 +277,8 @@ def review_lines(records):
                 "",
             ]
         )
+        if details is not None:
+            lines.extend(historical)
     lines.extend(["## Evidence and limitations", ""])
     for claim in records["claims"]:
         if extended(records):
@@ -321,6 +338,9 @@ def docx_bytes(lines):
         elif line.startswith("## "):
             paragraph = document.add_heading(line[3:], 1)
         else:
+            if isinstance(line, LiteralLine):
+                # python-docx turns CR and LF into separate breaks.
+                line = line.replace("\r\n", "\n")
             document.add_paragraph(line)
             continue
         for run in paragraph.runs:
@@ -384,13 +404,32 @@ def bibtex(records):
     return ("\n\n".join(entries) + "\n").encode("utf-8")
 
 
-def render(records, sources):
+def _markdown_line(line):
+    if isinstance(line, LiteralLine):
+        if any(whitespace in line for whitespace in ("\n", "\r", "\t", "  ")):
+            # Preserve authored spacing without letting continuation lines
+            # become Markdown headings, lists, or indented code.
+            return "<pre>" + html.escape(line, quote=False) + "</pre>"
+        line = line.translate(_MARKDOWN_ESCAPES)
+    return html.escape(line, quote=False)
+
+
+def render(records, sources, *, review_format=REVIEW_FORMAT, journal=None):
     # JSON object order is not research data. Match the manifest's canonical
     # ordering while preserving authored array order and original input bytes.
     records = json.loads(canonical(records))
     all_tables = tables(records, sources)
-    lines = review_lines(records)
-    markdown = "\n".join(html.escape(line, quote=False) for line in lines) + "\n"
+    details = (
+        by_work(
+            records,
+            sources,
+            journal=journal if review_format == REVIEW_FORMAT else None,
+        )
+        if review_format is not None
+        else None
+    )
+    lines = review_lines(records, details)
+    markdown = "\n".join(map(_markdown_line, lines)) + "\n"
     coverage = [
         "# Coverage and stopping record",
         "",

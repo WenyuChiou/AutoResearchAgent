@@ -8,6 +8,8 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
+from docx import Document
+from markdown_it import MarkdownIt
 from openpyxl import load_workbook
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
@@ -34,6 +36,7 @@ from stage1_deliverable.package import (
 )
 from stage1_deliverable.package import validate as validate_package
 from stage1_deliverable.records import CLASSIFICATION, FINDINGS, validate_records
+from stage1_deliverable.review_details import _saved_review_versions
 from stage1_deliverable.screening_records import artifacts, read_artifacts
 from stage1_ledger.validation import validate_run
 from stage1_coverage.run import CoverageLedger
@@ -41,6 +44,159 @@ from stage2_common import Stage2Error
 from stage2_workflow import build_stage2_seed
 from test_stage1_core_records import core_case, produced
 from test_workspace_project_intake import bound_body, compile_body, submit_body
+
+
+class HistoricalReviewBindingTests(unittest.TestCase):
+    def test_package_reports_verified_review_after_new_version_discovery(self):
+        with core_case() as (case, fixture, _, _):
+            ledger = fixture["ledger"]
+            work = fixture["records"]["papers"][0]["work_id"]
+            coverage = ledger.coverage_state()
+            old_review = coverage.evidence.current()[work]
+            query_id = list(coverage.queries)[2]
+            query = ledger.start_planned(query_id)
+            backend = ledger.start(
+                "backend",
+                {"input": coverage.arguments(query_id)},
+                backend="openalex",
+                parent_id=query,
+            )
+            revised = dict(
+                ledger.candidates()[work]["discoveries"][-1]["record"], version="v2"
+            )
+            raw = ledger.save_bytes(canonical([revised]), producer=backend)
+            empty = ledger.save_bytes(b"", producer=backend)
+            ledger.finish(
+                backend,
+                outcome="success_nonempty",
+                http_status=200,
+                exit_code=0,
+                stdout=empty,
+                stderr=empty,
+                records=raw,
+            )
+            ledger.complete_query(query)
+            ledger.extract()
+            fixture["checkpoint"] = ledger.checkpoint()
+            self.assertTrue(validate_run(ledger.root)["valid"])
+            _, path, records = produced(case, fixture)
+            row = next(
+                row
+                for row in records["screening_library"]["rows"]
+                if row["work_id"] == work
+            )
+            selected = row["selected_version_id"]
+            self.assertNotEqual(old_review["version_id"], selected)
+            self.assertIsNone(row["current_review"])
+            output = _io_root(private_output(case.fixture_root / "historical-package"))
+            original = path.read_bytes()
+            journal = records["screening_journal"]["path"]
+            original_journal = (path.parent / journal).read_bytes()
+            receipt = build(path, output, sha(original))
+            before = inventory(output)
+            self.assertEqual(
+                validate_package(output, receipt["manifest_sha256"])["status"], "passed"
+            )
+            self.assertEqual(inventory(output), before)
+            self.assertEqual((output / "records.original.json").read_bytes(), original)
+            self.assertEqual((output / journal).read_bytes(), original_journal)
+            markdown = MarkdownIt("commonmark").parse(
+                (output / "literature_review.md").read_text(encoding="utf-8")
+            )
+            texts = (
+                [token.content for token in markdown if token.type == "inline"],
+                [
+                    p.text
+                    for p in Document(output / "literature_review.docx").paragraphs
+                ],
+            )
+            decision = old_review["decision_event_id"]
+            binding = (
+                f"Version named in the saved review of decision {decision}: "
+                f"{old_review['version_id']}."
+            )
+            for text in texts:
+                self.assertIn(binding, text)
+                self.assertNotIn(
+                    f"Version named in the saved review of decision {decision}: {selected}.",
+                    text,
+                )
+            case.runner.assert_not_called()
+
+    def test_scope_requires_matching_past_candidate_decision_and_unique_version(self):
+        library = {
+            "work1": {"versions": [{"version_id": "old"}, {"version_id": "new"}]},
+            "work2": {"versions": [{"version_id": "other"}]},
+        }
+        candidate = dict(
+            kind="CandidateRevision",
+            work_id="work1",
+            event_id="e1",
+            version_ids=["old"],
+        )
+        decision = dict(
+            kind="DecisionEvent",
+            subject_id="work1",
+            event_id="e2",
+            new_decision="include",
+        )
+        review = dict(
+            kind="CoverageWorkReview",
+            work_id="work1",
+            version_id="old",
+            candidate_event_id="e1",
+            decision_event_id="e2",
+        )
+        revised = dict(candidate, event_id="e3", version_ids=["old", "new"])
+        other_candidate = dict(
+            candidate, event_id="e4", work_id="work2", version_ids=["other"]
+        )
+        other_decision = dict(decision, event_id="e5", subject_id="work2")
+        events = [candidate, decision, review, revised]
+        cases = (
+            (events, {("work1", "e2"): "old"}),
+            ([candidate, decision, revised], {}),
+            ([candidate, decision, dict(review, version_id="new"), revised], {}),
+            ([candidate, decision, dict(review, work_id="work2"), revised], {}),
+            ([candidate, decision, dict(review, version_id="other"), revised], {}),
+            (
+                [
+                    candidate,
+                    decision,
+                    other_candidate,
+                    other_decision,
+                    dict(review, decision_event_id="e5"),
+                    revised,
+                ],
+                {},
+            ),
+            (
+                [
+                    candidate,
+                    decision,
+                    other_candidate,
+                    other_decision,
+                    dict(review, candidate_event_id="e4"),
+                    revised,
+                ],
+                {},
+            ),
+            ([candidate, dict(decision, new_decision="exclude"), review], {}),
+            ([candidate, decision, revised, review], {}),
+            (
+                [*events, dict(review, candidate_event_id="e3")],
+                {("work1", "e2"): "old"},
+            ),
+            ([*events, dict(review, candidate_event_id="e3", version_id="new")], {}),
+        )
+        for index, (payloads, expected) in enumerate(cases):
+            with self.subTest(index=index):
+                self.assertEqual(
+                    _saved_review_versions(
+                        [{"payload": payload} for payload in payloads], library
+                    ),
+                    expected,
+                )
 
 
 class ScreeningRecordsTests(unittest.TestCase):
@@ -233,6 +389,7 @@ class ScreeningRecordsTests(unittest.TestCase):
             )
             for name in ("first", "second")
         ]
+        metadata.append(dict(metadata[0], version="v2"))
         raw = ledger.save_bytes(canonical(metadata), producer=backend)
         empty = ledger.save_bytes(b"", producer=backend)
         ledger.finish(
@@ -246,6 +403,35 @@ class ScreeningRecordsTests(unittest.TestCase):
         )
         ledger.complete_query(query)
         self.assertEqual(ledger.extract()["works"], 2)
+        candidate = next(
+            row
+            for row in ledger.candidates().values()
+            if row["discoveries"][-1]["record"]["doi"] == metadata[0]["doi"]
+        )
+        historical, selected = candidate["version_ids"]
+        old_uri = "https://example.org/previous-version"
+        old_attempt = ledger.start_source(
+            work_id=candidate["work_id"],
+            version_id=historical,
+            source_uri=old_uri,
+            tool="fixture",
+            request={"public_only": True},
+            actor="fixture",
+            reason="Saved offline attempt.",
+        )
+        reason = "Earlier version requested; synthetic rate limit.\vEnd of note."
+        observed_at = ledger.clock()
+        ledger.finish_source(
+            attempt_id=old_attempt,
+            outcome="rate_limited",
+            observed_at=observed_at,
+            http_status=429,
+            resolved_uri=old_uri,
+            raw_ref=ledger.save_bytes(b"authored failure", producer=old_attempt),
+            text_ref=None,
+            extraction=None,
+            reason=reason,
+        )
         ledger.checkpoint()
         report = validate_run(ledger.root)
         self.assertTrue(report["valid"], report)
@@ -313,6 +499,39 @@ class ScreeningRecordsTests(unittest.TestCase):
             validate_package(output, receipt["manifest_sha256"])["status"], "passed"
         )
         self.assertEqual((output / "records.original.json").read_bytes(), original)
+        markdown = (output / "literature_review.md").read_text(encoding="utf-8")
+        view = Document(output / "literature_review.docx")
+        word = "\n".join(
+            ("## " if p.style.name == "Heading 1" else "") + p.text
+            for p in view.paragraphs
+        )
+        for text in (markdown, word):
+            section = text.split("## " + candidate["work_id"] + " — ", 1)[1]
+            section = section.split("\n## ", 1)[0]
+            current_section, historical_section = section.split(
+                f"Historical version: {historical}", 1
+            )
+            if text is markdown:
+                historical_section = MarkdownIt("commonmark").render(historical_section)
+            self.assertIn(f"Version: {selected}", current_section)
+            self.assertIn("Screening: Unknown (no decision recorded).", current_section)
+            self.assertIn("Reason: Unknown.", current_section)
+            self.assertIn(
+                "Unknown (no source attempt or import recorded for this version).",
+                current_section,
+            )
+            self.assertNotIn(old_attempt, current_section)
+            self.assertNotIn(old_uri, current_section)
+            self.assertIn(
+                f"Saved source attempt {old_attempt} ({observed_at}): rate_limited.",
+                historical_section,
+            )
+            self.assertIn(f"Requested URI: {old_uri}", historical_section)
+            self.assertIn(
+                "Recorded reason: Earlier version requested; synthetic rate limit."
+                "\\u000bEnd of note.",
+                historical_section,
+            )
         expected_headers = list(self.records["screening"][0])
         rows = list(
             csv.reader(
@@ -584,6 +803,31 @@ class ScreeningRecordsTests(unittest.TestCase):
         self.assertEqual(
             (excluded["counts"]["discoveries"], excluded["counts"]["reversals"]), (2, 1)
         )
+        markdown = (output / "literature_review.md").read_text(encoding="utf-8")
+        section = markdown.split("## " + excluded["work_id"] + " — ", 1)[1]
+        section = section.split("\n## ", 1)[0]
+        self.assertIn("Screening history (work-level):", section)
+        self.assertIn("Reason: Saved include reason.", section)
+        self.assertIn("Reason: Saved exclude reason.", section)
+        self.assertIn(
+            "Screening version: Unknown (no version-specific review binding).", section
+        )
+        saved = [
+            row["current_review"]
+            for row in library["rows"]
+            if row["current_review"] is not None
+        ]
+        self.assertTrue(saved)
+        word = "\n".join(
+            p.text for p in Document(output / "literature_review.docx").paragraphs
+        )
+        for review in saved:
+            binding = (
+                f"Version named in the saved review of decision "
+                f"{review['decision_event_id']}: {review['version_id']}."
+            )
+            self.assertIn(binding, markdown)
+            self.assertIn(binding, word)
         self.assertIn(
             b"Saved exclude reason.",
             files[

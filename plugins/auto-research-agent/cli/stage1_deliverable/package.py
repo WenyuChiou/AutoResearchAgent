@@ -146,6 +146,18 @@ def derive(records, root, runtime, *, host_replay=None):
     return manifests, paper_files
 
 
+def _render(records, manifests, root, review_format):
+    journal = None
+    if review_format == views.REVIEW_FORMAT and screened(records):
+        from .screening_records import journal_rows
+
+        path = safe_path(root, records["screening_journal"]["path"])
+        journal = journal_rows(records, path.read_bytes())
+    return views.render(
+        records, manifests, review_format=review_format, journal=journal
+    )
+
+
 def _counts(records, manifests):
     states = {
         state: sum(row["state"] == state for row in manifests)
@@ -223,7 +235,7 @@ def build(records_path, output, expected_records_sha256):
             with safe_path(output, journal["path"]).open("xb") as stream:
                 stream.write(raw)
     manifests, paper_files = derive(records, output, runtime)
-    generated = views.render(records, manifests)
+    generated = _render(records, manifests, output, views.REVIEW_FORMAT)
     generated.update(paper_files)
     generated["papers.jsonl"] = _jsonl(records["papers"])
     generated["paper_manifest.jsonl"] = _jsonl(manifests)
@@ -241,6 +253,7 @@ def build(records_path, output, expected_records_sha256):
         "original_input_sha256": expected_records_sha256,
         "runtime": runtime,
         "docx": DOCX,
+        "review_format": views.REVIEW_FORMAT,
         "counts": _counts(records, manifests),
         "files": inventory(output),
     }
@@ -272,6 +285,7 @@ def validate(root, expected_sha256, *, host_replay=None):
             "original_input_sha256",
             "runtime",
             "docx",
+            *(("review_format",) if "review_format" in manifest else ()),
             "counts",
             "files",
         ),
@@ -283,8 +297,11 @@ def validate(root, expected_sha256, *, host_replay=None):
         or manifest["experimental"] is not True
         or manifest["improvement"] != "not yet demonstrated"
         or manifest["docx"] != DOCX
+        or manifest.get("review_format", views.REVIEW_FORMAT)
+        not in (views.REVIEW_FORMAT, views.PREVIOUS_REVIEW_FORMAT)
     ):
         raise DeliverableError("unsupported package contract")
+    review_format = manifest.get("review_format")
     records = validate_records(manifest["canonical_records"])
     if manifest["schema_version"] != records["schema_version"]:
         raise DeliverableError("package and canonical record versions differ")
@@ -297,11 +314,17 @@ def validate(root, expected_sha256, *, host_replay=None):
     runtime = sources.runtime_binding()
     if host_replay is not None:
         host_replay.package(root, expected_sha256, manifest, runtime)
+        if review_format != views.REVIEW_FORMAT and (
+            manifest["runtime"]["exporter_sha256"] == runtime["exporter_sha256"]
+        ):
+            raise DeliverableError("current exporter requires a bound review format")
         # Historical metadata is only used to reconstruct historical view bytes.
         # The receipt separately verifies the complete current validator runtime.
         runtime = manifest["runtime"]
     elif manifest["runtime"] != runtime:
         raise DeliverableError("exporter or dependency runtime bytes changed")
+    elif review_format != views.REVIEW_FORMAT:
+        raise DeliverableError("current exporter requires a bound review format")
     if inventory(root) != manifest["files"]:
         raise DeliverableError("package file inventory or bytes differ")
     manifests, paper_files = derive(
@@ -310,7 +333,7 @@ def validate(root, expected_sha256, *, host_replay=None):
         runtime,
         **({"host_replay": host_replay} if host_replay is not None else {}),
     )
-    generated = views.render(records, manifests)
+    generated = _render(records, manifests, root, review_format)
     generated.update(paper_files)
     generated["papers.jsonl"] = _jsonl(records["papers"])
     generated["paper_manifest.jsonl"] = _jsonl(manifests)

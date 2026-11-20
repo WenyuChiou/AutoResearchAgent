@@ -14,7 +14,7 @@ import test_stage1_deliverable as fixtures
 
 from research_workspace import host_replay
 from research_workspace.saved_admission import inspect_saved_admission
-from stage1_deliverable import package, sources
+from stage1_deliverable import package, sources, views
 from stage1_deliverable.common import (
     DeliverableError,
     canonical,
@@ -141,6 +141,52 @@ class HostReplayTests(unittest.TestCase):
         self.assertFalse(result["scientific_quality_scored"])
         self.assertFalse(context.evidence()["core_acceptance"])
         self.assertEqual(inventory(self.output), before)
+
+    def test_unmarked_historical_reviews_replay_read_only(self):
+        manifest_path = self.output / "provenance_manifest.json"
+        manifest = read_json(manifest_path)
+        manifest.pop("review_format")
+        attempts = [
+            json.loads(line)
+            for line in (self.output / "paper_manifest.jsonl").read_bytes().splitlines()
+        ]
+        legacy = views.render(
+            manifest["canonical_records"], attempts, review_format=None
+        )
+        review_files = ("literature_review.md", "literature_review.docx")
+        for name in review_files:
+            self.assertNotEqual((self.output / name).read_bytes(), legacy[name])
+            (self.output / name).write_bytes(legacy[name])
+        manifest["files"] = inventory(self.output)
+        write_json(manifest_path, manifest)
+        original_manifest = manifest_path.read_bytes()
+        manifest_ref = self.ref("package/provenance_manifest.json")
+        self.snapshot["bindings"]["deliverable"] = manifest_ref
+        write_json(self.root / "snapshot.json", self.snapshot)
+        self.snapshot_ref = self.ref("snapshot.json")
+        self.receipt.update(
+            snapshot_ref=self.snapshot_ref,
+            canonical_manifest_sha256=manifest_ref["sha256"],
+        )
+
+        with (
+            patch.object(
+                sources,
+                "validate_archive",
+                side_effect=AssertionError("must reuse saved replay"),
+            ),
+            patch.object(sources, "runtime_binding", return_value=self.runtime),
+        ):
+            context = self.load()
+            result = package.validate(
+                self.output, manifest_ref["sha256"], host_replay=context
+            )
+        self.assertEqual(result["status"], "passed")
+        self.assertTrue(result["cross_format_reconciled"])
+        self.assertEqual(inventory(self.output), manifest["files"])
+        self.assertEqual(manifest_path.read_bytes(), original_manifest)
+        for name in review_files:
+            self.assertEqual((self.output / name).read_bytes(), legacy[name])
 
     def test_default_package_and_observation_still_reject_relocation(self):
         with patch.object(sources, "runtime_binding", return_value=self.runtime):
