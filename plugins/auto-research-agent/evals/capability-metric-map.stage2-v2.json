@@ -54,7 +54,8 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "source/view bindings, complete assessment units, explicit unknown/error states"
+            "source/view bindings, complete assessment units, explicit unknown/error states",
+            "Per-arm assessed and required P4 criterion counts, including assessed zero"
           ],
           "human_judgment": "Independent judges must verify scientific support. Deterministic validity is not evidence of improvement."
         },
@@ -66,7 +67,8 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "source/view bindings, complete assessment units, explicit unknown/error states"
+            "source/view bindings, complete assessment units, explicit unknown/error states",
+            "Per-arm assessed and required P5 criterion counts, including partial coverage"
           ],
           "human_judgment": "Independent judges must verify scientific support. Deterministic validity is not evidence of improvement."
         },
@@ -80,7 +82,8 @@
           ],
           "expected_direction": "establish-measurement",
           "hard_measures": [
-            "source/view bindings, complete assessment units, explicit unknown/error states"
+            "source/view bindings, complete assessment units, explicit unknown/error states",
+            "Per-arm assessed and required P6 criterion counts with a fixed denominator"
           ],
           "human_judgment": "Independent judges must verify scientific support. Deterministic validity is not evidence of improvement."
         }
@@ -89,6 +92,7 @@
         "No paper answer list or topic-specific production rules",
         "No live or formal improvement claim from offline mechanics",
         "Candidate properties never replace independent judgment",
+        "Pair coverage keeps fixed required counts and unusable arms contribute no assessed criteria",
         "Negative witness identity is technical evidence only; independent semantic checking must establish actual incompatibility"
       ],
       "test_refs": [

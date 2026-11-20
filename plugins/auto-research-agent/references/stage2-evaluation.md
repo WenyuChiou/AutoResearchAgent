@@ -26,6 +26,13 @@ alone is not proof that an artifact has never changed.
    `python -m stage2_eval compare --pairs pairs.json --output comparison.json`
    applies the three-pair diagnostic rule only.
 
+Each general v2 pair reports integer `assessed` and `required` counts at
+`coverage.A.P4` through `coverage.B.P6`. P4, P5 and P6 require one, two and four
+criteria respectively. An assessed zero counts toward coverage. If a required
+criterion is unknown, the affected dimension score remains `null`. An unusable
+arm has zero assessed criteria and keeps the same required counts. Its pair
+remains `inconclusive` with coverage for both arms and no score or delta fields.
+
 `INPUT_HASH` identifies the common starting evidence and prompt; `CONFIG_HASH`
 identifies the common experimental settings. They are 64-character lowercase
 SHA-256 values, not literal placeholders. Candidate outputs need not be identical

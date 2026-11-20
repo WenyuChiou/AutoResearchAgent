@@ -47,6 +47,7 @@ class ProjectStage3Http:
         self._close_owner = close_owner
         self._lock = threading.RLock()
         self._active = {}
+        self._feedback_replies = set()
         self._errors = {}
         self._closed = False
         self._owner_closed = False
@@ -150,13 +151,22 @@ class ProjectStage3Http:
         return result
 
     def admit_feedback(self, ref, body, action):
-        """Track local writes through response completion and existing drain."""
+        """Serialize local feedback writes for the same project."""
         marker = ("feedback:" + action + ":" + str(body.get("key")), digest(body))
         with self._lock:
             self.check_open()
             if ref in self._active:
                 raise SessionApiError("stage3-planning-project-busy", 409)
             self._active[ref] = (marker, threading.current_thread())
+
+    def finish_feedback_write(self, ref):
+        """Release the completed write while retaining the request for drain."""
+        thread = threading.current_thread()
+        with self._lock:
+            row = self._active.get(ref)
+            if row and row[1] is thread:
+                self._feedback_replies.add(thread)
+                self._active.pop(ref)
 
     def feedback(self, credential, ref, body, action, *, check_deadline=None):
         with self.service.intake._lock:
@@ -219,14 +229,21 @@ class ProjectStage3Http:
             }
 
     def finish(self, ref):
+        thread = threading.current_thread()
         with self._lock:
             row = self._active.get(ref)
-            if row and row[1] is threading.current_thread():
+            if row and row[1] is thread:
                 self._active.pop(ref)
+            self._feedback_replies.discard(thread)
             self._cleanup()
 
     def _cleanup(self):
-        if self._closed and not self._active and not self._owner_closed:
+        if (
+            self._closed
+            and not self._active
+            and not self._feedback_replies
+            and not self._owner_closed
+        ):
             if self._close_owner is not None:
                 self._close_owner()
             self._owner_closed = True
@@ -234,17 +251,20 @@ class ProjectStage3Http:
     def close(self):
         with self._lock:
             self._closed = True
-            threads = tuple(row[1] for row in self._active.values())
+            threads = tuple(row[1] for row in self._active.values()) + tuple(
+                self._feedback_replies
+            )
         end = time.monotonic() + 2
         for thread in threads:
             if thread is not threading.current_thread():
                 thread.join(max(0, end - time.monotonic()))
         with self._lock:
             self._cleanup()
+            active_threads = len(self._active) + len(self._feedback_replies)
             return dict(
                 closed=True,
-                active_request_threads=len(self._active),
-                threads_joined=not self._active,
+                active_request_threads=active_threads,
+                threads_joined=not active_threads,
                 automatic_retry=False,
             )
 
@@ -318,6 +338,7 @@ def handle_planning(handler, method):
                 result = transport.feedback(
                     token, ref, body, action, check_deadline=handler._remaining
                 )
+                transport.finish_feedback_write(ref)
             elif action == "recover":
                 identity = (ref, body.get("key"), body.get("request_sha256"))
                 pin = transport.recovery_pins.get(identity)
