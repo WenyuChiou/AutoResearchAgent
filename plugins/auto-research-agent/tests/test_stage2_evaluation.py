@@ -436,7 +436,9 @@ class Stage2EvaluationTests(unittest.TestCase):
         self.assertTrue(bundle["usable"])
         self.assertEqual(bundle["audit_status"], "accepted")
 
-    def _bundle(self, subject, p4, p5a, p5b, p6, *, unknown=False, major=None):
+    def _bundle(
+        self, subject, p4, p5a, p5b, p6, *, unknown=False, major=None, technical=False
+    ):
         packet = copy.deepcopy(self.packet)
         view = prepare_content_view(packet, subject, "1" * 64, "2" * 64)
         action = prepare_action_view(
@@ -448,8 +450,8 @@ class Stage2EvaluationTests(unittest.TestCase):
             CRITERIA[2]: p5b,
             **{key: p6 for key in CRITERIA[3:]},
         }
-        r1 = judge(view, action, packet, "R1", scores)
-        r2 = judge(view, action, packet, "R2", scores)
+        r1 = judge(view, action, packet, "R1", scores, technical=technical)
+        r2 = judge(view, action, packet, "R2", scores, technical=technical)
         if unknown:
             for output in (r1, r2):
                 output["criteria"][1].update(
@@ -468,6 +470,89 @@ class Stage2EvaluationTests(unittest.TestCase):
             action,
             packet,
             audit=named_audit(r1) if major else None,
+        )
+
+    def test_compare_cli_reports_coverage_for_each_arm_and_dimension(self):
+        fixtures = (
+            (
+                "AB",
+                self._bundle("a-1", 1, 1, 1, 1),
+                self._bundle("b-1", 0, 1, 1, 1, unknown=True),
+            ),
+            (
+                "BA",
+                self._bundle("a-2", 1, 1, 1, 1),
+                self._bundle("b-2", 2, 0, 1, 2),
+            ),
+            (
+                "AB",
+                self._bundle("a-3", 1, 1, 1, 1, unknown=True),
+                self._bundle("b-3", 1, 1, 1, 1, technical=True),
+            ),
+        )
+        pairs = [
+            {
+                "pair_id": f"pair-{index}",
+                "order": order,
+                "A": baseline,
+                "B": treatment,
+                "A_content_view_sha256": baseline["content_view_sha256"],
+                "B_content_view_sha256": treatment["content_view_sha256"],
+            }
+            for index, (order, baseline, treatment) in enumerate(fixtures, 1)
+        ]
+        pairs_path = self.root / "pairs.json"
+        output_path = self.root / "comparison.json"
+        pairs_path.write_text(json.dumps(pairs), encoding="utf-8", newline="")
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "stage2_eval",
+                "compare",
+                "--pairs",
+                str(pairs_path),
+                "--output",
+                str(output_path),
+            ],
+            cwd=CLI,
+            check=True,
+            capture_output=True,
+            timeout=30,
+        )
+        result = json.loads(output_path.read_text(encoding="utf-8"))
+        partial, complete, failed = result["pairs"]
+        full_coverage = {
+            "P4": {"assessed": 1, "required": 1},
+            "P5": {"assessed": 2, "required": 2},
+            "P6": {"assessed": 4, "required": 4},
+        }
+        partial_coverage = {**full_coverage, "P5": {"assessed": 1, "required": 2}}
+        failed_coverage = {
+            "P4": {"assessed": 0, "required": 1},
+            "P5": {"assessed": 0, "required": 2},
+            "P6": {"assessed": 0, "required": 4},
+        }
+        self.assertEqual(result["decision"], "inconclusive")
+        self.assertFalse(result["external_claim_ready"])
+        self.assertEqual(partial["status"], "partial")
+        self.assertEqual(partial["B"], {"P4": 0.0, "P5": None, "P6": 50.0})
+        self.assertEqual(partial["delta"], {"P4": -50.0, "P5": None, "P6": 0.0})
+        self.assertEqual(
+            partial.get("coverage"), {"A": full_coverage, "B": partial_coverage}
+        )
+        self.assertEqual(complete["status"], "assessed")
+        self.assertEqual(complete["B"], {"P4": 100.0, "P5": 25.0, "P6": 100.0})
+        self.assertEqual(complete["coverage"], {"A": full_coverage, "B": full_coverage})
+        self.assertEqual(
+            failed,
+            {
+                "pair_id": "pair-3",
+                "order": "AB",
+                "status": "inconclusive",
+                "reason": "unknown criterion or evaluator failure",
+                "coverage": {"A": partial_coverage, "B": failed_coverage},
+            },
         )
 
     def test_three_pair_rule_and_regression_major_error_unknown_guards(self):

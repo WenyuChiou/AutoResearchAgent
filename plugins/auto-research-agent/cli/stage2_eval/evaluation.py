@@ -673,6 +673,16 @@ def _dimension_scores(bundle):
     return scores
 
 
+def _dimension_coverage(bundle):
+    assessed = {
+        row["criterion_id"] for row in bundle["criteria"] if row["status"] == "assessed"
+    }
+    return {
+        dimension: {"assessed": len(assessed.intersection(keys)), "required": len(keys)}
+        for dimension, keys in DIMENSIONS.items()
+    }
+
+
 def _validate_bundle(bundle):
     _require(bundle.get("kind") == "Stage2JudgeBundle", "pair needs judge bundles")
     _require(bundle.get("schema_version") == "1.0.0", "wrong judge bundle version")
@@ -804,13 +814,20 @@ def compare_pairs(pairs):
         if common_settings is None:
             common_settings = settings
         _require(settings == common_settings, "starting settings changed across pairs")
+        pair_diagnostic = {
+            "pair_id": pair["pair_id"],
+            "order": pair["order"],
+            "coverage": {
+                "A": _dimension_coverage(baseline),
+                "B": _dimension_coverage(treatment),
+            },
+        }
         a_scores, b_scores = _dimension_scores(baseline), _dimension_scores(treatment)
         if a_scores is None or b_scores is None:
             inconclusive = True
             diagnostics.append(
                 {
-                    "pair_id": pair["pair_id"],
-                    "order": pair["order"],
+                    **pair_diagnostic,
                     "status": "inconclusive",
                     "reason": "unknown criterion or evaluator failure",
                 }
@@ -838,8 +855,7 @@ def compare_pairs(pairs):
         inconclusive = inconclusive or status == "partial"
         diagnostics.append(
             {
-                "pair_id": pair["pair_id"],
-                "order": pair["order"],
+                **pair_diagnostic,
                 "status": status,
                 "A": a_scores,
                 "B": b_scores,
