@@ -3,12 +3,18 @@
 
 import copy
 import hashlib
+import io
 import json
 from pathlib import Path
+import shutil
+import socket
+import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import patch
+from zipfile import ZipFile
 
 sys.path[:0] = [
     str(Path(__file__).resolve().parents[1] / "cli"),
@@ -20,6 +26,7 @@ from stage2_check import initialize_run, inspect_run, apply_assessment
 from stage2_check.run import build_selection
 from stage2_live.daily_v3 import run_daily_evaluation_v3
 from stage2_eval.evaluation_v3 import CRITERIA_V3
+from stage2_workflow.__main__ import main as workflow_cli
 from stage2_workflow.evaluation_delivery import (
     build_evaluated_delivery,
     inspect_evaluated_delivery,
@@ -334,6 +341,99 @@ class DailyV3Tests(unittest.TestCase):
                 self.root / "delivery",
                 expected_manifest_sha256=manifest["manifest_sha256"],
             )
+
+
+class FrozenEvaluatedDeliveryTests(unittest.TestCase):
+    fixture = (
+        Path(__file__).with_name("fixtures") / "stage2_evaluated_delivery_1_3_0.zip"
+    )
+    fixture_sha256 = "aa23e231d1b2616c58639a45283b092b0ff26048b71ab31e9dc08d388d08de7c"
+    manifest_sha256 = "db6ca1159e25e1478b90e4dc08bc0ff2e68eb39faf2624b76dd022ab8ff60478"
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name).resolve()
+        self.package = self.root / "original"
+        frozen = self.fixture.read_bytes()
+        self.assertEqual(hashlib.sha256(frozen).hexdigest(), self.fixture_sha256)
+        self.addCleanup(lambda: self.assertEqual(self.fixture.read_bytes(), frozen))
+        with ZipFile(io.BytesIO(frozen)) as archive:
+            self.assertEqual(len(archive.namelist()), 9)
+            archive.extractall(self.package)
+        self.original = self.package_bytes(self.package)
+        self.addCleanup(
+            lambda: self.assertEqual(self.package_bytes(self.package), self.original)
+        )
+
+    @staticmethod
+    def package_bytes(root):
+        return {
+            path.relative_to(root).as_posix(): path.read_bytes()
+            for path in root.rglob("*")
+            if path.is_file()
+        }
+
+    def verify(self, package, output):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        blocked = AssertionError("frozen delivery verification must stay offline")
+        with (
+            patch("stage2_live.daily_v3._run_unit", side_effect=blocked) as evaluate,
+            patch.object(subprocess, "Popen", side_effect=blocked) as process,
+            patch.object(socket.socket, "connect", side_effect=blocked) as connect,
+            patch.object(
+                socket.socket, "connect_ex", side_effect=blocked
+            ) as connect_ex,
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+        ):
+            code = workflow_cli(
+                [
+                    "verify-evaluated-delivery",
+                    "--delivery",
+                    str(package),
+                    "--expected-manifest-sha256",
+                    self.manifest_sha256,
+                    "--output",
+                    str(output),
+                ]
+            )
+        for dispatch in (evaluate, process, connect, connect_ex):
+            dispatch.assert_not_called()
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_frozen_1_3_0_verifies_without_mutation_or_evaluation(self):
+        receipt = self.root / "verified.json"
+        code, stdout, stderr = self.verify(self.package, receipt)
+        self.assertEqual(code, 0, stderr)
+        result = json.loads(receipt.read_bytes())
+        self.assertEqual(json.loads(stdout), result)
+        self.assertEqual(result["presentation_version"], "1.3.0")
+        self.assertEqual(result["manifest_sha256"], self.manifest_sha256)
+        self.assertEqual(result["human_selection"], "pending")
+        for flag in ("formal_ready", "stage3_authorized", "improvement_demonstrated"):
+            self.assertIs(result[flag], False)
+
+    def test_frozen_1_3_0_rejects_report_only_edit(self):
+        altered = self.root / "altered"
+        shutil.copytree(self.package, altered)
+        report = altered / "selection.html"
+        report.write_bytes(report.read_bytes() + b"\n<!-- changed report -->\n")
+        changed = self.package_bytes(altered)
+        self.assertEqual(changed.keys(), self.original.keys())
+        self.assertEqual(
+            {name for name in changed if changed[name] != self.original[name]},
+            {"selection.html"},
+        )
+        receipt = self.root / "rejected.json"
+        code, stdout, stderr = self.verify(altered, receipt)
+        self.assertEqual(code, 2, stderr)
+        self.assertEqual(
+            stderr.strip(), "stage2-workflow: evaluation-delivery-artifact-changed"
+        )
+        self.assertEqual(stdout, "")
+        self.assertFalse(receipt.exists())
+        self.assertEqual(self.package_bytes(altered), changed)
 
 
 if __name__ == "__main__":
