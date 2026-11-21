@@ -379,13 +379,12 @@
     if(!byId("saved-preference") || !receipt)return;
     const details={view:state,cards:null,pending:false};
     savedPreferenceDetails=details;
-    // An acknowledged save already knows the exact submitted versions. Keep
-    // the save-only path free of Stage 3 requests.
-    if(transaction) {
-      if(transaction.receipt && ["key","request_sha256","intent_sha256"].every(
-        key=>receipt[key]===transaction.receipt[key])) {
-        details.cards=savedDirectionCards(state,transaction.body.preferred_directions);
-      }
+    // Leave recovery of an unacknowledged save to its existing path.
+    if(transaction && !transaction.receipt && receipt.key===transaction.body.key)return;
+    // A different receipt needs the same read as a fresh page.
+    if(transaction?.receipt && ["key","request_sha256","intent_sha256"].every(
+      key=>receipt[key]===transaction.receipt[key])) {
+      details.cards=savedDirectionCards(state,transaction.body.preferred_directions);
       return;
     }
     if(!(boot.stage3_planning_projects || []).includes(ref) || !isHex(receipt.intent_sha256))return;
