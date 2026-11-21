@@ -12,7 +12,6 @@ BLS_TABLES = "https://www.bls.gov/cex/tables/calendar-year/mean-item-share-avera
 BLS_WORKBOOK = ("https://www.bls.gov/cex/tables/calendar-year/mean-item-share-average-standard-error/"
                 "reference-person-age-ranges-2025.xlsx")
 BLS_GUIDE = "https://www.bls.gov/cex/tables-getting-started-guide.htm"
-BLS_MICRODATA = "https://www.bls.gov/cex/pumd.htm"
 CENSUS = "https://www.census.gov/data/tables/2023/demo/popproj/2023-summary-tables.html"
 
 
@@ -98,19 +97,16 @@ def spending_demo() -> str:
     </section>"""
 
 
-def scenario_table() -> str:
-    verification = json.loads((ROOT / 'data' / 'source-verification.json').read_text(encoding='utf-8'))
-    counts = verification['bls']['count_cells']
-    old = (Decimal(counts['I4'] + counts['J4']) / Decimal(counts['B4']) * 100).quantize(Decimal('0.01'))
-    new = old + 5
-    return table('Proposed U.S. market scenarios', ('Reference person’s age', 'S0 · 2025 reference', 'S1 · Older mix'), [
-        ('65 and older', f'{old}%', f'{new}%'),
-        ('Younger than 65', f'{100 - old}%', f'{100 - new}%'),
+def scenario_table(reference: Decimal, older_mix: Decimal, age_mix: dict) -> str:
+    counts = age_mix['consumer_units_thousands']
+    return table('Proposed U.S. market scenarios', ('Reference person’s age', 'S0 · 2023 reference', 'S1 · Older mix'), [
+        ('65 and older', f'{reference}%', f'{older_mix}%'),
+        ('Younger than 65', f'{100 - reference}%', f'{100 - older_mix}%'),
     ], numeric=True) + (
-        '<p class="source-note">S0 uses BLS consumer-unit counts (I4 + J4) ÷ B4. '
+        f'<p class="source-note">S0 divides the number of consumer units whose reference person is 65 or older '
+        f'({counts["reference_person_65_plus"]:,} thousand) by all consumer units ({counts["all"]:,} thousand). '
         'S1 adds five percentage points to the 65+ share and preserves relative weights within each broad age group. '
-        'Compare demand, purchases and prices by period. Repeat with fixed prices as a control. '
-        '<i>' + link('BLS Table 1300 workbook', BLS_WORKBOOK) + '</i>.</p>'
+        '<i>' + link('BLS Consumer Expenditures in 2023, Table 12', age_mix['url']) + '</i>.</p>'
     )
 
 
@@ -230,16 +226,16 @@ def build() -> str:
         'Research inputs', ('Input', 'Source', 'Use and status'), [
             ('Published spending', link('BLS Consumer Expenditure Surveys, Table 1300', BLS_TABLES),
              'Annual spending by age of the consumer unit’s reference person. Available for descriptive comparisons.'),
-            ('Spending holdout', link('BLS public-use microdata', BLS_MICRODATA),
-             'Independent consumer units for checking predictions. Confirm eligible records and fields first.'),
+            ('Food spending records', link('BLS Consumer Expenditure Diary Survey', 'https://www.bls.gov/cex/pumd_data.htm'),
+             'Use 2023 as the reference and reserve Jan–Dec 2024 for testing. Check field coverage and record eligibility before running.'),
             ('Age composition', link('Census population projections', CENSUS),
              'People by age. Check observed consumer units per person before converting projected counts into consumer-unit weights.'),
             ('Price response', 'Matched prices and quantities',
              'Verify product, place and time alignment before testing price response. Source still pending.'),
-            ('LLM household', 'Allowed pre-outcome household fields',
-             'Predict spending with the same profiles and budget constraints as the baseline.'),
-            ('Fixed-rule baseline', 'Separate reference records',
-             'Estimate a transparent spending rule before either method sees the held-out outcomes.'),
+            ('LLM household', 'Consumer-unit profile',
+             'Predict weekly food-at-home spending from reference person’s age band, unit size and income band. Use the same fields for the simple rule.'),
+            ('Fixed-rule baseline', '2023 Diary Survey',
+             'Estimate typical weekly food spending for each age, size and income group. Set a fallback for small groups using 2023 data.'),
         ],
     )
     values, _, _ = spending_table()
@@ -263,28 +259,49 @@ def build() -> str:
         + '<p class="source-note"><i>' + link('BLS consumer-unit definitions', BLS_GUIDE) + '</i>.</p>',
     )
 
+    verification = json.loads((ROOT / 'data' / 'source-verification.json').read_text(encoding='utf-8'))
+    age_mix = verification['market_age_mix_2023']
+    counts = age_mix['consumer_units_thousands']
+    reference = (Decimal(counts['reference_person_65_plus']) / counts['all'] * 100).quantize(Decimal('0.01'))
+    older_mix = reference + 5
     workflow = topic(
         'study-workflow', 'P2', 'Study workflow',
         steps(
-            '<strong>Simulate a U.S. market scenario.</strong> Compare a reference age mix with a hypothetical older one. Fix profiles, budgets, starting prices, supply and the time horizon.',
-            '<strong>Separate the household rule from the market.</strong> The LLM or fixed rule requests purchases. The market allocates supply, updates prices and carries the state forward.',
-            '<strong>Run the comparison after both checks pass.</strong> Change only the consumer-unit age weights. Report demand and price paths as scenario results. A dated forecast would also require verified projected consumer-unit weights.',
+            '<strong>Reproduce historical spending first.</strong> Use 2023 U.S. spending diaries to set the simple rule and give the LLM reference examples. '
+            'Test both on unseen diary weeks from January to December 2024. Each predicts dollars spent on food at home for one consumer unit over one week.',
+            f'<strong>Set up S0 and S1.</strong> S0 uses the 2023 U.S. age mix. S1 raises the 65+ share from {reference}% to {older_mix}%. '
+            'Start both with the same profile pool, weekly budgets, prices, supply and rules. Run 52 simulated weeks per scenario. S1 is a hypothetical age mix with no forecast year.',
+            '<strong>Follow one week in the food market.</strong> Give the LLM the unit’s age band, size and income band, its weekly food budget, and the available foods and their current unit prices. '
+            'It returns how many units it wants of each food. Code checks that requests use listed items and fit the budget. The market allocates supply and updates next week’s prices.',
+            '<strong>Compare the two paths.</strong> Run the market only after the spending and price-response checks pass. '
+            'Compare weekly demand, purchases and prices for S0 and S1. Repeat both runs with prices fixed at their starting values to measure how much feedback changes the gap.',
         ) + figure('experiment-operations.png',
-                   'Study workflow showing household decisions, market rules and scenario comparison',
-                   '<i>Experiment operations from the approved Stage 3 P2.</i>')
-        + scenario_table(),
+                   'S0 uses the 2023 U.S. age mix and S1 raises the 65+ share by five points. Each week households request food, the market allocates supply, and the updated price feeds into the next week.',
+                   '<i>Proposed U.S. food market trial: weeks 1–52 in each scenario, with the 2023 age mix as the reference.</i>')
+        + scenario_table(reference, older_mix, age_mix),
     )
 
     checks = topic(
-        'validation', 'P3', 'Study validation plan',
-        '<p>P3 checks the household model and the market study. The later Codex comparison evaluates the quality of the plans.</p>'
+        'validation', 'P3', 'Study validation',
+        '<p>Check historical spending and price responses against observations. Then compare simulated markets if both checks pass.</p>'
+        + table('Three comparisons in the study', ('Check', 'Who or what we compare', 'How we judge it'), [
+            ('Spending accuracy',
+             'LLM vs. a simple spending rule on the same Jan–Dec 2024 diary weeks. Both get the same consumer-unit profiles.',
+             'Compare predicted weekly food-at-home dollars with reported spending in the ' + link('BLS Diary Survey', 'https://www.bls.gov/cex/pumd-getting-started-guide.htm') + '. Report average absolute dollar error overall and by age band. Lower is better.'),
+            ('Price response',
+             'The household model’s predicted change in quantity vs. the observed change after a credible price change.',
+             'Match prices and purchases for the same product, place and period. Check whether the direction and size agree. These data are still needed.'),
+            ('Market scenario',
+             'S0 vs. S1 over 52 simulated weeks with price updates. Repeat both with prices held fixed.',
+             'Compare weekly demand, purchases and prices. The change in the S0–S1 gap shows how price updates affect the scenario inside the model.'),
+        ], reveal_rows=True)
         + steps(
-            '<strong>Spending fit.</strong> Freeze both methods and save their predictions before opening the held-out human spending records. Compare prediction error with a preset tolerance.',
-            '<strong>Value added by the LLM.</strong> Give both methods the same inputs. Compare their errors on the same records against a preset improvement margin and record invalid outputs.',
-            '<strong>Price response.</strong> Check predicted quantity changes against observed responses to price changes. Run the age-mix market scenarios only after both spending fit and price response pass.',
+            '<strong>Seal the 2024 answers before testing.</strong> The researcher who prepares the data keeps both weeks for each unit together and passes only the allowed inputs to both methods. '
+            'Fix the error limits and minimum gain over the simple rule in advance. Save both predictions before opening the reported spending.',
+            '<strong>Use the evidence available.</strong> If individual spending records are unavailable, report published age-group averages. If the LLM fails, keep the simple rule for the supported spending comparison. If the price check cannot pass, stop at the spending comparison.',
         ) + figure('same-input-holdout.png',
-                   'Proposed same-input holdout: freeze LLM and baseline, record predictions, then unseal outcomes',
-                   '<i>Planned spending validation.</i> If an independent spending target is unavailable, report the published spending comparison. If price-response evidence is unavailable, stop before feedback.'),
+                   'Save predictions from the language model and the simple rule before revealing observed spending.',
+                    '<i>Spending check: two predictions scored against the same observed spending.</i>'),
     )
 
     case = chapter(
@@ -389,7 +406,7 @@ def build() -> str:
         <option value="roadmap">P1 · Research roadmap</option>
         <option value="data-methods">P2 · Data and methods</option>
         <option value="study-workflow">P2 · Study workflow</option>
-        <option value="validation">P3 · Study validation plan</option>
+        <option value="validation">P3 · Study validation</option>
       </optgroup>
       <option value="harness-evaluation">Evaluation · Codex vs. Codex + Harness</option>
       <option value="future-work">Future Work</option>
