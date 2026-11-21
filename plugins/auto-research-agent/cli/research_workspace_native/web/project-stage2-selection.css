@@ -30,6 +30,7 @@ summary { min-height:44px; box-sizing:border-box; padding:9px 2px; cursor:pointe
 #preference-summary { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .preference-bar button { margin:0; flex:none; }
 .choice-panel { border:1px solid var(--selection-line); border-radius:8px; margin:12px 0; padding:0 14px; background:#fff; }
+.saved-preference { overflow-wrap:anywhere; }
 .choice-panel form { border:0; margin:0; padding:8px 0 20px; }
 #intent-save { background:transparent; color:var(--selection-accent); }
 #intent-start { margin-left:8px; }
