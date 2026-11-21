@@ -124,8 +124,28 @@ jobs:
           npm install --prefix $wikiBrowserRoot --ignore-scripts --no-audit --no-fund --save-exact playwright@1.62.1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $playwrightModule = Join-Path $wikiBrowserRoot "node_modules/playwright"
-          node (Join-Path $playwrightModule "cli.js") install --with-deps chromium
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:RUNNER_OS -eq "Linux") {
+            # The Ubuntu image supplies Chrome with its distribution sandbox profile.
+            $launchProbe = @'
+          const {chromium} = require(process.argv[1]);
+          (async () => {
+            const browser = await chromium.launch({channel: "chrome", headless: true, chromiumSandbox: true});
+            try {
+              const page = await browser.newPage();
+              await page.goto("about:blank");
+              console.log("Sandboxed Wiki Chrome ready: " + browser.version());
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => { console.error(error); process.exitCode = 1; });
+          '@
+            node -e $launchProbe $playwrightModule
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            "PROJECT_WIKI_COMPLETION_BROWSER_CHANNEL=chrome" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          } else {
+            node (Join-Path $playwrightModule "cli.js") install --with-deps chromium
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
           "PLAYWRIGHT_MODULE=$playwrightModule" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "PROJECT_WIKI_COMPLETION_EVIDENCE_ROOT=$(Join-Path $env:RUNNER_TEMP 'project-wiki-completion')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Plugin loading and stage contracts
