@@ -188,8 +188,49 @@ function stageNavigationRoute() {
   delete context.rt;context.localStage(app,1);assert.equal(location.href,before);
 }
 
+function stage1LoopBinding() {
+  const {context, run} = display();
+  context.canonicalReadonly = () => false;
+  context.realButton = action => '<button data-v7-workflow="' + action + '"></button>';
+  context.rx = value => value;
+  const expectNoActions = message => {
+    const html = run('p9Loop()');
+    assert.match(html, message);
+    assert.doesNotMatch(html, /data-live-phase|data-v7-workflow/);
+  };
+  for (const ref of [undefined, null, '']) {
+    context.rt.ref = ref;
+    context.rt.overview = null;
+    expectNoActions(/Create or select a project/);
+  }
+
+  const project = {project_ref: 'project-A', input_version: 1, revision: 2, brief_sha256: 'a'.repeat(64)};
+  const progress = {binding: {...project}, next_action: null, phases: []};
+  context.rt.ref = project.project_ref;
+  context.rt.overview = {project, stage1: {progress}};
+  for (const binding of [undefined, {}, {...project, project_ref: 'project-B'},
+    {...project, input_version: '1'}, {...project, revision: 1}, {...project, brief_sha256: 'b'.repeat(64)}]) {
+    progress.binding = binding;
+    expectNoActions(/unbound project/);
+  }
+
+  progress.binding = {project_ref: project.project_ref};
+  context.rt.overview.project = {project_ref: project.project_ref};
+  expectNoActions(/unbound project/);
+  context.rt.overview.project = project;
+  progress.binding = {...project};
+  const bound = run('p9Loop()');
+  assert.match(bound, /data-live-phase="screening"/);
+  assert.match(bound, /data-live-phase="reading"/);
+  assert.match(bound, /data-v7-workflow="checkpoint"/);
+
+  context.canonicalReadonly = () => true;
+  expectNoActions(/saved delivery/);
+}
+
 async function main() {
   const checks = [
+    ['Stage 1 loop requires a current project and binding', stage1LoopBinding],
     ['stage navigation preserves canonical project, locale, path and read-only URL state', stageNavigationRoute],
     ['saved-result hierarchy and on-demand operations/materials', savedResultLayout],
     ['save/revalidate/reload and project/material-scoped draft recovery', reviewDraftRecovery],

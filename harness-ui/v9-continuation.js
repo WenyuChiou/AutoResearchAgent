@@ -54,10 +54,18 @@ n2Feedback=function(){if(!p9.shown)return p9Feedback().replace('本地展示仅G
 };
 n2Render=function(app){let html=p9Render(app);if(p9.shown){html=html.replace(rl('独立自然提问交付；未绑定为当前Stage1的下游。','Independent natural-request delivery; not bound as a downstream result of current Stage1.','獨立自然提問交付；未綁定為目前Stage1的下游。'),rl('当前手动导入材料；来源血缘按原packet保留，尚未取得接续执行许可。','Current manual input; lineage is retained from its packet and continuation admission is still required.','目前手動匯入材料；來源血緣依原packet保留，尚未取得接續執行許可。'));}if(p9.shown&&n2.reviewReading){const marker='<section class="hs-panel n2-workbench';if(!html.includes(marker))throw Error('review-reader-placement-unavailable');html=html.replace(marker,n9ReviewReader(app,n2.reviewReading,n2.reviewDisclosures)+marker);}if(typeof n9ReviewBodies!=='undefined'&&(!p9.shown||!n2.reviewReading))n9ReviewBodies.clear();return html;};
 function p9Loop(){
- const p=rt.overview?.project,s=rt.overview?.stage1;
- const bound=p?.project_ref===rt.ref&&!canonicalReadonly();
- const active=bound&&s?.progress?.binding?.input_version===p.input_version&&s.progress.binding.brief_sha256===p.brief_sha256&&s.progress.binding.revision===p.revision;
- return `<details class="hs-panel" data-n9-loop-review><summary>Stage1 · ${rl('Loop与人工审查','Loop & human review','Loop與人工審查')}</summary><p>${active?rl('可在当前已保存记录上审查筛选、阅读和覆盖；正在执行或结果未知的步骤不能重复提交。','Review saved screening, reading and coverage records. Running or unknown operations must not be resubmitted.','可於目前已保存紀錄審查篩選、閱讀及覆蓋；正在執行或結果未知的步驟不可重複提交。'):rl('这是保存交付或尚未绑定的项目。可查看历史；运行中的Loop审查需要当前项目及版本回执。','This is a saved delivery or an unbound project. Live loop review requires current project/version receipts.','此為保存交付或尚未綁定的專案。可查看歷史；執行中的Loop審查需要目前專案及版本回執。')}</p>${active?`<div class="hs-action-row"><button class="hs-button" data-live-phase="screening">${rl('查看筛选决定','Screening decisions','查看篩選決定')}</button><button class="hs-button" data-live-phase="reading">${rl('查看阅读与证据','Reading & evidence','查看閱讀與證據')}</button>${realButton('checkpoint','检查覆盖与下一步','Checkpoint & next step',!!s.ledger,null,'檢查覆蓋與下一步')}</div><pre class="live-record">${rx(JSON.stringify({current:s.progress.next_action,phases:s.progress.phases,checkpoint:s.checkpoint},null,2))}</pre>`:''}<p>${rl('继续下一轮由Harness的当前检查结果、有效操作和预算决定；本页不自动重复Loop，也不把保存意见当作审批。','The next loop follows Harness checkpoint results, available actions and budget. Saving a note is not an approval.','下一輪由Harness目前檢查結果、有效操作及預算決定；保存意見不等於審批。')}</p></details>`;
+ const p=rt.overview?.project,s=rt.overview?.stage1,b=s?.progress?.binding;
+ const current=typeof rt.ref==='string'&&rt.ref.length>0&&p?.project_ref===rt.ref;
+ const active=current&&!canonicalReadonly()&&b?.project_ref===rt.ref
+  &&Number.isSafeInteger(p.input_version)&&p.input_version>0&&b.input_version===p.input_version
+  &&Number.isSafeInteger(p.revision)&&p.revision>=0&&b.revision===p.revision
+  &&typeof p.brief_sha256==='string'&&/^[a-f0-9]{64}$/.test(p.brief_sha256)&&b.brief_sha256===p.brief_sha256;
+ const message=active
+  ?rl('可在当前已保存记录上审查筛选、阅读和覆盖；正在执行或结果未知的步骤不能重复提交。','Review saved screening, reading and coverage records. Running or unknown operations must not be resubmitted.','可於目前已保存紀錄審查篩選、閱讀及覆蓋；正在執行或結果未知的步驟不可重複提交。')
+  :rt.ref
+   ?rl('这是保存交付或尚未绑定的项目。可查看历史；运行中的Loop审查需要当前项目及版本回执。','This is a saved delivery or an unbound project. Live loop review requires current project/version receipts.','此為保存交付或尚未綁定的專案。可查看歷史；執行中的Loop審查需要目前專案及版本回執。')
+   :rl('请先新建或选择项目，再查看该项目的 Stage 1 记录。','Create or select a project to view its Stage 1 records.','請先建立或選擇專案，再查看該專案的 Stage 1 紀錄。');
+ return `<details class="hs-panel" data-n9-loop-review><summary>Stage1 · ${rl('Loop与人工审查','Loop & human review','Loop與人工審查')}</summary><p>${message}</p>${active?`<div class="hs-action-row"><button class="hs-button" data-live-phase="screening">${rl('查看筛选决定','Screening decisions','查看篩選決定')}</button><button class="hs-button" data-live-phase="reading">${rl('查看阅读与证据','Reading & evidence','查看閱讀與證據')}</button>${realButton('checkpoint','检查覆盖与下一步','Checkpoint & next step',!!s.ledger,null,'檢查覆蓋與下一步')}</div><pre class="live-record">${rx(JSON.stringify({current:s.progress.next_action,phases:s.progress.phases,checkpoint:s.checkpoint},null,2))}</pre>`:''}<p>${rl('继续下一轮由Harness的当前检查结果、有效操作和预算决定；本页不自动重复Loop，也不把保存意见当作审批。','The next loop follows Harness checkpoint results, available actions and budget. Saving a note is not an approval.','下一輪由Harness目前檢查結果、有效操作及預算決定；保存意見不等於審批。')}</p></details>`;
 }
 const p9Stage1=stage1;
 stage1=app=>p9Stage1(app)+p9Loop();
