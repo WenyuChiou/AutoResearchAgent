@@ -150,6 +150,9 @@
       "intentBoundary": "Choose 1–16 directions for planning advice. Formal selection and experiment authorization remain pending; saved input origin does not authenticate identity.",
       "nothingChosen": "No directions chosen yet. Compare the summaries below.",
       "savedPreference": "A preference is already saved",
+      "savedPreferenceTitle": "Saved tentative preference",
+      "savedPreferenceReading": "Reading saved directions and versions…",
+      "savedPreferenceUnavailable": "The saved directions and versions are unavailable from this read.",
       "editingDraft": "Current editing draft",
       "emptyDraft": "No directions added",
       "chosenCount": "{n} direction(s) in your preference",
@@ -175,6 +178,9 @@
       "intentBoundary": "可選 1–16 個方向交給 Stage 3 釐清，正式選案與實驗授權仍待確認。紀錄保存輸入來源，未驗證身分。",
       "nothingChosen": "尚未選擇；先比較下方的方向摘要。",
       "savedPreference": "已有保存的方向偏好",
+      "savedPreferenceTitle": "已保存的暫定偏好",
+      "savedPreferenceReading": "正在讀取已保存的方向與版本…",
+      "savedPreferenceUnavailable": "本次讀取未取得可核對的已存方向與版本。",
       "editingDraft": "目前編輯草稿",
       "emptyDraft": "尚未加入方向",
       "chosenCount": "已加入 {n} 個方向",
@@ -200,6 +206,9 @@
       "intentBoundary": "可选 1–16 个方向交给 Stage 3 厘清，正式选案与实验授权仍待确认。记录保存输入来源，未验证身份。",
       "nothingChosen": "尚未选择；先比较下方的方向摘要。",
       "savedPreference": "已有保存的方向偏好",
+      "savedPreferenceTitle": "已保存的暂定偏好",
+      "savedPreferenceReading": "正在读取已保存的方向和版本…",
+      "savedPreferenceUnavailable": "本次读取未取得可核对的已存方向和版本。",
       "editingDraft": "当前编辑草稿",
       "emptyDraft": "尚未加入方向",
       "chosenCount": "已加入 {n} 个方向",
@@ -222,6 +231,7 @@
   let view = null, busy = false, requestKey = null, lastBody = null, viewProject = null, loadSerial = 0;
   const preferredDirections=new Map(), intentTransactions=new Map();
   let intentTransaction=null, intentNotice=null, intentHold=null;
+  let savedPreferenceDetails=null;
   let readAt=null,readFailed=false,readingProject=null,phase=null,operationFailed=false,planningContinuation=null,preserveLanguage=false;
   const sentPlanningRuns=new Set();
   const progressWords={
@@ -331,6 +341,72 @@
     const area=byId("project-context");
     if(area) area.textContent=view?(projectNames.get(viewProject) || (projectNamesFailed?w().unknown+" · ":"")+viewProject)+" · "+w().inputVersion+": "+JSON.stringify(view.input_version):"";
   }
+  function savedPreferenceReceipt(state, ref) {
+    return state && state.project_ref===ref && state.selection_status==="pending" && state.direction_intent?.status==="saved"
+      ? state.direction_intent : null;
+  }
+  function savedDirectionCards(state, directions) {
+    if(!Array.isArray(directions) || directions.length<1 || directions.length>16)return null;
+    const confirmed=[];
+    for(const direction of directions) {
+      const card=state.cards.cards.find(item=>item.candidate_id===direction?.candidate_id
+        && item.candidate_version===direction?.candidate_version);
+      if(!card || typeof card.candidate_id!=="string" || !card.candidate_id
+        || !Number.isSafeInteger(card.candidate_version) || card.candidate_version<1 || confirmed.includes(card))return null;
+      confirmed.push(card);
+    }
+    return confirmed;
+  }
+  function renderSavedPreference() {
+    const panel=byId("saved-preference");
+    if(!panel)return;
+    const receipt=savedPreferenceReceipt(view, byId("project").value);
+    const details=receipt && savedPreferenceDetails?.view===view ? savedPreferenceDetails : null;
+    panel.hidden=!receipt;
+    byId("saved-preference-project").textContent=receipt
+      ? w().project+" · "+view.project_ref+" · "+w().inputVersion+" "+JSON.stringify(view.input_version) : "";
+    byId("saved-preference-status").textContent=receipt && !details?.cards
+      ? details?.pending ? w().savedPreferenceReading : w().savedPreferenceUnavailable : "";
+    const directions=byId("saved-preference-directions");
+    directions.replaceChildren();
+    for(const card of details?.cards || []) {
+      node(directions,"li",card.candidate_id+" · v"+card.candidate_version
+        +(card.candidate_question ? " · "+card.candidate_question : ""));
+    }
+  }
+  function readSavedPreference(state, ref, serial, transaction) {
+    const receipt=savedPreferenceReceipt(state,ref);
+    if(!byId("saved-preference") || !receipt)return;
+    const details={view:state,cards:null,pending:false};
+    savedPreferenceDetails=details;
+    // Leave recovery of an unacknowledged save to its existing path.
+    if(transaction && !transaction.receipt && receipt.key===transaction.body.key)return;
+    // A different receipt needs the same read as a fresh page.
+    if(transaction?.receipt && ["key","request_sha256","intent_sha256"].every(
+      key=>receipt[key]===transaction.receipt[key])) {
+      details.cards=savedDirectionCards(state,transaction.body.preferred_directions);
+      return;
+    }
+    if(!(boot.stage3_planning_projects || []).includes(ref) || !isHex(receipt.intent_sha256))return;
+    details.pending=true;
+    function finish(cards) {
+      if(!current(ref,serial) || view!==state || savedPreferenceDetails!==details)return;
+      details.pending=false;
+      details.cards=cards;
+      renderSavedPreference();
+    }
+    void api("/api/projects/"+ref+"/stage3/planning").then(planning=>{
+      const context=planning?.direction_context;
+      const identity=["project_ref","input_version","brief_sha256"];
+      const matches=planning?.planning_mode==="direction-intent" && planning.selection_status==="pending" &&
+        planning.formal_selected_receiver===false && planning.execution_authorized===false &&
+        planning.revision===state.revision && planning.direction_intent_sha256===receipt.intent_sha256 &&
+        context?.intent_sha256===receipt.intent_sha256 && context.human_selection==="pending" &&
+        context.formal_selected_receiver===false && context.execution_authorized===false &&
+        identity.every(key=>planning[key]===state[key] && context[key]===state[key]);
+      finish(matches?savedDirectionCards(state,context.preferred_directions):null);
+    }).catch(()=>finish(null));
+  }
   function render() {
     const layout=byId("selection-layout");if(layout)layout.dataset.embedded=String(embedded);
     const expanded=new Set([...root.querySelectorAll("details[data-direction-details]")].filter(n=>n.open).map(n=>n.dataset.directionDetails));
@@ -340,6 +416,7 @@
     if(!embedded) document.documentElement.lang=byId("language").value;
     if(!embedded && boot.wiki_v9 && byId("return"))byId("return").href="/#"+encodeURIComponent(byId("project").value)+"?stage=2&lang="+encodeURIComponent(byId("language").value);
     renderProjectContext();
+    renderSavedPreference();
     byId("cards").replaceChildren();
     byId("planning").hidden=!view?.planning_input;
     byId("planning-link").hidden=!view?.planning_input;
@@ -415,6 +492,7 @@
       view=loaded;viewProject=ref;readAt=new Date().toISOString();
       const saved=intentTransactions.get(intentBinding(ref,view));
       if(saved){intentTransaction=saved;for(const direction of saved.body.preferred_directions)preferredDirections.set(JSON.stringify([direction.candidate_id,direction.candidate_version]),direction);if(byId("intent-message")){byId("intent-message").value=saved.body.user_input;byId("intent-confirmed").checked=true;}}
+      readSavedPreference(loaded,ref,serial,saved);
       if(!embedded)history.replaceState(null,"","#"+encodeURIComponent(ref)+(boot.wiki_v9 || preserveLanguage?"?"+(boot.wiki_v9?"stage=2&":"")+"lang="+encodeURIComponent(byId("language").value):""));
     }catch(e){if(current(ref,serial)){readFailed=true;notice=e.message;}}
     finally{if(embedded || serial===loadSerial){reading=false;phase=null;}if(current(ref,serial))render();if(reloadAfterRead && !reading){reloadAfterRead=false;if(isActive() && !view && !busy && !lastBody && !intentTransactions.size)void load();}}
@@ -588,7 +666,8 @@
       verifyIntentReceipt(receipt,transaction);if(embedded && receipt.request_sha256!==pendingMarker?.request_sha256)throw Error("stage2-embedded-intent-receipt-differs");transaction.receipt=receipt;
       progress("readingPreference");const refreshed=await api("/api/projects/"+ref+"/stage2/selection");
       if(!current(ref,serial))return;
-      verifyIntentView(ref,refreshed,transaction);rememberVerifiedReadBinding(refreshed);confirmedStage2=true;if(!start){if(embedded)clearPending();else uncertain=false;phase=null;}view=refreshed;viewProject=ref;readAt=new Date().toISOString();intentNotice=w().intentSaved;render();
+      verifyIntentView(ref,refreshed,transaction);rememberVerifiedReadBinding(refreshed);confirmedStage2=true;if(!start){if(embedded)clearPending();else uncertain=false;phase=null;}view=refreshed;viewProject=ref;readAt=new Date().toISOString();intentNotice=w().intentSaved;
+      readSavedPreference(refreshed,ref,serial,transaction);render();
       if(start)await startIntentPlanning(ref,serial,transaction,refreshed);
     } catch(e) {if(current(ref,serial)){intentNotice=e.message || w().intentHeld;operationFailed=true;readFailed=["readingPreference","readingPrepared"].includes(phase);}}
     finally {if(embedded && confirmedStage2 && pendingMarker?.phase==="stage2" && current(ref,serial)) {try{clearPending();}catch(_){recovery=recoveryState("unavailable","storage-unavailable","stage2-direction-intent");}}busy=false;render();}
@@ -720,7 +799,12 @@
       if(disposed) return false;
       if(active) return isActive();
       active=true; if(!isActive()){active=false;return false;}
-      if(!view && !busy && !lastBody && !intentTransactions.size) { if(reading) reloadAfterRead=true; else void load(); } else render();
+      if(!view && !busy && !lastBody && !intentTransactions.size) { if(reading) reloadAfterRead=true; else void load(); }
+      else {
+        if(savedPreferenceDetails?.view===view && savedPreferenceDetails.pending)
+          readSavedPreference(view,viewProject,loadSerial,intentTransaction);
+        render();
+      }
       return true;
     },
     setLanguage(language) { if(!Object.hasOwn(words,language) || disposed) return false; byId("language").value=language; if(active) render(); return true; },

@@ -15,7 +15,9 @@ class Element {
  set innerHTML(_){throw new Error('Source content must use textContent');}
 }
 function fixture(options={}) {
-  const els=new Map(),translated=[],created=[],calls=[],saved=new Map(),navigations=[];let prepares=0,runs=0,posts=0,uuids=0,releaseSave;
+  const els=new Map(),translated=[],created=[],calls=[],saved=new Map(),navigations=[];
+  let prepares=0,runs=0,posts=0,uuids=0,releaseSave,releaseSavedRead,peerReceipt;
+  if(options.savedAtMount)saved.set('A','saved-preference-key');
  for(const match of html.matchAll(/<([a-z][a-z0-9]*)\b([^>]*)>/gi)) {
   const element=new Element(match[1]),id=match[2].match(/\bid="([^"]+)"/),label=match[2].match(/\bdata-i18n="([^"]+)"/);
   if(id){element.id=id[1];els.set(id[1],element);}if(label){element.dataset.i18n=label[1];translated.push(element);}
@@ -24,7 +26,21 @@ function fixture(options={}) {
  const card=i=>({candidate_id:'D'+i,candidate_version:i===2?3:1,candidate_question:'Direction '+i+' '+xss,suggested_approach:'Method '+xss,disposition:['recommend','revise','park'][i%3],closest_prior_work:{review:{comparisons:[{work_id:'W',difference:xss,limitations:['source unknown']}]}} ,contribution:[{text:xss,status:'unknown',question_ids:['Q']}],scientific_questions:[{question:{text:'Question',intended_claim:'Claim'},resource_mapping_status:'unmapped',resource_uses:[{resource:{name:'Resource '+xss,status:'unknown',purpose:'purpose',limitations:['resource unknown'],alternatives:[]}}]}],requirements:['required unknown'],unmapped_resources:[],limitations:['limitations unknown'],alternatives:[],next_checks:['next unknown']});
  const cards=Array.from({length:options.cardCount ?? 3},(_,i)=>card(i));
  const receipt=key=>({status:'saved',key,request_sha256:requestHash,intent_sha256:intentHash,submission_sha256:'2'.repeat(64),advisory_manifest_sha256:'3'.repeat(64),artifact_ref:'stage2-direction-intent:'+intentHash,mode:'direction-advice',human_selection:'pending',execution_authorized:false});
- const selection=ref=>({project_ref:options.wrongLoadedProject?'B':ref,revision:saved.has(ref)?4:2,input_version:options.version ?? 1,...hashes,eligible:options.eligible?[{candidate_id:'D0',candidate_version:1}]:[],selection_status:options.recorded?'recorded':'pending',selection_receipt:options.recorded?{request_sha256:requestHash}:null,planning_status:options.recorded?'verified':'pending',planning_input:options.recorded?{legacy_candidates:[],questions:[],selection_conditions:[],unresolved:[]}:null,cards:{cards},direction_intent:saved.has(ref)?{...receipt(saved.get(ref)),...(options.badReference?{intent_sha256:'4'.repeat(64)}:{}),...(options.historicalReplay?{key:'newer-preference',intent_sha256:'7'.repeat(64),request_sha256:'8'.repeat(64)}:{})}:null,...(saved.has(ref)&&options.snapshotChanged?{snapshot_sha256:'5'.repeat(64)}:{})});
+ const selection=ref=>({
+   project_ref:options.wrongLoadedProject?'B':ref,input_version:options.version ?? 1,...hashes,
+   eligible:options.eligible?[{candidate_id:'D0',candidate_version:1}]:[],
+   selection_status:options.recorded?'recorded':'pending',selection_receipt:options.recorded?{request_sha256:requestHash}:null,
+   planning_status:options.recorded?'verified':'pending',
+   planning_input:options.recorded?{legacy_candidates:[],questions:[],selection_conditions:[],unresolved:[]}:null,
+   cards:{cards},revision:saved.has(ref)?4:2,
+   direction_intent:saved.has(ref)?{
+     ...receipt(saved.get(ref)),
+     ...(options.badReference?{intent_sha256:'4'.repeat(64)}:{}),
+     ...(options.historicalReplay?{key:'newer-preference',intent_sha256:'7'.repeat(64),request_sha256:'8'.repeat(64)}:{})
+   }:null,
+   ...(saved.has(ref)&&options.snapshotChanged?{snapshot_sha256:'5'.repeat(64)}:{}),
+   ...(ref==='A' && peerReceipt?{revision:5,direction_intent:peerReceipt}:{})
+ });
  const defaults=()=>({key:'planning-original-key',revision:4,input_version:options.version ?? 1,brief_sha256:hashes.brief_sha256,mode:'direction-intent',direction_intent_sha256:intentHash,...(prepares?{request_sha256:runHash}:{}),...(prepares&&options.defaultChanged?{key:'changed-key'}:{}),...(prepares&&options.defaultExtra?{unexpected:'field'}:{}),...options.badDefault});
  const planning=ref=>({project_ref:ref,revision:4,input_version:options.version ?? 1,brief_sha256:hashes.brief_sha256,planning_mode:'direction-intent',direction_intent_sha256:intentHash,planning_configured:!options.unconfigured,planning_status:'ready',planning_blockers:[],dispatch_action:'prepare-then-confirm-run',agent_conversation_connected:false,default_request:defaults(),job:options.existingJob?{status:'completed'}:prepares?{status:'intent-recorded',request_sha256:options.badJobHash?'6'.repeat(64):runHash}:null,submission_in_progress:false,submission_error:null,...options.badPlanning,...(prepares?options.badPrepared:{})});
   const policy={execution_authorized:false,evaluation_calls_authorized:false,formal_execution_enabled:false,external_claim_ready:false,usable_for_formal_pairing:false};
@@ -46,7 +62,20 @@ function fixture(options={}) {
    if(options.deferSave&&posts===1)return new Promise(resolve=>{releaseSave=()=>resolve(response(receipt(body.key)));});
    return response({...receipt(body.key),...(options.historicalReplay?{replayed:true}:{}),...options.badReceipt});
   }
-  if(path==='stage3/planning')return response(planning(ref));
+  if(path==='stage3/planning'){
+    if(ref==='A' && (peerReceipt || (options.savedAtMount && !posts))){
+      const view=selection(ref),savedHash=view.direction_intent.intent_sha256;
+      const context={project_ref:ref,input_version:options.version ?? 1,brief_sha256:hashes.brief_sha256,
+        intent_sha256:savedHash,preferred_directions:[{candidate_id:'D2',candidate_version:3}],
+        human_selection:'pending',formal_selected_receiver:false,execution_authorized:false,...options.savedContext};
+      const received=response({...planning(ref),selection_status:'pending',formal_selected_receiver:false,
+        revision:view.revision,direction_intent_sha256:savedHash,
+        execution_authorized:false,direction_context:context,...options.savedPlanning}, options.savedReadStatus ?? 200);
+      if(options.deferSavedRead)return new Promise(resolve=>{releaseSavedRead=()=>resolve(received);});
+      return received;
+    }
+    return response(planning(ref));
+  }
   if(path==='stage3/planning/prepare'){
    assert.deepEqual(body,{key:'planning-original-key',revision:4,input_version:options.version ?? 1,brief_sha256:hashes.brief_sha256,mode:'direction-intent',direction_intent_sha256:intentHash});prepares++;
    if(options.prepareError)throw new Error('prepare response lost');
@@ -65,11 +94,107 @@ function fixture(options={}) {
   vm.runInNewContext(source,{document,window:{RESEARCH_PROJECTS:{credential:'synthetic-only',stage2_selection_projects:['A','B'],stage3_planning_projects:options.noPlanning?[]:['A','B']},location},location,history:{replaceState(){}},fetch,crypto:{randomUUID:()=>{uuids++;return 'intent-original-key';}},console});
  const choose=(count=cards.length)=>{for(const [i,checkbox] of checkboxes().entries()){checkbox.checked=i<count;checkbox.onchange();}};
  const submit=(start=false,text='Prefer these directions; retain unknowns.')=>{els.get('intent-message').value=text;els.get('intent-confirmed').checked=true;return els.get('direction-intent').onsubmit({preventDefault(){},submitter:els.get(start?'intent-start':'intent-save')});};
-  return {els,calls,translated,created,checkboxes,choose,submit,navigations,releaseSave:()=>releaseSave(),switchTo:ref=>{els.get('project').value=ref;return els.get('project').onchange();},counts:()=>({prepares,runs,posts,uuids})};
+  const saveFromOtherTab=()=>{
+    const savedHash='7'.repeat(64);
+    peerReceipt={...receipt('second-tab-key'),request_sha256:'8'.repeat(64),
+      intent_sha256:savedHash,artifact_ref:'stage2-direction-intent:'+savedHash};
+  };
+  return {els,calls,translated,created,checkboxes,choose,submit,navigations,saveFromOtherTab,releaseSave:()=>releaseSave(),
+    releaseSavedRead:()=>releaseSavedRead(),
+    switchTo:ref=>{els.get('project').value=ref;return els.get('project').onchange();},counts:()=>({prepares,runs,posts,uuids})};
 }
 let cases=0,failures=0;
 async function check(name,body){cases++;try{await body();console.log('ok '+cases+' '+name);}catch(error){failures++;console.error('not ok '+cases+' '+name+'\n'+error.stack);}}
 async function main(){
+ await check('fresh saved read shows the exact saved version separately from editable directions',async()=>{
+   const h=fixture({savedAtMount:true,version:'fresh-1'}); await tick();
+   const panel=h.els.get('saved-preference'), items=h.els.get('saved-preference-directions');
+   assert.equal(panel.hidden,false);
+   assert.match(h.els.get('saved-preference-project').textContent,/A.*"fresh-1"/);
+   assert.match(items.textContent,/D2 · v3 · Direction 2/);
+   assert.equal(h.checkboxes().some(node=>node.checked),false);
+   h.choose(1);
+   assert.match(h.els.get('preference-summary').textContent,/Direction 0/);
+   assert.match(items.textContent,/D2 · v3/);
+   for(const [language,title] of [['en','Saved tentative preference'],['zh-TW','已保存的暫定偏好'],['zh-CN','已保存的暂定偏好']]){
+     h.els.get('language').value=language;h.els.get('language').onchange();
+     assert.equal(h.els.get('saved-preference-title').textContent,title);
+     assert.match(items.textContent,/D2 · v3/);
+   }
+   assert.deepEqual(h.calls.filter(row=>row.url.includes('/stage3/')).map(row=>row.method),['GET']);
+   assert.equal(h.calls.some(row=>row.method==='POST'),false);
+ });
+ await check('verified save-only shows its saved directions with no Stage3 request',async()=>{
+   const h=fixture(); await tick(); h.choose(1); await h.submit();
+   assert.match(h.els.get('saved-preference-directions').textContent,/D0 · v1/);
+   assert.equal(h.calls.some(row=>row.url.includes('/stage3/')),false);
+   assert.equal(h.counts().posts,1);
+ });
+ await check('returning to a project uses the latest saved receipt via GET only when it differs from the cache',async()=>{
+   const h=fixture({version:'fresh-1'});await tick();h.choose(1);await h.submit();
+   const summary=h.els.get('saved-preference-directions');
+   assert.match(summary.textContent,/D0 · v1/);
+
+   await h.switchTo('B');
+   const beforeMatching=h.calls.length;
+   await h.switchTo('A');
+   assert.deepEqual(h.calls.slice(beforeMatching).map(({method,url})=>[method,url]),[
+     ['GET','/api/projects/A/stage2/selection']
+   ]);
+   assert.match(summary.textContent,/D0 · v1/);
+
+   await h.switchTo('B');
+   assert.equal(h.els.get('saved-preference').hidden,true);
+   h.saveFromOtherTab();
+   const beforeChanged=h.calls.length;
+   await h.switchTo('A');await tick();
+   assert.deepEqual(h.calls.slice(beforeChanged).map(({method,url})=>[method,url]),[
+     ['GET','/api/projects/A/stage2/selection'],
+     ['GET','/api/projects/A/stage3/planning']
+   ]);
+   assert.match(summary.textContent,/D2 · v3/);
+   assert.doesNotMatch(summary.textContent,/D0 · v1/);
+   assert.equal(h.els.get('saved-preference-status').textContent,'');
+   assert.deepEqual(h.counts(),{prepares:0,runs:0,posts:1,uuids:1});
+ });
+ await check('missing saved versions, unavailable reads, and older hosts leave the detail unknown',async()=>{
+   for(const options of [{savedContext:{preferred_directions:undefined}},{savedReadStatus:409},{noPlanning:true}]){
+     const h=fixture({savedAtMount:true,...options});await tick();
+     assert.equal(h.els.get('saved-preference').hidden,false);
+     assert.equal(h.els.get('saved-preference-directions').textContent,'');
+     assert.match(h.els.get('saved-preference-status').textContent,/unavailable/);
+     assert.equal(h.calls.some(row=>row.method==='POST'),false);
+   }
+ });
+ await check('foreign, stale, type-mismatched, and absent candidate versions never hydrate a saved summary',async()=>{
+   const mismatches=[{savedPlanning:{project_ref:'B'}},{savedPlanning:{revision:5}},
+     {savedPlanning:{direction_intent_sha256:'0'.repeat(64)}},{savedContext:{input_version:'1'}},
+     {savedContext:{brief_sha256:'0'.repeat(64)}},{savedContext:{human_selection:'recorded'}},
+     {savedContext:{preferred_directions:[{candidate_id:'D2',candidate_version:1}]}}];
+   for(const options of mismatches){
+     const h=fixture({savedAtMount:true,...options});await tick();
+     assert.equal(h.els.get('saved-preference-directions').textContent,'');
+     assert.match(h.els.get('saved-preference-status').textContent,/unavailable/);
+     assert.equal(h.calls.some(row=>row.method==='POST'),false);
+   }
+ });
+ await check('late saved preference read is discarded after a project change',async()=>{
+   const h=fixture({savedAtMount:true,deferSavedRead:true});await tick();
+   assert.match(h.els.get('saved-preference-status').textContent,/Reading/);
+   await h.switchTo('B');
+   h.releaseSavedRead();await tick();
+   assert.equal(h.els.get('saved-preference').hidden,true);
+   assert.equal(h.els.get('saved-preference-project').textContent,'');
+   assert.equal(h.els.get('saved-preference-directions').textContent,'');
+   assert.equal(h.calls.some(row=>row.method==='POST'),false);
+ });
+ await check('a formal selection or foreign Stage2 response cannot become a tentative summary',async()=>{
+   for(const options of [{recorded:true,eligible:true},{wrongLoadedProject:true}]){
+     const h=fixture({savedAtMount:true,...options});await tick();
+     assert.equal(h.els.get('saved-preference').hidden,true);
+     assert.equal(h.calls.some(row=>row.url.includes('/stage3/')),false);
+   }
+ });
  await check('zero eligible directions still offer every delivered version as tentative',async()=>{const h=fixture();await tick();assert.equal(h.els.get('choice').hidden,true);assert.equal(h.els.get('direction-intent').hidden,false);assert.equal(h.checkboxes().length,3);assert.ok(h.checkboxes().every(x=>!x.disabled));h.choose();await h.submit();assert.deepEqual(h.calls.find(x=>x.url.endsWith('/direction-intent')).body.preferred_directions,[{candidate_id:'D0',candidate_version:1},{candidate_id:'D1',candidate_version:1},{candidate_id:'D2',candidate_version:3}]);});
  await check('save only preserves authored input and makes zero Stage3 requests',async()=>{const h=fixture();await tick();h.choose(1);await h.submit(false,'Original\nuser guidance '+xss);assert.equal(h.calls.some(x=>x.url.includes('/stage3/')),false);assert.match(h.els.get('intent-status').textContent,/saved.*pending/);assert.match(h.els.get('intent-receipt').textContent,/direction-advice/);assert.equal(h.calls.find(x=>x.method==='POST').body.user_input,'Original\nuser guidance '+xss);});
  await check('explicit save and start uses refreshed revision, typed input and one prepare/run',async()=>{for(const version of [1,'1']){const h=fixture({version});await tick();h.choose();const pending=h.submit(true);await h.submit(true);await pending;assert.deepEqual(h.counts(),{prepares:1,runs:1,posts:1,uuids:1});assert.deepEqual(h.calls.filter(x=>x.url!=='/api/projects').map(x=>x.url.replace('/api/projects/A/','')),['stage2/selection','stage2/direction-intent','stage2/selection','stage3/planning','stage3/planning/prepare','stage3/planning','stage3/planning/run']);assert.match(h.els.get('intent-status').textContent,/accepted.*planning-original-key/);assert.doesNotMatch(h.els.get('intent-status').textContent,/completed|desktop Codex|experiments started/i);assert.equal(h.els.get('intent-planning-link').href,'/project-stage3-planning.html#A?lang=en');await h.submit(true);assert.equal(h.counts().runs,1);assert.equal(h.counts().posts,1);}});
