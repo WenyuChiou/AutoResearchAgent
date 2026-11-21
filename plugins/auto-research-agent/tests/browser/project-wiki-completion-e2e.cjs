@@ -94,7 +94,12 @@ async function screenshot(page, profile) {
 }
 
 async function main() {
-  browser = await chromium.launch({headless: true, chromiumSandbox: true});
+  const channel = process.env.PROJECT_WIKI_COMPLETION_BROWSER_CHANNEL;
+  assert.ok(!channel || channel === "chrome", "unsupported Wiki browser channel");
+  summary.browser_channel = channel || "playwright-chromium";
+  const launchOptions = {headless: true, chromiumSandbox: true};
+  if (channel) launchOptions.channel = channel;
+  browser = await chromium.launch(launchOptions);
   summary.browser_version = browser.version();
   const context = await browser.newContext({viewport: {width, height}, isMobile, hasTouch: isMobile});
   await context.tracing.start({screenshots: true, snapshots: true, sources: true});

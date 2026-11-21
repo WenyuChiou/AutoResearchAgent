@@ -215,8 +215,13 @@ class Stage1CiQualityTests(unittest.TestCase):
         )
         shell = shutil.which("pwsh")
         self.assertIsNotNone(shell, "CI dependency setup requires PowerShell")
-        for failed_command in ("python", "npm", "node", None):
-            with self.subTest(failed_command=failed_command):
+        cases = [
+            (runner_os, failed_command)
+            for runner_os in ("Linux", "Windows", "macOS")
+            for failed_command in ("python", "npm", "node", None)
+        ]
+        for runner_os, failed_command in cases:
+            with self.subTest(runner_os=runner_os, failed_command=failed_command):
                 with tempfile.TemporaryDirectory(prefix="wiki-deps-") as directory:
                     temporary = Path(directory)
                     calls = temporary / "calls.txt"
@@ -226,7 +231,8 @@ class Stage1CiQualityTests(unittest.TestCase):
                     for command in ("python", "npm", "node"):
                         exit_code = 23 if command == failed_command else 0
                         stubs += (
-                            f'function {command} {{ "{command} $args" | '
+                            f'function {command} {{ ("{command} $args" '
+                            "-replace '\\s+', ' ') | "
                             "Out-File $env:TEST_CALLS -Append -Encoding utf8; "
                             f"$global:LASTEXITCODE = {exit_code} }}\n"
                         )
@@ -235,6 +241,7 @@ class Stage1CiQualityTests(unittest.TestCase):
                         [shell, "-NoProfile", "-NonInteractive", "-File", str(script)],
                         env={
                             **os.environ,
+                            "RUNNER_OS": runner_os,
                             "RUNNER_TEMP": str(temporary),
                             "GITHUB_ENV": str(exports),
                             "TEST_CALLS": str(calls),
@@ -261,15 +268,24 @@ class Stage1CiQualityTests(unittest.TestCase):
                         )
                         self.assertIn("--ignore-scripts", commands[1])
                         self.assertIn("playwright@1.62.1", commands[1])
-                        self.assertTrue(
-                            commands[2].endswith("install --with-deps chromium")
-                        )
                         values = dict(
                             line.split("=", 1)
                             for line in exports.read_text(
                                 encoding="utf-8-sig"
                             ).splitlines()
                         )
+                        if runner_os == "Linux":
+                            self.assertTrue(commands[2].startswith("node -e "))
+                            self.assertIn('channel: "chrome"', commands[2])
+                            self.assertIn("chromiumSandbox: true", commands[2])
+                            self.assertEqual(
+                                values.pop("PROJECT_WIKI_COMPLETION_BROWSER_CHANNEL"),
+                                "chrome",
+                            )
+                        else:
+                            self.assertTrue(
+                                commands[2].endswith("install --with-deps chromium")
+                            )
                         self.assertEqual(
                             set(values),
                             {
