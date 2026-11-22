@@ -1,21 +1,32 @@
 """One synthetic-planner browser journey through the real V9 Wiki Host."""
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 import hashlib
 import json
 import os
 from pathlib import Path
 import subprocess
+import tempfile
+import threading
 import time
 import unittest
 import uuid
+from unittest.mock import patch
 
-from project_wiki_completion_fixture import ProjectWikiCompletionFixture, ROOT
+import project_stage3_host_e2e_fixture as host_seed
+from project_wiki_completion_fixture import (
+    ProjectWikiCompletionFixture,
+    ROOT,
+    wiki_host_artifacts,
+)
 from research_workspace_native.project_completion import (
     CompletionIdentity,
     completion_event_adapter,
     inspect_project_completion,
 )
+from stage3_plan.contracts import Stage3Error
+from stage3_plan.native import NativePlanner
 
 
 @dataclass(frozen=True)
@@ -29,6 +40,171 @@ class RecordedEvent:
     mechanism: str
     origin: str
     result: str
+
+
+class WikiHostArtifactPathTests(unittest.TestCase):
+    def test_short_workspaces_survive_interleaved_setup_failure(self):
+        default_evidence_directory = host_seed.EvidenceDirectory
+        default_temp_directory = tempfile.TemporaryDirectory
+        default_runtime_binding = host_seed.sources.runtime_binding
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp).resolve()
+            desktop_in_setup = threading.Event()
+            mobile_at_lock = threading.Event()
+            let_desktop_fail = threading.Event()
+            profile = threading.local()
+            cleanup_order = []
+            test = self
+            construction_lock = host_seed._seed_construction_lock
+            mobile_observed_contention = []
+
+            class ObservedConstructionLock:
+                def __enter__(self):
+                    if profile.name == "mobile":
+                        is_locked = getattr(construction_lock, "locked", None)
+                        mobile_observed_contention.append(
+                            is_locked is not None and is_locked()
+                        )
+                        mobile_at_lock.set()
+                    return construction_lock.__enter__()
+
+                def __exit__(self, *exc):
+                    return construction_lock.__exit__(*exc)
+
+            class SetupFailure(RuntimeError):
+                pass
+
+            class FailingSource(unittest.TestCase):
+                @classmethod
+                def setUpClass(cls):
+                    cls.addClassCleanup(cleanup_order.append, ("class", profile.name))
+
+                def setUp(self):
+                    name = profile.name
+                    project = tempfile.TemporaryDirectory(
+                        prefix="rich-controller-choice-"
+                    )
+                    self.addCleanup(project.cleanup)
+                    self.addCleanup(cleanup_order.append, ("instance", name))
+                    project_root = Path(project.name).resolve()
+                    (project_root / "setup-marker.txt").write_text(
+                        name, encoding="utf-8"
+                    )
+                    if name == "desktop":
+                        desktop_in_setup.set()
+                        test.assertTrue(let_desktop_fail.wait(10))
+                    raise SetupFailure(project_root)
+
+            def construct(name):
+                profile.name = name
+                evidence = parent / name
+                arguments = {}
+                if name == "ordinary":
+                    workspace = evidence
+                else:
+                    evidence.mkdir()
+                    workspace, directory_factory = wiki_host_artifacts(
+                        evidence, short_paths=True
+                    )
+                    arguments["evidence_directory"] = directory_factory
+                case = unittest.TestCase()
+                try:
+                    with self.assertRaises(SetupFailure) as raised:
+                        host_seed.Stage3HostE2ESeed(
+                            case, evidence_root=workspace, **arguments
+                        )
+                finally:
+                    self.assertTrue(case.doCleanups())
+                actual = raised.exception.args[0]
+                if name != "ordinary":
+                    receipt = json.loads(
+                        (evidence / "host-workspace.json").read_bytes()
+                    )
+                    self.assertEqual(actual, Path(receipt["workspace"]))
+                    self.assertEqual(actual.parent, parent)
+                    self.assertLess(len(actual.name), 16)
+                self.assertEqual(
+                    (actual / "setup-marker.txt").read_text(encoding="utf-8"), name
+                )
+                return actual
+
+            with (
+                patch.object(
+                    host_seed, "_seed_construction_lock", ObservedConstructionLock()
+                ),
+                patch.object(
+                    host_seed.current,
+                    "ImportedRichControllerChoiceE2ETests",
+                    FailingSource,
+                ),
+                patch.object(
+                    host_seed.sources, "runtime_binding", return_value={}
+                ) as runtime,
+                ThreadPoolExecutor(max_workers=2) as workers,
+            ):
+                desktop = workers.submit(construct, "desktop")
+                try:
+                    self.assertTrue(desktop_in_setup.wait(10))
+                    mobile = workers.submit(construct, "mobile")
+                    self.assertTrue(mobile_at_lock.wait(10))
+                    self.assertEqual(
+                        mobile_observed_contention,
+                        [True],
+                        "mobile did not contend for the lock held by desktop setup",
+                    )
+                finally:
+                    let_desktop_fail.set()
+                self.assertNotEqual(
+                    desktop.result(timeout=15), mobile.result(timeout=15)
+                )
+                self.assertIs(tempfile.TemporaryDirectory, default_temp_directory)
+                self.assertIs(host_seed.sources.runtime_binding, runtime)
+                ordinary = construct("ordinary")
+                self.assertIs(tempfile.TemporaryDirectory, default_temp_directory)
+                self.assertIs(host_seed.sources.runtime_binding, runtime)
+
+            self.assertIs(host_seed.EvidenceDirectory, default_evidence_directory)
+            self.assertIs(host_seed.sources.runtime_binding, default_runtime_binding)
+            self.assertEqual(ordinary.parent, parent / "ordinary")
+            self.assertTrue(ordinary.name.startswith("rich-controller-choice-"))
+            for name in ("desktop", "mobile", "ordinary"):
+                self.assertLess(
+                    cleanup_order.index(("instance", name)),
+                    cleanup_order.index(("class", name)),
+                )
+
+    def test_short_workspace_rejects_git_parent(self):
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp).resolve()
+            (parent / ".git").mkdir()
+            evidence = parent / "evidence"
+            evidence.mkdir()
+            with self.assertRaisesRegex(Stage3Error, "outside Git checkouts"):
+                wiki_host_artifacts(evidence, short_paths=True)
+            self.assertEqual(set(parent.iterdir()), {parent / ".git", evidence})
+
+    def test_normal_layout_keeps_nested_artifacts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            evidence = Path(temp) / "evidence"
+            workspace, directory_factory = wiki_host_artifacts(
+                evidence, short_paths=False
+            )
+            self.assertEqual(workspace, evidence / "host-artifacts")
+            self.assertIs(directory_factory, host_seed.EvidenceDirectory)
+            self.assertFalse(evidence.exists())
+
+    def test_native_guard_stays_until_last_fixture_closes(self):
+        original = NativePlanner.__call__
+        desktop, mobile = unittest.TestCase(), unittest.TestCase()
+        self.addCleanup(mobile.doCleanups)
+        self.addCleanup(desktop.doCleanups)
+        guard = desktop.enterContext(host_seed._deny_native_planning())
+        self.assertIs(mobile.enterContext(host_seed._deny_native_planning()), guard)
+        self.assertTrue(desktop.doCleanups())
+        self.assertIs(NativePlanner.__call__, guard)
+        guard.assert_not_called()
+        self.assertTrue(mobile.doCleanups())
+        self.assertIs(NativePlanner.__call__, original)
 
 
 class ProjectWikiCompletionE2ETests(unittest.TestCase):
