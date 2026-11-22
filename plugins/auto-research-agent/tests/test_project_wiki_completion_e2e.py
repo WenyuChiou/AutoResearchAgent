@@ -50,12 +50,26 @@ class WikiHostArtifactPathTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             parent = Path(temp).resolve()
             desktop_in_setup = threading.Event()
-            mobile_attempted = threading.Event()
-            mobile_in_setup = threading.Event()
+            mobile_at_lock = threading.Event()
             let_desktop_fail = threading.Event()
             profile = threading.local()
             cleanup_order = []
             test = self
+            construction_lock = host_seed._seed_construction_lock
+            mobile_observed_contention = []
+
+            class ObservedConstructionLock:
+                def __enter__(self):
+                    if profile.name == "mobile":
+                        is_locked = getattr(construction_lock, "locked", None)
+                        mobile_observed_contention.append(
+                            is_locked is not None and is_locked()
+                        )
+                        mobile_at_lock.set()
+                    return construction_lock.__enter__()
+
+                def __exit__(self, *exc):
+                    return construction_lock.__exit__(*exc)
 
             class SetupFailure(RuntimeError):
                 pass
@@ -67,8 +81,6 @@ class WikiHostArtifactPathTests(unittest.TestCase):
 
                 def setUp(self):
                     name = profile.name
-                    if name == "mobile":
-                        mobile_in_setup.set()
                     project = tempfile.TemporaryDirectory(
                         prefix="rich-controller-choice-"
                     )
@@ -97,8 +109,6 @@ class WikiHostArtifactPathTests(unittest.TestCase):
                     arguments["evidence_directory"] = directory_factory
                 case = unittest.TestCase()
                 try:
-                    if name == "mobile":
-                        mobile_attempted.set()
                     with self.assertRaises(SetupFailure) as raised:
                         host_seed.Stage3HostE2ESeed(
                             case, evidence_root=workspace, **arguments
@@ -120,6 +130,9 @@ class WikiHostArtifactPathTests(unittest.TestCase):
 
             with (
                 patch.object(
+                    host_seed, "_seed_construction_lock", ObservedConstructionLock()
+                ),
+                patch.object(
                     host_seed.current,
                     "ImportedRichControllerChoiceE2ETests",
                     FailingSource,
@@ -133,10 +146,11 @@ class WikiHostArtifactPathTests(unittest.TestCase):
                 try:
                     self.assertTrue(desktop_in_setup.wait(10))
                     mobile = workers.submit(construct, "mobile")
-                    self.assertTrue(mobile_attempted.wait(10))
-                    self.assertFalse(
-                        mobile_in_setup.wait(1),
-                        "mobile entered seed setup before desktop released its patches",
+                    self.assertTrue(mobile_at_lock.wait(10))
+                    self.assertEqual(
+                        mobile_observed_contention,
+                        [True],
+                        "mobile did not contend for the lock held by desktop setup",
                     )
                 finally:
                     let_desktop_fail.set()
