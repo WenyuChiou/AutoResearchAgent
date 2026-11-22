@@ -53,6 +53,7 @@
   }
   let active = true, disposed = false, reading = false, reloadAfterRead = false, uncertain = false;
   let storage=null, pendingMarker=null, pendingRaw=null, recovery=null, recoverySerial=0, recoveryNoticeKey=null;
+  let savedChoiceProof=null;
   const hex=/^[a-f0-9]{64}$/, actionKey=/^[A-Za-z0-9_-]{1,128}$/;
   const storagePrefix=embedded?markerPrefix+binding.project_ref+".":"";
   const isHex=v=>typeof v==="string" && hex.test(v), isKey=v=>typeof v==="string" && actionKey.test(v);
@@ -92,12 +93,30 @@
       return {code:"action-not-uniquely-saved"};
     return {action};
   }
-  function savedChoiceWithUnverifiedPlanning(item, action) {
-    const marker=item.value;
-    if(marker.kind!=="stage2-select" || marker.phase!=="stage2" || action.selection_status!=="recorded" ||
-       action.delivery_manifest_sha256!==marker.delivery_manifest_sha256)return false;
+  function samePendingMarker(item) {
     const found=scanMarkers();
     return found.length===1 && found[0].key===item.key && found[0].raw===item.raw;
+  }
+  function sameCredential(credential) {
+    return credential===boot.credential && credential===window.RESEARCH_PROJECTS?.credential;
+  }
+  function rememberSavedChoice(item, action, basis, credential) {
+    const marker=item.value;
+    if(marker.kind!=="stage2-select" || marker.phase!=="stage2" || action.selection_status!=="recorded" ||
+       action.delivery_manifest_sha256!==marker.delivery_manifest_sha256 || !sameCredential(credential) ||
+       !samePendingMarker(item))return false;
+    // A retained mount can read back a different live revision of the same project.
+    const {project_ref,input_version,revision,brief_sha256}=basis;
+    savedChoiceProof={item,basis:{project_ref,input_version,revision,brief_sha256},credential};
+    return true;
+  }
+  function hasVerifiedSavedChoice(basis, key) {
+    if(disposed || recovery?.code!==savedChoicePending || !savedChoiceProof || !basis)return false;
+    const proof=savedChoiceProof;
+    if(proof.item.value.key!==key || !sameCredential(proof.credential) ||
+       !["project_ref","input_version","revision","brief_sha256"].every(field=>basis[field]===proof.basis[field]))return false;
+    try{return options.isCurrent(basis)===true && samePendingMarker(proof.item);}
+    catch(_){return false;}
   }
   if(embedded) {
     try {
@@ -331,7 +350,7 @@
   function renderFeedback(){
     const status=byId("status");
     if(status.setAttribute){status.setAttribute("role","status");status.setAttribute("aria-live","polite");}
-    const savedAwaitingPlanning=recovery?.code===savedChoicePending;
+    const savedAwaitingPlanning=hasVerifiedSavedChoice(verifiedReadBinding,pendingMarker?.key);
     if(savedAwaitingPlanning)status.textContent=w().savedChoicePending;
     else {
       if(!view && notice)status.textContent=w().unconnected+" ("+notice+")";
@@ -513,7 +532,7 @@
     byId("receipt").textContent=JSON.stringify({project_ref:view.project_ref,input_version:view.input_version,selection_receipt:view.selection_receipt,delivery_manifest_sha256:view.delivery_manifest_sha256,snapshot_sha256:view.snapshot_sha256,planning_status:view.planning_status,planning_submission:planningSubmission,execution_authorized:false},null,2);
     renderFeedback();
   }
-  async function readSavedChoiceOnReopen(basis, stillCurrent) {
+  async function readSavedChoiceOnReopen(basis, stillCurrent, credential) {
     const marker=pendingMarker;
     if(marker?.kind!=="stage2-select" || marker.phase!=="stage2" || !markerMatchesBinding(marker,basis))return;
     const item={value:marker, key:storagePrefix+marker.key, raw:pendingRaw};
@@ -521,14 +540,14 @@
       const history=await api("/api/projects/"+marker.project_ref+"/history");
       if(!stillCurrent())return;
       const {action}=savedHistoryAction(history,marker,basis);
-      if(action && savedChoiceWithUnverifiedPlanning(item,action))
+      if(action && rememberSavedChoice(item,action,basis,credential))
         recovery=recoveryState("unknown",savedChoicePending,marker.kind);
     } catch(_) {} // The original pending marker still protects an unverified read.
   }
   async function load() {
     const ref=byId("project").value;
     if(!isActive() || (busy && viewProject===ref) || (reading && (embedded || readingProject===ref)))return;
-    const serial=++loadSerial, expectedBinding=verifiedReadBinding;
+    const serial=++loadSerial, expectedBinding=verifiedReadBinding, credential=boot.credential;
     if(viewProject!==ref){view=null;viewProject=null;readAt=null;requestKey=null;lastBody=null;planningSubmission=null;intentTransaction=null;intentNotice=null;intentHold=null;planningContinuation=null;preferredDirections.clear();if(byId("intent-message")){byId("intent-message").value="";byId("intent-confirmed").checked=false;}}
     if(recovery?.code===savedChoicePending)recovery=recoveryState("unknown","pending-receipt",pendingMarker?.kind);
     reading=true;readingProject=ref;readFailed=false;operationFailed=false;notice=null;phase="readingSaved";render();
@@ -544,7 +563,7 @@
       if(!embedded)history.replaceState(null,"","#"+encodeURIComponent(ref)+(boot.wiki_v9 || preserveLanguage?"?"+(boot.wiki_v9?"stage=2&":"")+"lang="+encodeURIComponent(byId("language").value):""));
     }catch(e){if(current(ref,serial)){
       readFailed=true;notice=e.message;
-      if(!receivedView)await readSavedChoiceOnReopen(expectedBinding,()=>current(ref,serial));
+      if(!receivedView)await readSavedChoiceOnReopen(expectedBinding,()=>current(ref,serial),credential);
     }}
     finally{if(embedded || serial===loadSerial){reading=false;phase=null;}if(current(ref,serial))render();if(reloadAfterRead && !reading){reloadAfterRead=false;if(isActive() && !view && !busy && !lastBody && !intentTransactions.size)void load();}}
   }
@@ -749,7 +768,7 @@
   async function reconcile(nextBinding, selectedKey=null, confirm=false) {
     if(!embedded || disposed)return recoveryState("unavailable","recovery-unavailable",null);
     if(busy || reading)return recoveryState("unknown","operation-in-progress",pendingMarker?.kind);
-    const seq=++recoverySerial;
+    const seq=++recoverySerial, credential=boot.credential;
     const stillCurrent=()=>{try{return !disposed && seq===recoverySerial && options.isCurrent(nextBinding)===true;}catch(_){return false;}};
     const report=(status,code,type)=>{
       const value=recoveryState(status,code,type);
@@ -790,7 +809,7 @@
     } catch(_) {
       if(!stillCurrent())return recoveryState("unknown","current-binding-changed",m.kind);
       try {
-        if(!confirm && savedChoiceWithUnverifiedPlanning(item,action))return report("unknown",savedChoicePending,m.kind);
+        if(!confirm && rememberSavedChoice(item,action,nextBinding,credential))return report("unknown",savedChoicePending,m.kind);
       } catch(_) {return report("unavailable","storage-unavailable",m.kind);}
       return report("unknown","receipt-read-failed",m.kind);
     }
@@ -871,6 +890,7 @@
     },
     setLanguage(language) { if(!Object.hasOwn(words,language) || disposed) return false; byId("language").value=language; if(active) render(); return true; },
     state() { return {active:isActive(),pending:busy,reading,uncertain,submitted:!!lastBody || intentTransactions.size>0,recovery:recovery && {...recovery}}; },
+    hasVerifiedSavedChoice,
     reconcile(nextBinding,key=null) { return withProjectLock(()=>reconcile(nextBinding,key,false)); },
     pendingActions() { try { return scanMarkers().map(x=>({key:x.value.key,kind:x.value.kind,phase:x.value.phase})); } catch(_) { return null; } },
     acknowledgeTerminal(nextBinding,key) { return withProjectLock(()=>reconcile(nextBinding,key,true)); },

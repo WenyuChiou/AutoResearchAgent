@@ -179,6 +179,81 @@ test('reopened saved choice reports a held planning input and rechecks without w
  assert.equal(reopened.navigations.length,0);
  t.diagnostic('Verified recheck and remount: 2 project GETs for recheck, choice/prepare/run POSTs 0/0/0, original clearance and manual Stage 3 link.');
 });
+test('retained selection control localizes the verified receipt for its current revision and marker',async()=>{
+ const {f,store,key,marker}=reopenedFormalSelection({deferMount:true,selectionUnavailable:()=>true},'fresh-1');
+ const mounted={...f.binding,revision:marker.revision};
+ const fields=['project_ref','input_version','revision','brief_sha256'];
+ let current=mounted;
+ const handle=f.window.STAGE2_SELECTION.mount(f.root,{
+  ...f.args,binding:mounted,isCurrent:basis=>fields.every(field=>basis[field]===current[field])
+ });
+ const parent=parentRecoveryControls({...f,handle,binding:mounted});
+ const original=store.getItem(key);
+ await tick();
+ handle.suspend();
+ current=f.binding;
+ parent.state.overview.project=current;
+ const path='/api/projects/'+current.project_ref;
+ const reads=f.reads.length;
+ const control=parent.pendingControl();
+ await control.button.onclick();
+ assert.deepEqual(f.reads.slice(reads),[path+'/history',path+'/stage2/selection']);
+ assert.equal(store.getItem(key),original);
+ assert.match(control.target.textContent,/選案已保存/);
+
+ handle.setLanguage('en');
+ const repainted=parent.pendingControl();
+ assert.match(repainted.target.textContent,/Selection saved\. Planning input still needs verification\./);
+ assert.equal(repainted.button.textContent,'Read saved state again · '+marker.key);
+ assert.equal(f.reads.length,reads+2);
+
+ for(const changed of [
+  {revision:current.revision+1},
+  {project_ref:'different-project'},
+  {input_version:1},
+  {brief_sha256:'0'.repeat(64)}
+ ]){
+  current={...f.binding,...changed};
+  parent.state.overview.project=current;
+  assert.doesNotMatch(parent.pendingControl().target.textContent,/Selection saved/);
+ }
+ current=f.binding;
+ parent.state.overview.project=current;
+ store.setItem(key,JSON.stringify({...marker,request_sha256:'0'.repeat(64)}));
+ assert.doesNotMatch(parent.pendingControl().target.textContent,/Selection saved/);
+ store.removeItem(key);
+ assert.doesNotMatch(parent.pendingControl().target.textContent,/Selection saved/);
+ store.setItem(key,original);
+ f.window.RESEARCH_PROJECTS={...f.window.RESEARCH_PROJECTS,credential:'different-synthetic-session'};
+ assert.doesNotMatch(parent.pendingControl().target.textContent,/Selection saved/);
+ assert.equal(f.reads.length,reads+2);
+ assert.deepEqual(f.writes,[]);
+ assert.deepEqual(f.navigations,[]);
+});
+test('lock busy leaves the verified saved choice and its readback button intact',async()=>{
+ const locks=memoryLocks();
+ const {f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+ const original=store.getItem(key);
+ await tick();
+ f.handle.setLanguage('en');
+ let release;
+ const held=locks.request('ara.stage2.transaction.v1.'+marker.project_ref,{},()=>new Promise(resolve=>{release=resolve;}));
+ try {
+  const check=parentRecoveryControls(f).pendingControl(),reads=f.reads.length;
+  assert.equal(check.button.textContent,'Read saved state again · '+marker.key);
+  await check.button.onclick();
+  assert.match(check.target.textContent,/Another tab is handling this project/);
+  assert.equal(check.button.textContent,'Read saved state again · '+marker.key);
+  assert.match(f.els.get('status').textContent,/Selection saved/);
+  assert.equal(f.reads.length,reads);
+  assert.equal(store.getItem(key),original);
+  assert.deepEqual(f.writes,[]);
+  assert.deepEqual(f.navigations,[]);
+ } finally {
+  release();
+  await held;
+ }
+});
 test('reopen keeps selection unknown when the saved history cannot be bound',async(t)=>{
  const actionPatch=fields=>history=>({...history,actions:history.actions.map(action=>({...action,...fields}))});
  for(const options of [
