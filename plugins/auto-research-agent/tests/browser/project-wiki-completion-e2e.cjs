@@ -190,23 +190,24 @@ async function main() {
     origin: "automation",
     result: "passed",
   };
-  summary.observed_events = {
-    entry: {...common, phase: "entry", target: "wiki-stage2-direction", mechanism: "click"},
-    action: {...common, phase: "action", target: "wiki-stage2-save-and-start", mechanism: "click"},
-    outcome: {...common, phase: "outcome", target: "wiki-stage3-saved-plan", mechanism: "click"},
-  };
   summary.selection_receipt = selectionReceipt;
   summary.plan_manifest_sha256 = saved.job.plan_manifest_sha256;
   summary.planning_request_sha256 = saved.job.request_sha256;
   await context.tracing.stop({path: path.join(evidence, `${profile}-trace.zip`)});
   await context.close();
   activePage = null; activeContext = null;
+  assertNoProjectWrites(afterStart, "final browser window");
   assert.equal(summary.profiles.length, 1);
   assert.deepEqual(summary.page_errors, []);
   assert.deepEqual(summary.external_requests, []);
   summary.unexpected_console_errors = summary.console_errors.filter(text =>
     !(text.includes("favicon.ico") && text.includes("404")));
   assert.deepEqual(summary.unexpected_console_errors, []);
+  summary.observed_events = {
+    entry: {...common, phase: "entry", target: "wiki-stage2-direction", mechanism: "click"},
+    action: {...common, phase: "action", target: "wiki-stage2-save-and-start", mechanism: "click"},
+    outcome: {...common, phase: "outcome", target: "wiki-stage3-saved-plan", mechanism: "click"},
+  };
   summary.outcome = "passed";
 }
 
