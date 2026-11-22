@@ -126,6 +126,7 @@ async function main() {
   await chooser.locator("#confirmed").check();
   const start = chooser.getByRole("button", {name: "Save and start planning", exact: true});
   summary.original_button = (await start.textContent()).trim();
+  assert.equal(summary.requests.length, 0, `no selection or planning POST before Save and start planning (${profile})`);
   const selectedResponse = page.waitForResponse(response =>
     new URL(response.url()).pathname === selectionPath && response.request().method() === "POST");
   await start.click();
@@ -145,6 +146,9 @@ async function main() {
   const runRequests = () => summary.requests.filter(row => row.path === `${planningPath}/run`);
   assert.equal(runRequests().length, 1);
   await screenshot(page, profile);
+  assert.deepEqual(summary.requests.map(row => row.path),
+    [selectionPath, `${planningPath}/prepare`, `${planningPath}/run`],
+    `one Save and start planning click must POST select, prepare, run once in order (${profile})`);
   const beforeRefresh = summary.requests.length;
   const refreshed = await readSaved(page);
   assert.equal(refreshed.job.plan_manifest_sha256, saved.job.plan_manifest_sha256);

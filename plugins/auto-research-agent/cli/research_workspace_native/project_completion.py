@@ -166,7 +166,18 @@ def completion_event_adapter(
         authoritative = inspect_project_completion(
             selection, planning, credential, identity, expected_request
         )
-        _check(event == authoritative, "completion-event-source-mismatch")
+        _check(
+            type(event) is dict
+            and len(event) == len(authoritative)
+            and all(
+                type(key) is str
+                and key in authoritative
+                and type(value) is type(authoritative[key])
+                and value == authoritative[key]
+                for key, value in event.items()
+            ),
+            "completion-event-source-mismatch",
+        )
         _check(
             observed.get("result") in {"passed", "failed"}, "completion-outcome-unknown"
         )

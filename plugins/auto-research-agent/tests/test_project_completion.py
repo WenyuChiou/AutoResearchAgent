@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from dataclasses import replace
+import json
 from pathlib import Path
 import sys
 import threading
@@ -172,6 +173,45 @@ class ProjectCompletionTests(unittest.TestCase):
                 )
         with self.assertRaises(SessionApiError):
             self.adapter({})(event, self.requirement, self.contract)
+
+    def test_event_json_round_trip_preserves_receipt_types(self):
+        for input_version in ("input-v1", 1):
+            with self.subTest(input_version=input_version):
+                self.identity = replace(self.identity, input_version=input_version)
+                self.view["input_version"] = input_version
+                self.observed["input_version"] = input_version
+                event = json.loads(json.dumps(self.inspect()))
+                result = self.adapter()(event, self.requirement, self.contract)
+                self.assertEqual(result["result"], "passed")
+
+    def test_event_json_must_match_receipt_types_and_keys(self):
+        self.identity = replace(self.identity, input_version=1)
+        self.view["input_version"] = 1
+        self.observed["input_version"] = 1
+        event = self.inspect()
+        for field, value in (
+            ("input_version", True),
+            ("input_version", 1.0),
+            ("formal_selected_receiver", 1),
+            ("execution_authorized", 0),
+            ("execution_authorized", 0.0),
+        ):
+            with self.subTest(field=field, value=value):
+                modified = json.loads(json.dumps(dict(event, **{field: value})))
+                self.assertEqual(modified, event)
+                with self.assertRaisesRegex(
+                    SessionApiError, "completion-event-source-mismatch"
+                ):
+                    self.adapter()(modified, self.requirement, self.contract)
+        missing = dict(event)
+        missing.pop("project_ref")
+        extra = dict(event, unexpected=None)
+        wrong_key = dict(missing, unexpected=event["project_ref"])
+        for modified in (missing, extra, wrong_key):
+            with self.assertRaisesRegex(
+                SessionApiError, "completion-event-source-mismatch"
+            ):
+                self.adapter()(modified, self.requirement, self.contract)
 
     def test_api_other_button_cross_operation_and_human_labels_are_rejected(self):
         event = self.inspect()
