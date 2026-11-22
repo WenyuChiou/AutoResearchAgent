@@ -6,16 +6,23 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import time
 import unittest
 import uuid
 
-from project_wiki_completion_fixture import ProjectWikiCompletionFixture, ROOT
+import project_stage3_host_e2e_fixture as host_seed
+from project_wiki_completion_fixture import (
+    ProjectWikiCompletionFixture,
+    ROOT,
+    wiki_host_artifacts,
+)
 from research_workspace_native.project_completion import (
     CompletionIdentity,
     completion_event_adapter,
     inspect_project_completion,
 )
+from stage3_plan.contracts import Stage3Error
 
 
 @dataclass(frozen=True)
@@ -29,6 +36,60 @@ class RecordedEvent:
     mechanism: str
     origin: str
     result: str
+
+
+class WikiHostArtifactPathTests(unittest.TestCase):
+    def test_short_workspace_is_unique_and_retained_on_failure(self):
+        original = host_seed.EvidenceDirectory
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            roots = []
+            for name in ("desktop", "mobile"):
+                evidence = parent / name
+                evidence.mkdir()
+                with (
+                    self.assertRaisesRegex(RuntimeError, "fixture setup failed"),
+                    wiki_host_artifacts(evidence, short_paths=True) as workspace,
+                ):
+                    self.assertEqual(workspace.parent, parent)
+                    self.assertLess(len(workspace.name), 16)
+                    project = host_seed.EvidenceDirectory(
+                        prefix="rich-controller-choice-", evidence_root=workspace
+                    )
+                    self.assertEqual(Path(project.name), workspace)
+                    other = host_seed.EvidenceDirectory(
+                        prefix="other-", evidence_root=workspace
+                    )
+                    self.assertEqual(Path(other.name).parent, workspace)
+                    roots.append(workspace)
+                    raise RuntimeError("fixture setup failed")
+                self.assertTrue(workspace.is_dir())
+                self.assertIs(host_seed.EvidenceDirectory, original)
+                receipt = json.loads(
+                    (evidence / "host-workspace.json").read_text(encoding="utf-8")
+                )
+                self.assertEqual(Path(receipt["workspace"]), workspace)
+            self.assertEqual(len(set(roots)), 2)
+
+    def test_short_workspace_rejects_git_parent(self):
+        with tempfile.TemporaryDirectory() as temp:
+            parent = Path(temp)
+            (parent / ".git").mkdir()
+            evidence = parent / "evidence"
+            evidence.mkdir()
+            with (
+                self.assertRaisesRegex(Stage3Error, "outside Git checkouts"),
+                wiki_host_artifacts(evidence, short_paths=True),
+            ):
+                self.fail("created work inside Git")
+            self.assertEqual(set(parent.iterdir()), {parent / ".git", evidence})
+
+    def test_normal_layout_keeps_nested_artifacts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            evidence = Path(temp) / "evidence"
+            with wiki_host_artifacts(evidence, short_paths=False) as workspace:
+                self.assertEqual(workspace, evidence / "host-artifacts")
+            self.assertFalse(evidence.exists())
 
 
 class ProjectWikiCompletionE2ETests(unittest.TestCase):
