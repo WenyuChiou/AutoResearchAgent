@@ -42,7 +42,7 @@ class WikiHostArtifactPathTests(unittest.TestCase):
     def test_short_workspace_is_unique_and_retained_on_failure(self):
         original = host_seed.EvidenceDirectory
         with tempfile.TemporaryDirectory() as temp:
-            parent = Path(temp)
+            parent = Path(temp).resolve()
             roots = []
             for name in ("desktop", "mobile"):
                 evidence = parent / name
@@ -73,7 +73,7 @@ class WikiHostArtifactPathTests(unittest.TestCase):
 
     def test_short_workspace_rejects_git_parent(self):
         with tempfile.TemporaryDirectory() as temp:
-            parent = Path(temp)
+            parent = Path(temp).resolve()
             (parent / ".git").mkdir()
             evidence = parent / "evidence"
             evidence.mkdir()
