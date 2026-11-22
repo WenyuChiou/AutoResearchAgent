@@ -15,8 +15,10 @@ assert.match(profile, /^(desktop-1440|mobile-390)$/);
 const width = Number(widthText), height = Number(heightText), isMobile = mobileText === "true";
 assert.ok(Number.isInteger(width) && width > 0 && Number.isInteger(height) && height > 0);
 fs.mkdirSync(evidence, {recursive: true});
-const selectionPath = `/api/projects/${ref}/stage2/select`;
-const planningPath = `/api/projects/${ref}/stage3/planning`;
+const projectPath = `/api/projects/${ref}`;
+const selectionPath = `${projectPath}/stage2/select`;
+const planningPath = `${projectPath}/stage3/planning`;
+const startPaths = [selectionPath, `${planningPath}/prepare`, `${planningPath}/run`];
 const initialUrl = `${origin}/#${ref}?stage=2&lang=en`;
 const summary = {
   kind: "ProjectWikiCompletionBrowserEvidence",
@@ -52,18 +54,26 @@ function observe(page) {
   });
   page.on("request", request => {
     const url = new URL(request.url());
-    if (url.origin !== origin) summary.external_requests.push(request.url());
-    if (request.method() === "POST" &&
-        [selectionPath, `${planningPath}/prepare`, `${planningPath}/run`].includes(url.pathname)) {
-      const raw = request.postData() || "";
-      summary.requests.push({
-        path: url.pathname,
-        method: request.method(),
-        payload: JSON.parse(raw),
-        payload_sha256: sha256(Buffer.from(raw, "utf8")),
-      });
+    if (url.origin !== origin) {
+      summary.external_requests.push(request.url());
+      return;
     }
+    if (url.pathname !== projectPath && !url.pathname.startsWith(`${projectPath}/`)) return;
+    const method = request.method();
+    if (["GET", "HEAD", "OPTIONS"].includes(method)) return;
+    const raw = request.postData() || "";
+    summary.requests.push({
+      path: url.pathname,
+      method,
+      payload: method === "POST" && startPaths.includes(url.pathname) ? JSON.parse(raw) : null,
+      payload_sha256: sha256(Buffer.from(raw, "utf8")),
+    });
   });
+}
+
+function assertNoProjectWrites(since, label) {
+  assert.deepEqual(summary.requests.slice(since).map(row => `${row.method} ${row.path}`), [],
+    `${label} must remain read-only (${profile})`);
 }
 
 async function readSaved(page) {
@@ -72,13 +82,17 @@ async function readSaved(page) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const response = page.waitForResponse(response => {
       const request = response.request();
-      return new URL(response.url()).pathname === planningPath && request.method() === "GET";
+      const url = new URL(response.url());
+      return url.origin === origin && url.pathname === planningPath && request.method() === "GET";
     });
     await button.click();
     const actual = await response;
     assert.equal(actual.status(), 200);
     value = await actual.json();
-    if (value.job?.outcome === "saved") return value;
+    if (value.job?.outcome === "saved") {
+      await page.locator("#v93-diagram svg").waitFor();
+      return value;
+    }
     await page.waitForTimeout(100);
   }
   assert.fail(`saved plan unavailable: ${JSON.stringify(value?.job)}`);
@@ -126,10 +140,10 @@ async function main() {
   await chooser.locator("#confirmed").check();
   const start = chooser.getByRole("button", {name: "Save and start planning", exact: true});
   summary.original_button = (await start.textContent()).trim();
-  assert.equal(summary.requests.length, 0, `no selection or planning POST before Save and start planning (${profile})`);
+  assertNoProjectWrites(0, "before Save and start planning");
   const [receiptResponse, runResponse] = await Promise.all([
     page.waitForResponse(response =>
-      new URL(response.url()).pathname === selectionPath && response.request().method() === "POST"),
+      response.url() === `${origin}${selectionPath}` && response.request().method() === "POST"),
     page.waitForResponse(response =>
       response.url() === `${origin}${planningPath}/run` && response.request().method() === "POST"),
     start.click(),
@@ -140,13 +154,12 @@ async function main() {
   assert.equal(selectionReceipt.status, "saved");
   await page.waitForURL(url => url.hash.includes(`stage=3`) && url.hash.includes(ref));
   await page.getByRole("heading", {name: "Research design & feasibility", exact: true}).waitFor();
-  assert.deepEqual(summary.requests.map(row => row.path),
-    [selectionPath, `${planningPath}/prepare`, `${planningPath}/run`],
+  assert.deepEqual(summary.requests.map(row => `${row.method} ${row.path}`),
+    startPaths.map(route => `POST ${route}`),
     `one Save and start planning click must POST select, prepare, run once in order (${profile})`);
   const afterStart = summary.requests.length;
   const saved = await readSaved(page);
-   assert.equal(saved.plan.kind, "Stage3ResearchPlan");
-   await page.locator("#v93-diagram svg").waitFor();
+  assert.equal(saved.plan.kind, "Stage3ResearchPlan");
   assert.equal(saved.project_ref, ref);
   assert.equal(saved.job.outcome, "saved");
   assert.equal(saved.plan.execution_authorized, false);
@@ -154,11 +167,11 @@ async function main() {
   const runRequests = () => summary.requests.filter(row => row.path === `${planningPath}/run`);
   assert.equal(runRequests().length, 1);
   await screenshot(page, profile);
-  assert.equal(summary.requests.length, afterStart, "first view must remain GET-only");
+  assertNoProjectWrites(afterStart, "first view");
   const refreshed = await readSaved(page);
   assert.equal(refreshed.job.plan_manifest_sha256, saved.job.plan_manifest_sha256);
   assert.equal(runRequests().length, 1);
-  assert.equal(summary.requests.length, afterStart, "refresh must remain GET-only");
+  assertNoProjectWrites(afterStart, "refresh");
   summary.final_url = page.url();
   const selectedRequest = summary.requests.find(row => row.path === selectionPath);
   const planningRequest = runRequests()[0];
