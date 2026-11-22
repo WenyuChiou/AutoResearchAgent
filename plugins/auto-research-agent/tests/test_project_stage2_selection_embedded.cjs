@@ -41,8 +41,8 @@ function harness(options={}) {
   const body=init?.body?JSON.parse(init.body):null;
   if(init?.method==='POST')writes.push({url,body});else reads.push(url);
   if(url==='/api/projects')return response({projects:[]});
-  if(url.endsWith('/history')) {if(options.holdHistory)await new Promise(resolve=>{historyRelease=resolve});const actions=[];if(selected)actions.push(real?structuredClone(real.history.actions[0]):{...selectReceipt,project_ref:binding.project_ref,kind:'stage2-select',status:'saved'});if(intentReceipt)actions.push({...intentReceipt,project_ref:binding.project_ref,kind:'stage2-direction-intent'});let h={project_ref:binding.project_ref,revision:real?(selected?real.after.revision:real.before.revision):(selected||intentReceipt?2:1),versions:[{input_version:binding.input_version,sha256:binding.brief_sha256}],actions,execution_authorized:false};return response(options.historyTransform?options.historyTransform(h):h);}
-  if(url.endsWith('/stage2/selection')){const captured=view();if(holdRead){holdRead=false;await new Promise(resolve=>{readRelease=resolve});}return response(options.readTransform?options.readTransform(captured):captured);}
+  if(url.endsWith('/history')) {if(options.holdHistory)await new Promise(resolve=>{historyRelease=resolve});if(options.historyUnavailable)return response({error:'history-unavailable'},409);const actions=[];if(selected)actions.push(real?structuredClone(real.history.actions[0]):{...selectReceipt,project_ref:binding.project_ref,kind:'stage2-select',status:'saved'});if(intentReceipt)actions.push({...intentReceipt,project_ref:binding.project_ref,kind:'stage2-direction-intent'});let h={project_ref:binding.project_ref,revision:real?(selected?real.after.revision:real.before.revision):(selected||intentReceipt?2:1),versions:[{input_version:binding.input_version,sha256:binding.brief_sha256}],actions,execution_authorized:false};return response(options.historyTransform?options.historyTransform(h):h);}
+  if(url.endsWith('/stage2/selection')){const captured=view();if(holdRead){holdRead=false;await new Promise(resolve=>{readRelease=resolve});}if(options.selectionUnavailable?.())return response({error:'project-input-rejected'},400);return response(options.readTransform?options.readTransform(captured):captured);}
   if(url.endsWith('/stage2/select')){
    if(waitSelect)await new Promise(resolve=>{release=resolve});
    selected=true;ack=real?real.post.request_sha256:digest('stage2-select',body);selectReceipt=real?real.after.selection_receipt:{key:body.key,request_sha256:ack,delivery_manifest_sha256:'c'.repeat(64),interaction_file_sha256:'7'.repeat(64),planning_manifest_sha256:'8'.repeat(64),workflow_head_sha256:'9'.repeat(64),artifact_ref:'stage2-choice-'+ack,selection_status:'recorded',planning_status:'verified',execution_authorized:false};
@@ -103,7 +103,7 @@ function parentRecoveryControls(f,options={}) {
  const outerLabels=bridge.match(/<summary>\$\{rl\('([^']+)','([^']+)','([^']+)'\)\}<\/summary>/);assert.ok(outerLabels);
  const refresh=new Element('button');refresh.textContent=label;refresh.dataset.liveAction='refresh';refresh.hasAttribute=name=>name==='data-live-action';refresh.closest=selector=>selector.includes('data-live-action')?refresh:null;
  refresh.onclick=()=>listeners.click({target:refresh,preventDefault(){},stopImmediatePropagation(){}});
- function pendingControl(){if(!state.overview?.project)return null;const target=new Element();context.v93RecoveryControl(target,{instance:f.handle},state.overview.project,app);return {target,button:descendants(target).find(n=>n.tagName==='BUTTON')};}
+ function pendingControl(){if(!state.overview?.project)return null;const target=new Element();context.v93RecoveryControl(target,{instance:f.handle,binding:f.binding},state.overview.project,app);return {target,button:descendants(target).find(n=>n.tagName==='BUTTON')};}
  return {refresh,pendingControl,reads,state,outerLabel:context.rl(...outerLabels.slice(1))};
 }
 async function loseSavedPreference(options={}) {
@@ -112,6 +112,118 @@ async function loseSavedPreference(options={}) {
  f.els.get('intent-message').value='Synthetic preference';f.els.get('intent-confirmed').checked=true;
  await f.els.get('direction-intent').onsubmit({preventDefault(){},submitter:f.els.get(options.saveOnly?'intent-save':'intent-start')});return f;
 }
+function reopenedFormalSelection(options={}, inputVersion=null) {
+ const real=structuredClone(require('./fixtures/stage2_formal_selection_service_saved.json'));
+ if(inputVersion!==null){
+  for(const item of [real.body,real.before,real.after,real.history.versions[0]])item.input_version=inputVersion;
+  const request_sha256=digest('stage2-select',real.body), artifact_ref='stage2-choice-'+request_sha256;
+  for(const receipt of [real.post,real.after.selection_receipt,real.history.actions[0]])Object.assign(receipt,{request_sha256,artifact_ref});
+ }
+ const store=memoryStorage(), body=real.body;
+ const marker={
+  schema:1, project_ref:real.before.project_ref, input_version:body.input_version,
+  revision:body.revision, brief_sha256:body.brief_sha256,
+  delivery_manifest_sha256:body.delivery_manifest_sha256,
+  workflow_head_sha256:body.workflow_head_sha256, snapshot_sha256:body.snapshot_sha256,
+  kind:'stage2-select', key:body.key, request_sha256:real.post.request_sha256,
+  phase:'stage2', planning_key:null, planning_sha256:null
+ };
+ const key='ara.stage2.pending.v1.'+marker.project_ref+'.'+marker.key;
+ store.setItem(key,JSON.stringify(marker));
+ return {real,store,key,marker,f:harness({realFixture:real,preselected:true,storage:store,...options})};
+}
+test('reopened saved choice reports a held planning input and rechecks without writes',async(t)=>{
+ let viewUnavailable=true;
+ const {f,store,key,real}=reopenedFormalSelection({selectionUnavailable:()=>viewUnavailable},'fresh-1');
+ const original=store.getItem(key), project='/api/projects/'+f.binding.project_ref;
+ await tick();
+ for(const [language,message] of [
+  ['zh-TW','選案已保存。規劃輸入仍待核實。'],
+  ['zh-CN','选案已保存。规划输入仍待核实。']
+ ]){
+  f.handle.setLanguage(language);
+  assert.equal(f.els.get('status').textContent,message);
+ }
+ f.handle.setLanguage('en');
+ assert.match(f.els.get('status').textContent,/Selection saved\. Planning input still needs verification\./);
+ assert.equal(f.els.get('planning').hidden,true);
+ assert.equal(f.els.get('submit').disabled,true);
+ assert.equal(f.els.get('submit-and-start').disabled,true);
+ assert.equal(descendants(f.els.get('planning-summary')).some(el=>el.id==='stage3-entry'),false);
+ assert.deepEqual(f.reads.filter(url=>url!=="/api/projects").sort(),[project+'/history',project+'/stage2/selection']);
+ assert.equal(store.getItem(key),original);
+ t.diagnostic('Reopen with saved receipt and rejected view: 2 project GETs, choice/prepare/run POSTs 0/0/0, original marker retained.');
+ const parent=parentRecoveryControls(f), check=parent.pendingControl();
+ assert.doesNotMatch(check.target.textContent,/unconfirmed/);
+ assert.match(check.button.textContent,/Read saved state again/);
+ let reads=f.reads.length;
+ await check.button.onclick();
+ assert.deepEqual(f.reads.slice(reads),[project+'/history',project+'/stage2/selection']);
+ assert.equal(store.getItem(key),original);
+ assert.equal(f.navigations.length,0);
+ assert.equal(f.writes.length,0);
+ t.diagnostic('Recheck while held: 2 project GETs, choice/prepare/run POSTs 0/0/0, original marker retained.');
+ viewUnavailable=false;
+ reads=f.reads.length;
+ await check.button.onclick();
+ assert.deepEqual(f.reads.slice(reads),[project+'/history',project+'/stage2/selection']);
+ assert.equal(store.length,0);
+ assert.equal(f.handle.state().recovery.status,'verified');
+ assert.equal(f.writes.length,0);
+ assert.equal(f.navigations.length,0);
+ const reopened=harness({realFixture:real,preselected:true,storage:store});
+ await tick();
+ assert.equal(reopened.els.get('planning').hidden,false);
+ assert.ok(descendants(reopened.els.get('planning-summary')).find(el=>el.id==='stage3-entry'));
+ assert.equal(reopened.writes.length,0);
+ assert.equal(reopened.navigations.length,0);
+ t.diagnostic('Verified recheck and remount: 2 project GETs for recheck, choice/prepare/run POSTs 0/0/0, original clearance and manual Stage 3 link.');
+});
+test('reopen keeps selection unknown when the saved history cannot be bound',async(t)=>{
+ const actionPatch=fields=>history=>({...history,actions:history.actions.map(action=>({...action,...fields}))});
+ for(const options of [
+  {historyUnavailable:true},
+  {historyTransform:history=>({...history,actions:[]})},
+  {historyTransform:history=>({...history,actions:[...history.actions,...history.actions]})},
+  {historyTransform:history=>({...history,revision:history.revision-1})},
+  {historyTransform:history=>({...history,versions:history.versions.map(version=>({...version,input_version:true}))})},
+  {historyTransform:history=>({...history,versions:[...history.versions,{...history.versions[0],sha256:'0'.repeat(64)}]})},
+  {historyTransform:actionPatch({project_ref:'project-foreign'})},
+  {historyTransform:actionPatch({kind:'stage2-direction-intent'})},
+  {historyTransform:actionPatch({status:'execution-unknown'})},
+  {historyTransform:actionPatch({request_sha256:'0'.repeat(64)})},
+  {historyTransform:actionPatch({delivery_manifest_sha256:'0'.repeat(64)})}
+ ]){
+  const {f,store,key}=reopenedFormalSelection({selectionUnavailable:()=>true,...options});
+  const original=store.getItem(key);
+  await tick();
+  f.handle.setLanguage('en');
+  assert.equal(f.reads.filter(url=>url.endsWith('/history')).length,1);
+  assert.doesNotMatch(f.els.get('status').textContent,/Selection saved/);
+  assert.equal(f.els.get('submit').disabled,true);
+  assert.equal(f.els.get('planning').hidden,true);
+  assert.equal(store.getItem(key),original);
+  assert.equal(f.handle.state().recovery.status,'unknown');
+  assert.equal(f.writes.length,0);
+  assert.equal(f.navigations.length,0);
+ }
+ t.diagnostic('11 unavailable or unbound histories: 2 project GETs each, choice/prepare/run POSTs 0/0/0, original markers retained.');
+});
+test('an in-flight reopen check cannot confirm a changed pending marker',async()=>{
+ const {f,store,key,marker}=reopenedFormalSelection({selectionUnavailable:()=>true,holdHistory:true});
+ await tick();
+ assert.equal(f.reads.filter(url=>url.endsWith('/history')).length,1);
+ const altered=JSON.stringify({...marker,request_sha256:'0'.repeat(64)});
+ store.setItem(key,altered);
+ f.releaseHistory();
+ await tick();
+ f.handle.setLanguage('en');
+ assert.doesNotMatch(f.els.get('status').textContent,/Selection saved/);
+ assert.equal(store.getItem(key),altered);
+ assert.equal(f.els.get('planning').hidden,true);
+ assert.equal(f.writes.length,0);
+ assert.equal(f.navigations.length,0);
+});
 test('lost saved response replaces the embedded retry with named parent recovery steps',async()=>{
  for(const preference of [true,false])for(const start of [true,false]){
   let f;

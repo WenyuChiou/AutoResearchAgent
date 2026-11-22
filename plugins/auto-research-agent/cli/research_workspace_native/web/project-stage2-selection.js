@@ -7,6 +7,7 @@
   // A marker contains only opaque action identifiers and version hashes; no
   // credentials, user text or paths are written to same-origin localStorage.
   const markerPrefix = "ara.stage2.pending.v1.";
+  const savedChoicePending = "saved-selection-planning-unverified";
   function canonicalValue(value) {
     if(value===null || typeof value==="boolean") return JSON.stringify(value);
     if(typeof value==="number") {if(!Number.isSafeInteger(value))throw Error("canonical-number-invalid");return JSON.stringify(value);}
@@ -73,6 +74,30 @@
       if(!validMarker(value,key))throw Error("storage-invalid");found.push({key,raw,value});
     }}
     return found;
+  }
+  function markerMatchesBinding(marker, basis) {
+    return basis?.project_ref===marker.project_ref && basis.input_version===marker.input_version &&
+      basis.brief_sha256===marker.brief_sha256 && Number.isSafeInteger(basis.revision) && basis.revision>=marker.revision;
+  }
+  function savedHistoryAction(history, marker, basis) {
+    if(history?.project_ref!==marker.project_ref || history.execution_authorized!==false || history.revision!==basis.revision ||
+       !Array.isArray(history.actions) || !Array.isArray(history.versions))
+      return {code:"binding-differs"};
+    const versions=history.versions.filter(version=>version?.input_version===marker.input_version);
+    if(versions.length!==1 || versions[0].sha256!==marker.brief_sha256)return {code:"binding-differs"};
+    const actions=history.actions.filter(action=>action?.key===marker.key);
+    const action=actions[0];
+    if(actions.length!==1 || action.project_ref!==marker.project_ref || action.kind!==marker.kind ||
+       action.status!=="saved" || action.request_sha256!==marker.request_sha256 || action.execution_authorized!==false)
+      return {code:"action-not-uniquely-saved"};
+    return {action};
+  }
+  function savedChoiceWithUnverifiedPlanning(item, action) {
+    const marker=item.value;
+    if(marker.kind!=="stage2-select" || marker.phase!=="stage2" || action.selection_status!=="recorded" ||
+       action.delivery_manifest_sha256!==marker.delivery_manifest_sha256)return false;
+    const found=scanMarkers();
+    return found.length===1 && found[0].key===item.key && found[0].raw===item.raw;
   }
   if(embedded) {
     try {
@@ -240,6 +265,9 @@
     "zh-CN":{savingChoice:"正在保存你的选案…",savingPreference:"正在保存你的偏好…",readingChoice:"选案已保存，正在读回回执…",readingPreference:"偏好已保存，正在读回回执…",preparingInput:"正在准备已保存的规划输入…",readingPrepared:"正在读回已准备的输入…",sendingPlan:"正在发送规划请求，等待接收…",planAccepted:"规划请求已接收，请进入 Stage 3 读取进度。",preparedContinue:"输入已准备。可到 Stage 3 继续；此链接不会另启规划。",continuePrepared:"到 Stage 3 继续已准备的输入",openPlanning:"读取已有 Stage 3 状态",retryRead:"重新读取保存状态",readingSaved:"正在读取保存状态…",readLost:"最新读取失败，目前结果仍未确认。",lastVerified:"最后可信读取",inputVersion:"输入版本",revisionLabel:"修订"}
   };
   for(const [language,labels] of Object.entries(progressWords))Object.assign(words[language],labels);
+  words.en.savedChoicePending="Selection saved. Planning input still needs verification.";
+  words["zh-CN"].savedChoicePending="选案已保存。规划输入仍待核实。";
+  words["zh-TW"].savedChoicePending="選案已保存。規劃輸入仍待核實。";
   const current = (ref, serial) => isActive() && serial === loadSerial && byId("project").value === ref && (!embedded || ref === binding.project_ref);
   const w = () => words[byId("language").value] || words.en;
   Object.assign(words.en,{lockBusy:"Another tab is handling this project; try again when it finishes.",lockUnavailable:"This browser does not support the project transaction lock. Submission and recovery are disabled."});
@@ -302,16 +330,20 @@
   function progress(step){phase=step;render();if(isActive())byId("status").scrollIntoView({block:"nearest"});}
   function renderFeedback(){
     const status=byId("status");
-    if(!view && notice)status.textContent=w().unconnected+" ("+notice+")";
     if(status.setAttribute){status.setAttribute("role","status");status.setAttribute("aria-live","polite");}
-    if(phase && !operationFailed)status.textContent=w()[phase]+" "+status.textContent;
-    if(readFailed)status.textContent=w().readLost+" "+status.textContent;
+    const savedAwaitingPlanning=recovery?.code===savedChoicePending;
+    if(savedAwaitingPlanning)status.textContent=w().savedChoicePending;
+    else {
+      if(!view && notice)status.textContent=w().unconnected+" ("+notice+")";
+      if(phase && !operationFailed)status.textContent=w()[phase]+" "+status.textContent;
+      if(readFailed)status.textContent=w().readLost+" "+status.textContent;
+    }
     if(view && readAt && (reading || readFailed))status.textContent+=" · "+w().lastVerified+": "+readAt+" · "+w().inputVersion+": "+JSON.stringify(view.input_version)+" · "+w().revisionLabel+": "+String(view.revision);
     const parentRecovery=needsParentRecovery();
     retryRead.hidden=!!parentRecovery || (!readFailed && !operationFailed);retryRead.disabled=busy || reading || !!parentRecovery;retryRead.textContent=w().retryRead;
-    recoverySteps.hidden=!parentRecovery || busy || reading;recoverySteps.replaceChildren();
+    recoverySteps.hidden=!parentRecovery || savedAwaitingPlanning || busy || reading;recoverySteps.replaceChildren();
     if(!recoverySteps.hidden){node(recoverySteps,"li",w().recoveryRefreshStep);node(recoverySteps,"li",w().recoveryCheckStep.replace("{key}",pendingMarker.key));}
-    continuePrepared.hidden=!planningContinuation || planningContinuation.project!==viewProject || planningContinuation.input_version!==view?.input_version || planningContinuation.revision!==view?.revision || planningContinuation.brief_sha256!==view?.brief_sha256;
+    continuePrepared.hidden=savedAwaitingPlanning || !planningContinuation || planningContinuation.project!==viewProject || planningContinuation.input_version!==view?.input_version || planningContinuation.revision!==view?.revision || planningContinuation.brief_sha256!==view?.brief_sha256;
     continuePrepared.textContent=w().continuePrepared;
     bindPlanningLink(continuePrepared,viewProject || "");
   }
@@ -418,11 +450,13 @@
     renderProjectContext();
     renderSavedPreference();
     byId("cards").replaceChildren();
-    byId("planning").hidden=!view?.planning_input;
-    byId("planning-link").hidden=!view?.planning_input;
+    const held=embedded && recovery && recovery.status!=="verified";
+    const pendingChoice=held && pendingMarker?.kind==="stage2-select" && pendingMarker.phase==="stage2";
+    const planningInput=!pendingChoice && recovery?.code!==savedChoicePending && view?.planning_input;
+    byId("planning").hidden=!planningInput;
+    byId("planning-link").hidden=!planningInput;
     byId("planning-summary").replaceChildren();
     byId("choice").hidden=!view || view.selection_status==="recorded" || !view.eligible.length;
-    const held=embedded && recovery && recovery.status!=="verified";
     if(embedded && typeof options.onRecoveryChange==="function") {
       const state=recovery && {...recovery}, key=JSON.stringify(state);
       if(key!==recoveryNoticeKey) { recoveryNoticeKey=key; Promise.resolve().then(()=>{if(isActive() && JSON.stringify(recovery && {...recovery})===key) options.onRecoveryChange(state);}); }
@@ -473,28 +507,45 @@
       node(a,"h3",w().next); list(a,card.next_checks);
     }
     updatePreferenceSummary();
-    if(view.planning_input) { const p=view.planning_input; if(p.legacy_candidates.length) node(byId("planning-summary"),"p",w().legacy); for(const q of p.questions) {node(byId("planning-summary"),"h3",q.text);node(byId("planning-summary"),"p",q.intended_claim);} list(byId("planning-summary"),p.selection_conditions);list(byId("planning-summary"),p.unresolved);byId("planning-input").textContent=JSON.stringify(p,null,2);
+    if(planningInput) { const p=planningInput; if(p.legacy_candidates.length) node(byId("planning-summary"),"p",w().legacy); for(const q of p.questions) {node(byId("planning-summary"),"h3",q.text);node(byId("planning-summary"),"p",q.intended_claim);} list(byId("planning-summary"),p.selection_conditions);list(byId("planning-summary"),p.unresolved);byId("planning-input").textContent=JSON.stringify(p,null,2);
       if((boot.stage3_planning_projects || []).includes(viewProject) && view.selection_status==="recorded") {const link=node(byId("planning-summary"),"a",w().continuePlanning);link.id="stage3-entry";bindPlanningLink(link,viewProject);}
     }
     byId("receipt").textContent=JSON.stringify({project_ref:view.project_ref,input_version:view.input_version,selection_receipt:view.selection_receipt,delivery_manifest_sha256:view.delivery_manifest_sha256,snapshot_sha256:view.snapshot_sha256,planning_status:view.planning_status,planning_submission:planningSubmission,execution_authorized:false},null,2);
     renderFeedback();
+  }
+  async function readSavedChoiceOnReopen(basis, stillCurrent) {
+    const marker=pendingMarker;
+    if(marker?.kind!=="stage2-select" || marker.phase!=="stage2" || !markerMatchesBinding(marker,basis))return;
+    const item={value:marker, key:storagePrefix+marker.key, raw:pendingRaw};
+    try {
+      const history=await api("/api/projects/"+marker.project_ref+"/history");
+      if(!stillCurrent())return;
+      const {action}=savedHistoryAction(history,marker,basis);
+      if(action && savedChoiceWithUnverifiedPlanning(item,action))
+        recovery=recoveryState("unknown",savedChoicePending,marker.kind);
+    } catch(_) {} // The original pending marker still protects an unverified read.
   }
   async function load() {
     const ref=byId("project").value;
     if(!isActive() || (busy && viewProject===ref) || (reading && (embedded || readingProject===ref)))return;
     const serial=++loadSerial, expectedBinding=verifiedReadBinding;
     if(viewProject!==ref){view=null;viewProject=null;readAt=null;requestKey=null;lastBody=null;planningSubmission=null;intentTransaction=null;intentNotice=null;intentHold=null;planningContinuation=null;preferredDirections.clear();if(byId("intent-message")){byId("intent-message").value="";byId("intent-confirmed").checked=false;}}
+    if(recovery?.code===savedChoicePending)recovery=recoveryState("unknown","pending-receipt",pendingMarker?.kind);
     reading=true;readingProject=ref;readFailed=false;operationFailed=false;notice=null;phase="readingSaved";render();
+    let receivedView=false;
     try{
       if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)){notice=w().unconnected;return;}
-      const loaded=await api("/api/projects/"+ref+"/stage2/selection");if(!current(ref,serial))return;
+      const loaded=await api("/api/projects/"+ref+"/stage2/selection");receivedView=true;if(!current(ref,serial))return;
       if(embedded && !["project_ref","input_version","revision","brief_sha256"].every(key=>loaded[key]===expectedBinding[key]))throw new Error("stage2-embedded-version-differs");
       view=loaded;viewProject=ref;readAt=new Date().toISOString();
       const saved=intentTransactions.get(intentBinding(ref,view));
       if(saved){intentTransaction=saved;for(const direction of saved.body.preferred_directions)preferredDirections.set(JSON.stringify([direction.candidate_id,direction.candidate_version]),direction);if(byId("intent-message")){byId("intent-message").value=saved.body.user_input;byId("intent-confirmed").checked=true;}}
       readSavedPreference(loaded,ref,serial,saved);
       if(!embedded)history.replaceState(null,"","#"+encodeURIComponent(ref)+(boot.wiki_v9 || preserveLanguage?"?"+(boot.wiki_v9?"stage=2&":"")+"lang="+encodeURIComponent(byId("language").value):""));
-    }catch(e){if(current(ref,serial)){readFailed=true;notice=e.message;}}
+    }catch(e){if(current(ref,serial)){
+      readFailed=true;notice=e.message;
+      if(!receivedView)await readSavedChoiceOnReopen(expectedBinding,()=>current(ref,serial));
+    }}
     finally{if(embedded || serial===loadSerial){reading=false;phase=null;}if(current(ref,serial))render();if(reloadAfterRead && !reading){reloadAfterRead=false;if(isActive() && !view && !busy && !lastBody && !intentTransactions.size)void load();}}
   }
   byId("language").onchange=()=>{preserveLanguage=Object.hasOwn(words,byId("language").value);if(!embedded && preserveLanguage && byId("project").value)history.replaceState(null,"","#"+encodeURIComponent(byId("project").value)+"?"+(boot.wiki_v9?"stage=2&":"")+"lang="+encodeURIComponent(byId("language").value));render();}; byId("project").onchange=embedded?()=>{byId("project").value=binding.project_ref;}:load;
@@ -700,15 +751,22 @@
     if(busy || reading)return recoveryState("unknown","operation-in-progress",pendingMarker?.kind);
     const seq=++recoverySerial;
     const stillCurrent=()=>{try{return !disposed && seq===recoverySerial && options.isCurrent(nextBinding)===true;}catch(_){return false;}};
-    const report=(status,code,type)=>{const value=recoveryState(status,code,type);if(stillCurrent())recovery=value;return value;};
+    const report=(status,code,type)=>{
+      const value=recoveryState(status,code,type);
+      if(stillCurrent()){
+        const changed=recovery?.code===savedChoicePending || code===savedChoicePending;
+        recovery=value;
+        if(changed && isActive())render();
+      }
+      return value;
+    };
     if(!stillCurrent())return recoveryState("unknown","current-binding-changed",pendingMarker?.kind);
     let found;try{found=scanMarkers();}catch(_){return report("unavailable","storage-unavailable",null);}
     if(selectedKey!==null && !isKey(selectedKey))return report("unknown","invalid-pending-key",null);
     const chosen=selectedKey===null?found:found.filter(x=>x.value.key===selectedKey);
     if(chosen.length!==1 || (selectedKey===null && found.length!==1))return report("unknown",found.length?"multiple-pending":"pending-marker-missing",null);
     const item=chosen[0], m=item.value;
-    if(nextBinding?.project_ref!==m.project_ref || nextBinding.input_version!==m.input_version || nextBinding.brief_sha256!==m.brief_sha256 || !Number.isSafeInteger(nextBinding.revision) || nextBinding.revision<m.revision)
-      return report("unknown","binding-differs",m.kind);
+    if(!markerMatchesBinding(m,nextBinding))return report("unknown","binding-differs",m.kind);
     function acknowledgeVerified(code) {
       if(!stillCurrent())return recoveryState("unknown","current-binding-changed",m.kind);
       try {
@@ -720,21 +778,25 @@
         if(isActive())render();return recoveryState("acknowledged",code,m.kind);
       } catch(_){uncertain=true;return report("unavailable","storage-unavailable",m.kind);}
     }
-    let history, latest;
+    let history;
     try {
       history=await api("/api/projects/"+m.project_ref+"/history");if(!stillCurrent())return recoveryState("unknown","current-binding-changed",m.kind);
-      latest=await api("/api/projects/"+m.project_ref+"/stage2/selection");if(!stillCurrent())return recoveryState("unknown","current-binding-changed",m.kind);
     } catch(_) {return report("unknown","receipt-read-failed",m.kind);}
-    if(history?.project_ref!==m.project_ref || history.execution_authorized!==false || history.revision!==nextBinding.revision || !Array.isArray(history.actions) ||
-       !Array.isArray(history.versions) || history.versions.filter(v=>v.input_version===m.input_version && v.sha256===m.brief_sha256).length!==1 ||
-       latest?.project_ref!==m.project_ref || latest.input_version!==m.input_version || latest.brief_sha256!==m.brief_sha256 || latest.revision!==nextBinding.revision ||
+    const {action,code}=savedHistoryAction(history,m,nextBinding);
+    if(!action)return report("unknown",code,m.kind);
+    let latest;
+    try {
+      latest=await api("/api/projects/"+m.project_ref+"/stage2/selection");if(!stillCurrent())return recoveryState("unknown","current-binding-changed",m.kind);
+    } catch(_) {
+      if(!stillCurrent())return recoveryState("unknown","current-binding-changed",m.kind);
+      try {
+        if(!confirm && savedChoiceWithUnverifiedPlanning(item,action))return report("unknown",savedChoicePending,m.kind);
+      } catch(_) {return report("unavailable","storage-unavailable",m.kind);}
+      return report("unknown","receipt-read-failed",m.kind);
+    }
+    if(latest?.project_ref!==m.project_ref || latest.input_version!==m.input_version || latest.brief_sha256!==m.brief_sha256 || latest.revision!==nextBinding.revision ||
        latest.delivery_manifest_sha256!==m.delivery_manifest_sha256 || latest.snapshot_sha256!==m.snapshot_sha256 || latest.execution_authorized!==false)
       return report("unknown","binding-differs",m.kind);
-    const matches=history.actions.filter(a=>a.key===m.key);
-    if(matches.length!==1)return report("unknown","action-not-uniquely-saved",m.kind);
-    const action=matches[0];
-    if(action.project_ref!==m.project_ref || action.kind!==m.kind || action.status!=="saved" || action.request_sha256!==m.request_sha256 || action.execution_authorized!==false)
-      return report("unknown","action-not-uniquely-saved",m.kind);
     if(m.kind==="stage2-select") {
       // The server verifies this original delivery head against the selection input.
       if(!isHex(latest.delivery_workflow_head_sha256) || latest.delivery_workflow_head_sha256!==m.workflow_head_sha256) return report("unknown","original-head-not-verified",m.kind);
