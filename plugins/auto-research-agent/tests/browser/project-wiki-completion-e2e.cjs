@@ -127,15 +127,23 @@ async function main() {
   const start = chooser.getByRole("button", {name: "Save and start planning", exact: true});
   summary.original_button = (await start.textContent()).trim();
   assert.equal(summary.requests.length, 0, `no selection or planning POST before Save and start planning (${profile})`);
-  const selectedResponse = page.waitForResponse(response =>
-    new URL(response.url()).pathname === selectionPath && response.request().method() === "POST");
-  await start.click();
-  const receiptResponse = await selectedResponse;
+  const [receiptResponse, runResponse] = await Promise.all([
+    page.waitForResponse(response =>
+      new URL(response.url()).pathname === selectionPath && response.request().method() === "POST"),
+    page.waitForResponse(response =>
+      response.url() === `${origin}${planningPath}/run` && response.request().method() === "POST"),
+    start.click(),
+  ]);
   assert.equal(receiptResponse.status(), 200);
+  assert.equal(runResponse.status(), 202);
   const selectionReceipt = await receiptResponse.json();
   assert.equal(selectionReceipt.status, "saved");
   await page.waitForURL(url => url.hash.includes(`stage=3`) && url.hash.includes(ref));
   await page.getByRole("heading", {name: "Research design & feasibility", exact: true}).waitFor();
+  assert.deepEqual(summary.requests.map(row => row.path),
+    [selectionPath, `${planningPath}/prepare`, `${planningPath}/run`],
+    `one Save and start planning click must POST select, prepare, run once in order (${profile})`);
+  const afterStart = summary.requests.length;
   const saved = await readSaved(page);
    assert.equal(saved.plan.kind, "Stage3ResearchPlan");
    await page.locator("#v93-diagram svg").waitFor();
@@ -146,14 +154,11 @@ async function main() {
   const runRequests = () => summary.requests.filter(row => row.path === `${planningPath}/run`);
   assert.equal(runRequests().length, 1);
   await screenshot(page, profile);
-  assert.deepEqual(summary.requests.map(row => row.path),
-    [selectionPath, `${planningPath}/prepare`, `${planningPath}/run`],
-    `one Save and start planning click must POST select, prepare, run once in order (${profile})`);
-  const beforeRefresh = summary.requests.length;
+  assert.equal(summary.requests.length, afterStart, "first view must remain GET-only");
   const refreshed = await readSaved(page);
   assert.equal(refreshed.job.plan_manifest_sha256, saved.job.plan_manifest_sha256);
   assert.equal(runRequests().length, 1);
-  assert.equal(summary.requests.length, beforeRefresh, "refresh must remain GET-only");
+  assert.equal(summary.requests.length, afterStart, "refresh must remain GET-only");
   summary.final_url = page.url();
   const selectedRequest = summary.requests.find(row => row.path === selectionPath);
   const planningRequest = runRequests()[0];
