@@ -1,5 +1,6 @@
 """One synthetic-planner browser journey through the real V9 Wiki Host."""
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 import hashlib
 import json
@@ -7,6 +8,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import threading
 import time
 import unittest
 import uuid
@@ -23,6 +25,7 @@ from research_workspace_native.project_completion import (
     inspect_project_completion,
 )
 from stage3_plan.contracts import Stage3Error
+from stage3_plan.native import NativePlanner
 
 
 @dataclass(frozen=True)
@@ -39,37 +42,68 @@ class RecordedEvent:
 
 
 class WikiHostArtifactPathTests(unittest.TestCase):
-    def test_short_workspace_is_unique_and_retained_on_failure(self):
+    def test_short_workspaces_survive_interleaved_setup_failure(self):
         original = host_seed.EvidenceDirectory
         with tempfile.TemporaryDirectory() as temp:
             parent = Path(temp).resolve()
-            roots = []
-            for name in ("desktop", "mobile"):
+            desktop_ready = threading.Event()
+            mobile_entered = threading.Event()
+            desktop_left = threading.Event()
+
+            def reserve(name):
                 evidence = parent / name
                 evidence.mkdir()
-                with (
-                    self.assertRaisesRegex(RuntimeError, "fixture setup failed"),
-                    wiki_host_artifacts(evidence, short_paths=True) as workspace,
-                ):
-                    self.assertEqual(workspace.parent, parent)
-                    self.assertLess(len(workspace.name), 16)
-                    project = host_seed.EvidenceDirectory(
-                        prefix="rich-controller-choice-", evidence_root=workspace
-                    )
-                    self.assertEqual(Path(project.name), workspace)
-                    other = host_seed.EvidenceDirectory(
-                        prefix="other-", evidence_root=workspace
-                    )
-                    self.assertEqual(Path(other.name).parent, workspace)
-                    roots.append(workspace)
-                    raise RuntimeError("fixture setup failed")
-                self.assertTrue(workspace.is_dir())
-                self.assertIs(host_seed.EvidenceDirectory, original)
+                workspace, directory_factory = wiki_host_artifacts(
+                    evidence, short_paths=True
+                )
+                self.assertEqual(workspace.parent, parent)
+                self.assertLess(len(workspace.name), 16)
+                return evidence, workspace, directory_factory
+
+            def allocate(evidence, workspace, directory_factory):
+                project = directory_factory(
+                    prefix="rich-controller-choice-", evidence_root=workspace
+                )
+                other = directory_factory(prefix="other-", evidence_root=workspace)
+                self.assertEqual(Path(other.name).parent, workspace)
                 receipt = json.loads(
                     (evidence / "host-workspace.json").read_text(encoding="utf-8")
                 )
                 self.assertEqual(Path(receipt["workspace"]), workspace)
-            self.assertEqual(len(set(roots)), 2)
+                self.assertEqual(Path(project.name), workspace)
+                self.assertIs(host_seed.EvidenceDirectory, original)
+                return workspace
+
+            def desktop():
+                workspace = allocate(*reserve("desktop"))
+                desktop_ready.set()
+                with self.assertRaisesRegex(RuntimeError, "fixture setup failed"):
+                    self.assertTrue(mobile_entered.wait(10))
+                    raise RuntimeError("fixture setup failed")
+                return workspace
+
+            def mobile():
+                self.assertTrue(desktop_ready.wait(10))
+                reserved = reserve("mobile")
+                mobile_entered.set()
+                self.assertTrue(desktop_left.wait(10))
+                return allocate(*reserved)
+
+            with ThreadPoolExecutor(max_workers=2) as workers:
+                first = workers.submit(desktop)
+                second = workers.submit(mobile)
+                desktop_workspace = first.result(timeout=15)
+                desktop_left.set()
+                mobile_workspace = second.result(timeout=15)
+            self.assertNotEqual(desktop_workspace, mobile_workspace)
+            self.assertTrue(desktop_workspace.is_dir())
+            ordinary = host_seed.EvidenceDirectory(
+                prefix="rich-controller-choice-", evidence_root=parent
+            )
+            self.assertEqual(Path(ordinary.name).parent, parent)
+            self.assertTrue(
+                Path(ordinary.name).name.startswith("rich-controller-choice-")
+            )
 
     def test_short_workspace_rejects_git_parent(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -77,19 +111,32 @@ class WikiHostArtifactPathTests(unittest.TestCase):
             (parent / ".git").mkdir()
             evidence = parent / "evidence"
             evidence.mkdir()
-            with (
-                self.assertRaisesRegex(Stage3Error, "outside Git checkouts"),
-                wiki_host_artifacts(evidence, short_paths=True),
-            ):
-                self.fail("created work inside Git")
+            with self.assertRaisesRegex(Stage3Error, "outside Git checkouts"):
+                wiki_host_artifacts(evidence, short_paths=True)
             self.assertEqual(set(parent.iterdir()), {parent / ".git", evidence})
 
     def test_normal_layout_keeps_nested_artifacts(self):
         with tempfile.TemporaryDirectory() as temp:
             evidence = Path(temp) / "evidence"
-            with wiki_host_artifacts(evidence, short_paths=False) as workspace:
-                self.assertEqual(workspace, evidence / "host-artifacts")
+            workspace, directory_factory = wiki_host_artifacts(
+                evidence, short_paths=False
+            )
+            self.assertEqual(workspace, evidence / "host-artifacts")
+            self.assertIs(directory_factory, host_seed.EvidenceDirectory)
             self.assertFalse(evidence.exists())
+
+    def test_native_guard_stays_until_last_fixture_closes(self):
+        original = NativePlanner.__call__
+        desktop, mobile = unittest.TestCase(), unittest.TestCase()
+        self.addCleanup(mobile.doCleanups)
+        self.addCleanup(desktop.doCleanups)
+        guard = desktop.enterContext(host_seed._deny_native_planning())
+        self.assertIs(mobile.enterContext(host_seed._deny_native_planning()), guard)
+        self.assertTrue(desktop.doCleanups())
+        self.assertIs(NativePlanner.__call__, guard)
+        guard.assert_not_called()
+        self.assertTrue(mobile.doCleanups())
+        self.assertIs(NativePlanner.__call__, original)
 
 
 class ProjectWikiCompletionE2ETests(unittest.TestCase):

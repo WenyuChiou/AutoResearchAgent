@@ -1,11 +1,11 @@
 """Real V9 Wiki renderer over the isolated Stage2/Stage3 Host fixture."""
 
-from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
 import sys
 import tempfile
+import threading
 from unittest.mock import patch
 
 
@@ -26,6 +26,9 @@ from stage3_plan.storage import private_output  # noqa: E402
 from test_project_stage3_host_e2e import HostConnection  # noqa: E402
 
 
+_renderer_install_lock = threading.Lock()
+
+
 class _WikiHostDirectory(host_seed.EvidenceDirectory):
     def __init__(self, *args, evidence_root, **kwargs):
         if not args and kwargs == {"prefix": "rich-controller-choice-"}:
@@ -36,19 +39,16 @@ class _WikiHostDirectory(host_seed.EvidenceDirectory):
             super().__init__(*args, evidence_root=evidence_root, **kwargs)
 
 
-@contextmanager
 def wiki_host_artifacts(evidence_root, *, short_paths):
     if not short_paths:
-        yield evidence_root / "host-artifacts"
-        return
+        return evidence_root / "host-artifacts", host_seed.EvidenceDirectory
 
     parent = private_output(evidence_root.parent)
     workspace = Path(tempfile.mkdtemp(prefix="", dir=parent))
     # Record the pairing before any Stage 2 setup so failed cases are traceable.
     with (evidence_root / "host-workspace.json").open("x", encoding="utf-8") as stream:
         json.dump({"workspace": str(workspace)}, stream)
-    with patch.object(host_seed, "EvidenceDirectory", _WikiHostDirectory):
-        yield workspace
+    return workspace, _WikiHostDirectory
 
 
 class ProjectWikiCompletionFixture:
@@ -58,10 +58,12 @@ class ProjectWikiCompletionFixture:
         self.case = case
         self.evidence_root = Path(evidence_root).resolve()
         self.evidence_root.mkdir(parents=True, exist_ok=False)
-        with wiki_host_artifacts(
+        workspace, directory_factory = wiki_host_artifacts(
             self.evidence_root, short_paths=os.name == "nt"
-        ) as workspace:
-            self.seed = host_seed.Stage3HostE2ESeed(case, evidence_root=workspace)
+        )
+        self.seed = host_seed.Stage3HostE2ESeed(
+            case, evidence_root=workspace, evidence_directory=directory_factory
+        )
         self.connection = HostConnection(case, self.seed)
         assets, renderer = snapshot(ROOT)
         self.renderer_manifest = renderer
@@ -91,7 +93,9 @@ class ProjectWikiCompletionFixture:
             "--repo",
             str(ROOT),
         ]
-        with patch.object(run_v7, "main", side_effect=install_only):
+        with _renderer_install_lock, patch.object(
+            run_v7, "main", side_effect=install_only
+        ):
             case.assertEqual(run_v9.main(arguments), 0)
         case.assertEqual(len(invoked), 1)
         case.assertEqual(self.connection.host.host_binding["ui_version"], "V9")
