@@ -93,8 +93,9 @@ class ProjectWikiCompletionFixture:
             "--repo",
             str(ROOT),
         ]
-        with _renderer_install_lock, patch.object(
-            run_v7, "main", side_effect=install_only
+        with (
+            _renderer_install_lock,
+            patch.object(run_v7, "main", side_effect=install_only),
         ):
             case.assertEqual(run_v9.main(arguments), 0)
         case.assertEqual(len(invoked), 1)

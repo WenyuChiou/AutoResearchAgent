@@ -12,6 +12,7 @@ import threading
 import time
 import unittest
 import uuid
+from unittest.mock import patch
 
 import project_stage3_host_e2e_fixture as host_seed
 from project_wiki_completion_fixture import (
@@ -43,67 +44,120 @@ class RecordedEvent:
 
 class WikiHostArtifactPathTests(unittest.TestCase):
     def test_short_workspaces_survive_interleaved_setup_failure(self):
-        original = host_seed.EvidenceDirectory
+        default_evidence_directory = host_seed.EvidenceDirectory
+        default_temp_directory = tempfile.TemporaryDirectory
+        default_runtime_binding = host_seed.sources.runtime_binding
         with tempfile.TemporaryDirectory() as temp:
             parent = Path(temp).resolve()
-            desktop_ready = threading.Event()
-            mobile_entered = threading.Event()
-            desktop_left = threading.Event()
+            desktop_in_setup = threading.Event()
+            mobile_attempted = threading.Event()
+            mobile_in_setup = threading.Event()
+            let_desktop_fail = threading.Event()
+            profile = threading.local()
+            cleanup_order = []
+            test = self
 
-            def reserve(name):
+            class SetupFailure(RuntimeError):
+                pass
+
+            class FailingSource(unittest.TestCase):
+                @classmethod
+                def setUpClass(cls):
+                    cls.addClassCleanup(cleanup_order.append, ("class", profile.name))
+
+                def setUp(self):
+                    name = profile.name
+                    if name == "mobile":
+                        mobile_in_setup.set()
+                    project = tempfile.TemporaryDirectory(
+                        prefix="rich-controller-choice-"
+                    )
+                    self.addCleanup(project.cleanup)
+                    self.addCleanup(cleanup_order.append, ("instance", name))
+                    project_root = Path(project.name).resolve()
+                    (project_root / "setup-marker.txt").write_text(
+                        name, encoding="utf-8"
+                    )
+                    if name == "desktop":
+                        desktop_in_setup.set()
+                        test.assertTrue(let_desktop_fail.wait(10))
+                    raise SetupFailure(project_root)
+
+            def construct(name):
+                profile.name = name
                 evidence = parent / name
-                evidence.mkdir()
-                workspace, directory_factory = wiki_host_artifacts(
-                    evidence, short_paths=True
+                arguments = {}
+                if name == "ordinary":
+                    workspace = evidence
+                else:
+                    evidence.mkdir()
+                    workspace, directory_factory = wiki_host_artifacts(
+                        evidence, short_paths=True
+                    )
+                    arguments["evidence_directory"] = directory_factory
+                case = unittest.TestCase()
+                try:
+                    if name == "mobile":
+                        mobile_attempted.set()
+                    with self.assertRaises(SetupFailure) as raised:
+                        host_seed.Stage3HostE2ESeed(
+                            case, evidence_root=workspace, **arguments
+                        )
+                finally:
+                    self.assertTrue(case.doCleanups())
+                actual = raised.exception.args[0]
+                if name != "ordinary":
+                    receipt = json.loads(
+                        (evidence / "host-workspace.json").read_bytes()
+                    )
+                    self.assertEqual(actual, Path(receipt["workspace"]))
+                    self.assertEqual(actual.parent, parent)
+                    self.assertLess(len(actual.name), 16)
+                self.assertEqual(
+                    (actual / "setup-marker.txt").read_text(encoding="utf-8"), name
                 )
-                self.assertEqual(workspace.parent, parent)
-                self.assertLess(len(workspace.name), 16)
-                return evidence, workspace, directory_factory
+                return actual
 
-            def allocate(evidence, workspace, directory_factory):
-                project = directory_factory(
-                    prefix="rich-controller-choice-", evidence_root=workspace
+            with (
+                patch.object(
+                    host_seed.current,
+                    "ImportedRichControllerChoiceE2ETests",
+                    FailingSource,
+                ),
+                patch.object(
+                    host_seed.sources, "runtime_binding", return_value={}
+                ) as runtime,
+                ThreadPoolExecutor(max_workers=2) as workers,
+            ):
+                desktop = workers.submit(construct, "desktop")
+                try:
+                    self.assertTrue(desktop_in_setup.wait(10))
+                    mobile = workers.submit(construct, "mobile")
+                    self.assertTrue(mobile_attempted.wait(10))
+                    self.assertFalse(
+                        mobile_in_setup.wait(1),
+                        "mobile entered seed setup before desktop released its patches",
+                    )
+                finally:
+                    let_desktop_fail.set()
+                self.assertNotEqual(
+                    desktop.result(timeout=15), mobile.result(timeout=15)
                 )
-                other = directory_factory(prefix="other-", evidence_root=workspace)
-                self.assertEqual(Path(other.name).parent, workspace)
-                receipt = json.loads(
-                    (evidence / "host-workspace.json").read_text(encoding="utf-8")
+                self.assertIs(tempfile.TemporaryDirectory, default_temp_directory)
+                self.assertIs(host_seed.sources.runtime_binding, runtime)
+                ordinary = construct("ordinary")
+                self.assertIs(tempfile.TemporaryDirectory, default_temp_directory)
+                self.assertIs(host_seed.sources.runtime_binding, runtime)
+
+            self.assertIs(host_seed.EvidenceDirectory, default_evidence_directory)
+            self.assertIs(host_seed.sources.runtime_binding, default_runtime_binding)
+            self.assertEqual(ordinary.parent, parent / "ordinary")
+            self.assertTrue(ordinary.name.startswith("rich-controller-choice-"))
+            for name in ("desktop", "mobile", "ordinary"):
+                self.assertLess(
+                    cleanup_order.index(("instance", name)),
+                    cleanup_order.index(("class", name)),
                 )
-                self.assertEqual(Path(receipt["workspace"]), workspace)
-                self.assertEqual(Path(project.name), workspace)
-                self.assertIs(host_seed.EvidenceDirectory, original)
-                return workspace
-
-            def desktop():
-                workspace = allocate(*reserve("desktop"))
-                desktop_ready.set()
-                with self.assertRaisesRegex(RuntimeError, "fixture setup failed"):
-                    self.assertTrue(mobile_entered.wait(10))
-                    raise RuntimeError("fixture setup failed")
-                return workspace
-
-            def mobile():
-                self.assertTrue(desktop_ready.wait(10))
-                reserved = reserve("mobile")
-                mobile_entered.set()
-                self.assertTrue(desktop_left.wait(10))
-                return allocate(*reserved)
-
-            with ThreadPoolExecutor(max_workers=2) as workers:
-                first = workers.submit(desktop)
-                second = workers.submit(mobile)
-                desktop_workspace = first.result(timeout=15)
-                desktop_left.set()
-                mobile_workspace = second.result(timeout=15)
-            self.assertNotEqual(desktop_workspace, mobile_workspace)
-            self.assertTrue(desktop_workspace.is_dir())
-            ordinary = host_seed.EvidenceDirectory(
-                prefix="rich-controller-choice-", evidence_root=parent
-            )
-            self.assertEqual(Path(ordinary.name).parent, parent)
-            self.assertTrue(
-                Path(ordinary.name).name.startswith("rich-controller-choice-")
-            )
 
     def test_short_workspace_rejects_git_parent(self):
         with tempfile.TemporaryDirectory() as temp:

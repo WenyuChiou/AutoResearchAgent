@@ -118,7 +118,9 @@ class Stage3HostE2ESeed:
     Host, never a second job store or process owner. The caller owns Host cleanup.
     """
 
-    def __init__(self, case, *, evidence_root=None, evidence_directory=EvidenceDirectory):
+    def __init__(
+        self, case, *, evidence_root=None, evidence_directory=EvidenceDirectory
+    ):
         self.case = case
 
         # Each seed owns its imported source and unittest class cleanups.
