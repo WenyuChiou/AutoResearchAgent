@@ -75,18 +75,60 @@ function v93RecoveryControl(target,record,basis,app){
  if(v93RecoverySlots.has(target))return;
  v93RecoverySlots.add(target);
  const box=document.createElement('div'),message=document.createElement('p');
- message.textContent=rl('先前提交尚未确认；请检查原收据，不会自动重送。','An earlier submission is unconfirmed. Check its original receipt; nothing will be resent automatically.','先前送出尚未確認；請檢查原收據，不會自動重送。');
- box.append(message);target.append(box);
+ const savedPending='saved-selection-planning-unverified';
+ const mounted=v93Matches(record.binding,basis);
  const entries=record.instance.pendingActions?.(), pending=Array.isArray(entries)&&entries.length?entries:[null];
+ const savedFor=entry=>record.instance.hasVerifiedSavedChoice?.(basis,entry?.key)===true;
+ const savedCopy=()=>rl('选案已保存。规划输入仍待核实。','Selection saved. Planning input still needs verification.','選案已保存。規劃輸入仍待核實。');
+ const savedChoice=pending.length===1&&savedFor(pending[0]);
+ const savedIntro=saved=>saved&&!mounted?savedCopy()+' ':'';
+ function showLockFeedback(saved,code){
+  let reason;
+  if(code==='project-lock-busy')reason=rl('另一页面正在处理此项目，请稍后再检查。','Another tab is handling this project; check again later.','另一個分頁正在處理此專案，請稍後再檢查。');
+  else if(code==='project-lock-unavailable')reason=rl('此浏览器不支持安全的跨页面锁，无法提交或解除等待。','This browser cannot provide the required cross-tab lock; submitting and clearing pending items are unavailable.','此瀏覽器不支援必要的跨分頁鎖，無法送出或解除等待。');
+  else if(code==='project-lock-failed')reason=rl('项目锁请求失败，请稍后再检查。','The project lock request failed; check again later.','專案鎖要求失敗，請稍後再檢查。');
+  else return false;
+  message.hidden=false;
+  message.textContent=savedIntro(saved)+reason+' ('+code+')';
+  return true;
+ }
+ const lockCode=pending.length===1?record.instance.readbackLockCode?.(basis,pending[0]?.key):null;
+ if(!showLockFeedback(savedChoice,lockCode)){
+  message.hidden=savedChoice&&mounted; // The mounted component already announces the saved receipt.
+  message.textContent=savedChoice?(mounted?'':savedCopy()):rl('先前提交尚未确认；请检查原收据，不会自动重送。','An earlier submission is unconfirmed. Check its original receipt; nothing will be resent automatically.','先前送出尚未確認；請檢查原收據，不會自動重送。');
+ }
+ box.append(message);target.append(box);
  const isCurrent=()=>app.page==='workspace'&&app.stage===2&&v93Matches(basis,v93ChoiceIdentity());
+ const repaintIfReplaced=()=>{
+  const current=app.el?.querySelector('[data-v93-choice]');
+  // An empty replacement will read the result in its queued render callback.
+  if(current!==target&&current?.children.length)livePaint();
+ };
  for(const entry of pending){
   const button=document.createElement('button');button.type='button';
-  button.textContent=rl('检查未确认提交','Check unconfirmed submission','檢查未確認提交')+(entry?' · '+entry.key:'');box.append(button);
+  const label=saved=>(saved?rl('重新读取保存状态','Read saved state again','重新讀取保存狀態'):rl('检查未确认提交','Check unconfirmed submission','檢查未確認提交'))+(entry?' · '+entry.key:'');
+  button.textContent=label(savedChoice);box.append(button);
   button.onclick=async()=>{
    if(button.disabled||!isCurrent())return;button.disabled=true;
    try{
     const result=await record.instance.reconcile(basis,entry?.key);
     if(!isCurrent())return;
+    const code=result?.code;
+    if(entry&&typeof code==='string'&&code.startsWith('project-lock-')){
+     const current=record.instance.pendingActions?.();
+     const stillPending=Array.isArray(current)&&current.some(item=>item.key===entry.key&&item.kind===entry.kind&&item.phase===entry.phase);
+     const scoped=pending.length===1&&typeof record.instance.readbackLockCode==='function';
+     // Another tab may have cleared the receipt while this lock result was in flight.
+     if(!stillPending||(scoped&&record.instance.readbackLockCode(basis,entry.key)!==code)){livePaint();return;}
+    }
+    const saved=savedFor(entry), held=saved&&result?.code===savedPending;
+    message.hidden=held&&mounted;
+    button.textContent=label(saved);
+    if(held){
+     message.textContent=mounted?'':savedCopy();
+     repaintIfReplaced();
+     return;
+    }
     if(result?.status==='verified'){
      if(record.instance.dispose()){v93Choices.delete(basis.project_ref);v93ActiveChoice=null;}
      livePaint();return;
@@ -101,10 +143,15 @@ function v93RecoveryControl(target,record,basis,app){
        if(done?.status==='acknowledged'){if(record.instance.dispose()){v93Choices.delete(basis.project_ref);v93ActiveChoice=null;}livePaint();return;}
        message.textContent=rl('此项仍未能安全解除。','This item cannot yet be cleared safely.','此項仍無法安全解除。')+' ('+String(done?.code||done?.status||'unknown')+')';
       }catch(error){message.textContent=rl('检查失败，原记录已保留。','The check failed; the original record is retained.','檢查失敗，原紀錄已保留。')+' ('+String(error?.message||error)+')';}finally{acknowledge.disabled=false;}
-     };return;
+      };repaintIfReplaced();return;
     }
-    message.textContent=(result?.code==='project-lock-busy'?rl('另一页面正在处理此项目，请稍后再检查。','Another tab is handling this project; check again later.','另一個分頁正在處理此專案，請稍後再檢查。'):result?.code==='project-lock-unavailable'?rl('此浏览器不支持安全的跨页面锁，无法提交或解除等待。','This browser cannot provide the required cross-tab lock; submitting and clearing pending items are unavailable.','此瀏覽器不支援必要的跨分頁鎖，無法送出或解除等待。'):rl('尚未能确认原提交；请保留原收据并稍后重查。','The original submission is not yet verified; retain its receipt and check again later.','尚未能確認原送出；請保留原收據並稍後重查。'))+' ('+String(result?.code||result?.status||'unknown')+')';
-   }catch(error){message.textContent=rl('检查失败，原提交仍未确认。','The check failed; the original submission remains unconfirmed.','檢查失敗，原送出仍未確認。')+' ('+String(error?.message||error)+')';}
+    if(!showLockFeedback(saved,result?.code)){
+     const notice=saved?rl('本次未能重新读取，请稍后再试。','This readback could not complete. Check again later.','本次未能重新讀取，請稍後再試。'):
+      rl('尚未能确认原提交；请保留原收据并稍后重查。','The original submission is not yet verified; retain its receipt and check again later.','尚未能確認原送出；請保留原收據並稍後重查。');
+     message.textContent=savedIntro(saved)+notice+' ('+String(result?.code||result?.status||'unknown')+')';
+    }
+    repaintIfReplaced();
+   }catch(error){message.hidden=false;message.textContent=rl('检查失败，原提交仍未确认。','The check failed; the original submission remains unconfirmed.','檢查失敗，原送出仍未確認。')+' ('+String(error?.message||error)+')';}
    finally{button.disabled=false;}
   };
  }

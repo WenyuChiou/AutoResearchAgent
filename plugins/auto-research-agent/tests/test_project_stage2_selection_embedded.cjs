@@ -41,8 +41,8 @@ function harness(options={}) {
   const body=init?.body?JSON.parse(init.body):null;
   if(init?.method==='POST')writes.push({url,body});else reads.push(url);
   if(url==='/api/projects')return response({projects:[]});
-  if(url.endsWith('/history')) {if(options.holdHistory)await new Promise(resolve=>{historyRelease=resolve});const actions=[];if(selected)actions.push(real?structuredClone(real.history.actions[0]):{...selectReceipt,project_ref:binding.project_ref,kind:'stage2-select',status:'saved'});if(intentReceipt)actions.push({...intentReceipt,project_ref:binding.project_ref,kind:'stage2-direction-intent'});let h={project_ref:binding.project_ref,revision:real?(selected?real.after.revision:real.before.revision):(selected||intentReceipt?2:1),versions:[{input_version:binding.input_version,sha256:binding.brief_sha256}],actions,execution_authorized:false};return response(options.historyTransform?options.historyTransform(h):h);}
-  if(url.endsWith('/stage2/selection')){const captured=view();if(holdRead){holdRead=false;await new Promise(resolve=>{readRelease=resolve});}return response(options.readTransform?options.readTransform(captured):captured);}
+  if(url.endsWith('/history')) {if(options.holdHistory)await new Promise(resolve=>{historyRelease=resolve});if(options.historyUnavailable)return response({error:'history-unavailable'},409);const actions=[];if(selected)actions.push(real?structuredClone(real.history.actions[0]):{...selectReceipt,project_ref:binding.project_ref,kind:'stage2-select',status:'saved'});if(intentReceipt)actions.push({...intentReceipt,project_ref:binding.project_ref,kind:'stage2-direction-intent'});let h={project_ref:binding.project_ref,revision:real?(selected?real.after.revision:real.before.revision):(selected||intentReceipt?2:1),versions:[{input_version:binding.input_version,sha256:binding.brief_sha256}],actions,execution_authorized:false};return response(options.historyTransform?options.historyTransform(h):h);}
+  if(url.endsWith('/stage2/selection')){const captured=view();if(holdRead){holdRead=false;await new Promise(resolve=>{readRelease=resolve});}if(options.selectionUnavailable?.())return response({error:'project-input-rejected'},400);return response(options.readTransform?options.readTransform(captured):captured);}
   if(url.endsWith('/stage2/select')){
    if(waitSelect)await new Promise(resolve=>{release=resolve});
    selected=true;ack=real?real.post.request_sha256:digest('stage2-select',body);selectReceipt=real?real.after.selection_receipt:{key:body.key,request_sha256:ack,delivery_manifest_sha256:'c'.repeat(64),interaction_file_sha256:'7'.repeat(64),planning_manifest_sha256:'8'.repeat(64),workflow_head_sha256:'9'.repeat(64),artifact_ref:'stage2-choice-'+ack,selection_status:'recorded',planning_status:'verified',execution_authorized:false};
@@ -95,7 +95,7 @@ function parentRecoveryControls(f,options={}) {
  const reads=[],listeners={},state={ref:f.binding.project_ref,epoch:0,list:[],overview:{project:f.binding}},app={page:'workspace',stage:2,previewOps:{}};
  const context={rt:state,apps:[app],window:f.window,document:{createElement:tag=>new Element(tag),addEventListener:(name,handler)=>{listeners[name]=handler;}},
   rl:(zh,en,tw)=>f.els.get('language').value==='en'?en:f.els.get('language').value==='zh-TW'?(tw||zh):zh,rx:String,
-  projectPath:(ref,sub)=>'/api/projects/'+ref+'/'+sub,livePaint(){},liveAtlasPath:()=>null,rows:()=>[],
+  projectPath:(ref,sub)=>'/api/projects/'+ref+'/'+sub,livePaint:options.onPaint??(()=>{}),liveAtlasPath:()=>null,rows:()=>[],
   liveRequest:async(url,body)=>{assert.equal(body,undefined);reads.push(url);if(url==='/api/projects')return {projects:[]};if(url.endsWith('/overview'))return {project:{...f.binding,revision:2,...options.overviewPatch}};if(url.endsWith('/history'))return {actions:[]};throw Error('unexpected parent GET '+url);},
   v93ChoiceIdentity:()=>state.overview.project,v93Matches:(a,b)=>['project_ref','input_version','revision','brief_sha256'].every(k=>a[k]===b[k]),v93Choices:new Map(),v93ActiveChoice:null};
  vm.runInNewContext(part(runtime,'async function liveRefresh(', 'async function liveReceiptBound(')+part(runtime,'function liveControls(', 'function liveEmpty(')+part(runtime,"document.addEventListener('click',async e=>{",'// Load only on this local server.')+part(bridge,'function v93RecoveryControl(', 'function v93MountChoice('),context);
@@ -103,7 +103,7 @@ function parentRecoveryControls(f,options={}) {
  const outerLabels=bridge.match(/<summary>\$\{rl\('([^']+)','([^']+)','([^']+)'\)\}<\/summary>/);assert.ok(outerLabels);
  const refresh=new Element('button');refresh.textContent=label;refresh.dataset.liveAction='refresh';refresh.hasAttribute=name=>name==='data-live-action';refresh.closest=selector=>selector.includes('data-live-action')?refresh:null;
  refresh.onclick=()=>listeners.click({target:refresh,preventDefault(){},stopImmediatePropagation(){}});
- function pendingControl(){if(!state.overview?.project)return null;const target=new Element();context.v93RecoveryControl(target,{instance:f.handle},state.overview.project,app);return {target,button:descendants(target).find(n=>n.tagName==='BUTTON')};}
+ function pendingControl(){if(!state.overview?.project)return null;const target=new Element();context.v93RecoveryControl(target,{instance:f.handle,binding:f.binding},state.overview.project,app);return {target,button:descendants(target).find(n=>n.tagName==='BUTTON')};}
  return {refresh,pendingControl,reads,state,outerLabel:context.rl(...outerLabels.slice(1))};
 }
 async function loseSavedPreference(options={}) {
@@ -112,6 +112,369 @@ async function loseSavedPreference(options={}) {
  f.els.get('intent-message').value='Synthetic preference';f.els.get('intent-confirmed').checked=true;
  await f.els.get('direction-intent').onsubmit({preventDefault(){},submitter:f.els.get(options.saveOnly?'intent-save':'intent-start')});return f;
 }
+function reopenedFormalSelection(options={}, inputVersion=null) {
+ const real=structuredClone(require('./fixtures/stage2_formal_selection_service_saved.json'));
+ if(inputVersion!==null){
+  for(const item of [real.body,real.before,real.after,real.history.versions[0]])item.input_version=inputVersion;
+  const request_sha256=digest('stage2-select',real.body), artifact_ref='stage2-choice-'+request_sha256;
+  for(const receipt of [real.post,real.after.selection_receipt,real.history.actions[0]])Object.assign(receipt,{request_sha256,artifact_ref});
+ }
+ const store=memoryStorage(), body=real.body;
+ const marker={
+  schema:1, project_ref:real.before.project_ref, input_version:body.input_version,
+  revision:body.revision, brief_sha256:body.brief_sha256,
+  delivery_manifest_sha256:body.delivery_manifest_sha256,
+  workflow_head_sha256:body.workflow_head_sha256, snapshot_sha256:body.snapshot_sha256,
+  kind:'stage2-select', key:body.key, request_sha256:real.post.request_sha256,
+  phase:'stage2', planning_key:null, planning_sha256:null
+ };
+ const key='ara.stage2.pending.v1.'+marker.project_ref+'.'+marker.key;
+ store.setItem(key,JSON.stringify(marker));
+ return {real,store,key,marker,f:harness({realFixture:real,preselected:true,storage:store,...options})};
+}
+test('reopened saved choice reports a held planning input and rechecks without writes',async(t)=>{
+ let viewUnavailable=true;
+ const {f,store,key,real}=reopenedFormalSelection({selectionUnavailable:()=>viewUnavailable},'fresh-1');
+ const original=store.getItem(key), project='/api/projects/'+f.binding.project_ref;
+ await tick();
+ for(const [language,message] of [
+  ['zh-TW','選案已保存。規劃輸入仍待核實。'],
+  ['zh-CN','选案已保存。规划输入仍待核实。']
+ ]){
+  f.handle.setLanguage(language);
+  assert.equal(f.els.get('status').textContent,message);
+ }
+ f.handle.setLanguage('en');
+ assert.match(f.els.get('status').textContent,/Selection saved\. Planning input still needs verification\./);
+ assert.equal(f.els.get('planning').hidden,true);
+ assert.equal(f.els.get('submit').disabled,true);
+ assert.equal(f.els.get('submit-and-start').disabled,true);
+ assert.equal(descendants(f.els.get('planning-summary')).some(el=>el.id==='stage3-entry'),false);
+ assert.deepEqual(f.reads.filter(url=>url!=="/api/projects").sort(),[project+'/history',project+'/stage2/selection']);
+ assert.equal(store.getItem(key),original);
+ t.diagnostic('Reopen with saved receipt and rejected view: 2 project GETs, choice/prepare/run POSTs 0/0/0, original marker retained.');
+ const parent=parentRecoveryControls(f), check=parent.pendingControl();
+ assert.doesNotMatch(check.target.textContent,/unconfirmed/);
+ assert.match(check.button.textContent,/Read saved state again/);
+ let reads=f.reads.length;
+ await check.button.onclick();
+ assert.deepEqual(f.reads.slice(reads),[project+'/history',project+'/stage2/selection']);
+ assert.equal(store.getItem(key),original);
+ assert.equal(f.navigations.length,0);
+ assert.equal(f.writes.length,0);
+ t.diagnostic('Recheck while held: 2 project GETs, choice/prepare/run POSTs 0/0/0, original marker retained.');
+ viewUnavailable=false;
+ reads=f.reads.length;
+ await check.button.onclick();
+ assert.deepEqual(f.reads.slice(reads),[project+'/history',project+'/stage2/selection']);
+ assert.equal(store.length,0);
+ assert.equal(f.handle.state().recovery.status,'verified');
+ assert.equal(f.writes.length,0);
+ assert.equal(f.navigations.length,0);
+ const reopened=harness({realFixture:real,preselected:true,storage:store});
+ await tick();
+ assert.equal(reopened.els.get('planning').hidden,false);
+ assert.ok(descendants(reopened.els.get('planning-summary')).find(el=>el.id==='stage3-entry'));
+ assert.equal(reopened.writes.length,0);
+ assert.equal(reopened.navigations.length,0);
+ t.diagnostic('Verified recheck and remount: 2 project GETs for recheck, choice/prepare/run POSTs 0/0/0, original clearance and manual Stage 3 link.');
+});
+test('retained selection control localizes the verified receipt for its current revision and marker',async()=>{
+ const {f,store,key,marker}=reopenedFormalSelection({deferMount:true,selectionUnavailable:()=>true},'fresh-1');
+ const mounted={...f.binding,revision:marker.revision};
+ const fields=['project_ref','input_version','revision','brief_sha256'];
+ let current=mounted;
+ const handle=f.window.STAGE2_SELECTION.mount(f.root,{
+  ...f.args,binding:mounted,isCurrent:basis=>fields.every(field=>basis[field]===current[field])
+ });
+ const parent=parentRecoveryControls({...f,handle,binding:mounted});
+ const original=store.getItem(key);
+ await tick();
+ handle.suspend();
+ current=f.binding;
+ parent.state.overview.project=current;
+ const path='/api/projects/'+current.project_ref;
+ const reads=f.reads.length;
+ const control=parent.pendingControl();
+ await control.button.onclick();
+ assert.deepEqual(f.reads.slice(reads),[path+'/history',path+'/stage2/selection']);
+ assert.equal(store.getItem(key),original);
+ assert.match(control.target.textContent,/選案已保存/);
+
+ handle.setLanguage('en');
+ const repainted=parent.pendingControl();
+ assert.match(repainted.target.textContent,/Selection saved\. Planning input still needs verification\./);
+ assert.equal(repainted.button.textContent,'Read saved state again · '+marker.key);
+ assert.equal(f.reads.length,reads+2);
+
+ for(const changed of [
+  {revision:current.revision+1},
+  {project_ref:'different-project'},
+  {input_version:1},
+  {brief_sha256:'0'.repeat(64)}
+ ]){
+  current={...f.binding,...changed};
+  parent.state.overview.project=current;
+  assert.doesNotMatch(parent.pendingControl().target.textContent,/Selection saved/);
+ }
+ current=f.binding;
+ parent.state.overview.project=current;
+ store.setItem(key,JSON.stringify({...marker,request_sha256:'0'.repeat(64)}));
+ assert.doesNotMatch(parent.pendingControl().target.textContent,/Selection saved/);
+ store.removeItem(key);
+ assert.doesNotMatch(parent.pendingControl().target.textContent,/Selection saved/);
+ store.setItem(key,original);
+ f.window.RESEARCH_PROJECTS={...f.window.RESEARCH_PROJECTS,credential:'different-synthetic-session'};
+ assert.doesNotMatch(parent.pendingControl().target.textContent,/Selection saved/);
+ assert.equal(f.reads.length,reads+2);
+ assert.deepEqual(f.writes,[]);
+ assert.deepEqual(f.navigations,[]);
+});
+test('lock busy leaves the verified saved choice and its readback button intact',async()=>{
+ const locks=memoryLocks();
+ const {f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+ const original=store.getItem(key);
+ await tick();
+ f.handle.setLanguage('en');
+ let release;
+ const held=locks.request('ara.stage2.transaction.v1.'+marker.project_ref,{},()=>new Promise(resolve=>{release=resolve;}));
+ try {
+  const check=parentRecoveryControls(f).pendingControl(),reads=f.reads.length;
+  assert.equal(check.button.textContent,'Read saved state again · '+marker.key);
+  await check.button.onclick();
+  assert.match(check.target.textContent,/Another tab is handling this project/);
+  assert.equal(check.button.textContent,'Read saved state again · '+marker.key);
+  assert.match(f.els.get('status').textContent,/Selection saved/);
+  assert.equal(f.reads.length,reads);
+  assert.equal(store.getItem(key),original);
+  assert.deepEqual(f.writes,[]);
+  assert.deepEqual(f.navigations,[]);
+ } finally {
+  release();
+  await held;
+ }
+});
+for(const [mode,options,feedback] of [
+ ['busy',{locks:{request(_name,_options,callback){return callback(null);}}},/Another tab is handling this project/],
+ ['unavailable',{noLocks:true},/This browser cannot provide the required cross-tab lock/],
+ ['request failure',{locks:{async request(){throw Error('synthetic-lock-request-rejected');}}},/The project lock request failed/]
+]){
+ test('lock '+mode+' reports the blocked readback and preserves only the still-current verified choice',async()=>{
+  for(const markerChange of ['unchanged','removed','different digest']){
+   const {f,store,key,marker}=reopenedFormalSelection({...options,selectionUnavailable:()=>true});
+   await tick();
+   f.handle.setLanguage('en');
+    let current;
+    const parent=parentRecoveryControls(f,{onPaint:()=>{current=parent.pendingControl();}});
+    const check=current=parent.pendingControl(),reads=f.reads.length;
+   const prior=f.handle.state().recovery.code;
+   assert.equal(check.button.textContent,'Read saved state again · '+marker.key);
+   assert.match(f.els.get('status').textContent,/^Selection saved/);
+   if(markerChange==='removed')store.removeItem(key);
+   if(markerChange==='different digest')store.setItem(key,JSON.stringify({...marker,request_sha256:'0'.repeat(64)}));
+   const original=store.getItem(key);
+   await check.button.onclick();
+   const unchanged=markerChange==='unchanged';
+   const label=unchanged?'Read saved state again':'Check unconfirmed submission';
+    if(markerChange==='removed'){
+     assert.notEqual(current,check);
+     assert.doesNotMatch(current.target.textContent,feedback);
+     assert.equal(current.button.textContent,label);
+    }else{
+     assert.equal(current,check);
+     assert.match(current.target.textContent,feedback);
+     assert.equal(current.target.children[0].children[0].hidden,false);
+     assert.equal(current.button.textContent,label+' · '+marker.key);
+    }
+   assert.ok(parent.pendingControl().button.textContent.startsWith(label));
+   assert.match(f.els.get('status').textContent,unchanged?/^Selection saved/:/unconfirmed/);
+   assert.equal(f.handle.state().recovery.code,prior);
+   assert.equal(f.els.get('planning').hidden,true);
+   assert.equal(f.els.get('submit').disabled,true);
+   assert.equal(f.els.get('submit-and-start').disabled,true);
+   assert.equal(f.reads.length,reads);
+   assert.equal(store.getItem(key),original);
+   assert.deepEqual(f.writes,[]);
+   assert.deepEqual(f.navigations,[]);
+  }
+ });
+}
+test('a late lock refusal removes a cleared receipt from the still-visible Wiki panel',async()=>{
+ let deliver;
+ const locks={request(_name,_options,callback){return new Promise(resolve=>{deliver=()=>resolve(callback(null));});}};
+ const {real,f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+ await tick();
+ f.handle.setLanguage('en');
+ let current;
+ const parent=parentRecoveryControls(f,{onPaint:()=>{current=parent.pendingControl();}});
+ const original=current=parent.pendingControl(),start=f.reads.length;
+ assert.equal(original.button.textContent,'Read saved state again · '+marker.key);
+ const late=original.button.onclick();
+ try {
+  const other=harness({realFixture:real,preselected:true,storage:store});
+  await tick();
+  const from=other.reads.length;
+  assert.equal((await other.handle.reconcile(other.binding,marker.key)).status,'verified');
+  assert.deepEqual(other.reads.slice(from),['/api/projects/'+marker.project_ref+'/history','/api/projects/'+marker.project_ref+'/stage2/selection']);
+  assert.deepEqual(other.writes,[]);
+  assert.deepEqual(other.navigations,[]);
+  assert.equal(store.getItem(key),null);
+  assert.equal(current,original);
+ } finally {
+  deliver();
+  await late;
+ }
+ assert.notEqual(current,original);
+ assert.equal(current.button.textContent,'Check unconfirmed submission');
+ assert.doesNotMatch(current.target.textContent,/Another tab is handling this project/);
+ assert.ok(!current.target.textContent.includes(marker.key));
+ assert.match(f.els.get('status').textContent,/unconfirmed/);
+ assert.equal(f.els.get('planning').hidden,true);
+ assert.equal(f.reads.length,start);
+ assert.deepEqual(f.writes,[]);
+ assert.deepEqual(f.navigations,[]);
+});
+test('a repainted lock reason belongs to the original receipt until a new readback starts',async()=>{
+ const locks=memoryLocks();
+ const {f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+ const original=store.getItem(key),reason=/Another tab is handling this project/;
+ await tick();
+ f.handle.setLanguage('en');
+ const parent=parentRecoveryControls(f),start=f.reads.length;
+ let release;
+ const holding=locks.request('ara.stage2.transaction.v1.'+marker.project_ref,{},()=>new Promise(resolve=>{release=resolve;}));
+ try {
+  await parent.pendingControl().button.onclick();
+  assert.match(parent.pendingControl().target.textContent,reason);
+  assert.match(f.els.get('status').textContent,/^Selection saved/);
+  const otherVersion=typeof f.binding.input_version==='number'?String(f.binding.input_version):1;
+  for(const different of [{project_ref:'different-project'},{revision:f.binding.revision+1},{input_version:otherVersion},{brief_sha256:'0'.repeat(64)}]){
+   parent.state.overview.project={...f.binding,...different};
+   assert.doesNotMatch(parent.pendingControl().target.textContent,reason);
+  }
+  parent.state.overview.project=f.binding;
+  store.removeItem(key);
+  assert.doesNotMatch(parent.pendingControl().target.textContent,reason);
+  store.setItem(key,JSON.stringify({...marker,request_sha256:'0'.repeat(64)}));
+  assert.doesNotMatch(parent.pendingControl().target.textContent,reason);
+  store.setItem(key,original);
+  assert.equal(f.reads.length,start);
+ } finally {
+  release();
+  await holding;
+ }
+ await parent.pendingControl().button.onclick();
+ assert.doesNotMatch(parent.pendingControl().target.textContent,reason);
+ assert.match(f.els.get('status').textContent,/^Selection saved/);
+ assert.deepEqual(f.reads.slice(start),['/api/projects/'+marker.project_ref+'/history','/api/projects/'+marker.project_ref+'/stage2/selection']);
+ assert.equal(store.getItem(key),original);
+ assert.equal(f.els.get('planning').hidden,true);
+ assert.deepEqual(f.writes,[]);
+ assert.deepEqual(f.navigations,[]);
+});
+test('a lock result arriving after marker replacement cannot populate the repainted receipt',async()=>{
+ let deliver;
+ const locks={request(_name,_options,callback){return new Promise(resolve=>{deliver=()=>resolve(callback(null));});}};
+ const {f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+ await tick();
+ f.handle.setLanguage('en');
+ const parent=parentRecoveryControls(f),control=parent.pendingControl(),start=f.reads.length;
+ const oldAttempt=control.button.onclick();
+ const replacement=JSON.stringify({...marker,request_sha256:'0'.repeat(64)});
+ store.setItem(key,replacement);
+ deliver();
+ await oldAttempt;
+ const current=parent.pendingControl();
+ assert.match(current.button.textContent,/^Check unconfirmed submission/);
+ assert.doesNotMatch(current.target.textContent,/Another tab is handling this project/);
+ assert.match(f.els.get('status').textContent,/unconfirmed/);
+ assert.equal(store.getItem(key),replacement);
+ assert.equal(f.reads.length,start);
+ assert.deepEqual(f.writes,[]);
+ assert.deepEqual(f.navigations,[]);
+});
+test('same-language resume rechecks the displayed receipt against another tab’s marker change',async(t)=>{
+ for(const change of ['cleared by complete readback','same key but changed digest']){
+  const locks=memoryLocks();
+  const {real,f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+  await tick();
+  f.handle.setLanguage('en');
+  const parent=parentRecoveryControls(f);
+  assert.match(f.els.get('status').textContent,/Selection saved/);
+  assert.equal(parent.pendingControl().button.textContent,'Read saved state again · '+marker.key);
+  let next=null;
+  if(change==='cleared by complete readback'){
+   const other=harness({realFixture:real,preselected:true,storage:store,locks});
+   await tick();
+   const reads=other.reads.length, path='/api/projects/'+other.binding.project_ref;
+   assert.equal((await other.handle.reconcile(other.binding,marker.key)).status,'verified');
+   assert.deepEqual(other.reads.slice(reads),[path+'/history',path+'/stage2/selection']);
+   assert.deepEqual(other.writes,[]);
+  }else{
+   next=JSON.stringify({...marker,request_sha256:'0'.repeat(64)});
+   store.setItem(key,next);
+  }
+  assert.equal(store.getItem(key),next);
+  const reads=f.reads.length;
+  const outer=parent.pendingControl();
+  assert.equal(f.handle.resume(),true);
+  assert.match(outer.target.textContent,/unconfirmed/);
+  assert.match(f.els.get('status').textContent,/unconfirmed/);
+  assert.equal(f.els.get('language').value,'en');
+  assert.equal(f.reads.length,reads);
+  assert.deepEqual(f.writes,[]);
+  assert.deepEqual(f.navigations,[]);
+  assert.equal(store.getItem(key),next);
+  assert.equal(f.els.get('planning').hidden,true);
+  assert.equal(descendants(f.els.get('planning-summary')).find(node=>node.id==='stage3-entry'),undefined);
+  t.diagnostic(change+': inner and outer unconfirmed, 0 new project GET or POST.');
+ }
+});
+test('reopen keeps selection unknown when the saved history cannot be bound',async(t)=>{
+ const actionPatch=fields=>history=>({...history,actions:history.actions.map(action=>({...action,...fields}))});
+ for(const options of [
+  {historyUnavailable:true},
+  {historyTransform:history=>({...history,actions:[]})},
+  {historyTransform:history=>({...history,actions:[...history.actions,...history.actions]})},
+  {historyTransform:history=>({...history,revision:history.revision-1})},
+  {historyTransform:history=>({...history,versions:history.versions.map(version=>({...version,input_version:true}))})},
+  {historyTransform:history=>({...history,versions:[...history.versions,{...history.versions[0],sha256:'0'.repeat(64)}]})},
+  {historyTransform:actionPatch({project_ref:'project-foreign'})},
+  {historyTransform:actionPatch({kind:'stage2-direction-intent'})},
+  {historyTransform:actionPatch({status:'execution-unknown'})},
+  {historyTransform:actionPatch({request_sha256:'0'.repeat(64)})},
+  {historyTransform:actionPatch({delivery_manifest_sha256:'0'.repeat(64)})}
+ ]){
+  const {f,store,key}=reopenedFormalSelection({selectionUnavailable:()=>true,...options});
+  const original=store.getItem(key);
+  await tick();
+  f.handle.setLanguage('en');
+  assert.equal(f.reads.filter(url=>url.endsWith('/history')).length,1);
+  assert.doesNotMatch(f.els.get('status').textContent,/Selection saved/);
+  assert.equal(f.els.get('submit').disabled,true);
+  assert.equal(f.els.get('planning').hidden,true);
+  assert.equal(store.getItem(key),original);
+  assert.equal(f.handle.state().recovery.status,'unknown');
+  assert.equal(f.writes.length,0);
+  assert.equal(f.navigations.length,0);
+ }
+ t.diagnostic('11 unavailable or unbound histories: 2 project GETs each, choice/prepare/run POSTs 0/0/0, original markers retained.');
+});
+test('an in-flight reopen check cannot confirm a changed pending marker',async()=>{
+ const {f,store,key,marker}=reopenedFormalSelection({selectionUnavailable:()=>true,holdHistory:true});
+ await tick();
+ assert.equal(f.reads.filter(url=>url.endsWith('/history')).length,1);
+ const altered=JSON.stringify({...marker,request_sha256:'0'.repeat(64)});
+ store.setItem(key,altered);
+ f.releaseHistory();
+ await tick();
+ f.handle.setLanguage('en');
+ assert.doesNotMatch(f.els.get('status').textContent,/Selection saved/);
+ assert.equal(store.getItem(key),altered);
+ assert.equal(f.els.get('planning').hidden,true);
+ assert.equal(f.writes.length,0);
+ assert.equal(f.navigations.length,0);
+});
 test('lost saved response replaces the embedded retry with named parent recovery steps',async()=>{
  for(const preference of [true,false])for(const start of [true,false]){
   let f;
