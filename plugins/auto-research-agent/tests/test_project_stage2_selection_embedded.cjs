@@ -290,6 +290,65 @@ for(const [mode,options,feedback] of [
   }
  });
 }
+test('a repainted lock reason belongs to the original receipt until a new readback starts',async()=>{
+ const locks=memoryLocks();
+ const {f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+ const original=store.getItem(key),reason=/Another tab is handling this project/;
+ await tick();
+ f.handle.setLanguage('en');
+ const parent=parentRecoveryControls(f),start=f.reads.length;
+ let release;
+ const holding=locks.request('ara.stage2.transaction.v1.'+marker.project_ref,{},()=>new Promise(resolve=>{release=resolve;}));
+ try {
+  await parent.pendingControl().button.onclick();
+  assert.match(parent.pendingControl().target.textContent,reason);
+  assert.match(f.els.get('status').textContent,/^Selection saved/);
+  const otherVersion=typeof f.binding.input_version==='number'?String(f.binding.input_version):1;
+  for(const different of [{project_ref:'different-project'},{revision:f.binding.revision+1},{input_version:otherVersion},{brief_sha256:'0'.repeat(64)}]){
+   parent.state.overview.project={...f.binding,...different};
+   assert.doesNotMatch(parent.pendingControl().target.textContent,reason);
+  }
+  parent.state.overview.project=f.binding;
+  store.removeItem(key);
+  assert.doesNotMatch(parent.pendingControl().target.textContent,reason);
+  store.setItem(key,JSON.stringify({...marker,request_sha256:'0'.repeat(64)}));
+  assert.doesNotMatch(parent.pendingControl().target.textContent,reason);
+  store.setItem(key,original);
+  assert.equal(f.reads.length,start);
+ } finally {
+  release();
+  await holding;
+ }
+ await parent.pendingControl().button.onclick();
+ assert.doesNotMatch(parent.pendingControl().target.textContent,reason);
+ assert.match(f.els.get('status').textContent,/^Selection saved/);
+ assert.deepEqual(f.reads.slice(start),['/api/projects/'+marker.project_ref+'/history','/api/projects/'+marker.project_ref+'/stage2/selection']);
+ assert.equal(store.getItem(key),original);
+ assert.equal(f.els.get('planning').hidden,true);
+ assert.deepEqual(f.writes,[]);
+ assert.deepEqual(f.navigations,[]);
+});
+test('a lock result arriving after marker replacement cannot populate the repainted receipt',async()=>{
+ let deliver;
+ const locks={request(_name,_options,callback){return new Promise(resolve=>{deliver=()=>resolve(callback(null));});}};
+ const {f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+ await tick();
+ f.handle.setLanguage('en');
+ const parent=parentRecoveryControls(f),control=parent.pendingControl(),start=f.reads.length;
+ const oldAttempt=control.button.onclick();
+ const replacement=JSON.stringify({...marker,request_sha256:'0'.repeat(64)});
+ store.setItem(key,replacement);
+ deliver();
+ await oldAttempt;
+ const current=parent.pendingControl();
+ assert.match(current.button.textContent,/^Check unconfirmed submission/);
+ assert.doesNotMatch(current.target.textContent,/Another tab is handling this project/);
+ assert.match(f.els.get('status').textContent,/unconfirmed/);
+ assert.equal(store.getItem(key),replacement);
+ assert.equal(f.reads.length,start);
+ assert.deepEqual(f.writes,[]);
+ assert.deepEqual(f.navigations,[]);
+});
 test('same-language resume rechecks the displayed receipt against another tab’s marker change',async(t)=>{
  for(const change of ['cleared by complete readback','same key but changed digest']){
   const locks=memoryLocks();

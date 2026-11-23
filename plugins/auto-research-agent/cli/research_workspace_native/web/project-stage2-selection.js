@@ -55,6 +55,7 @@
   let storage=null, pendingMarker=null, pendingRaw=null, recovery=null, recoverySerial=0, recoveryNoticeKey=null;
   let savedChoiceProof=null;
   let savedChoiceDisplayed=false;
+  let readbackLock=null, readbackSequence=0;
   const hex=/^[a-f0-9]{64}$/, actionKey=/^[A-Za-z0-9_-]{1,128}$/;
   const storagePrefix=embedded?markerPrefix+binding.project_ref+".":"";
   const isHex=v=>typeof v==="string" && hex.test(v), isKey=v=>typeof v==="string" && actionKey.test(v);
@@ -111,13 +112,18 @@
     savedChoiceProof={item,basis:{project_ref,input_version,revision,brief_sha256},credential};
     return true;
   }
-  function hasVerifiedSavedChoice(basis, key) {
-    if(disposed || recovery?.code!==savedChoicePending || !savedChoiceProof || !basis)return false;
-    const proof=savedChoiceProof;
+  function matchesCurrentReceipt(proof,basis,key) {
+    if(disposed || !proof || !basis)return false;
     if(proof.item.value.key!==key || !sameCredential(proof.credential) ||
        !["project_ref","input_version","revision","brief_sha256"].every(field=>basis[field]===proof.basis[field]))return false;
     try{return options.isCurrent(basis)===true && samePendingMarker(proof.item);}
     catch(_){return false;}
+  }
+  function hasVerifiedSavedChoice(basis,key) {
+    return recovery?.code===savedChoicePending && matchesCurrentReceipt(savedChoiceProof,basis,key);
+  }
+  function readbackLockCode(basis,key) {
+    return matchesCurrentReceipt(readbackLock,basis,key)?readbackLock.code:null;
   }
   if(embedded) {
     try {
@@ -293,14 +299,17 @@
   Object.assign(words.en,{lockBusy:"Another tab is handling this project; try again when it finishes.",lockUnavailable:"This browser does not support the project transaction lock. Submission and recovery are disabled.",lockFailed:"The project transaction lock request failed. Try again later."});
   Object.assign(words["zh-TW"],{lockBusy:"另一分頁正在處理此專案；完成後再試。",lockUnavailable:"此瀏覽器不支援專案交易鎖，已停用提交及恢復。",lockFailed:"專案交易鎖要求失敗，請稍後再試。"});
   Object.assign(words["zh-CN"],{lockBusy:"另一标签页正在处理此项目；完成后再试。",lockUnavailable:"此浏览器不支持项目事务锁，已停用提交及恢复。",lockFailed:"项目事务锁请求失败，请稍后再试。"});
-  async function withProjectLock(work,{readback=false}={}) {
+  async function withProjectLock(work,onReadbackBlocked) {
     if(!embedded)return work();
     let workStarted=false;
     function blocked(status,code,message) {
       const result=recoveryState(status,code,pendingMarker?.kind);
-      // A readback blocked before work leaves the last receipt check intact.
-      if(status==="unavailable" && (!readback || workStarted)){uncertain=true;recovery=result;}
-      notice=w()[message];
+      // Keep a refused readback separate from the last receipt check.
+      if(onReadbackBlocked && !workStarted)onReadbackBlocked(code);
+      else {
+        if(status==="unavailable"){uncertain=true;recovery=result;}
+        notice=w()[message];
+      }
       if(isActive())render();
       return result;
     }
@@ -556,6 +565,7 @@
   async function load() {
     const ref=byId("project").value;
     if(!isActive() || (busy && viewProject===ref) || (reading && (embedded || readingProject===ref)))return;
+    readbackLock=null;readbackSequence++;
     const serial=++loadSerial, expectedBinding=verifiedReadBinding, credential=boot.credential;
     if(viewProject!==ref){view=null;viewProject=null;readAt=null;requestKey=null;lastBody=null;planningSubmission=null;intentTransaction=null;intentNotice=null;intentHold=null;planningContinuation=null;preferredDirections.clear();if(byId("intent-message")){byId("intent-message").value="";byId("intent-confirmed").checked=false;}}
     if(recovery?.code===savedChoicePending)recovery=recoveryState("unknown","pending-receipt",pendingMarker?.kind);
@@ -883,6 +893,27 @@
       return recoveryState("verified","saved-receipt-matched",m.kind);
     } catch(_) {uncertain=true;return report("unavailable","storage-unavailable",m.kind);}
   }
+  function readBack(basis,key=null) {
+    const sequence=++readbackSequence;
+    let scope=null;
+    try {
+      const found=scanMarkers(), item=found[0], credential=boot.credential;
+      if(found.length===1 && (key===null || item.value.key===key) &&
+         markerMatchesBinding(item.value,basis) && sameCredential(credential) && options.isCurrent(basis)===true)
+        scope={item,basis:{...basis},credential};
+    } catch(_) {} // Lock feedback can only be retained when the receipt can be identified.
+    const clearLockFeedback=()=>{
+      if(scope && readbackLock?.item.raw===scope.item.raw && readbackLockCode(scope.basis,scope.item.value.key))readbackLock=null;
+    };
+    return withProjectLock(async()=>{
+      clearLockFeedback();
+      try{return await reconcile(basis,key,false);}
+      finally{clearLockFeedback();}
+    },code=>{
+      if(scope && sequence===readbackSequence && matchesCurrentReceipt(scope,basis,scope.item.value.key))
+        readbackLock={...scope,code};
+    });
+  }
   const handle = Object.freeze({
     suspend() { active=false; loadSerial++; recoverySerial++; return {pending:busy, reading, uncertain, submitted:!!lastBody || intentTransactions.size>0}; },
     resume() {
@@ -904,8 +935,8 @@
     },
     setLanguage(language) { if(!Object.hasOwn(words,language) || disposed) return false; byId("language").value=language; if(active) render(); return true; },
     state() { return {active:isActive(),pending:busy,reading,uncertain,submitted:!!lastBody || intentTransactions.size>0,recovery:recovery && {...recovery}}; },
-    hasVerifiedSavedChoice,
-    reconcile(nextBinding,key=null) { return withProjectLock(()=>reconcile(nextBinding,key,false),{readback:true}); },
+    hasVerifiedSavedChoice, readbackLockCode,
+    reconcile:readBack,
     pendingActions() { try { return scanMarkers().map(x=>({key:x.value.key,kind:x.value.kind,phase:x.value.phase})); } catch(_) { return null; } },
     acknowledgeTerminal(nextBinding,key) { return withProjectLock(()=>reconcile(nextBinding,key,true)); },
     dispose() {
