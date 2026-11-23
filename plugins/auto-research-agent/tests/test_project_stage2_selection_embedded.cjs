@@ -254,6 +254,43 @@ test('lock busy leaves the verified saved choice and its readback button intact'
   await held;
  }
 });
+test('same-language resume rechecks the displayed receipt against another tab’s marker change',async(t)=>{
+ for(const change of ['cleared by complete readback','same key but changed digest']){
+  const locks=memoryLocks();
+  const {real,f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+  await tick();
+  f.handle.setLanguage('en');
+  const parent=parentRecoveryControls(f);
+  assert.match(f.els.get('status').textContent,/Selection saved/);
+  assert.equal(parent.pendingControl().button.textContent,'Read saved state again · '+marker.key);
+  let next=null;
+  if(change==='cleared by complete readback'){
+   const other=harness({realFixture:real,preselected:true,storage:store,locks});
+   await tick();
+   const reads=other.reads.length, path='/api/projects/'+other.binding.project_ref;
+   assert.equal((await other.handle.reconcile(other.binding,marker.key)).status,'verified');
+   assert.deepEqual(other.reads.slice(reads),[path+'/history',path+'/stage2/selection']);
+   assert.deepEqual(other.writes,[]);
+  }else{
+   next=JSON.stringify({...marker,request_sha256:'0'.repeat(64)});
+   store.setItem(key,next);
+  }
+  assert.equal(store.getItem(key),next);
+  const reads=f.reads.length;
+  const outer=parent.pendingControl();
+  assert.equal(f.handle.resume(),true);
+  assert.match(outer.target.textContent,/unconfirmed/);
+  assert.match(f.els.get('status').textContent,/unconfirmed/);
+  assert.equal(f.els.get('language').value,'en');
+  assert.equal(f.reads.length,reads);
+  assert.deepEqual(f.writes,[]);
+  assert.deepEqual(f.navigations,[]);
+  assert.equal(store.getItem(key),next);
+  assert.equal(f.els.get('planning').hidden,true);
+  assert.equal(descendants(f.els.get('planning-summary')).find(node=>node.id==='stage3-entry'),undefined);
+  t.diagnostic(change+': inner and outer unconfirmed, 0 new project GET or POST.');
+ }
+});
 test('reopen keeps selection unknown when the saved history cannot be bound',async(t)=>{
  const actionPatch=fields=>history=>({...history,actions:history.actions.map(action=>({...action,...fields}))});
  for(const options of [

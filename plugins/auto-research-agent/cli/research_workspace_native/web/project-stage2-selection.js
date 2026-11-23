@@ -54,6 +54,7 @@
   let active = true, disposed = false, reading = false, reloadAfterRead = false, uncertain = false;
   let storage=null, pendingMarker=null, pendingRaw=null, recovery=null, recoverySerial=0, recoveryNoticeKey=null;
   let savedChoiceProof=null;
+  let savedChoiceDisplayed=false;
   const hex=/^[a-f0-9]{64}$/, actionKey=/^[A-Za-z0-9_-]{1,128}$/;
   const storagePrefix=embedded?markerPrefix+binding.project_ref+".":"";
   const isHex=v=>typeof v==="string" && hex.test(v), isKey=v=>typeof v==="string" && actionKey.test(v);
@@ -351,6 +352,7 @@
     const status=byId("status");
     if(status.setAttribute){status.setAttribute("role","status");status.setAttribute("aria-live","polite");}
     const savedAwaitingPlanning=hasVerifiedSavedChoice(verifiedReadBinding,pendingMarker?.key);
+    savedChoiceDisplayed=savedAwaitingPlanning;
     if(savedAwaitingPlanning)status.textContent=w().savedChoicePending;
     else {
       if(!view && notice)status.textContent=w().unconnected+" ("+notice+")";
@@ -878,7 +880,12 @@
     suspend() { active=false; loadSerial++; recoverySerial++; return {pending:busy, reading, uncertain, submitted:!!lastBody || intentTransactions.size>0}; },
     resume() {
       if(disposed) return false;
-      if(active) return isActive();
+      if(active) {
+        if(!isActive())return false;
+        // A same-language Wiki repaint can reuse this mount after another tab changes the marker.
+        if(savedChoiceDisplayed!==hasVerifiedSavedChoice(verifiedReadBinding,pendingMarker?.key))render();
+        return true;
+      }
       active=true; if(!isActive()){active=false;return false;}
       if(!view && !busy && !lastBody && !intentTransactions.size) { if(reading) reloadAfterRead=true; else void load(); }
       else {
