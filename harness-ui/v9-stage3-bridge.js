@@ -113,6 +113,14 @@ function v93RecoveryControl(target,record,basis,app){
    try{
     const result=await record.instance.reconcile(basis,entry?.key);
     if(!isCurrent())return;
+    const code=result?.code;
+    if(entry&&typeof code==='string'&&code.startsWith('project-lock-')){
+     const current=record.instance.pendingActions?.();
+     const stillPending=Array.isArray(current)&&current.some(item=>item.key===entry.key&&item.kind===entry.kind&&item.phase===entry.phase);
+     const scoped=pending.length===1&&typeof record.instance.readbackLockCode==='function';
+     // Another tab may have cleared the receipt while this lock result was in flight.
+     if(!stillPending||(scoped&&record.instance.readbackLockCode(basis,entry.key)!==code)){livePaint();return;}
+    }
     const saved=savedFor(entry), held=saved&&result?.code===savedPending;
     message.hidden=held&&mounted;
     button.textContent=label(saved);

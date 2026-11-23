@@ -95,7 +95,7 @@ function parentRecoveryControls(f,options={}) {
  const reads=[],listeners={},state={ref:f.binding.project_ref,epoch:0,list:[],overview:{project:f.binding}},app={page:'workspace',stage:2,previewOps:{}};
  const context={rt:state,apps:[app],window:f.window,document:{createElement:tag=>new Element(tag),addEventListener:(name,handler)=>{listeners[name]=handler;}},
   rl:(zh,en,tw)=>f.els.get('language').value==='en'?en:f.els.get('language').value==='zh-TW'?(tw||zh):zh,rx:String,
-  projectPath:(ref,sub)=>'/api/projects/'+ref+'/'+sub,livePaint(){},liveAtlasPath:()=>null,rows:()=>[],
+  projectPath:(ref,sub)=>'/api/projects/'+ref+'/'+sub,livePaint:options.onPaint??(()=>{}),liveAtlasPath:()=>null,rows:()=>[],
   liveRequest:async(url,body)=>{assert.equal(body,undefined);reads.push(url);if(url==='/api/projects')return {projects:[]};if(url.endsWith('/overview'))return {project:{...f.binding,revision:2,...options.overviewPatch}};if(url.endsWith('/history'))return {actions:[]};throw Error('unexpected parent GET '+url);},
   v93ChoiceIdentity:()=>state.overview.project,v93Matches:(a,b)=>['project_ref','input_version','revision','brief_sha256'].every(k=>a[k]===b[k]),v93Choices:new Map(),v93ActiveChoice:null};
  vm.runInNewContext(part(runtime,'async function liveRefresh(', 'async function liveReceiptBound(')+part(runtime,'function liveControls(', 'function liveEmpty(')+part(runtime,"document.addEventListener('click',async e=>{",'// Load only on this local server.')+part(bridge,'function v93RecoveryControl(', 'function v93MountChoice('),context);
@@ -264,7 +264,9 @@ for(const [mode,options,feedback] of [
    const {f,store,key,marker}=reopenedFormalSelection({...options,selectionUnavailable:()=>true});
    await tick();
    f.handle.setLanguage('en');
-   const parent=parentRecoveryControls(f),check=parent.pendingControl(),reads=f.reads.length;
+    let current;
+    const parent=parentRecoveryControls(f,{onPaint:()=>{current=parent.pendingControl();}});
+    const check=current=parent.pendingControl(),reads=f.reads.length;
    const prior=f.handle.state().recovery.code;
    assert.equal(check.button.textContent,'Read saved state again · '+marker.key);
    assert.match(f.els.get('status').textContent,/^Selection saved/);
@@ -272,11 +274,18 @@ for(const [mode,options,feedback] of [
    if(markerChange==='different digest')store.setItem(key,JSON.stringify({...marker,request_sha256:'0'.repeat(64)}));
    const original=store.getItem(key);
    await check.button.onclick();
-   assert.match(check.target.textContent,feedback);
-   assert.equal(check.target.children[0].children[0].hidden,false);
    const unchanged=markerChange==='unchanged';
    const label=unchanged?'Read saved state again':'Check unconfirmed submission';
-   assert.equal(check.button.textContent,label+' · '+marker.key);
+    if(markerChange==='removed'){
+     assert.notEqual(current,check);
+     assert.doesNotMatch(current.target.textContent,feedback);
+     assert.equal(current.button.textContent,label);
+    }else{
+     assert.equal(current,check);
+     assert.match(current.target.textContent,feedback);
+     assert.equal(current.target.children[0].children[0].hidden,false);
+     assert.equal(current.button.textContent,label+' · '+marker.key);
+    }
    assert.ok(parent.pendingControl().button.textContent.startsWith(label));
    assert.match(f.els.get('status').textContent,unchanged?/^Selection saved/:/unconfirmed/);
    assert.equal(f.handle.state().recovery.code,prior);
@@ -290,6 +299,41 @@ for(const [mode,options,feedback] of [
   }
  });
 }
+test('a late lock refusal removes a cleared receipt from the still-visible Wiki panel',async()=>{
+ let deliver;
+ const locks={request(_name,_options,callback){return new Promise(resolve=>{deliver=()=>resolve(callback(null));});}};
+ const {real,f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
+ await tick();
+ f.handle.setLanguage('en');
+ let current;
+ const parent=parentRecoveryControls(f,{onPaint:()=>{current=parent.pendingControl();}});
+ const original=current=parent.pendingControl(),start=f.reads.length;
+ assert.equal(original.button.textContent,'Read saved state again · '+marker.key);
+ const late=original.button.onclick();
+ try {
+  const other=harness({realFixture:real,preselected:true,storage:store});
+  await tick();
+  const from=other.reads.length;
+  assert.equal((await other.handle.reconcile(other.binding,marker.key)).status,'verified');
+  assert.deepEqual(other.reads.slice(from),['/api/projects/'+marker.project_ref+'/history','/api/projects/'+marker.project_ref+'/stage2/selection']);
+  assert.deepEqual(other.writes,[]);
+  assert.deepEqual(other.navigations,[]);
+  assert.equal(store.getItem(key),null);
+  assert.equal(current,original);
+ } finally {
+  deliver();
+  await late;
+ }
+ assert.notEqual(current,original);
+ assert.equal(current.button.textContent,'Check unconfirmed submission');
+ assert.doesNotMatch(current.target.textContent,/Another tab is handling this project/);
+ assert.ok(!current.target.textContent.includes(marker.key));
+ assert.match(f.els.get('status').textContent,/unconfirmed/);
+ assert.equal(f.els.get('planning').hidden,true);
+ assert.equal(f.reads.length,start);
+ assert.deepEqual(f.writes,[]);
+ assert.deepEqual(f.navigations,[]);
+});
 test('a repainted lock reason belongs to the original receipt until a new readback starts',async()=>{
  const locks=memoryLocks();
  const {f,store,key,marker}=reopenedFormalSelection({locks,selectionUnavailable:()=>true});
