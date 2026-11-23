@@ -280,9 +280,61 @@ test('changed revision offers an explicit read-only recovery before remounting',
  f.ctx.livePaint=()=>paints++;
  f.ctx.window.STAGE2_SELECTION={mount:()=>({suspend(){},resume(){},setLanguage(){},state:()=>({recovery:null}),dispose:()=>resolved,reconcile:async basis=>{checks.push(basis);return {status:resolved?'verified':'unknown',code:resolved?'saved':'not-yet-confirmed'};}})};
  f.ctx.v7AfterRender(f.app);f.state.overview.project={...f.basis,revision:3};f.ctx.v7BeforeRender(f.app);slot.children=[];f.ctx.v7AfterRender(f.app);
+ f.ctx.v7AfterRender(f.app);assert.equal(slot.children.length,1);
  const box=slot.children[0],button=box.children[1];assert.equal(typeof button.onclick,'function');await button.onclick();
  assert.equal(checks.length,1);assert.equal(checks[0].revision,3);assert.match(box.children[0].textContent,/尚未能確認/);assert.equal(paints,0);
  resolved=true;await button.onclick();assert.equal(checks.length,2);assert.equal(paints,1);
+});
+
+test('queued Wiki renders retain one Stage 2 recheck per project receipt',async()=>{
+ const f=fixture(()=>assert.fail('repainting must not make a project request')),frames=[],checks=[];
+ const {Element}=require('../plugins/auto-research-agent/tests/test_project_stage2_selection_embedded.cjs');
+ let slot;
+ f.app.lang='en';f.app.stage=2;f.app.el.dataset={};f.app.el.clientWidth=390;
+ f.app.el.querySelector=selector=>selector==='[data-v93-choice]'?slot:null;
+ Object.defineProperty(f.app.el,'innerHTML',{set(html){slot=html.includes('data-v93-choice')?new Element():null;}});
+ f.ctx.document.getElementById=id=>id==='v93-selection-template'?{content:{cloneNode:()=>new Element()}}:null;
+ f.ctx.document.createElement=tag=>Object.assign(new Element(tag),{
+  attachShadow(){this.shadowRoot={append(){},querySelector:()=>null};return this.shadowRoot;}
+ });
+ f.ctx.window.RESEARCH_PROJECTS.stage2_selection_projects.push('project-b');
+ const pending={'project-a':['original-a'],'project-b':['other-b','another-b']};
+ f.ctx.window.STAGE2_SELECTION={mount:(_root,{binding})=>({
+  state:()=>({recovery:{status:'unknown'}}),resume(){},suspend(){},setLanguage(){},dispose:()=>false,
+  pendingActions:()=>pending[binding.project_ref].map(key=>({key})),
+  async reconcile(basis,key){checks.push([basis.project_ref,basis.revision,key]);return {status:'unknown'};}
+ })};
+ const blank=()=>'';
+ Object.assign(f.ctx,{rl:(zh,en,tw)=>({zh,en,tw})[f.app.lang],sidebar:blank,t:blank,v7t:blank,v7UiDialog:blank,
+  topicSelectionDetail(){},icons(){},drawAtlasConnections(){},drawWorkbenchRelations(){},
+  requestAnimationFrame:callback=>frames.push(callback)});
+ const renderer=fs.readFileSync(require('node:path').join(__dirname,'renderer/src/base.js'),'utf8');
+ const start=renderer.indexOf('  function render(app){'),end=renderer.indexOf('  Object.assign(words,{',start);
+ assert.ok(start>=0&&end>start);
+ vm.runInContext(renderer.slice(start,end),f.ctx);
+ const buttons=()=>slot.children.flatMap(node=>node.children).filter(node=>node.type==='button'&&!node.hidden&&!node.disabled);
+ function expectButtons(names){
+  assert.deepEqual(buttons().map(button=>button.textContent),names);
+  assert.ok(buttons().every(button=>typeof button.onclick==='function'));
+ }
+ function paint(count=1){
+  for(let i=0;i<count;i++)f.ctx.render(f.app);
+  assert.equal(frames.length,count);
+  frames.splice(0).forEach(callback=>callback());
+ }
+ const english='Check unconfirmed submission · original-a';
+ paint();expectButtons([english]);
+ paint(2);expectButtons([english]);assert.deepEqual(checks,[]);
+ const first=buttons()[0];
+ await first.onclick();assert.deepEqual(checks,[['project-a',2,'original-a']]);
+ f.app.lang='tw';paint(2);expectButtons(['檢查未確認提交 · original-a']);
+ f.app.stage=3;paint();assert.equal(slot,null);
+ f.app.lang='en';f.app.stage=2;paint();expectButtons([english]);
+ f.state.ref='project-b';f.state.overview.project={...f.basis,project_ref:'project-b'};
+ paint(2);expectButtons(['Check unconfirmed submission · other-b','Check unconfirmed submission · another-b']);
+ await first.onclick();
+ await buttons()[1].onclick();
+ assert.deepEqual(checks,[['project-a',2,'original-a'],['project-b',2,'another-b']]);
 });
 
 test('Wiki displays each verified terminal item and requires human confirmation before clearing',async()=>{

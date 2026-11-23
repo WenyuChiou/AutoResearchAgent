@@ -71,6 +71,9 @@ stage2=function(app){
  return `<section class="hs-panel"><h2>${rl('当前交付的研究方向','Directions in the current delivery','目前交付的研究方向')}</h2><p>${rl('在此查看方向、材料和未知事项，再决定保存暂定偏好或正式选案。','Review the current directions, materials and unknowns here; a tentative preference is not a formal selection.','在此查看方向、材料與未知事項，再決定保存暫定偏好或正式選案。')}</p><div data-v93-choice></div></section><details class="hs-panel"><summary>${rl('先前 Wiki 材料与本地草稿','Earlier Wiki materials and local drafts','先前 Wiki 材料與本地草稿')}</summary><p>${rl('这些材料可能来自较早的导入版本，不能替代目前交付。','These materials may come from an earlier import and do not replace the current delivery.','這些材料可能來自較早匯入版本，不能取代目前交付。')}</p>${original}</details>`;
 };
 function v93RecoveryControl(target,record,basis,app){
+ // Queued render callbacks can find the same newly rendered Stage 2 slot.
+ if(v93RecoverySlots.has(target))return;
+ v93RecoverySlots.add(target);
  const box=document.createElement('div'),message=document.createElement('p');
  const savedPending='saved-selection-planning-unverified';
  const mounted=v93Matches(record.binding,basis);
@@ -145,6 +148,7 @@ function v93RecoveryControl(target,record,basis,app){
   };
  }
 }
+const v93RecoverySlots=new WeakSet();
 function v93MountChoice(app){
  const target=app.el.querySelector('[data-v93-choice]'),basis=v93ChoiceIdentity();
  if(app.page!=='workspace'||app.stage!==2||!target||!basis)return;
