@@ -19,6 +19,7 @@ const projectPath = `/api/projects/${ref}`;
 const selectionPath = `${projectPath}/stage2/select`;
 const planningPath = `${projectPath}/stage3/planning`;
 const startPaths = [selectionPath, `${planningPath}/prepare`, `${planningPath}/run`];
+const actionTimeoutMs = 65000;
 const initialUrl = `${origin}/#${ref}?stage=2&lang=en`;
 const summary = {
   kind: "ProjectWikiCompletionBrowserEvidence",
@@ -76,6 +77,28 @@ function assertNoProjectWrites(since, label) {
     `${label} must remain read-only (${profile})`);
 }
 
+async function waitForPlanningRunResponse(page) {
+  const request = await page.waitForRequest(request =>
+    request.url() === `${origin}${planningPath}/run` &&
+    request.method() === "POST");
+  let timer;
+  try {
+    // Start the response deadline at dispatch. Request.response() also retains
+    // a response already observed before this continuation runs.
+    const response = await Promise.race([
+      request.response(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Planning run HTTP response timed out after dispatch")),
+          actionTimeoutMs);
+      }),
+    ]);
+    assert.ok(response, "Planning run ended without an HTTP response");
+    return response;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function readSaved(page) {
   const button = page.getByRole("button", {name: "View saved plan", exact: true});
   let value;
@@ -119,7 +142,7 @@ async function main() {
   await context.tracing.start({screenshots: true, snapshots: true, sources: true});
   const page = await context.newPage();
   activePage = page; activeContext = context;
-  page.setDefaultTimeout(65000);
+  page.setDefaultTimeout(actionTimeoutMs);
   observe(page);
   await page.goto(initialUrl);
   const chooser = page.locator("[data-v93-choice]");
@@ -144,8 +167,7 @@ async function main() {
   const [receiptResponse, runResponse] = await Promise.all([
     page.waitForResponse(response =>
       response.url() === `${origin}${selectionPath}` && response.request().method() === "POST"),
-    page.waitForResponse(response =>
-      response.url() === `${origin}${planningPath}/run` && response.request().method() === "POST"),
+    waitForPlanningRunResponse(page),
     start.click(),
   ]);
   assert.equal(receiptResponse.status(), 200);
