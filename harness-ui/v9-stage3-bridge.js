@@ -119,6 +119,8 @@ function v93RecoveryControl(target,record,basis,app){
      notice=rl('另一页面正在处理此项目，请稍后再检查。','Another tab is handling this project; check again later.','另一個分頁正在處理此專案，請稍後再檢查。');
     }else if(result?.code==='project-lock-unavailable'){
      notice=rl('此浏览器不支持安全的跨页面锁，无法提交或解除等待。','This browser cannot provide the required cross-tab lock; submitting and clearing pending items are unavailable.','此瀏覽器不支援必要的跨分頁鎖，無法送出或解除等待。');
+    }else if(result?.code==='project-lock-failed'){
+     notice=rl('项目锁请求失败，请稍后再检查。','The project lock request failed; check again later.','專案鎖要求失敗，請稍後再檢查。');
     }else if(saved){
      notice=rl('本次未能重新读取，请稍后再试。','This readback could not complete. Check again later.','本次未能重新讀取，請稍後再試。');
     }else{

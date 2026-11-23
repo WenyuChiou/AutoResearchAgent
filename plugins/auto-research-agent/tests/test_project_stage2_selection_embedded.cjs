@@ -254,6 +254,42 @@ test('lock busy leaves the verified saved choice and its readback button intact'
   await held;
  }
 });
+for(const [mode,options,feedback] of [
+ ['busy',{locks:{request(_name,_options,callback){return callback(null);}}},/Another tab is handling this project/],
+ ['unavailable',{noLocks:true},/This browser cannot provide the required cross-tab lock/],
+ ['request failure',{locks:{async request(){throw Error('synthetic-lock-request-rejected');}}},/The project lock request failed/]
+]){
+ test('lock '+mode+' reports the blocked readback and preserves only the still-current verified choice',async()=>{
+  for(const markerChange of ['unchanged','removed','different digest']){
+   const {f,store,key,marker}=reopenedFormalSelection({...options,selectionUnavailable:()=>true});
+   await tick();
+   f.handle.setLanguage('en');
+   const parent=parentRecoveryControls(f),check=parent.pendingControl(),reads=f.reads.length;
+   const prior=f.handle.state().recovery.code;
+   assert.equal(check.button.textContent,'Read saved state again · '+marker.key);
+   assert.match(f.els.get('status').textContent,/^Selection saved/);
+   if(markerChange==='removed')store.removeItem(key);
+   if(markerChange==='different digest')store.setItem(key,JSON.stringify({...marker,request_sha256:'0'.repeat(64)}));
+   const original=store.getItem(key);
+   await check.button.onclick();
+   assert.match(check.target.textContent,feedback);
+   assert.equal(check.target.children[0].children[0].hidden,false);
+   const unchanged=markerChange==='unchanged';
+   const label=unchanged?'Read saved state again':'Check unconfirmed submission';
+   assert.equal(check.button.textContent,label+' · '+marker.key);
+   assert.ok(parent.pendingControl().button.textContent.startsWith(label));
+   assert.match(f.els.get('status').textContent,unchanged?/^Selection saved/:/unconfirmed/);
+   assert.equal(f.handle.state().recovery.code,prior);
+   assert.equal(f.els.get('planning').hidden,true);
+   assert.equal(f.els.get('submit').disabled,true);
+   assert.equal(f.els.get('submit-and-start').disabled,true);
+   assert.equal(f.reads.length,reads);
+   assert.equal(store.getItem(key),original);
+   assert.deepEqual(f.writes,[]);
+   assert.deepEqual(f.navigations,[]);
+  }
+ });
+}
 test('same-language resume rechecks the displayed receipt against another tab’s marker change',async(t)=>{
  for(const change of ['cleared by complete readback','same key but changed digest']){
   const locks=memoryLocks();

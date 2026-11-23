@@ -290,20 +290,27 @@
   words["zh-TW"].savedChoicePending="選案已保存。規劃輸入仍待核實。";
   const current = (ref, serial) => isActive() && serial === loadSerial && byId("project").value === ref && (!embedded || ref === binding.project_ref);
   const w = () => words[byId("language").value] || words.en;
-  Object.assign(words.en,{lockBusy:"Another tab is handling this project; try again when it finishes.",lockUnavailable:"This browser does not support the project transaction lock. Submission and recovery are disabled."});
-  Object.assign(words["zh-TW"],{lockBusy:"另一分頁正在處理此專案；完成後再試。",lockUnavailable:"此瀏覽器不支援專案交易鎖，已停用提交及恢復。"});
-  Object.assign(words["zh-CN"],{lockBusy:"另一标签页正在处理此项目；完成后再试。",lockUnavailable:"此浏览器不支持项目事务锁，已停用提交及恢复。"});
-  async function withProjectLock(work) {
+  Object.assign(words.en,{lockBusy:"Another tab is handling this project; try again when it finishes.",lockUnavailable:"This browser does not support the project transaction lock. Submission and recovery are disabled.",lockFailed:"The project transaction lock request failed. Try again later."});
+  Object.assign(words["zh-TW"],{lockBusy:"另一分頁正在處理此專案；完成後再試。",lockUnavailable:"此瀏覽器不支援專案交易鎖，已停用提交及恢復。",lockFailed:"專案交易鎖要求失敗，請稍後再試。"});
+  Object.assign(words["zh-CN"],{lockBusy:"另一标签页正在处理此项目；完成后再试。",lockUnavailable:"此浏览器不支持项目事务锁，已停用提交及恢复。",lockFailed:"项目事务锁请求失败，请稍后再试。"});
+  async function withProjectLock(work,{readback=false}={}) {
     if(!embedded)return work();
-    const locks=window.navigator?.locks;
-    if(!locks || typeof locks.request!=="function") {
-      uncertain=true;recovery=recoveryState("unavailable","project-lock-unavailable",pendingMarker?.kind);notice=w().lockUnavailable;if(isActive())render();
-      return recoveryState("unavailable","project-lock-unavailable",pendingMarker?.kind);
+    let workStarted=false;
+    function blocked(status,code,message) {
+      const result=recoveryState(status,code,pendingMarker?.kind);
+      // A readback blocked before work leaves the last receipt check intact.
+      if(status==="unavailable" && (!readback || workStarted)){uncertain=true;recovery=result;}
+      notice=w()[message];
+      if(isActive())render();
+      return result;
     }
+    const locks=window.navigator?.locks;
+    if(!locks || typeof locks.request!=="function")return blocked("unavailable","project-lock-unavailable","lockUnavailable");
     try {return await locks.request("ara.stage2.transaction.v1."+binding.project_ref,{mode:"exclusive",ifAvailable:true},async lock=>{
-      if(!lock){notice=w().lockBusy;if(isActive())render();return recoveryState("unknown","project-lock-busy",pendingMarker?.kind);}
+      if(!lock)return blocked("unknown","project-lock-busy","lockBusy");
+      workStarted=true;
       return await work();
-    });} catch(_) {uncertain=true;recovery=recoveryState("unavailable","project-lock-failed",pendingMarker?.kind);if(isActive())render();return recovery;}
+    });} catch(_) {return blocked("unavailable","project-lock-failed","lockFailed");}
   }
   function node(parent, tag, text) { const n=document.createElement(tag); n.textContent=String(text ?? w().unknown); parent.append(n); return n; }
   function list(parent, values) { const ul=node(parent,"ul",""); for(const value of values || []) node(ul,"li",typeof value==="string"?value:value.text || value.reason || w().unknown); }
@@ -898,7 +905,7 @@
     setLanguage(language) { if(!Object.hasOwn(words,language) || disposed) return false; byId("language").value=language; if(active) render(); return true; },
     state() { return {active:isActive(),pending:busy,reading,uncertain,submitted:!!lastBody || intentTransactions.size>0,recovery:recovery && {...recovery}}; },
     hasVerifiedSavedChoice,
-    reconcile(nextBinding,key=null) { return withProjectLock(()=>reconcile(nextBinding,key,false)); },
+    reconcile(nextBinding,key=null) { return withProjectLock(()=>reconcile(nextBinding,key,false),{readback:true}); },
     pendingActions() { try { return scanMarkers().map(x=>({key:x.value.key,kind:x.value.kind,phase:x.value.phase})); } catch(_) { return null; } },
     acknowledgeTerminal(nextBinding,key) { return withProjectLock(()=>reconcile(nextBinding,key,true)); },
     dispose() {
