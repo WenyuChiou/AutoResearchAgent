@@ -65,8 +65,13 @@ def _raw(path):
         stat.S_ISREG(info.st_mode) and info.st_nlink == 1,
         "regular unlinked file required",
     )
+    limit = MAX_FILE_BYTES + 1
+    first_read = min(info.st_size + 1, limit)
     with path.open("rb") as stream:
-        raw = stream.read(MAX_FILE_BYTES + 1)
+        raw = stream.read(first_read)
+        # A file may grow after stat. Finish reading under the original bound.
+        if len(raw) == first_read and first_read < limit:
+            raw += stream.read(limit - first_read)
     _check(len(raw) <= MAX_FILE_BYTES, "file bound exceeded")
     return raw
 
