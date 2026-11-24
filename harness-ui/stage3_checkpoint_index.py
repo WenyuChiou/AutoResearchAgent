@@ -48,6 +48,15 @@ class Stage3CheckpointIndex:
         return sqlite3.connect(f"{path.as_uri()}?mode={mode}", uri=True)
 
     def _get(self, connection, identity):
+        schema = connection.execute(
+            "SELECT type, name FROM sqlite_master WHERE name NOT GLOB 'sqlite_*'"
+        ).fetchall()
+        if not schema:
+            # SQLite may have created its file before the first transaction
+            # committed the schema, or left this file after an interruption.
+            return None
+        if schema != [("table", "stage3_checkpoint_bindings_v1")]:
+            raise Stage3Error("unexpected checkpoint index schema")
         row = connection.execute(
             "SELECT checkpoint, decision FROM stage3_checkpoint_bindings_v1 "
             "WHERE identity = ?",
@@ -155,21 +164,18 @@ class Stage3CheckpointIndex:
 
         binding = {"identity": identity, "checkpoint": checkpoint, "decision": decision}
         read_plan_review(view, trusted_binding=binding)
-        if binding == previous:
-            return binding
-
         with closing(self._database(write=True)) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
-                "CREATE TABLE IF NOT EXISTS stage3_checkpoint_bindings_v1 ("
-                "identity BLOB PRIMARY KEY, checkpoint BLOB NOT NULL, decision BLOB)"
-            )
             current = self._get(connection, identity)
             if current != binding:
                 if current != previous:
                     raise Stage3Error(
                         "checkpoint index changed during publication; retry"
                     )
+                connection.execute(
+                    "CREATE TABLE IF NOT EXISTS stage3_checkpoint_bindings_v1 ("
+                    "identity BLOB PRIMARY KEY, checkpoint BLOB NOT NULL, decision BLOB)"
+                )
                 connection.execute(
                     "INSERT INTO stage3_checkpoint_bindings_v1 VALUES (?, ?, ?) "
                     "ON CONFLICT(identity) DO UPDATE SET "

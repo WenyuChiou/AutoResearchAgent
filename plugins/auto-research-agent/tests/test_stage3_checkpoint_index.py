@@ -1,8 +1,10 @@
 """Native saved jobs and workflow records through the private checkpoint index."""
 
+from contextlib import closing
 from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 import unittest
@@ -300,10 +302,32 @@ class Stage3CheckpointIndexTests(unittest.TestCase):
         rejects["concurrent_stale_writer"] = str(error.exception)
         self.assertEqual(raced.lookup(old_id), old_binding)
 
-        # Recover a fresh DB entirely from retained native receipts and attachments.
+        # A first writer can stop after SQLite creates its file, or while
+        # its first schema is invisible to a simultaneous read-only lookup.
         rebuilt = Stage3CheckpointIndex(
             self.root / "rebuilt.sqlite", archive_root=self.root
         )
+        rebuilt.database.touch()
+        self.assertIsNone(rebuilt.lookup(old_id))
+        with closing(sqlite3.connect(rebuilt.database)) as writer:
+            writer.execute("BEGIN IMMEDIATE")
+            writer.execute(
+                "CREATE TABLE stage3_checkpoint_bindings_v1 ("
+                "identity BLOB PRIMARY KEY, checkpoint BLOB NOT NULL, decision BLOB)"
+            )
+            self.assertIsNone(rebuilt.lookup(old_id))
+            writer.rollback()
+        self.assertIsNone(rebuilt.lookup(old_id))
+        foreign_store = Stage3CheckpointIndex(
+            self.root / "foreign.sqlite", archive_root=self.root
+        )
+        with closing(sqlite3.connect(foreign_store.database)) as writer, writer:
+            writer.execute("CREATE TABLE unrelated(id INTEGER)")
+        unrelated_before = ref(foreign_store.database)
+        with self.assertRaisesRegex(Stage3Error, "unexpected checkpoint index schema"):
+            foreign_store.publish(old_view, job1)
+        self.assertEqual(ref(foreign_store.database), unrelated_before)
+        # Rebuild from native receipts after the initial transaction is rolled back.
         self.assertEqual(
             rebuilt.publish(old_view, job1, checkpoint=tip, decision=decision),
             old_binding,
@@ -355,6 +379,12 @@ class Stage3CheckpointIndexTests(unittest.TestCase):
                 "initial": root_ref,
                 "review": tip,
                 "next": job2["result"]["checkpoint"],
+            },
+            "initialization_recovery": {
+                "empty_database": "no binding",
+                "first_uncommitted_schema": "no binding",
+                "first_rolled_back_schema": "rebuilt from original receipts",
+                "unrelated_sqlite": "refused and unchanged",
             },
             "fixtures": {
                 "fixed_plan_callbacks": ctx.callback.call_count,
