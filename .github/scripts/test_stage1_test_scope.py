@@ -57,6 +57,7 @@ class Stage1TestScopeTests(unittest.TestCase):
         platform="",
         pythonpath=(),
         preload=(),
+        merge_output=False,
     ):
         script = self.repo / ".github/scripts/stage1_test_scope.py"
         env = {
@@ -90,7 +91,13 @@ class Stage1TestScopeTests(unittest.TestCase):
                 [env.get("PYTHONPATH", ""), *map(str, pythonpath)]
             )
         return subprocess.run(
-            command, cwd=self.repo, env=env, capture_output=True, text=True, timeout=20
+            command,
+            cwd=self.repo,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT if merge_output else subprocess.PIPE,
+            text=True,
+            timeout=20,
         )
 
     def git(self, *args):
@@ -1031,6 +1038,167 @@ class SourceWriter(unittest.TestCase):
         self.assertEqual(summary["incomplete_partitions"], 1)
         self.assertLess(summary["tests_run"], summary["planned_tests"])
         self.assertFalse(summary["passed"])
+
+    def windows_full_rows(self, *, merge_output=False):
+        result = self.fixture(
+            workers=3, profile="full", platform="Windows", merge_output=merge_output
+        )
+        return result, [
+            json.loads(line)
+            for line in result.stdout.splitlines()
+            if line.startswith("{")
+        ]
+
+    def test_windows_full_records_partitions_and_real_serial_outcomes(self):
+        self.write(TESTS + "test_parallel_fixture.py", PASSING)
+        self.write(
+            TESTS + "test_source_saved_pipeline.py",
+            """import unittest
+class Serial(unittest.TestCase):
+    def test_a_pass(self): pass
+    def test_b_failure(self):
+        with self.subTest(part="failure"):
+            self.fail("serial assertion")
+    def test_c_error(self): raise RuntimeError("serial error")
+    @unittest.skip("fixture skip")
+    def test_d_skip(self): pass
+    @unittest.expectedFailure
+    def test_e_expected_failure(self): self.fail()
+    @unittest.expectedFailure
+    def test_f_unexpected_success(self): pass
+""",
+        )
+        result, rows = self.windows_full_rows()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        plan = next(row for row in rows if "serial_partition_id" in row)
+        serial = plan["serial_partition_id"]
+        started = {
+            row["worker_started"]: row for row in rows if "worker_started" in row
+        }
+        completed = {
+            row["worker_completed"]["test_ids_sha256"]: row["worker_completed"]
+            for row in rows
+            if "worker_completed" in row
+        }
+        self.assertEqual(len(plan["parallel_partition_ids"]), 3)
+        self.assertEqual(started.keys(), completed.keys())
+        self.assertEqual(set(started), {*plan["parallel_partition_ids"], serial})
+        for partition in started:
+            self.assertEqual(started[partition]["pid"], completed[partition]["pid"])
+            self.assertLessEqual(
+                started[partition]["monotonic_ns"], completed[partition]["monotonic_ns"]
+            )
+        for partition in plan["parallel_partition_ids"]:
+            self.assertEqual(started[partition]["partition_kind"], "parallel")
+            self.assertTrue(completed[partition]["passed"])
+            self.assertLessEqual(
+                completed[partition]["monotonic_ns"], started[serial]["monotonic_ns"]
+            )
+        starts = [row for row in rows if "serial_test_started" in row]
+        ends = [row for row in rows if "serial_test_completed" in row]
+        self.assertEqual(
+            [row["serial_test_started"] for row in starts], plan["serial_test_ids"]
+        )
+        self.assertEqual(
+            [row["serial_test_completed"] for row in ends], plan["serial_test_ids"]
+        )
+        for sequence, (start, end) in enumerate(zip(starts, ends, strict=True), 1):
+            self.assertEqual(start["partition_id"], serial)
+            self.assertEqual(end["partition_id"], serial)
+            self.assertEqual(start["sequence"], sequence)
+            self.assertEqual(end["sequence"], sequence)
+            self.assertLessEqual(start["monotonic_ns"], end["monotonic_ns"])
+        self.assertEqual(
+            [row["outcome"] for row in ends],
+            [
+                "passed",
+                "failed",
+                "error",
+                "skipped",
+                "expected_failure",
+                "unexpected_success",
+            ],
+        )
+        self.assertFalse(completed[serial]["passed"])
+        self.assertEqual(rows[-1]["tests_run"], 9)
+        self.assertEqual(
+            (rows[-1]["failures"], rows[-1]["errors"], rows[-1]["skips"]),
+            (1, 1, 1),
+        )
+        self.assertEqual(rows[-1]["incomplete_partitions"], 0)
+        self.assertFalse(rows[-1]["passed"])
+
+    def test_windows_full_retains_start_after_serial_worker_exits(self):
+        self.write(
+            TESTS + "test_source_saved_pipeline.py",
+            """import os
+import unittest
+class Serial(unittest.TestCase):
+    def test_a_pass(self): pass
+    def test_b_lost(self): os._exit(23)
+    def test_c_future(self): self.fail("must not start")
+""",
+        )
+        result, rows = self.windows_full_rows(merge_output=True)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        plan = next(row for row in rows if "serial_partition_id" in row)
+        self.assertEqual(
+            [
+                row["serial_test_started"]
+                for row in rows
+                if "serial_test_started" in row
+            ],
+            plan["serial_test_ids"][:2],
+        )
+        self.assertEqual(
+            [
+                row["serial_test_completed"]
+                for row in rows
+                if "serial_test_completed" in row
+            ],
+            plan["serial_test_ids"][:1],
+        )
+        self.assertIn(
+            plan["serial_partition_id"],
+            [
+                row["worker_result_unavailable"]
+                for row in rows
+                if "worker_result_unavailable" in row
+            ],
+        )
+        self.assertEqual(rows[-1]["planned_tests"], 5)
+        self.assertEqual(rows[-1]["tests_run"], 2)
+        self.assertEqual(rows[-1]["incomplete_partitions"], 1)
+        self.assertFalse(rows[-1]["passed"])
+
+    def test_windows_full_does_not_complete_interrupted_teardown(self):
+        self.write(
+            TESTS + "test_source_saved_pipeline.py",
+            """import unittest
+class Serial(unittest.TestCase):
+    def test_a_fails_before_interrupt(self): self.fail("earlier failure")
+    def test_b_future(self): self.fail("must not start")
+    def tearDown(self): raise KeyboardInterrupt
+""",
+        )
+        result, rows = self.windows_full_rows(merge_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("KeyboardInterrupt", result.stdout)
+        plan = next(row for row in rows if "serial_partition_id" in row)
+        self.assertEqual(
+            [
+                row["serial_test_started"]
+                for row in rows
+                if "serial_test_started" in row
+            ],
+            plan["serial_test_ids"][:1],
+        )
+        self.assertFalse(any("serial_test_completed" in row for row in rows))
+        unavailable = next(row for row in rows if "worker_result_unavailable" in row)
+        self.assertEqual(
+            unavailable["worker_result_unavailable"], plan["serial_partition_id"]
+        )
+        self.assertEqual(unavailable["error"], "KeyboardInterrupt")
 
     def test_parallel_full_suite_propagates_failures_import_errors_and_crashes(self):
         for source, marker in (
