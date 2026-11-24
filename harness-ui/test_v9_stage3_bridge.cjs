@@ -10,7 +10,7 @@ function fixture(request){
  const app={page:'workspace',stage:3,lang:'tw',el:{contains:x=>x===button,querySelector:x=>x==='#v93-diagram'?target:null}};
  const state={ref:'project-a',epoch:1,overview:{project:basis}};
  const ctx={rt:state,apps:[app],canonicalReadonly:()=>false,stage2:()=>'<old/>',laterStage:()=>'<later/>',otherPage:()=>'<div class="hs-heading"><p class="hs-eyebrow">STAGE 01 / 06</p><h1>Literature</h1><p>Repeated project brief</p></div><p role="alert">Original pending outcome</p>',v7BeforeRender:()=>{},v7AfterRender:()=>{},
-  rl:(zh,en,tw)=>tw||zh,rx:escapeHtml,canonicalTop:()=>'<top/>',livePaint:()=>{},projectPath:(r,p)=>'/api/projects/'+r+'/'+p,
+  rl:(zh,en,tw)=>app.lang==='en'?en:app.lang==='tw'?tw||zh:zh,rx:escapeHtml,canonicalTop:()=>'<top/>',livePaint:()=>{},projectPath:(r,p)=>'/api/projects/'+r+'/'+p,
   liveRequest:request|| (async()=>({...basis,plan:{kind:'Stage3ResearchPlan'}})),
   window:{addEventListener:(name,fn)=>listeners[name]=fn,RESEARCH_PROJECTS:{stage2_selection_projects:['project-a'],stage3_planning_projects:['project-a']},STAGE3_RESEARCH_DIAGRAM:{mount:(...x)=>mounts.push(x)}},
   document:{addEventListener:(name,fn)=>listeners[name]=fn},location:{hash:'#project-a?stage=3&lang=zh-TW'},URLSearchParams,encodeURIComponent,decodeURIComponent,console};
@@ -151,6 +151,39 @@ test('Wiki labels the older cards and does not imply a missing plan exists',asyn
  assert.match(f.ctx.laterStage(f.app),/沒有已保存的規劃/);
 });
 
+test('Stage 3 without a planning connection offers the public archive in each Wiki language',()=>{
+ const f=fixture(()=>assert.fail('opening the archive must not request data from the project'));
+ f.ctx.canonicalReadonly=()=>true;
+ const labels=[['zh','已发布的研究设计案例'],['en','Published research design case'],['tw','已發布的研究設計案例']];
+ const url='https://wenyuchiou.github.io/AutoResearchAgent/stage-3/';
+ const anchors=['household-case','data-methods','validation','harness-evaluation'];
+ for(const [lang,title] of labels){
+  f.app.lang=lang;
+  const html=f.ctx.laterStage(f.app);
+  assert.ok(html.startsWith('<later/>'),'keep the existing unconnected state');
+  assert.ok(html.includes('<h2>'+title+'</h2>'));
+  assert.deepEqual([...html.matchAll(/href="([^"]+)"/g)].map(match=>match[1]),anchors.map(anchor=>url+'#'+anchor));
+  assert.equal((html.match(/rel="noreferrer"/g)||[]).length,anchors.length);
+  assert.doesNotMatch(html,/<button|data-v93-read|data-live-action|已保存的规划摘要|Saved planning summary|已保存的規劃摘要/);
+ }
+ f.app.stage=4;
+ assert.equal(f.ctx.laterStage(f.app),'<later/>');
+});
+
+test('the empty saved-plan read keeps an archive link and clicking it does not dispatch',async()=>{
+ const calls=[],f=fixture(async (...args)=>{calls.push(args);return {...f.basis,plan:null};});
+ assert.match(f.ctx.laterStage(f.app),/先讀取已保存的規劃/);
+ assert.match(f.ctx.laterStage(f.app),/#household-case/);
+ await f.listeners.click({target:{closest:()=>f.button}});
+ const html=f.ctx.laterStage(f.app);
+ assert.match(html,/沒有已保存的規劃/);
+ assert.match(html,/#household-case/);
+ // A native link is outside the bridge's delegated project read control.
+ const anchor={closest(selector){assert.equal(selector,'[data-v93-read]');return null;}};
+ await f.listeners.click({target:anchor});
+ assert.deepEqual(calls,[['/api/projects/project-a/stage3/planning']]);
+});
+
 test('saved conditional planning leads with readable materials and method, keeping full details closed',async()=>{
  const calls=[],f=fixture(async path=>{calls.push(path);return {...f.basis,plan:{kind:'Stage3DirectionPlanningResult',planning_status:'conditional-draft',markdown:'A saved conditional plan.\n\nAdditional paragraph.',question_plans:[{question_ref:'q1',method:'Compare held-fixed rules.',materials:'Published age tables; access still unknown.',design:'Proposed design only.',unknowns:['Verify table definitions.']}]},direction_context:{questions:[{question_ref:'q1',text:'How does age composition affect demand?'}]}};});
  await f.listeners.click({target:{closest:()=>f.button}});
@@ -158,6 +191,7 @@ test('saved conditional planning leads with readable materials and method, keepi
  assert.ok(html.indexOf('已保存的規劃摘要')<html.indexOf('研究關係圖與來源'));
  for(const text of ['How does age composition affect demand?','Compare held-fixed rules.','Published age tables; access still unknown.','Verify table definitions.','尚未執行實驗'])assert.ok(html.includes(text));
  assert.match(html,/<details class="n9-plan-details">/);assert.match(html,/<details class="n9-plan-graph">/);
+ assert.doesNotMatch(html,/#household-case/);
   assert.match(html,/<ol class="n9-plan-flow n9-source-flow">/);
   assert.equal((html.match(/class="n9-flow-heading"/g)||[]).length,8);
  assert.ok(html.includes('研究規劃流程（擬議）'));assert.ok(html.includes('各步驟尚未執行'));
@@ -267,7 +301,10 @@ test('missing or malformed project version cannot authorize a graph read',async(
  const f=fixture(),calls=[];f.ctx.liveRequest=async path=>{calls.push(path);return {}};
  for(const change of [{input_version:undefined},{revision:undefined},{brief_sha256:undefined},{brief_sha256:'bad'}]){
   f.state.overview.project={...f.basis,...change};await f.listeners.click({target:{closest:()=>f.button}});
-  assert.equal(f.ctx.laterStage(f.app),'<later/>');
+  const html=f.ctx.laterStage(f.app);
+  assert.ok(html.startsWith('<later/>'));
+  assert.match(html,/#household-case/);
+  assert.doesNotMatch(html,/data-v93-read/);
  }
  assert.deepEqual(calls,[]);
 });
