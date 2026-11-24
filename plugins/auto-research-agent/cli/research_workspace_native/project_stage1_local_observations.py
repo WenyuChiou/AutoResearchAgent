@@ -84,15 +84,17 @@ def _cell(raw, body):
     begin, end = offsets[column - 1]
     prefix = sum(map(len, lines[: row - 1]))
     unit = _text(body["unit"], 128)
+    # Support an explicit trailing unit declaration, not arbitrary prose or a
+    # component of a compound unit. "in dollars" is the saved BLS convention.
+    # Ambiguous/nested declarations fail closed; no conversion is inferred.
+    declaration = re.search(r"\((?:in )?([^()]+)\)\s*$", rows[row - 1][0])
     _check(
         type(body["start_byte"]) is int
         and type(body["end_byte"]) is int
         and (body["start_byte"], body["end_byte"]) == (prefix + begin, prefix + end)
         and raw[prefix + begin : prefix + end] == _text(body["quote"]).encode("utf8")
-        # Unit symbols are case-sensitive: g, mg and Mg are distinct. Match
-        # a whole label token, never a substring of another unit or word.
-        and re.search(r"(?<!\w)" + re.escape(unit) + r"(?!\w)", rows[row - 1][0])
-        is not None,
+        and declaration is not None
+        and unit == declaration.group(1).strip(),
         "local-observation-cell-bytes-or-unit-differs",
     )
     return dict(

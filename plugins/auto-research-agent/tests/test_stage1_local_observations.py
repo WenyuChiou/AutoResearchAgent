@@ -66,6 +66,73 @@ class LocalObservationTests(unittest.TestCase):
             for table in ("intake_actions", "intake_events")
         ]
 
+    def journal_rows(self, c):
+        return {
+            table: [
+                tuple(row)
+                for row in c.intake.db.execute(
+                    "SELECT * FROM " + table + " ORDER BY rowid"
+                )
+            ]
+            for table in ("intake_projects", "intake_actions", "intake_events")
+        }
+
+    def test_complete_compound_unit_refuses_both_components_without_writes(self):
+        with self.sample(b"Item,A\nConcentration (mg/L),42\n") as c:
+            service = ProjectStage1LocalObservationService(
+                c.service, agent_id="test-agent"
+            )
+            for unit in ("mg", "L"):
+                before = self.journal_rows(c)
+                with self.subTest(unit=unit), self.assertRaises(SessionApiError):
+                    service.record(
+                        "alice-token", c.ref, self.sample_body(c, unit, start=28)
+                    )
+                self.assertEqual(self.journal_rows(c), before)
+            body = self.sample_body(c, "mg/L", start=28)
+            first = service.record("alice-token", c.ref, body)
+            c.intake.close()
+            c.intake = ProjectIntakeService(c.root, authenticate=authenticate)
+            c.service = ProjectStage1Service(c.intake)
+            service = ProjectStage1LocalObservationService(
+                c.service, agent_id="test-agent"
+            )
+            before = self.journal_rows(c)
+            self.assertEqual(
+                service.read("alice-token", c.ref, body["key"])["observation"],
+                first["observation"],
+            )
+            again = service.record("alice-token", c.ref, body)
+            self.assertTrue(again["replayed"])
+            self.assertEqual(again["observation"], first["observation"])
+            self.assertEqual(self.journal_rows(c), before)
+
+    def test_explicit_compound_declarations_match_whole_original_spelling(self):
+        for unit, truncated in (
+            ("mg / L", "mg"),
+            ("mg·kg^-1", "kg"),
+            ("kg m^-2 s^-1", "m"),
+            ("m²/s", "s"),
+        ):
+            raw = f"Item,A\nMeasure ({unit}),42\n".encode("utf8")
+            with self.subTest(unit=unit), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                start = raw.index(b"42")
+                before = self.journal_rows(c)
+                with self.assertRaises(SessionApiError):
+                    service.record(
+                        "alice-token",
+                        c.ref,
+                        self.sample_body(c, truncated, start=start),
+                    )
+                self.assertEqual(self.journal_rows(c), before)
+                got = service.record(
+                    "alice-token", c.ref, self.sample_body(c, unit, start=start)
+                )
+                self.assertEqual(got["observation"]["cell"]["unit"], unit)
+
     def test_checkpoint_must_exist_and_cover_source_before_any_action(self):
         for timing, reason in (
             ("none", "local-observation-checkpoint-required"),
