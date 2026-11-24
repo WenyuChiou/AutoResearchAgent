@@ -229,6 +229,9 @@ def by_work(records, receipts, *, journal=None):
                     + "; input version: "
                     + str(binding["input_version"]),
                     "Work: " + work + "; version: " + version,
+                    "Candidate identity: "
+                    + row["identity_status"]
+                    + " (combined recorded discoveries; not a material-level verification).",
                     "",
                 ]
             )

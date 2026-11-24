@@ -346,6 +346,34 @@ class ProvidedProvenanceTests(unittest.TestCase):
             ],
         )
 
+    def test_conflicting_titles_preserve_candidate_and_material_identity(self):
+        c = self.case
+        c.admit()
+        first = sha(c.data)
+        c.data = b"category,value\nfood,200\n"
+        (c.material / "table.csv").write_bytes(c.data)
+        body = c.body("second")
+        body["source_uri"] = "https://example.org/second-file"
+        body["record"] = dict(
+            body["record"],
+            title="Different supplied title for the same DOI and version",
+        )
+        c.admit(body)
+        path = self.produce()
+        row = read_json(path)["screening_library"]["rows"][0]
+        self.assertEqual(row["identity_status"], "conflict")
+        self.assert_views_contain(
+            path,
+            [
+                "Candidate identity: conflict",
+                "Identity: unverified",
+                "https://example.org/table",
+                first,
+                "https://example.org/second-file",
+                sha(c.data),
+            ],
+        )
+
     def assert_views_contain(self, path, phrases):
         output = _io_root(private_output(self.case.root / "package"))
         receipt = build(path, output, sha(path.read_bytes()))
