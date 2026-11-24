@@ -1,6 +1,7 @@
 """Local cell notes retain agent identity and never become human evidence."""
 
 from copy import deepcopy
+from contextlib import contextmanager
 import unittest
 
 from research_workspace_native.project_intake import ProjectIntakeService
@@ -16,6 +17,123 @@ from test_workspace_project_intake import authenticate
 
 
 class LocalObservationTests(unittest.TestCase):
+    @contextmanager
+    def sample(self, raw, checkpoint="after"):
+        c = provided_fixture.ProvidedCandidateTests()
+        c.setUp()
+        try:
+            if checkpoint == "before":
+                c.service.checkpoint("alice-token", c.ref, c.action_body(c.ref, "cp"))
+            c.data = raw
+            (c.material / "table.csv").write_bytes(raw)
+            c.admit()
+            if checkpoint == "after":
+                c.service.checkpoint("alice-token", c.ref, c.action_body(c.ref, "cp"))
+            yield c
+            c.runner.assert_not_called()
+        finally:
+            c.tearDown()
+
+    def sample_body(self, c, unit="mg", *, row=2, column=2, quote="42", start=17):
+        view = c.intake.read("alice-token", c.ref)
+        stage = c.service.read("alice-token", c.ref)
+        source = c.private_ledger(c.ref).candidates()[c.work]["discoveries"][0][
+            "provided"
+        ]["material_ref"]
+        return dict(
+            key="sample-cell",
+            **{k: view[k] for k in ("revision", "input_version", "brief_sha256")},
+            ledger_state_sha256=stage["ledger"]["state_sha256"],
+            checkpoint_event_id=stage["checkpoint"]["event_id"]
+            if stage["checkpoint"]
+            else None,
+            work_id=c.work,
+            version_id=c.version,
+            source_ref=source,
+            material_sha256=sha(c.data),
+            row=row,
+            column=column,
+            start_byte=start,
+            end_byte=start + len(quote.encode("utf8")),
+            quote=quote,
+            unit=unit,
+            note="Agent local cell only.",
+        )
+
+    def counts(self, c):
+        return [
+            c.intake.db.execute("SELECT count(*) FROM " + table).fetchone()[0]
+            for table in ("intake_actions", "intake_events")
+        ]
+
+    def test_checkpoint_must_exist_and_cover_source_before_any_action(self):
+        for timing, reason in (
+            ("none", "local-observation-checkpoint-required"),
+            ("before", "local-observation-checkpoint-state-differs"),
+        ):
+            with (
+                self.subTest(timing=timing),
+                self.sample(b"Item,A\nMass (mg),42\n", timing) as c,
+            ):
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                before = self.counts(c)
+                with self.assertRaisesRegex(SessionApiError, reason):
+                    service.record("alice-token", c.ref, self.sample_body(c))
+                self.assertEqual(self.counts(c), before)
+                c.service.checkpoint(
+                    "alice-token", c.ref, c.action_body(c.ref, "current-cp")
+                )
+                self.assertEqual(
+                    service.record("alice-token", c.ref, self.sample_body(c))["status"],
+                    "saved",
+                )
+
+    def test_unit_is_complete_case_sensitive_token_and_rejections_do_not_write(self):
+        with self.sample(b"Item,A\nMass (mg),42\n") as c:
+            service = ProjectStage1LocalObservationService(
+                c.service, agent_id="test-agent"
+            )
+            before = self.counts(c)
+            for unit in ("g", "Mg"):
+                with (
+                    self.subTest(unit=unit),
+                    self.assertRaisesRegex(
+                        SessionApiError, "local-observation-cell-bytes-or-unit-differs"
+                    ),
+                ):
+                    service.record("alice-token", c.ref, self.sample_body(c, unit))
+                self.assertEqual(self.counts(c), before)
+            saved = service.record("alice-token", c.ref, self.sample_body(c))
+            self.assertEqual(saved["observation"]["cell"]["unit"], "mg")
+
+    def test_csv_lf_crlf_cr_keep_quoted_utf8_duplicate_cell_offsets(self):
+        token = '"é, ""x"""'
+        for newline in ("\n", "\r\n", "\r"):
+            raw = (f"Données,A,B{newline}Masse (mg),{token},{token}{newline}").encode(
+                "utf8"
+            )
+            with self.subTest(newline=repr(newline)), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                body = self.sample_body(
+                    c, column=3, quote=token, start=raw.rindex(token.encode("utf8"))
+                )
+                wrong = dict(body, start_byte=raw.index(token.encode("utf8")))
+                wrong["end_byte"] = wrong["start_byte"] + len(token.encode("utf8"))
+                before = self.counts(c)
+                with self.assertRaises(SessionApiError):
+                    service.record("alice-token", c.ref, wrong)
+                self.assertEqual(self.counts(c), before)
+                saved = service.record("alice-token", c.ref, body)
+                self.assertEqual(saved["observation"]["cell"]["cell_text"], 'é, "x"')
+                self.assertEqual(
+                    service.read("alice-token", c.ref, body["key"])["observation"],
+                    saved["observation"],
+                )
+
     def setUp(self):
         c = self.case = provided_fixture.ProvidedCandidateTests()
         c.setUp()

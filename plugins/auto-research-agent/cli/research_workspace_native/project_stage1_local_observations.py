@@ -9,6 +9,7 @@ from copy import deepcopy
 import csv
 import io
 import json
+import re
 
 from stage1_deliverable.common import canonical, sha
 from .project_intake_contract import _fields, identifier
@@ -48,7 +49,9 @@ def _text(value, maximum=512):
 def _cell(raw, body):
     """Single-line CSV records only; retain exact token bytes, not inferred prose."""
     lines = raw.splitlines(keepends=True)
-    rows = list(csv.reader(io.StringIO(raw.decode("utf8", errors="strict"))))
+    rows = list(
+        csv.reader(io.StringIO(raw.decode("utf8", errors="strict"), newline=""))
+    )
     row, column = body["row"], body["column"]
     _check(
         len(lines) == len(rows)
@@ -86,7 +89,10 @@ def _cell(raw, body):
         and type(body["end_byte"]) is int
         and (body["start_byte"], body["end_byte"]) == (prefix + begin, prefix + end)
         and raw[prefix + begin : prefix + end] == _text(body["quote"]).encode("utf8")
-        and unit.casefold() in rows[row - 1][0].casefold(),
+        # Unit symbols are case-sensitive: g, mg and Mg are distinct. Match
+        # a whole label token, never a substring of another unit or word.
+        and re.search(r"(?<!\w)" + re.escape(unit) + r"(?!\w)", rows[row - 1][0])
+        is not None,
         "local-observation-cell-bytes-or-unit-differs",
     )
     return dict(
@@ -128,9 +134,19 @@ class ProjectStage1LocalObservationService:
                 == body["ledger_state_sha256"],
                 "local-observation-ledger-stale",
             )
+            checkpoint_id = run.get("last_checkpoint")
             _check(
-                run.get("last_checkpoint") == body["checkpoint_event_id"],
+                isinstance(checkpoint_id, str) and bool(checkpoint_id),
+                "local-observation-checkpoint-required",
+            )
+            _check(
+                checkpoint_id == body["checkpoint_event_id"],
                 "local-observation-checkpoint-stale",
+            )
+            checkpoint = ledger.event(checkpoint_id, "Checkpoint")
+            _check(
+                checkpoint["state_sha256"] == report["state_sha256"],
+                "local-observation-checkpoint-state-differs",
             )
             candidate = ledger.candidates().get(body["work_id"])
             matches = (
