@@ -90,6 +90,29 @@ function realPlanImportReady(){
  return !!(!rt.busy&&!rt.loading&&!rt.pending&&p&&p.project_ref===rt.ref&&p.status!=='execution-unknown'&&p.intake_report?.necessary_clarification_complete===true&&p.plan===null&&s?.ledger===null&&['not-started','intake-not-ready'].includes(s.stage1_status)&&Array.isArray(m?.active_jobs)&&m.active_jobs.length===0&&(m.blocking_unknown_count??m.unknown_count??0)===0&&(!q||Array.isArray(q.jobs)&&q.jobs.length===0&&['permission-required','unavailable-or-stale','intake-prerequisite-required'].includes(q.status)&&q.execution_authorized!==true&&(!q.refusal||q.refusal==='intake-plan-not-ready')));
 }
 function realPlanDraftCurrent(){const p=rt.overview?.project,d=rt.planDraft;return !!(p&&d&&d.ref===rt.ref&&d.input_version===p.input_version&&d.revision===p.revision&&d.brief_sha256===p.brief_sha256);}
+function realInitializationOffer(){
+ const p=rt.overview?.project,s=rt.overview?.stage1,o=s?.initialization_offer;
+ if(!realActionEnvelope(s)||!Number.isSafeInteger(p.input_version)||p.input_version<1||s.input_version!==p.input_version||
+    p.status==='execution-unknown'||p.stage1_intake_ready!==true||s.stage1_status!=='not-started'||s.ledger!==null||
+    s.execution_authorized!==false||s.query_execution?.execution_authorized===true||
+    p.plan?.execution_status!=='not-executed'||p.plan.brief_sha256!==p.brief_sha256)return null;
+ const sha=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
+ return o?.status==='ready-for-offline-ledger-initialization'&&o.execution_authorized===false&&
+   o.project_id===p.project_id&&o.project_id===rt.ref&&o.input_version===p.input_version&&
+   sha(o.brief_sha256)&&o.brief_sha256===p.brief_sha256&&
+   sha(o.plan_manifest_sha256)&&o.plan_manifest_sha256===p.plan.manifest_sha256&&
+   sha(o.offer_sha256)&&o.offer_ref==='stage1-init-'+o.offer_sha256.slice(0,32)?o:null;
+}
+function realInitializationControls(){
+ const p=rt.overview?.project,s=rt.overview?.stage1;
+ if(realActionEnvelope(s)&&s.input_version===p.input_version&&s.stage1_status==='offline-ledger-active'&&s.ledger?.valid===true){
+  const saved=s.checkpoint?.current===true?rl('当前检查点已保存。',' The current checkpoint is saved.','目前檢查點已儲存。'):'';
+  return `<p data-real-initialization-status role="status">${rl('Stage1 本地记录已初始化。','Stage1 local records initialized.','Stage1 本機紀錄已初始化。')}${saved}</p>`;
+ }
+ if(!realInitializationOffer())return '';
+ return `<button type="button" class="hs-button" data-real-action="initialize" ${liveDisabled()}>${rl('初始化 Stage1 本地记录','Initialize Stage1 local records','初始化 Stage1 本機紀錄')}</button>
+    <p>${rl('初始化会创建本地记录。检索和模型调用各自需要许可。','Initialization creates local records. Search and model calls require separate permission.','初始化會建立本機紀錄。檢索和模型呼叫各自需要許可。')}</p>`;
+}
 function realServiceLabels(){
  const m=rt.overview?.models,s=rt.overview?.stage1,q=s?.query_execution,source=s?.source_execution;
  const label=(actual,configured)=>typeof actual==='boolean'?(actual?rl('已注册，执行需许可','Registered; permission required'):rl('未接通','Unconnected')):configured===false?rl('未注册','Not registered'):configured===true?rl('启动时配置，当前状态未确认','Configured at startup; current state unconfirmed'):'Unknown';
@@ -122,6 +145,7 @@ function realControls(){
   return `<section class="live-callout"><strong>${rl('真实 Harness 操作','Live Harness operations')}</strong>
     <p>Codex ${rx(rt.meta.model)} · Harness ${rx(rt.meta.harness_head?.slice(0,8))}</p>
     <p>${savedBudget?rl('当前项目已保存额度','Current project saved limits'):rl('新项目启动额度 · 尚未保存','New-project startup limits · not yet saved')}: ${rx(budget?.model_calls)} ${rl('次模型','model calls')} · ${rx(budget?.search_calls)} ${rl('次查询','queries')} · ${rx(budget?.source_reads)} ${rl('份公开来源','public sources')}。${rl('每一步单独执行；不会自动进入 Stage2。','Explicit steps; no automatic Stage2.')}</p>
+    ${realInitializationControls()}
     ${realPlanningFailure()}
     <button class="hs-button" data-real-action="authorize-plan" ${remaining&&planning.allowed?liveDisabled():'disabled'}>${rl('授权一次查询规划','Authorize one planning call')}</button>
     <button class="hs-button hs-button-primary" data-real-action="plan" ${offer&&planning.allowed?liveDisabled():'disabled'}>${rl('运行 Codex 查询规划','Run Codex planning')}</button>
@@ -167,6 +191,12 @@ document.addEventListener('click',async e=>{
   if(outputButton){e.preventDefault();const ref=rt.ref,epoch=rt.epoch,r0=rt.modelHistory.actions[Number(outputButton.dataset.realOutput)],r=r0.result||r0;let text='',offset=0;try{for(let n=0;n<32;n++){const part=await liveRequest(projectPath(ref,`models/outputs/${r.output_ref}/${offset}`));if(ref!==rt.ref||epoch!==rt.epoch)return;if(part.project_ref!==ref||part.output_ref!==r.output_ref||part.output_sha256!==r.output_sha256||part.offset!==offset)throw new Error('model-output-binding-mismatch');text+=part.text;if(part.next_offset===null)break;offset=part.next_offset;}rt.modelOutput={ref,sha:r.output_sha256,text};livePaint();}catch(err){rt.error=err.message;livePaint();}return;}
   const b=e.target.closest('[data-real-action]');if(!b||!liveReal())return;
   e.preventDefault();e.stopImmediatePropagation();const action=b.dataset.realAction;
+  if(action==='initialize'){
+   if(apps[0].stage!==1||liveDisabled())return;
+   const o=realInitializationOffer();
+   if(o)return livePost('stage1/initialize',{...liveBound(),offer_ref:o.offer_ref,offer_sha256:o.offer_sha256,confirmed:true});
+   return;
+  }
   if(action==='import-plan'){
    if(!realPlanImportReady())return;
    const p=rt.overview.project;rt.planDraft={ref:rt.ref,revision:p.revision,input_version:p.input_version,brief_sha256:p.brief_sha256,mode:'reviewed-import',text:''};livePaint();return;
