@@ -5,8 +5,9 @@ function m9Current(){return (m9.catalog?.materials||[]).filter(m=>m.project_ref=
 function m9Draft(m){return (m9.catalog?.drafts||[]).find(d=>d.id===m.id);}
 
 // The qualified Host integration may supply offer(binding), submit(intent) and
-// read(intent). The stock Wiki has no corresponding admission endpoint.
-const m9Admission={transport:null, active:new Set(), results:new Map(), open:new Set()};
+// read(intent). The offer binds the Host's preallocated key and complete
+// application request hash. The stock Wiki has no admission endpoint.
+const m9Admission={transport:null, active:new Set(), results:new Map(), writeBlocks:new Map(), open:new Set()};
 const m9SourceHash=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
 const m9SourceVersion=value=>Number.isSafeInteger(value)&&value>0||
  typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value);
@@ -16,6 +17,11 @@ const m9AdmissionTransport=()=>{
  const transport=m9Admission.transport;
  return transport&&['offer','submit','read'].every(method=>typeof transport[method]==='function')?transport:null;
 };
+const m9AdmissionLocks=()=>{
+ const locks=globalThis.navigator?.locks;
+ return typeof locks?.request==='function'?locks:null;
+};
+const m9AdmissionBusy=()=>rt.loading||rt.busy||rt.pending||rt.controlHeld;
 function m9SourceProject(m){
  const project=rt.overview?.project;
  return project&&project.project_ref===rt.ref&&m.project_ref===rt.ref&&m9SourceVersion(project.input_version)?project:null;
@@ -38,7 +44,7 @@ function m9AdmissionOffer(binding){
  let offer;
  try{offer=transport.offer(binding);}catch(_){return null;}
  return offer?.operation==='admit-saved-candidate'&&offer.execution_authorized===false&&
-  m9SourceRef(offer.offer_ref)&&m9SourceMatch(binding,offer)?offer:null;
+  m9SourceRef(offer.offer_ref)&&m9SourceRef(offer.key)&&m9SourceHash(offer.request_sha256)&&m9SourceMatch(binding,offer)?offer:null;
 }
 const m9IntentKey=scope=>'v9-provided-source-v1:'+JSON.stringify(scope);
 function m9ReadIntent(scope){
@@ -47,7 +53,7 @@ function m9ReadIntent(scope){
   if(raw===null)return {intent:null};
   const intent=JSON.parse(raw);
   if(m9SourceMatch(scope,intent)&&m9SourceRef(intent.key)&&m9SourceRef(intent.offer_ref)&&
-     Number.isSafeInteger(intent.revision)&&intent.revision>=0&&m9SourceHash(intent.brief_sha256)&&
+     m9SourceHash(intent.request_sha256)&&Number.isSafeInteger(intent.revision)&&intent.revision>=0&&m9SourceHash(intent.brief_sha256)&&
      m9SourceHash(intent.ledger_state_sha256)&&intent.confirmed===true)return {intent};
  }catch(_){/* A malformed or inaccessible marker must not allow another submission. */}
  return {unavailable:true};
@@ -67,9 +73,9 @@ function m9AdmissionView(m,scope){
  if(!scope)return unavailable(rl('当前项目或输入版本未能核对。','The current project or input version could not be verified.','目前專案或輸入版本無法核對。'));
  const {intent,unavailable:missing}=m9ReadIntent(scope);
  if(missing)return unavailable(rl('无法读取原操作记录，当前不能提交。','The original operation marker is unavailable, so submission is blocked.','無法讀取原操作紀錄，目前無法送出。'));
- const active=m9Admission.active.has(m9IntentKey(scope)),p=m9SourceProject(m);
+ const marker=m9IntentKey(scope),active=m9Admission.active.has(marker),p=m9SourceProject(m);
  if(intent){
-  const result=m9Admission.results.get(intent.key);
+  const result=m9AdmissionReceipt(intent,m9Admission.results.get(intent.key));
   const current=intent.brief_sha256===p.brief_sha256;
   let message=rl('结果未确认。读取原回执后才能确认，原请求不会自动重发。','Outcome unconfirmed. Read the original receipt to verify it. The request is not resent automatically.','結果未確認。讀取原回執後才能確認，原請求不會自動重送。');
   if(!current)message=rl('先前操作属于同一输入的旧范围。原回执保留在该次记录中。','The previous operation belongs to an older brief for this input. Its original receipt is retained.','先前操作屬於同一輸入的舊範圍。原回執保留在該次紀錄中。');
@@ -77,11 +83,15 @@ function m9AdmissionView(m,scope){
   else if(result)message=rl('原登记未完成','The original admission did not complete','原登記未完成')+' · '+rx(result.status);
   return `<p data-n9-candidate-status role="status">${message}</p>${current?`<button type="button" class="hs-button" data-n9-candidate-read="${rx(m.id)}" data-n9-candidate-scope="${rx(JSON.stringify(scope))}" ${active?'disabled':''}>${rl('查询原登记回执','Read original admission receipt','查詢原登記回執')}</button>`:''}`;
  }
+ const writeBlock=m9Admission.writeBlocks.get(marker);
+ if(writeBlock==='storage')return unavailable(rl('无法在浏览器保存原请求标识，本次未提交。','Could not save the original operation marker in browser storage. Nothing was submitted.','無法在瀏覽器儲存原請求識別碼，本次未送出。'));
+ if(writeBlock==='lock'||!m9AdmissionLocks())return unavailable(rl('浏览器未能取得同源操作锁，当前不能登记。','A same-origin operation lock is unavailable. Submission is blocked.','瀏覽器無法取得同來源操作鎖，目前無法登記。'));
  const binding=m9SourceBinding(scope),offer=m9AdmissionOffer(binding);
  if(!offer)return unavailable(rl('当前材料或版本未收到可用的绑定登记选项。','No bound admission offer is available for this material and version.','目前材料或版本未收到可用的綁定登記選項。'));
  return `<p data-n9-candidate-status role="status">${rl('确认提供这份材料。登记后仍待核实和筛选。','Provide this material explicitly. Verification and screening remain pending.','確認提供這份材料。登記後仍待核實與篩選。')}</p>
    <button type="button" class="hs-button" data-n9-candidate-submit="${rx(m.id)}" data-n9-candidate-offer="${rx(offer.offer_ref)}"
-    data-n9-candidate-binding="${rx(JSON.stringify(binding))}" ${active||rt.loading||rt.busy||rt.pending||rt.controlHeld?'disabled':''}>${rl('作为候选来源','Provide as a candidate source','作為候選來源')}</button>`;
+    data-n9-candidate-key="${rx(offer.key)}" data-n9-candidate-request="${rx(offer.request_sha256)}"
+    data-n9-candidate-binding="${rx(JSON.stringify(binding))}" ${active||m9AdmissionBusy()?'disabled':''}>${rl('作为候选来源','Provide as a candidate source','作為候選來源')}</button>`;
 }
 function m9SourceDetails(m,draft){
  if(m.stage!==1||m.kind!=='manual-file'||m.status!=='registered')return '';
@@ -106,23 +116,26 @@ document.addEventListener('toggle',e=>{
  if(!node.isConnected||!key)return;
  if(node.open)m9Admission.open.add(key);else m9Admission.open.delete(key);
 },true);
-document.addEventListener('click',async e=>{
- const button=e.target.closest('[data-n9-candidate-submit],[data-n9-candidate-read]'),transport=m9AdmissionTransport();
- if(!button||button.disabled||!transport||rt.loading||rt.busy||rt.pending||rt.controlHeld)return;
- const read=!!button.dataset.n9CandidateRead;
- const m=m9Current().find(item=>item.id===(read?button.dataset.n9CandidateRead:button.dataset.n9CandidateSubmit));
- const scope=m?.kind==='manual-file'&&m.status==='registered'?m9SourceScope(m):null;
- if(!scope)return;
- const marker=m9IntentKey(scope),prior=m9ReadIntent(scope);
- if(m9Admission.active.has(marker)||prior.unavailable)return;
+function m9AdmissionMaterial(id){
+ return m9Current().find(item=>item.id===id&&item.kind==='manual-file'&&item.status==='registered');
+}
+async function m9AdmissionAction(button,scope,transport,read){
+ const m=m9AdmissionMaterial(scope.material_id),marker=m9IntentKey(scope);
+ if(!m||!button.isConnected||button.disabled||m9AdmissionBusy()||transport!==m9AdmissionTransport()||
+    !m9SourceMatch(scope,m9SourceScope(m))||m9Admission.active.has(marker))return;
+ const prior=m9ReadIntent(scope);
+ if(prior.unavailable){livePaint();return;}
  let intent=prior.intent;
  if(read){
   if(!intent||intent.brief_sha256!==m9SourceProject(m).brief_sha256||button.dataset.n9CandidateScope!==JSON.stringify(scope))return;
  }else{
+  if(intent||m9Admission.writeBlocks.has(marker)){livePaint();return;}
   const binding=m9SourceBinding(scope),offer=m9AdmissionOffer(binding);
-  if(intent||!offer||offer.offer_ref!==button.dataset.n9CandidateOffer||JSON.stringify(binding)!==button.dataset.n9CandidateBinding)return;
-  intent={...binding,offer_ref:offer.offer_ref,key:crypto.randomUUID(),confirmed:true};
-  try{localStorage.setItem(marker,JSON.stringify(intent));}catch(_){livePaint();return;}
+  if(!offer||offer.offer_ref!==button.dataset.n9CandidateOffer||offer.key!==button.dataset.n9CandidateKey||
+     offer.request_sha256!==button.dataset.n9CandidateRequest||JSON.stringify(binding)!==button.dataset.n9CandidateBinding)return;
+  intent={...binding,offer_ref:offer.offer_ref,key:offer.key,request_sha256:offer.request_sha256,confirmed:true};
+  try{localStorage.setItem(marker,JSON.stringify(intent));}
+  catch(_){m9Admission.writeBlocks.set(marker,'storage');livePaint();return;}
  }
  m9Admission.active.add(marker);
  livePaint();
@@ -132,6 +145,26 @@ document.addEventListener('click',async e=>{
  }catch(_){/* Retain the same intent. An absent response says nothing about the write. */}
  finally{
   m9Admission.active.delete(marker);
+  if(m9SourceMatch(scope,m9SourceScope(m)))livePaint();
+ }
+}
+document.addEventListener('click',async e=>{
+ const button=e.target.closest('[data-n9-candidate-submit],[data-n9-candidate-read]'),transport=m9AdmissionTransport();
+ if(!button||button.disabled||!transport||m9AdmissionBusy())return;
+ const read=!!button.dataset.n9CandidateRead;
+ const m=m9AdmissionMaterial(read?button.dataset.n9CandidateRead:button.dataset.n9CandidateSubmit);
+ const scope=m?m9SourceScope(m):null;
+ if(!scope)return;
+ if(read)return m9AdmissionAction(button,scope,transport,true);
+ const locks=m9AdmissionLocks(),marker=m9IntentKey(scope);
+ if(!locks){livePaint();return;}
+ try{
+  await locks.request(marker,{mode:'exclusive',ifAvailable:true},lock=>{
+   if(lock)return m9AdmissionAction(button,scope,transport,false);
+   if(m9SourceMatch(scope,m9SourceScope(m)))livePaint();
+  });
+ }catch(_){
+  m9Admission.writeBlocks.set(marker,'lock');
   if(m9SourceMatch(scope,m9SourceScope(m)))livePaint();
  }
 });
