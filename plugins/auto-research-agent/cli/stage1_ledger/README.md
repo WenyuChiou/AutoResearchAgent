@@ -40,3 +40,8 @@ contained `source_relative` and matching `source_project_ref`, plus the same
 record, hash, URL, type, work/version and reason. The actor comes from the
 authenticated principal. This is a Core/application API, not a new Wiki HTTP
 route or authorization to execute queries, screen a work or launch a model.
+
+This first slice supports Core checkpoints, standard saved-artifact exports and
+project library reads. Canonical 1.2 screening/report packages still require
+backend-discovery lineage and do not yet consume provided candidates; do not
+claim a canonical researcher deliverable from this admission.

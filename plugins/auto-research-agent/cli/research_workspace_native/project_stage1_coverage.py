@@ -34,6 +34,7 @@ def unresolved(service, ref, actor, version):
         for raw in rows
         if (row := json.loads(raw[0]))["kind"]
         in {
+            "stage1-admit-saved-candidate",
             "stage1-coverage",
             "stage1-claim",
             "stage1-agent-pending",

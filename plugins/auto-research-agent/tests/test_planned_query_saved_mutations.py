@@ -31,6 +31,65 @@ if fixtures.RAW_SOURCE_PROOF is None:
 else:
 
     class SavedMutationTests(QueryCase):
+        def test_provided_candidate_uses_owned_saved_writer_without_query_execution(
+            self,
+        ):
+            from stage1_ledger.identity import work_key
+            from stage1_ledger.validation import validate_run
+
+            record = dict(
+                title="Operator supplied synthetic table",
+                authors=["Fixture Author"],
+                year=2024,
+                version="saved-v1",
+            )
+            key = work_key(record)
+            work = "work-" + sha(key.encode())
+            version = "version-" + sha(canonical([key, record["version"]]))
+            service = self.service()
+            original_tree = tree_sha(self.ledger_root)
+
+            def produce(ledger):
+                return ledger.admit_saved_candidate(
+                    record=record,
+                    material=b"saved table",
+                    material_sha256=sha(b"saved table"),
+                    source_uri="https://example.org/table",
+                    original_type="text/plain",
+                    actor="operator",
+                    reason="Explicit synthetic provided material",
+                    expected_state_sha256=ledger.state_hash(),
+                    expected_manifest_sha256=sha(canonical(ledger.manifest)),
+                    work_id=work,
+                    version_id=version,
+                )
+
+            with patch.object(
+                service, "_execute", side_effect=AssertionError("no search")
+            ):
+                first = self.invoke(
+                    service, operation="stage1-admit-saved-candidate", producer=produce
+                )
+                events = self.ledger.events()
+                repeated = service.mutate_saved(
+                    "secret",
+                    "case",
+                    "saved-1",
+                    sha(canonical(["stage1-admit-saved-candidate", "saved-1"])),
+                    original_tree,
+                    "stage1-admit-saved-candidate",
+                    produce,
+                )
+            self.assertEqual(first["status"], "completed")
+            self.assertEqual(repeated["status"], "completed")
+            self.assertEqual(self.ledger.events(), events)
+            report = validate_run(self.ledger_root)
+            self.assertTrue(report["valid"], report)
+            self.assertEqual(report["counts"]["works"], 1)
+            self.assertEqual(report["counts"]["queries"], 0)
+            self.assertEqual(report["counts"]["backend_attempts"], 0)
+            self.assertEqual(report["counts"]["decisions"], 0)
+
         def test_existing_pending_source_refuses_query_offer_and_reopen_without_io(
             self,
         ):

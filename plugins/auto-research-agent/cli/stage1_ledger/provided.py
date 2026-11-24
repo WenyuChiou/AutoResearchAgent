@@ -15,6 +15,17 @@ def discovery_order(discovery):
     return int(event[1:]), discovery["record_index"]
 
 
+def check_identity(record, work_id, version_id):
+    check_record(record)
+    if not record.get("version"):
+        raise LedgerError("provided-version-required")
+    key = work_key(record)
+    expected_work = "work-" + digest(key.encode())
+    expected_version = "version-" + digest(canonical([key, record["version"]]))
+    if (work_id, version_id) != (expected_work, expected_version):
+        raise LedgerError("provided-work-version-differs")
+
+
 def provided_revision(previous, *, record, provenance, source_ref):
     """Reuse work/version and conservative identity aggregation; no fake backend."""
     event_id = provenance["event_id"]
@@ -102,9 +113,7 @@ def admit(
         > ledger.manifest["max_artifact_bytes"]
     ):
         raise LedgerError("artifact-size-limit")
-    check_record(record)
-    if not record.get("version"):
-        raise LedgerError("provided-version-required")
+    check_identity(record, work_id, version_id)
     # Validate the entire future event before writing either artifact.
     ref = dict(
         kind="ArtifactRef",
@@ -137,11 +146,6 @@ def admit(
         or parts.password
     ):
         raise LedgerError("provided-public-url-required")
-    key = work_key(record)
-    expected_work = "work-" + digest(key.encode())
-    expected_version = "version-" + digest(canonical([key, record["version"]]))
-    if (work_id, version_id) != (expected_work, expected_version):
-        raise LedgerError("provided-work-version-differs")
     previous = ledger.candidates().get(work_id)
     if previous:
         for discovery in previous["discoveries"]:
