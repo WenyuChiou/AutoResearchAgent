@@ -361,9 +361,12 @@ def emit_timing(row):
 
 
 class TimedSerialResult(unittest.TextTestResult):
-    def __init__(self, *args, partition, **kwargs):
+    def __init__(self, *args, partition, planned_ids, **kwargs):
         super().__init__(*args, **kwargs)
         self.partition = partition
+        self.planned_positions = {}
+        for position, test_id in enumerate(planned_ids, 1):
+            self.planned_positions.setdefault(test_id, []).append(position)
 
     def outcome_counts(self):
         return {
@@ -375,11 +378,15 @@ class TimedSerialResult(unittest.TextTestResult):
         }
 
     def emit_case(self, name, test, sequence, **fields):
+        test_id = test.id()
         emit_timing(
             {
-                name: test.id(),
+                name: test_id,
                 "partition_id": self.partition,
                 "sequence": sequence,
+                # Class fixtures can omit starts. A repeated ID has multiple
+                # candidate plan positions even when only one occurrence starts.
+                "planned_positions": self.planned_positions.get(test_id, []),
                 "monotonic_ns": time.monotonic_ns(),
                 **fields,
             }
@@ -408,9 +415,15 @@ class TimedSerialResult(unittest.TextTestResult):
                 "passed" if self.test_passed else None,
             )
             if outcome is not None:
-                self.emit_case(
-                    "serial_test_completed", test, self.testsRun, outcome=outcome
-                )
+                fields = {"outcome": outcome}
+                new_skips = self.skipped[self.before_test["skipped"] :]
+                if new_skips:
+                    fields["skip_scope"] = (
+                        "test"
+                        if any(skipped is test for skipped, _ in new_skips)
+                        else "subtest"
+                    )
+                self.emit_case("serial_test_completed", test, self.testsRun, **fields)
         super().stopTest(test)
 
 
@@ -434,7 +447,9 @@ def run_partition(ids, directory, timing=None):
         print(json.dumps(started), flush=True)
     runner_options = {}
     if timing == "serial":
-        runner_options["resultclass"] = partial(TimedSerialResult, partition=digest)
+        runner_options["resultclass"] = partial(
+            TimedSerialResult, partition=digest, planned_ids=ids
+        )
     result = unittest.TextTestRunner(verbosity=2, **runner_options).run(suite)
     summary = {
         "test_ids_sha256": digest,
@@ -489,7 +504,9 @@ def run_parallel(suite, directory, workers, *, timing=False):
             serial_partition_id=partition_id(serial) if serial else None,
             serial_test_ids=serial,
         )
-    print(json.dumps(plan), flush=True)
+        emit_timing(plan)
+    else:
+        print(json.dumps(plan), flush=True)
     results = []
     incomplete = 0
     if groups:
@@ -510,6 +527,9 @@ def run_parallel(suite, directory, workers, *, timing=False):
             for future in as_completed(futures):
                 try:
                     results.append(future.result())
+                except KeyboardInterrupt as error:
+                    report_worker_result_unavailable(futures[future], error, timing)
+                    raise
                 except (Exception, SystemExit) as error:
                     incomplete += 1
                     report_worker_result_unavailable(futures[future], error, timing)
