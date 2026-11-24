@@ -109,14 +109,78 @@ function renderer(mutate = () => {}) {
 """
 
 
+CURRENT_VERSION_CHECK = CHECK.split("(async () => {", 1)[0] + r"""
+function versionTwo(mutate = () => {}) {
+  return renderer(state => {
+    const {project, offer, stage1} = state;
+    project.input_version = stage1.input_version = offer.input_version = 2;
+    project.revision = stage1.revision = 11;
+    project.brief_sha256 = project.plan.brief_sha256 = offer.brief_sha256 = 'd'.repeat(64);
+    project.plan.manifest_sha256 = offer.plan_manifest_sha256 = 'e'.repeat(64);
+    offer.offer_sha256 = 'f'.repeat(64);
+    offer.offer_ref = 'stage1-init-' + offer.offer_sha256.slice(0, 32);
+    stage1.stage1_status = 'stale-input';
+    mutate(state);
+  });
+}
+
+(async () => {
+  const button = /data-real-action="initialize"/;
+  const current = versionTwo();
+  assert.match(current.render(), button, 'the confirmed compiled v2 offer must be visible');
+  await current.tap();
+  assert.deepEqual(current.writes.map(({tail, body, ref}) => [tail, JSON.parse(JSON.stringify(body)), ref]),
+    [['stage1/initialize', {revision: 11, input_version: 2, brief_sha256: 'd'.repeat(64),
+      offer_ref: 'stage1-init-' + 'f'.repeat(32), offer_sha256: 'f'.repeat(64), confirmed: true},
+    'project-1']]);
+
+  const mismatches = {
+    'v1 historical offer': ({stage1}) => {stage1.initialization_offer = {
+      project_id: 'project-1', input_version: 1, brief_sha256: brief,
+      plan_manifest_sha256: plan, offer_ref: 'stage1-init-' + offerHash.slice(0, 32),
+      offer_sha256: offerHash, execution_authorized: false, status: 'ready-for-offline-ledger-initialization'};},
+    'foreign current project': ({rt}) => {rt.ref = 'project-2';},
+    'typed input mismatch': ({offer}) => {offer.input_version = '2';},
+    'different current brief': ({offer}) => {offer.brief_sha256 = brief;},
+    'different current plan': ({offer}) => {offer.plan_manifest_sha256 = plan;},
+    'unconfirmed current input': ({project}) => {project.stage1_intake_ready = false;
+      project.intake_report.necessary_clarification_complete = false;},
+    'uncompiled current input': ({project}) => {project.plan = null;},
+    'unknown current stage': ({stage1}) => {stage1.stage1_status = 'execution-unknown';},
+  };
+  for (const [name, mutate] of Object.entries(mismatches)) {
+    const rejected = versionTwo(mutate);
+    assert.doesNotMatch(rejected.render(), button, name);
+    await rejected.tap();
+    assert.deepEqual(rejected.writes, [], name);
+  }
+  current.stage1.stage1_status = 'offline-ledger-active';
+  current.stage1.ledger = {valid: true, run_ref: 'stage1-v2'};
+  current.stage1.initialization_offer = null;
+  assert.match(current.render(), /data-real-initialization-status/);
+  assert.doesNotMatch(current.render(), button);
+  await current.tap();
+  assert.equal(current.writes.length, 1, 'reopened initialized state cannot submit again');
+  console.log('PASS Stage1 current-version stale-ledger offer and ' +
+    Object.keys(mismatches).length + ' rejected version/brief/plan bindings');
+})().catch(error => {console.error(error); process.exitCode = 1;});
+"""
+
+
 class Stage1IntakeControlsTests(unittest.TestCase):
     def test_offline_initialization_control(self):
+        self._assert_check(CHECK, "PASS Stage1 bound initialization control")
+
+    def test_current_version_after_prior_ledger(self):
+        self._assert_check(CURRENT_VERSION_CHECK, "PASS Stage1 current-version stale-ledger offer")
+
+    def _assert_check(self, check, expected):
         node = shutil.which("node")
         self.assertIsNotNone(node, "Node is required for the Wiki renderer tests")
         source = Path(__file__).with_name("renderer") / "src/real-runtime.js"
         result = subprocess.run(
             [node, "-", str(source)],
-            input=CHECK,
+            input=check,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -125,4 +189,4 @@ class Stage1IntakeControlsTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn("PASS Stage1 bound initialization control", result.stdout)
+        self.assertIn(expected, result.stdout)

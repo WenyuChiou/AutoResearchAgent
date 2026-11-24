@@ -92,8 +92,9 @@ function realPlanImportReady(){
 function realPlanDraftCurrent(){const p=rt.overview?.project,d=rt.planDraft;return !!(p&&d&&d.ref===rt.ref&&d.input_version===p.input_version&&d.revision===p.revision&&d.brief_sha256===p.brief_sha256);}
 function realInitializationOffer(){
  const p=rt.overview?.project,s=rt.overview?.stage1,o=s?.initialization_offer;
+ // stale-input can describe a retained older ledger; the offer must still bind the current compiled input.
  if(!realActionEnvelope(s)||!Number.isSafeInteger(p.input_version)||p.input_version<1||s.input_version!==p.input_version||
-    p.status==='execution-unknown'||p.stage1_intake_ready!==true||s.stage1_status!=='not-started'||s.ledger!==null||
+    p.status==='execution-unknown'||p.stage1_intake_ready!==true||!['not-started','stale-input'].includes(s.stage1_status)||s.ledger!==null||
     s.execution_authorized!==false||s.query_execution?.execution_authorized===true||
     p.plan?.execution_status!=='not-executed'||p.plan.brief_sha256!==p.brief_sha256)return null;
  const sha=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
