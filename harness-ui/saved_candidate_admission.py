@@ -345,7 +345,7 @@ class SavedCandidateAdmission:
                 self.application.admit_saved_candidate(
                     credential,
                     intent["project_ref"],
-                    operation["request"],
+                    deepcopy(operation["request"]),
                     materials_root=self.store.root,
                     check_deadline=check_deadline,
                 )
@@ -378,12 +378,14 @@ class SavedCandidateAdmission:
         identity = {
             key: intent[key] for key in ("project_ref", "key", "request_sha256")
         }
+        # A receipt may describe the revision and ledger state after this write.
+        # The request hash and immutable scope identify the original operation.
         if (
             not isinstance(action, dict)
             or not _same(
                 action, dict(identity, kind=ACTION, execution_authorized=False)
             )
-            or not _same(action, {key: intent[key] for key in BINDING if key in action})
+            or not _same(action, {key: intent[key] for key in SCOPE if key in action})
         ):
             return result
         if (

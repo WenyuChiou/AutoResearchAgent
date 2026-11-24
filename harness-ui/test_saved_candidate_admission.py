@@ -41,13 +41,15 @@ class EngineeringApplication(ProjectStage1Service):
         super().__init__(projects)
         self.evidence = evidence
 
+    @staticmethod
+    def ledger_state(project_ref, revision):
+        return digest(canonical(["engineering", project_ref, revision]))
+
     def read(self, credential, project_ref):
         view = super().read(credential, project_ref)
         view["ledger"] = {
             "valid": True,
-            "state_sha256": digest(
-                canonical(["engineering", project_ref, view["revision"]])
-            ),
+            "state_sha256": self.ledger_state(project_ref, view["revision"]),
         }
         return view
 
@@ -63,14 +65,33 @@ class EngineeringApplication(ProjectStage1Service):
             assert self.evidence["release"].wait(10)
         if self.evidence.get("unobserved"):
             raise OSError("Isolated lost application response")
+
+        def work(state, *_):
+            if self.evidence.get("mutate_application_body"):
+                # _perform has already hashed and saved the original intent.
+                body.update(
+                    work_id="work-" + "5" * 64, version_id="version-" + "6" * 64
+                )
+            result = dict(
+                work_id=body["work_id"],
+                version_id=body["version_id"],
+                event_id="e000001",
+                reused=False,
+            )
+            if self.evidence.get("receipt_includes_result_state"):
+                revision = state["revision"] + 1
+                result.update(
+                    revision=revision,
+                    ledger_state_sha256=self.ledger_state(project_ref, revision),
+                )
+            return result
+
         return self.intake._perform(
             self.intake._principal(credential),
             project_ref,
             ACTION,
             body,
-            lambda *_: dict(
-                work_id=WORK, version_id=VERSION, event_id="e000001", reused=False
-            ),
+            work,
             check_deadline=check_deadline,
         )
 
@@ -373,6 +394,58 @@ class SavedCandidateHttpTests(unittest.TestCase):
         with self.running(synthetic_view=False):
             self.assertEqual(self.recover(intent)[1]["status"], "saved")
         self.assertEqual(len(self.evidence["requests"]), 1)
+
+    def test_saved_action_may_include_its_resulting_revision_and_ledger_state(self):
+        self.evidence["receipt_includes_result_state"] = True
+        with self.running(writer=True):
+            intent = self.intent()
+            status, posted = self.submit(intent)
+            self.assertEqual(status, 200)
+            action = self.projects.action(
+                self.token, intent["key"], project_ref=self.ref
+            )
+            current = self.current(self.ref, self.material)
+            self.assertEqual(action["request_sha256"], intent["request_sha256"])
+            self.assertEqual(action["revision"], current["revision"])
+            self.assertEqual(
+                action["ledger_state_sha256"], current["ledger_state_sha256"]
+            )
+            self.assertGreater(action["revision"], intent["revision"])
+            self.assertNotEqual(
+                action["ledger_state_sha256"], intent["ledger_state_sha256"]
+            )
+        with self.running(synthetic_view=False):
+            status, reopened = self.recover(intent)
+            self.assertEqual(status, 200)
+        self.assertEqual(len(self.evidence["requests"]), 1)
+        self.assertEqual([posted["status"], reopened["status"]], ["saved", "saved"])
+        for receipt in (posted, reopened):
+            self.assertEqual(receipt["revision"], intent["revision"])
+            self.assertEqual(
+                receipt["ledger_state_sha256"], intent["ledger_state_sha256"]
+            )
+
+    def test_mutated_application_body_does_not_authenticate_a_wrong_work_receipt(self):
+        self.evidence["mutate_application_body"] = True
+        with self.running(writer=True):
+            intent = self.intent()
+            status, posted = self.submit(intent)
+            self.assertEqual(status, 200)
+            action = self.projects.action(
+                self.token, intent["key"], project_ref=self.ref
+            )
+            self.assertEqual(action["request_sha256"], intent["request_sha256"])
+            self.assertEqual(action["status"], "saved")
+            self.assertEqual(action["work_id"], "work-" + "5" * 64)
+            self.assertEqual(action["version_id"], "version-" + "6" * 64)
+        with self.running(synthetic_view=False):
+            status, reopened = self.recover(intent)
+            self.assertEqual(status, 200)
+        self.assertEqual(len(self.evidence["requests"]), 1)
+        self.assertEqual(
+            [posted["status"], reopened["status"]],
+            ["execution-unknown", "execution-unknown"],
+        )
 
     def test_unknown_across_restart_only_reads_original_action(self):
         self.evidence["unobserved"] = True
