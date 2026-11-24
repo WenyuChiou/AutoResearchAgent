@@ -1,5 +1,7 @@
 """Typed input identity reaches the real six-stage script without research."""
 
+from contextlib import redirect_stdout
+import io
 import json
 from pathlib import Path
 import shutil
@@ -9,6 +11,7 @@ from types import SimpleNamespace
 import unittest
 
 PLUGIN = Path(__file__).resolve().parents[1]
+NON_ASCII_VERSIONS = ("\U0001f600" * 128, "\ufeffversion")
 sys.path.insert(0, str(PLUGIN / "cli"))
 from research_workspace_native.project_contract import project_view  # noqa: E402
 
@@ -50,7 +53,7 @@ class TypedStageNavigationTests(unittest.TestCase):
         self.assertEqual(report["languages"], 3)
         self.assertGreaterEqual(report["refused_contracts"], 30)
         self.assertEqual(report["side_effects"], 0)
-        print(result.stdout.strip())
+        print(json.dumps(report, ensure_ascii=True))
 
     def test_integer_keeps_legacy_schema_and_navigation(self):
         self.check_navigation(1)
@@ -60,11 +63,24 @@ class TypedStageNavigationTests(unittest.TestCase):
             "fresh-1",
             "20261009-A03",
             "1",
-            "\U0001f600" * 128,
-            "\ufeffversion",
+            *NON_ASCII_VERSIONS,
         ):
             with self.subTest(version=version):
                 self.check_navigation(version)
+
+    def test_non_ascii_diagnostics_write_to_cp1252(self):
+        for version in NON_ASCII_VERSIONS:
+            with self.subTest(version=version):
+                with io.TextIOWrapper(
+                    io.BytesIO(), encoding="cp1252", errors="strict"
+                ) as output:
+                    with redirect_stdout(output):
+                        self.check_navigation(version)
+                    output.flush()
+                    report = json.loads(output.buffer.getvalue().decode("cp1252"))
+                self.assertEqual(report["version_type"], "string")
+                self.assertIs(type(report["version"]), str)
+                self.assertEqual(report["version"], version)
 
 
 if __name__ == "__main__":
