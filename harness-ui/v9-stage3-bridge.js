@@ -225,12 +225,27 @@ function v93SavedPlanSummary(view){
  }).join('');
  return `<section class="n9-plan-overview"><h2>${rl('已保存的规划摘要','Saved planning summary','已保存的規劃摘要')}</h2><p class="n9-plan-state">${plan.planning_status==='conditional-draft'?rl('条件式草案','Conditional draft','條件式草案'):rl('规划草案','Planning draft','規劃草案')} · ${rl('尚未执行实验','Experiments have not been run','尚未執行實驗')}</p>${lead?`<p class="n9-plan-lead">${rx(lead)}</p>`:''}${content}</section>`;
 }
+function v93PublicArchive(){
+ const report='https://wenyuchiou.github.io/AutoResearchAgent/stage-3/';
+ return `<section class="hs-panel">
+  <h2>${rl('已发布的研究设计案例','Published research design case','已發布的研究設計案例')}</h2>
+  <p>${rl('美国居民消费案例是独立的只读归档。当前项目的计划状态见上方。','The U.S. household spending case is a separate read-only archive. This project’s plan status is shown above.','美國居民消費案例是獨立的唯讀歸檔。目前專案的計畫狀態見上方。')}</p>
+  <div class="n9-page-actions">
+   <a class="hs-button" target="_blank" rel="noopener noreferrer" href="${report}#household-case">${rl('查看美国居民消费案例','Open the U.S. household spending case','查看美國居民消費案例')}</a>
+   <a class="hs-button" target="_blank" rel="noopener noreferrer" href="${report}#data-methods">${rl('数据与方法','Data and methods','資料與方法')}</a>
+   <a class="hs-button" target="_blank" rel="noopener noreferrer" href="${report}#validation">${rl('研究验证','Study validation','研究驗證')}</a>
+   <a class="hs-button" target="_blank" rel="noopener noreferrer" href="${report}#harness-evaluation">${rl('计划评估','Plan evaluation','計畫評估')}</a>
+  </div>
+ </section>`;
+}
 const v93Later=laterStage;
 laterStage=function(app){
- const basis=v93Identity();if(app.stage!==3||!basis)return v93Later(app);
+ if(app.stage!==3)return v93Later(app);
+ const basis=v93Identity();
+ if(!basis)return v93Later(app)+v93PublicArchive();
  const view=v93Matches(v93.basis,basis)?v93.view:null, error=v93Matches(v93.errorBasis,basis)?v93.error:'';
  const href='/project-stage3-planning.html'+v93Fragment(basis.project_ref,app,3);
- return `${canonicalTop()}<section class="hs-panel"><p class="hs-eyebrow">STAGE 03</p><h1>${rl('研究设计与可行性','Research design & feasibility','研究設計與可行性')}</h1><p>${rl('将偏好方向逐题对应到资料、方法、设计与结果判读；草案不代表研究已执行。','Connect the preferred direction to data, methods, study design and interpretation, one question at a time. A draft does not mean research has been run.','將偏好方向逐題對應到資料、方法、設計與結果判讀；草案不代表研究已執行。')}</p><div class="n9-page-actions"><button class="hs-button hs-button-primary" data-v93-read ${v93.busy?'disabled':''}>${rl('查看已保存的规划','View saved plan','檢視已保存的規劃')}</button><a class="hs-button" href="${rx(href)}">${rl('打开规划与收据','Open planning and receipt','開啟規劃與收據')}</a></div><p role="status">${rx(error||(v93.busy?rl('正在读取已保存的规划，不会重新生成。','Reading the saved plan; no generation will be started.','正在讀取已保存的規劃，不會重新生成。'):!view?rl('先读取已保存的规划，查看摘要与待查事项。','Read the saved plan to see its summary and open checks.','先讀取已保存的規劃，查看摘要與待查事項。'):!view.plan?rl('目前没有已保存的规划；图中仅显示可用的问题与待确认事项。','No saved plan is available; the diagram shows only available questions and unknowns.','目前沒有已保存的規劃；圖中僅顯示可用的問題與待確認事項。'):''))}</p>${v93SavedPlanSummary(view)}<details class="n9-plan-graph"${view?.plan?.kind==='Stage3ResearchPlan'?' open':''}><summary>${rl('研究关系图与来源','Research map and sources','研究關係圖與來源')}</summary><div id="v93-diagram"></div></details></section>`;
+ return `${canonicalTop()}<section class="hs-panel"><p class="hs-eyebrow">STAGE 03</p><h1>${rl('研究设计与可行性','Research design & feasibility','研究設計與可行性')}</h1><p>${rl('将偏好方向逐题对应到资料、方法、设计与结果判读；草案不代表研究已执行。','Connect the preferred direction to data, methods, study design and interpretation, one question at a time. A draft does not mean research has been run.','將偏好方向逐題對應到資料、方法、設計與結果判讀；草案不代表研究已執行。')}</p><div class="n9-page-actions"><button class="hs-button hs-button-primary" data-v93-read ${v93.busy?'disabled':''}>${rl('查看已保存的规划','View saved plan','檢視已保存的規劃')}</button><a class="hs-button" href="${rx(href)}">${rl('打开规划与收据','Open planning and receipt','開啟規劃與收據')}</a></div><p role="status">${rx(error||(v93.busy?rl('正在读取已保存的规划，不会重新生成。','Reading the saved plan; no generation will be started.','正在讀取已保存的規劃，不會重新生成。'):!view?rl('先读取已保存的规划，查看摘要与待查事项。','Read the saved plan to see its summary and open checks.','先讀取已保存的規劃，查看摘要與待查事項。'):!view.plan?rl('目前没有已保存的规划；图中仅显示可用的问题与待确认事项。','No saved plan is available; the diagram shows only available questions and unknowns.','目前沒有已保存的規劃；圖中僅顯示可用的問題與待確認事項。'):''))}</p>${v93SavedPlanSummary(view)}<details class="n9-plan-graph"${view?.plan?.kind==='Stage3ResearchPlan'?' open':''}><summary>${rl('研究关系图与来源','Research map and sources','研究關係圖與來源')}</summary><div id="v93-diagram"></div></details></section>`+(view?.plan?'':v93PublicArchive());
 };
 const v93After=v7AfterRender;
 v7AfterRender=function(app){
