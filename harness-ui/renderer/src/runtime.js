@@ -1,7 +1,7 @@
 // Executed inside the retained V7 module. Repository APIs own state and authority.
 const rt = {ref:null, epoch:0, loading:false, busy:false, list:[], overview:null, atlas:null,
   history:null, modelHistory:null, native:null, meta:null, selected:null, error:'', file:null, feedback:false,
-  phase:'delivery', assistant:false, tab:'chat', draft:'', topicDraft:'', mode:3, focus:null, pending:null};
+  phase:'delivery', assistant:false, tab:'chat', draft:'', topicDraft:'', mode:3, focus:null, pending:null, projectReadStatus:null, projectFallback:false};
 try { rt.pending = JSON.parse(sessionStorage.getItem('v7-pending-action') || 'null'); } catch (_) {}
 // Presentation preferences only: never read or modify action intents or permits.
 const livePanelNames=new Set(['sources','native-control','model-retirement']),livePanelStates=new Map(),livePanelStorage='v7-panel-state-v1';
@@ -48,12 +48,12 @@ async function liveRequest(path,body){
  const value=await response.json();if(!response.ok){const e=new Error(value.error||`HTTP ${response.status}`);e.status=response.status;e.receipt=value.receipt;throw e;}return value;
 }
 async function liveRefresh(ref=rt.ref,{list=false}={}){
- const epoch=++rt.epoch;rt.loading=true;rt.error='';rt.file=null;
+ const epoch=++rt.epoch;rt.loading=true;rt.error='';rt.file=null;rt.projectReadStatus=null;
   if(ref!==rt.ref){rt.ref=ref;rt.overview=null;rt.atlas=null;rt.history=null;rt.native=null;rt.modelHistory=null;rt.selected=null;rt.focus=null;rt.draft='';rt.scopeDraft=null;rt.planDraft=null;rt.realPhasePinned=false;}
  livePaint();
  try{
   const projects=list?await liveRequest('/api/projects'):rt.list;if(epoch!==rt.epoch)return;rt.list=Array.isArray(projects)?projects:projects.projects||[];
-  if(!ref){ref=rt.meta?.case_ref||rt.list[0]?.project_ref;rt.ref=ref;}
+  if(!ref){ref=liveHomeProject();rt.ref=ref;}
   if(!ref)return;
   const overview=await liveRequest(projectPath(ref,'overview'));if(epoch!==rt.epoch)return;
   if(overview.project.project_ref!==ref)throw new Error('project-binding-mismatch');
@@ -66,7 +66,8 @@ async function liveRefresh(ref=rt.ref,{list=false}={}){
   if(atlas&&(atlas.project_ref!==ref||atlas.revision!==overview.project.revision||atlas.input_version!==overview.project.input_version||atlas.manifest_sha256!==overview.stage1.delivery.canonical_package.manifest_sha256))throw new Error('artifact-binding-mismatch');
   rt.atlas=atlas;rt.history=history;rt.native=native;rt.modelHistory=modelHistory;
   if(!rows().some(p=>p.work_id===rt.selected))rt.selected=rows()[0]?.work_id||null;
- }catch(error){if(epoch===rt.epoch){rt.error=error.message;rt.atlas=null;rt.native=null;}}
+  liveRememberProject();
+ }catch(error){if(epoch===rt.epoch){rt.projectReadStatus=rt.overview?null:error.status;rt.error=error.message;rt.atlas=null;rt.native=null;}}
  finally{if(epoch===rt.epoch){rt.loading=false;livePaint();}}
 }
 async function liveReceiptBound(p,a){
@@ -109,7 +110,25 @@ async function liveRecover(){
  catch(e){if(rt.pending!==p)return;rt.error=e.message;livePaint();}
 }
 const liveDisabled=()=>rt.busy||rt.loading||rt.pending||rt.controlHeld?'disabled':'';
-function liveTop(app){return `<section class="lp-topic hs-panel"><div class="lp-topic-title"><h2>${rl('项目与研究主题','Project & research topic')}</h2><span class="hs-status">${rl('已连接本地 Harness','Local Harness connected')}</span></div><div class="lp-topic-fields"><label>${rl('当前项目','Current project')}<select data-live-project ${rt.busy?'disabled':''}>${rt.list.map(p=>`<option value="${rx(p.project_ref)}" ${p.project_ref===rt.ref?'selected':''}>${rx(p.topic||p.brief?.original_description||p.project_ref)}</option>`).join('')}</select></label><label>${rl('新研究主题','New topic')}<div class="lp-topic-entry"><input data-live-topic maxlength="240" value="${rx(rt.topicDraft)}" ${rt.loading||rt.busy?'disabled':''} placeholder="${rl('输入你的研究主题','Enter a topic')}"><button class="hs-button" data-live-action="create" ${liveDisabled()}>${rl('创建项目','Create project')}</button></div></label></div><small>${rl('保存选题不启动研究。每个项目独立保存进度与结果。','Saving a topic does not start research. Each project has separate state and results.')}</small></section>`;}
+const liveProjectPreference='v7-last-project-v1';
+function liveSavedProject(){try{const ref=localStorage.getItem(liveProjectPreference);return rt.list.find(p=>p.project_ref===ref)?.project_ref;}catch(_){return null;}}
+function liveHomeProject(excluded=null){return rt.list.find(p=>p.project_ref===rt.meta?.case_ref&&p.project_ref!==excluded)?.project_ref||rt.list.find(p=>p.project_ref!==excluded)?.project_ref;}
+function liveRememberProject(){
+ if(rt.overview?.project?.project_ref!==rt.ref&&rt.savedRun?.entry?.project_ref!==rt.ref)return;
+ try{localStorage.setItem(liveProjectPreference,rt.ref);}catch(_){/* The explicit project URL still works without optional browser storage. */}
+}
+function liveProjectRoute(){
+ if(rt.error||!rt.ref||!rt.list.some(p=>p.project_ref===rt.ref))return;
+ const base=location.pathname+location.search;
+ if(!/^[A-Za-z0-9_-]{1,64}$/.test(rt.ref)){history.replaceState(history.state,'',base);return;}
+ const app=apps[0],separator=location.hash.indexOf('?');let previous;
+ try{previous=decodeURIComponent(location.hash.slice(1,separator<0?undefined:separator));}catch(_){}
+ const params=new URLSearchParams(previous===rt.ref&&separator>=0?location.hash.slice(separator+1):'');
+ params.set('stage',String(app.stage));params.set('lang',({zh:'zh-CN',tw:'zh-TW',en:'en'})[app.lang]||'en');
+ history.replaceState(history.state,'',base+'#'+encodeURIComponent(rt.ref)+'?'+params.toString());
+}
+function liveProjectLabel(p){return `${p.project_ref} · ${rl('输入版本','Input version','輸入版本')} ${p.input_version??'Unknown'} · ${p.topic||p.brief?.original_description||p.project_ref}`;}
+function liveTop(app){return `<section class="lp-topic hs-panel"><div class="lp-topic-title"><h2>${rl('项目与研究主题','Project & research topic')}</h2><span class="hs-status">${rl('已连接本地 Harness','Local Harness connected')}</span></div><div class="lp-topic-fields"><label>${rl('当前项目','Current project')}<select data-live-project ${rt.busy?'disabled':''}>${rt.list.map(p=>`<option value="${rx(p.project_ref)}" ${p.project_ref===rt.ref?'selected':''}>${rx(liveProjectLabel(p))}</option>`).join('')}</select></label><label>${rl('新研究主题','New topic')}<div class="lp-topic-entry"><input data-live-topic maxlength="240" value="${rx(rt.topicDraft)}" ${rt.loading||rt.busy?'disabled':''} placeholder="${rl('输入你的研究主题','Enter a topic')}"><button class="hs-button" data-live-action="create" ${liveDisabled()}>${rl('创建项目','Create project')}</button></div></label></div><small data-live-project-identity style="overflow-wrap:anywhere">${rl('项目标识','Project ID','專案識別碼')}: ${rx(rt.ref)} · ${rl('输入版本','Input version','輸入版本')} ${rx(rt.overview?.project?.input_version)}</small>${rt.projectFallback?`<p role="status" data-live-project-notice>${rl('原链接或上次项目不可访问；已打开当前可用项目，请核对项目标识。','The linked or previous project is unavailable. An accessible project is open; check its project ID.','原連結或上次專案無法存取；已開啟目前可用專案，請核對專案識別碼。')}</p>`:''}<small>${rl('保存选题不启动研究。每个项目独立保存进度与结果。','Saving a topic does not start research. Each project has separate state and results.')}</small></section>`;}
 function liveHeader(app){return `<div class="hs-heading"><div><p class="hs-eyebrow">STAGE ${String(app.stage).padStart(2,'0')} / 06</p><h1>${app.stage===1?rl('文献知识网络','Literature knowledge network'):rl('研究方向比较工作台','Research comparison workbench')}</h1><p>${rx(rt.overview?.project?.brief?.original_description)}</p></div><span class="hs-status">${rt.ref===rt.meta?.case_ref?rl('仓库离线 case · 非研究结论','Repository offline case · not research findings'):rl('本地项目','Local project')}</span></div>${rt.error?`<div class="live-error" role="alert">${rl('本次操作未完成','Operation did not complete')}：${rx(rt.error)} <button data-live-action="refresh" class="hs-button">${rl('刷新检查','Refresh')}</button></div>`:''}${rt.pending?`<div class="live-error">${rt.busy?rl('操作已提交，等待保存结果','Submitted; waiting for saved outcome'):rl('上次请求结果尚未确认，已阻止重复提交','Previous outcome unknown; duplicate submission blocked')} <button class="hs-button" data-live-action="recover" ${rt.busy?'disabled':''}>${rl('查询上次结果','Check outcome')}</button></div>`:''}`;}
 function liveScopeBasis(){return JSON.stringify([rt.ref,rt.overview?.project?.input_version]);}
 function liveScopeValues(){return rt.scopeDraft?.basis===liveScopeBasis()?rt.scopeDraft.values:{geography:'',geographyValue:'',target:'30',priority:'20',note:''};}
@@ -212,7 +231,7 @@ v7AfterRender=function(app){previousAfter(app);const footer=app.el.querySelector
 };
 document.addEventListener('change',event=>{if(event.target.matches('[data-live-labels]')){rt.graphLabels=event.target.checked;apps[0].v7Spatial?.setLabels(rt.graphLabels);}if(event.target.matches('[data-live-related]')){rt.related=event.target.checked;livePaint();}});
 document.addEventListener('click',event=>{const button=event.target.closest('[data-live-fit],[data-live-focus]');if(!button)return;event.preventDefault();if(button.hasAttribute('data-live-focus'))apps[0].v7Spatial?.fitFocus();else apps[0].v7Spatial?.fit();});
-document.addEventListener('change',e=>{liveScopeInput(e);if(e.target.matches('[data-live-project]')){e.stopImmediatePropagation();liveRefresh(e.target.value);} });
+document.addEventListener('change',async e=>{liveScopeInput(e);if(e.target.matches('[data-live-project]')){e.stopImmediatePropagation();const ref=e.target.value;await liveRefresh(ref);if(rt.ref===ref&&!rt.error){rt.projectFallback=false;liveRememberProject();liveProjectRoute();livePaint();}} });
 document.addEventListener('input',e=>{liveScopeInput(e);if(e.target.matches('[data-live-review],[data-live-draft]'))rt.draft=e.target.value;if(e.target.matches('[data-live-topic]'))rt.topicDraft=e.target.value;});
 document.addEventListener('toggle',e=>{if(e.target.matches('[data-live-feedback]'))rt.feedback=e.target.open;if(e.target.matches('[data-live-assistant]'))rt.assistant=e.target.open;},true);
 document.addEventListener('click',async e=>{
@@ -235,7 +254,16 @@ document.addEventListener('click',async e=>{
 },true);
 // Load only on this local server. No model, stage or search action runs on read.
 rt.overview=null;rt.atlas=null;livePaint();
-Promise.all([liveRequest('/v7-case.json'),liveRequest('/api/projects')]).then(async([meta,list])=>{rt.meta=meta;rt.list=Array.isArray(list)?list:list.projects||[];const requested=typeof v93RouteTarget==='function'?v93RouteTarget(rt.list):null;await liveRefresh(rt.pending?.ref||requested?.ref||meta.case_ref||rt.list[0]?.project_ref);if(requested&&!rt.pending&&requested.ref===rt.ref){apps[0].stage=requested.stage;apps[0].lang=requested.lang;livePaint();}if(rt.pending)await liveRecover();}).catch(e=>{rt.error=e.message;rt.loading=false;livePaint();});
+Promise.all([liveRequest('/v7-case.json'),liveRequest('/api/projects')]).then(async([meta,list])=>{
+ rt.meta=meta;rt.list=Array.isArray(list)?list:list.projects||[];const requested=typeof v93RouteTarget==='function'?v93RouteTarget(rt.list):null;
+ let linked;try{linked=decodeURIComponent(location.hash.slice(1).split('?')[0]);}catch(_){}
+ rt.projectFallback=!!linked&&/^[A-Za-z0-9_-]{1,64}$/.test(linked)&&!rt.list.some(p=>p.project_ref===linked);
+ await liveRefresh(rt.pending?.ref||requested?.ref||liveSavedProject()||liveHomeProject());
+ if(!rt.pending&&[403,404].includes(rt.projectReadStatus)){const fallback=liveHomeProject(rt.ref);if(fallback){rt.projectFallback=true;await liveRefresh(fallback);}}
+ if(requested&&!rt.pending&&requested.ref===rt.ref){apps[0].stage=requested.stage;apps[0].lang=requested.lang;livePaint();}
+ if(rt.projectFallback&&!rt.pending)liveProjectRoute();
+ if(rt.pending)await liveRecover();
+}).catch(e=>{rt.error=e.message;rt.loading=false;livePaint();});
 setInterval(()=>{if(document.hidden||rt.busy||rt.loading||document.activeElement?.matches('textarea,input,select')||document.activeElement?.shadowRoot?.activeElement?.matches('textarea,input,select'))return;const s=rt.overview?.stage1,jobs=[...Object.values(rt.overview?.models?.jobs||{}),...Object.values(s?.query_execution?.jobs||{}),...Object.values(s?.source_execution?.jobs||{})];const running=jobs.some(j=>['reserved','queued','running','dispatching','acquiring','parsing','submitted','in_progress'].includes(j.status)||['running','queued','parsing'].includes(j.followup?.status));if(running||(rt.overview?.models?.active_jobs||[]).length||(typeof realQueryPending==='function'&&realQueryPending()))liveRefresh();},10000);
 
 function liveReason(reason){
