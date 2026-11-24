@@ -266,8 +266,10 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
         )
         checkpoint = {"path": str(initial_path), "sha256": initial["checkpoint_sha256"]}
 
+        plan_to_return = self.fx.plan
+
         def transport(command, **_):
-            raw = canonical_bytes(self.fx.plan)
+            raw = canonical_bytes(plan_to_return)
             Path(command[command.index("-o") + 1]).write_bytes(raw)
             events = [
                 {
@@ -312,6 +314,32 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
             self.view["job"]["request_sha256"] = pins["expected_request_sha256"]
             binding = self.binding()
             pins["expected_plan_manifest_sha256"] = saved["plan"]["manifest_sha256"]
+            # Version two also depends on a native plan in its input checkpoint.
+            plan_to_return = dict(self.fx.plan, version=2)
+            next_adapter = NativePlanner(
+                codex=sys.executable,
+                codex_home=home,
+                capture_dir=root / "next-capture",
+                timeout_seconds=30,
+            )
+            next_prepared = jobs.prepare(
+                "next",
+                checkpoint=binding["checkpoint"],
+                version=2,
+                configuration={"model": "fixture", "reasoning": "medium"},
+                adapter_context=next_adapter.request_context,
+                plan_id=self.fx.plan["plan_id"],
+                expected_revision=journal.snapshot(project)["revision"],
+            )
+            next_pins = dict(
+                expected_request_sha256=next_prepared["request_sha256"],
+                current_checkpoint=binding["checkpoint"],
+            )
+            next_saved = jobs.run("next", callback=next_adapter, **next_pins)["result"]
+            next_pins["expected_plan_manifest_sha256"] = next_saved["plan"][
+                "manifest_sha256"
+            ]
+            self.assertEqual(sent.call_count, 2)
 
         before = self.snapshot()
         with (
@@ -325,6 +353,9 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
             self.assertIsNone(visible["decision"])
             self.assertFalse(visible["execution_authorized"])
             self.assertEqual(jobs.inspect_saved("history", **pins)["result"], saved)
+            self.assertEqual(
+                jobs.inspect_saved("next", **next_pins)["result"], next_saved
+            )
             with self.assertRaisesRegex(EvaluationError, "current evaluator changed"):
                 self.fx.transition("attach-review", review)
             sent.assert_not_called()
