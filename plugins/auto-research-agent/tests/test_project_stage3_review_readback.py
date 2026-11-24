@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PLUGIN.parents[1] / "harness-ui"), str(PLUGIN / "cli")]
 import test_stage3_workflow as workflow_fixture  # noqa: E402
-from stage3_plan.contracts import Stage3Error, canonical_bytes  # noqa: E402
+from stage3_plan.contracts import Stage3Error, canonical_bytes, digest  # noqa: E402
 from stage3_plan.decision import record_plan_decision  # noqa: E402
 from stage3_plan.planner import draft_plan  # noqa: E402
 from stage3_plan_review_readback import plan_review_identity, read_plan_review  # noqa: E402
@@ -66,7 +66,7 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
         self.fx.transition("attach-review", ref)
         return ref
 
-    def pending_defer(self, review):
+    def record_defer(self, review, *, host_verified=None):
         message = self.fx.root / "fixture-user-message.jsonl"
         words = "Fixture-only request to defer this synthetic displayed plan."
         message.write_bytes(
@@ -77,7 +77,16 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
                 }
             ).encode()
         )
-        output = self.fx.root / "synthetic-decision"
+        output = self.fx.root / f"synthetic-decision-{host_verified}"
+
+        def fixture_verifier(binding):
+            return {
+                "kind": "Stage3HostDecisionVerification",
+                "binding_sha256": digest(binding),
+                "verified": host_verified,
+                "evidence_ref": "fixture-only-verification",
+            }
+
         with patch("stage3_plan.intake.admit_intake", return_value=self.fx.intake):
             record_plan_decision(
                 self.fx.plan_dir,
@@ -92,6 +101,7 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
                 planning_package="source",
                 delivery_dir="delivery",
                 expected_source_manifest_sha256=self.fx.plan["source_manifest_sha256"],
+                verify_decision=fixture_verifier if host_verified is not None else None,
             )
         path = output / "decision.json"
         return {"path": str(path), "sha256": sha256(path.read_bytes()).hexdigest()}
@@ -131,7 +141,7 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
         self.assertEqual(waiting["planning_status"], "ready-for-plan-review")
         self.assertEqual(waiting["next_action"], "record-version-bound-plan-decision")
         self.assertIsNone(waiting["decision"])
-        decision = self.pending_defer(review)
+        decision = self.record_defer(review)
         binding = self.binding(decision=decision)
         before = self.snapshot()
         saved = read_plan_review(self.view, trusted_binding=binding)
@@ -147,12 +157,30 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
             saved["decision"]["status"], "decision-recorded-pending-host-verification"
         )
         self.assertFalse(saved["decision"]["identity_authenticated"])
+        self.assertIsNone(saved["next_action"])
         self.assertFalse(saved["execution_authorized"])
         self.assertNotIn("user_text", saved["decision"])
         self.assertEqual(self.snapshot(), before)
 
+    def test_readback_uses_the_recorded_defer_status_after_host_verification(self):
+        review = self.attach_review()
+        for verified, status, decision_status in (
+            (True, "draft", "host-verified"),
+            (False, "ready-for-plan-review", "host-rejected"),
+        ):
+            with self.subTest(verified=verified):
+                decision = self.record_defer(review, host_verified=verified)
+                saved = read_plan_review(
+                    self.view, trusted_binding=self.binding(decision=decision)
+                )
+                self.assertEqual(saved["planning_status"], status)
+                self.assertEqual(saved["decision"]["status"], decision_status)
+                self.assertEqual(saved["decision"]["identity_authenticated"], verified)
+                self.assertIsNone(saved["next_action"])
+                self.assertFalse(saved["execution_authorized"])
+
     def test_same_project_old_version_is_history_only(self):
-        decision = self.pending_defer(self.attach_review())
+        decision = self.record_defer(self.attach_review())
         previous = self.binding(decision=decision)
         old_view = deepcopy(self.view)
         v2 = deepcopy(self.fx.plan)
@@ -214,7 +242,7 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
             opened.assert_not_called()
 
     def test_mismatched_decision_archive_is_rejected(self):
-        decision = self.pending_defer(self.attach_review())
+        decision = self.record_defer(self.attach_review())
         archived = Path(decision["path"]).parent / "native-user-message.jsonl"
         archived.write_bytes(b"unrelated archived fixture")
         before = self.snapshot()

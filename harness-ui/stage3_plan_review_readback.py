@@ -222,5 +222,10 @@ def read_plan_review(view, *, trusted_binding=None):
         "finding_counts": dict(Counter(f["status"] for f in review["findings"])),
     }
     if decision_ref is not None:
-        result["decision"] = _bound_decision(decision_ref, identity, review_ref, status)
+        decision = _bound_decision(decision_ref, identity, review_ref, status)
+        result.update(
+            decision=decision,
+            planning_status=decision["plan_status"],
+            next_action=None,
+        )
     return result
