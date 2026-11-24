@@ -1,20 +1,27 @@
 """Native same-project input reception through ordinary ProjectHost HTTP."""
 
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from hashlib import sha256
 import json
 from pathlib import Path
 import secrets
+from tempfile import TemporaryDirectory
 import threading
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from current_core_stage12_fixtures import current_core_stage1_case
+from planned_query_raw_runner import run_cases
 from research_workspace_native.project_host import ProjectHost
+from research_workspace_native.project_intake import ProjectIntakeService
+from research_workspace_native.project_stage1 import ProjectStage1Service
 from research_workspace_native.project_stage2 import ProjectStage2Service
+from research_workspace_native.project_stage2_current_evidence import current_evidence
 from stage1_ledger.journal import canonical
+import project_stage1_query_cases as owned_fixture
 import test_project_stage1_delivery as delivery_fixture
 
 VIEWER = secrets.token_urlsafe(32)
@@ -77,6 +84,103 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
         identity = patch("test_project_stage1_delivery.authenticate", authenticate)
         identity.start()
         self.addCleanup(identity.stop)
+
+    def test_missing_query_guard_blocks_owned_snapshot_at_receiver_boundary(self):
+        with (
+            TemporaryDirectory(prefix="s2-owner-") as directory,
+            closing(
+                ProjectIntakeService(Path(directory), authenticate=authenticate)
+            ) as intake,
+        ):
+            created = intake.create(
+                VIEWER, {"key": "owned-boundary", "topic": "Offline boundary test"}
+            )
+            project = intake.read(VIEWER, created["project_ref"])
+            stage1 = {
+                "ledger": {"next_allowed_action": "stop-sufficient"},
+                "checkpoint": {"event_id": "e000001", "current": True},
+            }
+            # Simulate an owned source snapshot at the receiver boundary after
+            # the query owner became unavailable. No project row is overridden.
+            delivery = SimpleNamespace(
+                intake=intake,
+                stage1=SimpleNamespace(intake=intake, query_service=None),
+                _saved_context=Mock(
+                    return_value=(None, None, None, {"query_owned": True}, None, None)
+                ),
+                binding=Mock(
+                    side_effect=AssertionError(
+                        "missing owner cannot validate a package"
+                    )
+                ),
+            )
+            result = current_evidence(delivery, VIEWER, stage1, project)
+            self.assertEqual(result["status"], "blocked")
+            self.assertEqual(
+                result["reason"], "stage2-current-evidence-owner-unavailable"
+            )
+            self.assertFalse(result["execution_authorized"])
+            self.assertFalse(intake.db.in_transaction)
+            delivery.binding.assert_not_called()
+
+    def test_cold_owned_project_reads_stage2_with_owner_unavailable(self):
+        run_cases(
+            "test_project_stage2_current_evidence.ProjectStage2CurrentEvidenceTests._cold_owned_project",
+            self,
+        )
+
+    def _cold_owned_project(self):
+        case = owned_fixture.ProjectQueryCases()
+        self.addCleanup(case.doCleanups)
+        with patch.object(owned_fixture, "authenticate", authenticate):
+            case.setUp()
+        case.authorize()
+        case.bootstrap()
+        self.assertEqual(
+            case.stage1.read(VIEWER, case.ref)["stage1_status"], "query-ledger-active"
+        )
+        other = case.intake.create(
+            VIEWER, {"key": "other-project", "topic": "Other offline project"}
+        )
+        case.queries.close()
+        case.intake.close()
+        with closing(
+            ProjectIntakeService(case.root / "p", authenticate=authenticate)
+        ) as reopened:
+            cold = SimpleNamespace(
+                intake=reopened, stage1=ProjectStage1Service(reopened)
+            )
+            with serve(cold) as origin:
+                path = f"/api/projects/{case.ref}"
+                status, stage2 = request(origin, path + "/stage2")
+                self.assertEqual(status, 200)
+                evidence = stage2["current_evidence"]
+                self.assertEqual(evidence["status"], "blocked", evidence)
+                self.assertEqual(
+                    evidence["reason"], "stage2-current-evidence-owner-unavailable"
+                )
+                self.assertEqual(
+                    (stage2["offers"], stage2["activation"], stage2["frontier"]),
+                    ([], None, None),
+                )
+                status, overview = request(origin, path + "/overview")
+                self.assertEqual(status, 200)
+                self.assertEqual(
+                    overview["stage1"]["stage1_status"], "query-runtime-unconnected"
+                )
+                self.assertEqual(overview["stage2"], stage2)
+                self.assertEqual(
+                    request(origin, path + "/stage2/offers"), (200, stage2)
+                )
+                status, unrelated = request(
+                    origin, f"/api/projects/{other['project_ref']}/stage2"
+                )
+                self.assertEqual(status, 200)
+                self.assertEqual(unrelated["project_ref"], other["project_ref"])
+                self.assertEqual(
+                    unrelated["current_evidence"]["reason"],
+                    "stage1-current-checkpoint-unavailable",
+                )
 
     def test_receive_and_reopen_one_offline_packet_without_activation(self):
         with current_core_stage1_case(screened=True) as data:

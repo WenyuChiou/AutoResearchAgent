@@ -161,6 +161,11 @@ def current_evidence(delivery, credential, stage1, project, *, check_deadline=No
         "next_allowed_action": ledger_view.get("next_allowed_action"),
         "execution_authorized": False,
     }
+    if stage1.get("stage1_status") in {
+        "query-runtime-unconnected",
+        "owner-reopen-required",
+    }:
+        return _blocked(view, "stage2-current-evidence-owner-unavailable")
     if not checkpoint or not checkpoint["current"]:
         return _blocked(view, "stage1-current-checkpoint-unavailable")
     if view["next_allowed_action"] != "stop-sufficient":
@@ -184,13 +189,14 @@ def current_evidence(delivery, credential, stage1, project, *, check_deadline=No
                     "stage1-coverage-write-outcome-unobserved",
                 )
                 _, _, binding, run, ledger, report = delivery._saved_context(ref)
-                guard = (
-                    delivery.stage1.query_service.saved_records_guard(
-                        run, ledger, report
+                guard = nullcontext(lambda: None)
+                if run.get("query_owned"):
+                    owner = getattr(delivery.stage1, "query_service", None)
+                    factory = getattr(owner, "saved_records_guard", None)
+                    _check(
+                        callable(factory), "stage2-current-evidence-owner-unavailable"
                     )
-                    if run.get("query_owned")
-                    else nullcontext(lambda: None)
-                )
+                    guard = factory(run, ledger, report)
                 # Direct Core writes share the journal's writer lock. Use its
                 # non-repairing mode and the query owner's established lock order.
                 with guard as check_owner, ledger.writing(repair=False):
