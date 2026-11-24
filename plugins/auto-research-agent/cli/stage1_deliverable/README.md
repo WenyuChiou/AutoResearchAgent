@@ -6,6 +6,18 @@ records and public-source receipts. It does not search, nominate papers,
 assess scientific claims or replace `stage1_export`. Readiness remains
 **implementation-only**; improvement is **not yet demonstrated**.
 
+Canonical 1.2 also supports an output-only `provided-unread` paper for an
+explicitly supplied candidate with no saved screening decision, claim or coverage
+review. Its original type, public URL, material SHA-256, project/input/work/version
+and source attempts remain visible; the material bytes are archived under
+`screening_artifacts/`. Null query/backend IDs stay null and are excluded from
+retrieval counts. Classification, findings, complete-body reading and scientific
+claims remain Unknown. A saved available source is not a reading registration.
+This partial report does not change the existing reading-readiness or Stage 2
+handoff gates. Ordinary retrieval histories and older record formats retain their
+existing validation paths; adding an actual screening/review/claim requires the
+existing registered-reading path rather than this output-only view.
+
 ## Runtime and commands
 
 Use Python 3.11 and the committed `requirements-test.txt` lock, including

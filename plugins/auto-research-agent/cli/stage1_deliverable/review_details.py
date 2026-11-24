@@ -211,6 +211,42 @@ def by_work(records, receipts, *, journal=None):
                 else None
             ),
         )
+        if paper.get("reading_status") == "provided-unread":
+            from .provided_records import provided_for_version
+
+            candidate = next(
+                c
+                for c in records["screening_library"]["snapshots"][0]["rows"]
+                if c["work_id"] == work
+            )
+            provided = provided_for_version(candidate, version)
+            binding = records["screening_library"]["binding"]
+            lines.extend(
+                [
+                    "Origin: externally provided saved material; not a search result.",
+                    LiteralLine(
+                        "Original material type: "
+                        + _display_text(provided["original_type"])
+                    ),
+                    LiteralLine("Source URL: " + _display_text(provided["source_uri"])),
+                    "Material SHA-256: " + provided["material_ref"]["sha256"],
+                    "Saved material path: screening_artifacts/"
+                    + provided["material_ref"]["sha256"]
+                    + ".bin",
+                    "Project: "
+                    + binding["project_id"]
+                    + "; input version: "
+                    + str(binding["input_version"]),
+                    "Work: " + work + "; version: " + version,
+                    "Identity: "
+                    + row["identity_status"]
+                    + " (operator-provided metadata; not independently checked).",
+                    "Reading: Unknown (saved material is not a complete-body reading record).",
+                    "Abstract/summary: Unknown (no abstract supplied).",
+                    "Research claims: Unknown (no claim assessment or screening decision recorded).",
+                    "",
+                ]
+            )
         attempts = defaultdict(list)
         for item in row["source_attempts"]:
             attempts[item["started"]["version_id"]].append(item)

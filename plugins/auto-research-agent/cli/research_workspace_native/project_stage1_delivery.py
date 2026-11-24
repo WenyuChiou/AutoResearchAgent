@@ -168,6 +168,13 @@ def _records_match(
             and paper["year"] == record["year"],
             "stage1-records-work-version-differs",
         )
+        if discovery_records and paper["reading_status"] == "provided-unread":
+            from stage1_deliverable.provided_records import unread_provided
+
+            _check(
+                unread_provided(candidate, events, reviews),
+                "stage1-provided-unread-hides-assessment",
+            )
         if discovery_records and paper["reading_status"] == "discovery-only":
             _check(
                 review is None
@@ -249,6 +256,7 @@ def _records_match(
         if row["kind"] == "SourceReadStarted"
         and row["work_id"] in papers
         and row["version_id"] == papers[row["work_id"]]["version_id"]
+        and papers[row["work_id"]].get("reading_status") != "provided-unread"
     }
     _check(set(source_receipts) == selected_sources, "stage1-source-history-differs")
     selected_claims = {
