@@ -124,6 +124,7 @@ def validate_run(root, *, verify_runtime=True):
                         "validator-report",
                         "coverage-input",
                         "checkpoint-output",
+                        "provided-material",
                     },
                     "unknown-artifact-type",
                 )
@@ -143,7 +144,9 @@ def validate_run(root, *, verify_runtime=True):
                     require(
                         ref["producer"]
                         == (
-                            "stage1-plan"
+                            "stage1-provider"
+                            if ref["artifact_type"] == "provided-material"
+                            else "stage1-plan"
                             if ref["artifact_type"] == "coverage-input"
                             else "stage1-checkpoint"
                             if ref["artifact_type"] == "checkpoint-output"
@@ -267,32 +270,51 @@ def validate_run(root, *, verify_runtime=True):
                 failed_extractions.add(discovery_id)
             elif kind == "CandidateRevision":
                 discovery = p["discoveries"][-1]
-                require(
-                    discovery["discovery_id"] not in seen
-                    and discovery["discovery_id"] in expected_discoveries,
-                    "duplicate-or-unknown-discovery",
-                )
-                completion = finishes.get(discovery["attempt_id"])
-                query = queries.get(discovery["query_id"])
-                require(
-                    completion
-                    and query
-                    and completion["event_id"] in query["completion_ids"],
-                    "discovery-query-mismatch",
-                )
-                records = decode(
-                    read_ref(completion["records"]), completion["records"]["path"]
-                )
-                require(discovery["record_index"] < len(records), "discovery-index")
-                record = records[discovery["record_index"]]
-                check_record(record)
-                expected = candidate_revision(
-                    works.get(p["work_id"]),
-                    record=record,
-                    completion=completion,
-                    query_id=discovery["query_id"],
-                    index=discovery["record_index"],
-                )
+                if "provided" in discovery:
+                    from .provided import check_provided, provided_revision
+
+                    check_provided(discovery, read_ref, manifest)
+                    require(
+                        discovery["provided"]["event_id"] == event_id,
+                        "provided-event-binding-differs",
+                    )
+                    require(
+                        discovery["discovery_id"] not in seen,
+                        "duplicate-provided-candidate",
+                    )
+                    expected = provided_revision(
+                        works.get(p["work_id"]),
+                        record=discovery["record"],
+                        provenance=discovery["provided"],
+                        source_ref=discovery["source_ref"],
+                    )
+                else:
+                    require(
+                        discovery["discovery_id"] not in seen
+                        and discovery["discovery_id"] in expected_discoveries,
+                        "duplicate-or-unknown-discovery",
+                    )
+                    completion = finishes.get(discovery["attempt_id"])
+                    query = queries.get(discovery["query_id"])
+                    require(
+                        completion
+                        and query
+                        and completion["event_id"] in query["completion_ids"],
+                        "discovery-query-mismatch",
+                    )
+                    records = decode(
+                        read_ref(completion["records"]), completion["records"]["path"]
+                    )
+                    require(discovery["record_index"] < len(records), "discovery-index")
+                    record = records[discovery["record_index"]]
+                    check_record(record)
+                    expected = candidate_revision(
+                        works.get(p["work_id"]),
+                        record=record,
+                        completion=completion,
+                        query_id=discovery["query_id"],
+                        index=discovery["record_index"],
+                    )
                 require(
                     {k: v for k, v in p.items() if k not in META} == expected,
                     "candidate-replay-mismatch",

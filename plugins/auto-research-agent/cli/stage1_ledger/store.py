@@ -161,6 +161,12 @@ class Ledger(Journal):
         return self._save(data, producer=producer)
 
     @mutation
+    def admit_saved_candidate(self, **request):
+        from .provided import admit
+
+        return admit(self, **request)
+
+    @mutation
     def start_source_import(self, *, work_id, version_id, source_uri, actor, reason):
         value = dict(
             kind="SourceImportStarted",

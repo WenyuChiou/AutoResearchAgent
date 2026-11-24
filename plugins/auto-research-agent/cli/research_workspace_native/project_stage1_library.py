@@ -10,6 +10,7 @@ from copy import deepcopy
 from stage1_deliverable.common import sha
 from stage1_ledger.contracts import check
 from stage1_ledger.handoff import snapshots
+from stage1_ledger.provided import discovery_order
 from stage1_ledger.journal import canonical, contained
 
 from .project_stage1 import ProjectStage1Service, _basis
@@ -59,7 +60,7 @@ def _rows(candidates, claims, decisions, events, coverage, queries):
     query_index = {row["started"]["event_id"]: row for row in queries}
     discoveries = sorted(
         (d for c in candidates for d in c["discoveries"]),
-        key=lambda d: (int(d["completion_id"][1:]), d["record_index"]),
+        key=discovery_order,
     )
     order = {d["discovery_id"]: i for i, d in enumerate(discoveries, 1)}
     current_reviews = coverage.evidence.current()
@@ -76,21 +77,22 @@ def _rows(candidates, claims, decisions, events, coverage, queries):
         )
         observed = []
         for discovery in candidate["discoveries"]:
-            query = event_index[discovery["query_id"]]
+            query = event_index.get(discovery["query_id"], {})
+            external = discovery.get("provided")
             observed.append(
                 dict(
                     deepcopy(discovery),
                     candidate_discovery_order_in_run=order[discovery["discovery_id"]],
-                    result_position=discovery["record_index"] + 1,
-                    completion_created_at=event_index[discovery["completion_id"]][
-                        "created_at"
-                    ],
-                    round_number=query["arguments"]
+                    result_position=None if external else discovery["record_index"] + 1,
+                    completion_created_at=event_index[
+                        external["event_id"] if external else discovery["completion_id"]
+                    ]["created_at"],
+                    round_number=query.get("arguments", {})
                     .get("coverage", {})
                     .get("round_number"),
                 )
             )
-        query_ids = {d["query_id"] for d in observed}
+        query_ids = {d["query_id"] for d in observed if d["query_id"] is not None}
         rounds = {d["round_number"] for d in observed if d["round_number"] is not None}
         sources = [
             dict(
@@ -200,7 +202,11 @@ def _rows(candidates, claims, decisions, events, coverage, queries):
                     discoveries=len(observed),
                     distinct_queries=len(query_ids),
                     discovery_producing_backend_attempts=len(
-                        {d["attempt_id"] for d in observed}
+                        {
+                            d["attempt_id"]
+                            for d in observed
+                            if d["attempt_id"] is not None
+                        }
                     ),
                     query_backend_attempts=sum(
                         len(query_index[q]["backend_attempts"]) for q in query_ids

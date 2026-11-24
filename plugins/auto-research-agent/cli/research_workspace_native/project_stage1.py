@@ -442,6 +442,20 @@ class ProjectStage1Service:
             self, credential, project_ref, body, check_deadline=check_deadline
         )
 
+    def admit_saved_candidate(
+        self, credential, project_ref, body, *, materials_root, check_deadline=None
+    ):
+        from .project_stage1_admission import execute
+
+        return execute(
+            self,
+            credential,
+            project_ref,
+            body,
+            materials_root=materials_root,
+            check_deadline=check_deadline,
+        )
+
     def plan_query(self, credential, project_ref, body, *, check_deadline=None):
         def producer(_, run, ledger, __, ___):
             query = next(

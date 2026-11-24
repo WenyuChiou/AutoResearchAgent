@@ -23,6 +23,7 @@ def missing_extraction(state):
         d["discovery_id"]
         for c in state.evidence.candidates.values()
         for d in c["discoveries"]
+        if "provided" not in d
     }
     return expected - len(seen)
 

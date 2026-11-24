@@ -80,6 +80,8 @@ def comparison(
             raise LedgerError("unknown-reference-discovery")
         reference_candidate, reference = discoveries[reference_discovery_id]
         refs.append(reference["source_ref"])
+        if "provided" in target or "provided" in reference:
+            raise LedgerError("provided-candidate-is-not-independent-backend")
         target_backend = starts[target["attempt_id"]]["backend"]
         reference_backend = starts[reference["attempt_id"]]["backend"]
         relationship = (
