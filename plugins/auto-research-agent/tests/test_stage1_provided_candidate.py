@@ -296,3 +296,30 @@ class ProvidedCandidateTests(unittest.TestCase):
         ):
             self.admit(self.body("new-key-after-reopen"))
         self.assertEqual(ledger.events(), before)
+
+    def test_invalid_provenance_preflight_does_not_hold_a_corrected_request(self):
+        ledger = self.private_ledger(self.ref)
+        before = ledger.events()
+        history = self.intake.history("alice-token", self.ref)
+        view = self.intake.read("alice-token", self.ref)
+        for field, value in (
+            ("source_uri", "file:///wrong/table.csv"),
+            ("source_uri", "https://example.org/?api_key=private"),
+            ("original_type", ""),
+            ("reason", ""),
+        ):
+            with self.subTest(field=field, value=value):
+                body = self.body("invalid-provenance-" + field)
+                body[field] = value
+                with self.assertRaises(LedgerError):
+                    self.admit(body)
+                self.assertEqual(ledger.events(), before)
+                self.assertEqual(self.intake.history("alice-token", self.ref), history)
+                self.assertEqual(self.intake.read("alice-token", self.ref), view)
+                self.assertNotIn("api_key=private", "\n".join(self.intake.db.iterdump()))
+                self.assertFalse(
+                    self.service.read("alice-token", self.ref)["coverage_actions"][
+                        "held"
+                    ]
+                )
+        self.assertEqual(self.admit(self.body("corrected"))["status"], "saved")
