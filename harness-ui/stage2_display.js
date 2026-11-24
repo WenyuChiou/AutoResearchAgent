@@ -65,8 +65,13 @@ let wikiStage2State;
 function wikiStage2Basis() {
   const project = rt.overview?.project;
   if (!project || project.project_ref !== rt.ref || canonicalReadonly()
-      || window.RESEARCH_PROJECTS?.stage2_selection_projects?.includes(rt.ref)) return null;
+      || rt.overview?.stage2?.receiving_only) return null;
   return [project.project_ref, project.input_version, project.brief_sha256];
+}
+
+function wikiStage2OwnsView() {
+  return !!wikiStage2State?.result && wikiStage2State.result.status !== "selection-available"
+    && JSON.stringify(wikiStage2Basis()) === JSON.stringify(wikiStage2State.basis);
 }
 
 async function wikiStage2Load(state, submit) {
@@ -84,7 +89,7 @@ async function wikiStage2Load(state, submit) {
         || result.brief_sha256 !== brief) throw Error("project-binding-mismatch");
     state.result = result;
   } catch (error) {
-    state.result = null;
+    if (error.message !== "stage2-continuation-worker-busy") state.result = null;
     state.error = error.message;
   } finally {
     state.busy = false;
@@ -110,6 +115,7 @@ function wikiStage2Panel(state) {
     "stage2-continuation-project-stale": label("当前输入版本和已接入作业不一致。请重新打开项目。", "Reopen the project. The input version has changed.", "目前輸入版本和已接入作業不一致。請重新開啟專案。"),
     "stage2-continuation-result-not-current": label("保存的候选与当前记录不一致。请联系操作者。", "The saved candidates could not be verified for this version. Contact the operator.", "保存的候選與目前紀錄不一致。請聯絡操作者。"),
     "stage2-continuation-request-exists": label("已有请求。请查看保存状态。", "A request already exists. Check its saved status.", "已有請求。請查看儲存狀態。"),
+    "stage2-continuation-worker-busy": label("另一个请求正在处理。请稍后再试。", "Another request is running. Try again shortly.", "另一個請求正在處理。請稍後再試。"),
   };
   const message = state.busy
     ? label("正在读取请求状态。", "Checking request status.", "正在讀取請求狀態。")
@@ -149,6 +155,8 @@ stage2 = function (app) {
     wikiStage2State = state;
     queueMicrotask(() => wikiStage2Load(state, false));
   }
+  if (window.RESEARCH_PROJECTS?.stage2_selection_projects?.includes(rt.ref)
+      && !wikiStage2OwnsView()) return original;
   const panel = wikiStage2Panel(wikiStage2State);
   if (!wikiStage2State.result) return panel + original;
   return `${liveHeader(app)}${panel}<details class="hs-panel">

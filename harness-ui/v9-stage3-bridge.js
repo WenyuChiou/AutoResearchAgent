@@ -53,6 +53,7 @@ window.addEventListener('hashchange',v93RestoreStageRoute);
 const v93Choices=new Map();let v93ActiveChoice=null;
 function v93ChoiceIdentity(){
  const p=rt.overview?.project, configured=window.RESEARCH_PROJECTS?.stage2_selection_projects;
+ if(typeof wikiStage2OwnsView==='function'&&wikiStage2OwnsView())return null;
  if(!v93ValidProject(p)||p.project_ref!==rt.ref||canonicalReadonly()||!Array.isArray(configured)||!configured.includes(rt.ref))return null;
  return {project_ref:p.project_ref,input_version:p.input_version,revision:p.revision,brief_sha256:p.brief_sha256};
 }

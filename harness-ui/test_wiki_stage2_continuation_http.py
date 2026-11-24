@@ -1,4 +1,8 @@
-"""Normal Wiki HTTP with original admission and a no-model engineering adapter."""
+"""Normal Wiki HTTP regressions.
+
+Unittest discovery runs the dependency-light refusal test. Run this file
+directly with -v and the pinned plugin test runtime for the candidate journey.
+"""
 
 # ruff: noqa: E402 -- use the repository's own local fixtures.
 from concurrent.futures import ThreadPoolExecutor
@@ -18,8 +22,12 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from test_v9_stage23_http import close_owned_fixture, launch_fixture_child
-
-import test_project_stage2_host_controller as host_fixture
+from research_workspace_native.http import token_authenticator
+from research_workspace_native.project_intake import ProjectIntakeService
+from research_workspace_native.project_stage2_controller_config import (
+    load_stage2_controllers,
+)
+from stage2_common import Stage2Error
 from stage2_common import canonical_hash
 from stage2_workflow import inspect_workflow
 
@@ -50,9 +58,10 @@ serve = socketserver.BaseServer.serve_forever
 if os.environ.get("WIKI_STAGE2_TEST_STACKS"):
     faulthandler.dump_traceback_later(7, repeat=True)
 
-def serve_fixture(host, *args, **kwargs):
-    # Call the exact production controller and workflow/verification stack.
-    # Replace only the adapter that would otherwise call real models.
+def install_fixture_adapter(host):
+    # Retain the production driver, its pre-dispatch admission and the
+    # controller's workflow and verification. The synthetic core entry
+    # replaces native preparation and per-unit model execution.
     from research_workspace_native import project_stage2_controller as driver
     from stage2_live import controller
     from test_stage2_controller import SyntheticAdapter
@@ -141,6 +150,10 @@ def serve_fixture(host, *args, **kwargs):
         elif os.environ["WIKI_STAGE2_TEST_ADMISSION"] == "missing":
             binding.handler.admission_context = None
 
+def serve_fixture(host, *args, **kwargs):
+    if host.project_stage2_controllers:
+        install_fixture_adapter(host)
+
     def stop():
         sys.stdin.readline()
         host.shutdown()
@@ -163,37 +176,68 @@ def write_config(path, value):
     return str(path), hashlib.sha256(payload).hexdigest()
 
 
-def controller_config(case):
-    spec, spec_pin = write_config(case.root / "spec.json", case.spec)
+def controller_row(case, admission):
+    root = case.root / ("wiki-config-" + admission)
+    root.mkdir()
+    context = dict(case.handler.admission_context)
+    if admission == "expired":
+        context["deadline_unix"] = time.time() - 1
+    elif admission == "missing":
+        context = None
+    spec, spec_pin = write_config(root / "spec.json", case.spec)
     prep, prep_pin = write_config(
-        case.root / "prep.json",
+        root / "prep.json",
         {
             "kind": "Stage2NativePrerequisiteConfiguration",
             "schema_version": "1.0.0",
             "native_sha256": canonical_hash(case.spec["native"]),
-            "admission_context": case.handler.admission_context,
+            "admission_context": context,
             "output_root": str(case.root / "original-preparation"),
             "workspace_templates": {},
         },
     )
+    return {
+        "project_ref": case.ref,
+        "spec_path": spec,
+        "spec_sha256": spec_pin,
+        "controller_root": str(case.output),
+        "delivery_root": str(case.delivery),
+        "preparation_path": prep,
+        "preparation_sha256": prep_pin,
+    }
+
+
+def controller_config(case, *others, admission="valid"):
     return write_config(
-        case.root / "controller-config.json",
+        case.root / f"wiki-controller-{admission}.json",
         {
             "kind": "ProjectStage2ControllerConfiguration",
             "schema_version": "1.0.0",
-            "bindings": [
-                {
-                    "project_ref": case.ref,
-                    "spec_path": spec,
-                    "spec_sha256": spec_pin,
-                    "controller_root": str(case.output),
-                    "delivery_root": str(case.delivery),
-                    "preparation_path": prep,
-                    "preparation_sha256": prep_pin,
-                }
-            ],
+            "bindings": [controller_row(item, admission) for item in (case, *others)],
         },
     )
+
+
+def selection_config(case, *, manifest_sha256=None):
+    current = manifest_sha256 is not None
+    version = case.binding["input_version"]
+    path, digest = write_config(
+        case.root
+        / ("wiki-selection-current.json" if current else "wiki-selection-stale.json"),
+        {
+            "schema_version": "1.0.0",
+            "bindings": {
+                case.ref: {
+                    "input_version": version if current else str(version),
+                    "brief_sha256": case.binding["brief_sha256"],
+                    "workflow_root": str(case.workflow),
+                    "delivery_root": str(case.delivery),
+                    "delivery_manifest_sha256": manifest_sha256 or "0" * 64,
+                }
+            },
+        },
+    )
+    return ("--selection-config", path, "--selection-sha256", digest)
 
 
 def request(base, path, *, credential=None, body=None):
@@ -228,7 +272,7 @@ def request(base, path, *, credential=None, body=None):
 
 
 @contextmanager
-def wiki(case, root, *params, admission="valid"):
+def wiki(projects_root, root, *params, admission="valid"):
     helper = CLI / "research_workspace_native/atlas_local_source.py"
     arguments = [
         sys.executable,
@@ -247,7 +291,7 @@ def wiki(case, root, *params, admission="valid"):
         "--source-helper-sha256",
         hashlib.sha256(helper.read_bytes()).hexdigest(),
         "--projects-root",
-        str(case.store_root),
+        str(projects_root),
         "--run-limits",
         str(REPO / "harness-ui/zero-limits.json"),
         "--ui-state-root",
@@ -271,6 +315,7 @@ def wiki(case, root, *params, admission="valid"):
             target=lambda: stdout.put(host.stdout.readline()), daemon=True
         )
         reader.start()
+        failure = None
         try:
             line = stdout.get(timeout=40)
             if not line:
@@ -289,10 +334,17 @@ def wiki(case, root, *params, admission="valid"):
                 "credential"
             ]
             yield base, token
+        except BaseException as error:
+            failure = error
+            raise
         finally:
             (root / "release").touch()
             try:
                 close_owned_fixture(host, reader)
+            except BaseException as error:
+                if failure is None:
+                    raise
+                failure.add_note("Wiki child cleanup: " + repr(error))
             finally:
                 errors.seek(0)
                 traces = errors.read()
@@ -309,23 +361,103 @@ def wiki(case, root, *params, admission="valid"):
                 )
 
 
+def prepare_renderer(root):
+    (root / "incoming").mkdir()
+    renderer = root / "renderer-package/renderer"
+    shutil.copytree(REPO / "harness-ui/renderer", renderer)
+    if not (renderer / "vendor/three.core.js").exists():
+        source = Path(os.environ["WIKI_STAGE2_TEST_THREE_CORE"])
+        shutil.copyfile(source, renderer / "vendor/three.core.js")
+
+
 class WikiStage2ContinuationHttpTests(unittest.TestCase):
+    def test_unconfigured_wiki_refuses_requests_and_refresh_is_read_only(self):
+        with tempfile.TemporaryDirectory(prefix="w508-") as directory:
+            root = Path(directory).resolve()
+            projects_root = root / "p"
+            credential = "synthetic-local-wiki-" + "x" * 24
+            projects = ProjectIntakeService(
+                projects_root,
+                authenticate=token_authenticator({credential: "local-viewer"}),
+            )
+            try:
+                project = projects.create(
+                    credential, {"key": "create", "topic": "Offline project"}
+                )
+            finally:
+                projects.close()
+            prepare_renderer(root)
+            route = "/api/projects/" + project["project_ref"] + "/stage2/continuation"
+            body = {
+                "key": "request-1",
+                "input_version": project["input_version"],
+                "brief_sha256": project["brief_sha256"],
+                "confirmed": True,
+            }
+            with wiki(projects_root, root) as (base, token):
+                self.assertEqual(request(base, route, body=body)[0], 401)
+                self.assertEqual(request(base, route, credential="x" * 32)[0], 401)
+                self.assertEqual(
+                    request(
+                        base, route, credential=token, body={**body, "operator": True}
+                    )[0],
+                    400,
+                )
+                for repeat in range(2):
+                    with self.subTest(repeat=repeat):
+                        for intent in (None, body):
+                            status, result = request(
+                                base, route, credential=token, body=intent
+                            )
+                            self.assertEqual(
+                                (status, json.loads(result)),
+                                (409, {"error": "stage2-controller-not-connected"}),
+                            )
+            self.assertFalse((root / "workers.jsonl").exists())
+            self.assertFalse(list(root.rglob("wiki-request.json")))
+
+
+class WikiStage2ContinuationJourney(unittest.TestCase):
     def test_request_concurrency_and_reopen_real_wiki(self):
+        from unittest.mock import patch
+
+        import test_project_stage2 as activation_fixture
+        from test_project_stage2_controller import ProjectStage2ControllerTests
+        import test_project_stage2_host_controller as host_fixture
+
         root_dir = tempfile.TemporaryDirectory(prefix="w508-")
         self.addCleanup(root_dir.cleanup)
         root = Path(root_dir.name).resolve()
-        (root / "incoming").mkdir()
-        renderer = root / "renderer-package/renderer"
-        shutil.copytree(REPO / "harness-ui/renderer", renderer)
-        if not (renderer / "vendor/three.core.js").exists():
-            source = Path(os.environ["WIKI_STAGE2_TEST_THREE_CORE"])
-            shutil.copyfile(source, renderer / "vendor/three.core.js")
+        prepare_renderer(root)
         fixture_type = host_fixture.HostStage2ControllerTests
         fixture_type.setUpClass()
         self.addCleanup(fixture_type.doClassCleanups)
         case = fixture_type()
         self.addCleanup(case.doCleanups)
         case.setUp()
+        second = fixture_type()
+        second.token = case.token
+        self.addCleanup(second.doCleanups)
+
+        class SharedFixtureIntake(ProjectIntakeService):
+            def create(self, credential, body, *, check_deadline=None):
+                return super().create(
+                    credential,
+                    {**body, "key": "second-admitted-project"},
+                    check_deadline=check_deadline,
+                )
+
+        def shared_intake(_root, *, authenticate):
+            return SharedFixtureIntake(
+                case.store_root,
+                authenticate=lambda key: (
+                    "local-viewer" if key in ("own", case.token) else "foreign"
+                ),
+            )
+
+        with patch.object(activation_fixture, "ProjectIntakeService", shared_intake):
+            ProjectStage2ControllerTests.setUp(second)
+        self.assertNotEqual(case.ref, second.ref)
         print(
             json.dumps(
                 {
@@ -353,26 +485,43 @@ class WikiStage2ContinuationHttpTests(unittest.TestCase):
             "brief_sha256": case.binding["brief_sha256"],
             "confirmed": True,
         }
-        path, digest = controller_config(case)
-        params = [
+        path, digest = controller_config(case, second)
+        controller_params = [
             "--stage2-controller-config",
             path,
             "--stage2-controller-sha256",
             digest,
         ]
+        params = [*controller_params, *selection_config(case)]
+        selected_route = route.replace("/continuation", "/selection")
         workers = root / "workers.jsonl"
-        with wiki(case, root) as (base, token):
-            status, payload = request(base, route, credential=token, body=body)
-            self.assertEqual(
-                (status, json.loads(payload)),
-                (409, {"error": "stage2-controller-not-connected"}),
-            )
-            self.assertFalse(workers.exists())
         for admission in ("missing", "expired"):
+            invalid_path, invalid_pin = controller_config(case, admission=admission)
+            refusal = "native-prerequisite-original-admission-required"
+            with self.subTest(startup_admission=admission):
+                with self.assertRaisesRegex(Stage2Error, refusal):
+                    load_stage2_controllers(
+                        case.service, case.token, invalid_path, invalid_pin
+                    )
+                with (
+                    self.assertRaisesRegex(AssertionError, refusal),
+                    wiki(
+                        case.store_root,
+                        root,
+                        "--stage2-controller-config",
+                        invalid_path,
+                        "--stage2-controller-sha256",
+                        invalid_pin,
+                    ),
+                ):
+                    self.fail("Wiki started with a refused original configuration")
             (root / "release").unlink()
             with (
                 self.subTest(admission=admission),
-                wiki(case, root, *params, admission=admission) as (base, token),
+                wiki(case.store_root, root, *params, admission=admission) as (
+                    base,
+                    token,
+                ),
             ):
                 status, payload = request(base, route, credential=token, body=body)
                 self.assertEqual(
@@ -387,7 +536,7 @@ class WikiStage2ContinuationHttpTests(unittest.TestCase):
                 )
                 self.assertFalse(workers.exists())
         (root / "release").unlink()
-        with wiki(case, root, *params) as (base, token):
+        with wiki(case.store_root, root, *params) as (base, token):
 
             def read():
                 return request(base, route, credential=token)
@@ -395,6 +544,11 @@ class WikiStage2ContinuationHttpTests(unittest.TestCase):
             def post(data):
                 return request(base, route, credential=token, body=data)
 
+            status, stale_selection = request(base, selected_route, credential=token)
+            self.assertEqual(
+                (status, json.loads(stale_selection)),
+                (409, {"error": "stage2-selection-project-stale"}),
+            )
             self.assertEqual(json.loads(read()[1])["status"], "ready")
             self.assertEqual(
                 post({**body, "input_version": str(body["input_version"])})[0], 409
@@ -440,6 +594,23 @@ class WikiStage2ContinuationHttpTests(unittest.TestCase):
                 self.fail("No local engineering worker receipt was saved")
             self.assertEqual(json.loads(read()[1])["status"], "running")
             self.assertEqual(post({**body, "key": "second-user-request"})[0], 409)
+            second_route = route.replace(case.ref, second.ref)
+            second_body = {**body, "brief_sha256": second.binding["brief_sha256"]}
+            response, busy = request(
+                base, second_route, credential=token, body=second_body
+            )
+            self.assertEqual(
+                (response, json.loads(busy)),
+                (503, {"error": "stage2-continuation-worker-busy"}),
+            )
+            self.assertEqual(
+                json.loads(request(base, second_route, credential=token)[1])["status"],
+                "ready",
+            )
+            self.assertEqual(json.loads(read()[1])["status"], "running")
+            self.assertFalse(
+                (second.output / "project_stage2_driver/wiki-request.json").exists()
+            )
             (root / "release").touch()
             limit = time.monotonic() + 25
             while True:
@@ -461,13 +632,35 @@ class WikiStage2ContinuationHttpTests(unittest.TestCase):
             )
             self.assertEqual(read(), (200, payload))
             self.assertEqual(post(body), (200, payload))
-        with wiki(case, root, *params) as (base, token):
+            with ThreadPoolExecutor(4) as pool:
+                self.assertEqual(
+                    list(pool.map(lambda _: read(), range(4))), [(200, payload)] * 4
+                )
+        with wiki(case.store_root, root, *params) as (base, token):
             self.assertEqual(request(base, route, credential=token), (200, payload))
             self.assertEqual(
                 request(base, route, credential=token, body=body), (200, payload)
             )
             selection = case.delivery / "selection.json"
             original = selection.read_bytes()
+            for changed in (
+                case.delivery / "selection.html",
+                case.workflow / "events/000001.json",
+            ):
+                with self.subTest(changed=changed.name):
+                    saved = changed.read_bytes()
+                    changed.write_bytes(b"%" + saved[1:])
+                    try:
+                        status, stale = request(base, route, credential=token)
+                        self.assertEqual(
+                            (status, json.loads(stale)),
+                            (409, {"error": "stage2-continuation-result-not-current"}),
+                        )
+                    finally:
+                        changed.write_bytes(saved)
+                    self.assertEqual(
+                        request(base, route, credential=token), (200, payload)
+                    )
             selection.write_bytes(original + b" ")
             status, stale = request(base, route, credential=token)
             self.assertEqual(
@@ -475,7 +668,7 @@ class WikiStage2ContinuationHttpTests(unittest.TestCase):
                 (409, {"error": "stage2-continuation-result-not-current"}),
             )
         try:
-            with wiki(case, root, *params) as (base, token):
+            with wiki(case.store_root, root, *params) as (base, token):
                 status, stale = request(base, route, credential=token)
                 self.assertEqual(
                     (status, json.loads(stale)),
@@ -483,6 +676,16 @@ class WikiStage2ContinuationHttpTests(unittest.TestCase):
                 )
         finally:
             selection.write_bytes(original)
+        with wiki(
+            case.store_root,
+            root,
+            *controller_params,
+            *selection_config(case, manifest_sha256=result["delivery_manifest_sha256"]),
+        ) as (base, token):
+            self.assertEqual(request(base, selected_route, credential=token)[0], 200)
+            status, preferred = request(base, route, credential=token)
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(preferred)["status"], "selection-available")
         [worker] = (
             json.loads(line)
             for line in workers.read_text(encoding="utf-8").splitlines()
@@ -508,6 +711,12 @@ class WikiStage2ContinuationHttpTests(unittest.TestCase):
             ),
             flush=True,
         )
+
+
+def load_tests(loader, tests, pattern):
+    if __name__ == "__main__":
+        return tests
+    return loader.loadTestsFromTestCase(WikiStage2ContinuationHttpTests)
 
 
 if __name__ == "__main__":

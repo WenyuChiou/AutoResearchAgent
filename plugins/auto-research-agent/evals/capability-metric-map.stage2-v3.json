@@ -514,7 +514,7 @@
     },
     {
       "capability_id": "cli:stage2-workflow",
-      "wiki_admitted_continuation_contract": "Ordinary Wiki users can submit one project- and typed-input-version-bound intent for an operator-configured, already admitted Stage 2 controller. The server uses the existing ProjectHost continuation and preserves its original admission, deadline, and budget. Concurrent or repeated requests share one engineering dispatch. Read-only reopen checks the current activation, sources, frontier and retained delivery without running the controller. Missing assessment and pending human selection remain visible.",
+      "wiki_admitted_continuation_contract": "Ordinary Wiki users can submit one project- and typed-input-version-bound intent for an operator-configured, already admitted Stage 2 controller. The existing ProjectHost continuation preserves its original admission, deadline, and budget. Same-intent repeats share one dispatch. A busy Wiki refuses another dispatch before saving its intent, leaving read capacity available. Read-only reopen prefers the verified current selection or revalidates the activation, sources, complete workflow and delivery without running the controller. Missing assessment and pending human selection remain visible.",
       "wiki_admitted_continuation_test_refs": [
         "harness-ui/test_wiki_stage2_continuation_http.py"
       ],

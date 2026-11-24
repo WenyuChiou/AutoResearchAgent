@@ -2,13 +2,12 @@
 
 import json
 import logging
-from pathlib import Path
 import re
 from threading import Lock
 
 from research_workspace_native.project_stage2_controller import (
-    _digest,
     _guard,
+    _json,
     _raw,
     _read,
     _write,
@@ -19,13 +18,15 @@ from stage1_deliverable.common import private_output
 from stage2_common import canonical_hash
 from stage2_live.preparation import _admitted
 from stage2_workflow.decision_cards import derive_decision_cards
-from stage2_workflow.delivery import MANIFEST as DELIVERY_MANIFEST
 from stage2_workflow.ui_submission import valid_input_version
 
 
 ROUTE = re.compile(r"/api/projects/([A-Za-z0-9_-]{1,64})/stage2/continuation")
 REQUEST_KEY = re.compile(r"[A-Za-z0-9_-]{1,128}")
 IDENTITY = ("project_ref", "project_id", "input_version", "brief_sha256")
+# The HTTP server has sixteen slots shared with ordinary reads. Only one
+# long-running controller is admitted per Wiki, including graceful shutdown.
+MAX_ACTIVE_RUNS = 1
 
 
 class WikiStage2Continuation:
@@ -33,7 +34,6 @@ class WikiStage2Continuation:
         self.host = host
         self.lock = Lock()
         self.active = set()
-        self.views = {}
         self.drivers = host.project_stage2_controllers
         records = [private_output(driver.records) for driver in self.drivers.values()]
         if len(set(records)) != len(records):
@@ -41,19 +41,9 @@ class WikiStage2Continuation:
                 "Wiki Stage2 controllers require distinct record directories"
             )
         self.bindings = {}
-        self.unverified_results = set()
-        for ref, driver in self.drivers.items():
+        for ref in self.drivers:
             basis, _ = self._current(host.credential, ref)
             self.bindings[ref] = basis
-            try:
-                self._load_result(ref, driver)
-            except (SessionApiError, ValueError, KeyError, TypeError, OSError):
-                # A single saved result can be stale or partially published.
-                # Keep the Wiki and all unrelated project reads available.
-                self.unverified_results.add(ref)
-                logging.warning(
-                    "Saved Wiki Stage 2 result could not be verified for %s", ref
-                )
 
     def _current(self, credential, ref):
         with self.host.projects._lock:
@@ -104,13 +94,6 @@ class WikiStage2Continuation:
     def _request_path(driver):
         return _guard(driver.records / "wiki-request.json")
 
-    @staticmethod
-    def _matches_pins(pins):
-        try:
-            return all(_digest(path) == pin for path, pin in pins.items())
-        except OSError:
-            return False
-
     def _request(self, driver, basis):
         path = self._request_path(driver)
         if not path.exists():
@@ -144,8 +127,16 @@ class WikiStage2Continuation:
                 "stage2-continuation-project-stale",
             )
             request = self._request(driver, basis)
-            if request is None and not _guard(driver.records / "intent.json").exists():
+            if request is None and not any(
+                _guard(driver.records / name).exists()
+                for name in ("intent.json", "result.json")
+            ):
                 self._admission(driver)
+                _check(
+                    len(self.active) < MAX_ACTIVE_RUNS,
+                    "stage2-continuation-worker-busy",
+                    503,
+                )
                 check_deadline()
                 request = {
                     "basis": basis,
@@ -165,7 +156,7 @@ class WikiStage2Continuation:
                 _check(
                     request["key"] == body["key"], "stage2-continuation-request-exists"
                 )
-        return False, self.read(credential, ref)
+        return False, self.read(credential, ref, check_deadline)
 
     def run(self, ref):
         driver = self.drivers[ref]
@@ -184,8 +175,6 @@ class WikiStage2Continuation:
                 if status == "unavailable-preparation-admission"
                 else None
             )
-            if status == "saved":
-                self._load_result(ref, driver)
         except SessionApiError as error:
             status, reason = "blocked", error.code
         except Exception:
@@ -200,29 +189,35 @@ class WikiStage2Continuation:
                 with self.lock:
                     self.active.discard(ref)
 
-    def read(self, credential, ref):
+    def read(self, credential, ref, check_deadline):
         basis, driver, frontier = self._bound(credential, ref)
         with self.lock:
             if ref in self.active:
                 return self._public(basis, "running")
             request = self._request(driver, basis)
-            view = self.views.get(ref)
-        _check(
-            ref not in self.unverified_results, "stage2-continuation-result-not-current"
-        )
-        if view is not None:
-            projection, pins, next_event = view
-            _check(
-                frontier["workflow_head_sha256"] == projection["workflow_head_sha256"]
-                and self._matches_pins(pins)
-                and not _guard(next_event).exists(),
-                "stage2-continuation-result-not-current",
-            )
-            _, _, current_frontier = self._bound(credential, ref)
-            _check(
-                frontier == current_frontier, "stage2-continuation-result-not-current"
-            )
-            return projection
+        selection = self.host.project_stage2_selection
+        if selection is not None and ref in selection.bindings:
+            try:
+                current = selection.read(credential, ref, check_deadline=check_deadline)
+            except SessionApiError as error:
+                if not error.code.startswith("stage2-selection-"):
+                    raise
+            else:
+                if all(
+                    current[key] == basis[key]
+                    for key in ("project_ref", "input_version", "brief_sha256")
+                ):
+                    return self._public(basis, "selection-available")
+        result_path = _guard(driver.records / "result.json")
+        if result_path.exists():
+            try:
+                return self._read_result(
+                    credential, ref, basis, driver, frontier, result_path
+                )
+            except (SessionApiError, ValueError, KeyError, TypeError, OSError) as error:
+                raise SessionApiError(
+                    "stage2-continuation-result-not-current"
+                ) from error
         intent_path = _guard(driver.records / "intent.json")
         if request is not None or intent_path.exists():
             outcome = _guard(driver.records / "wiki-outcome.json")
@@ -234,74 +229,43 @@ class WikiStage2Continuation:
         self._admission(driver)
         return self._public(basis, "ready")
 
-    def _load_result(self, ref, driver):
-        # Verify outside the HTTP deadline on startup and after the original
-        # worker. Reads join this proof to the current frontier and raw seals.
-        saved_path = _guard(driver.records / "result.json")
-        if not saved_path.exists():
-            return
-        intent_path = driver.records / "intent.json"
-        delivery_manifest = _guard(driver.delivery_dir / DELIVERY_MANIFEST)
-        records = [saved_path, intent_path]
-        if delivery_manifest.exists():
-            records.append(delivery_manifest)
-        pins = {path: _digest(path) for path in records}
-        saved, intent = _read(saved_path), _read(intent_path)
-        credential = self.host.credential
+    def _read_result(self, credential, ref, basis, driver, frontier, result_path):
+        # Verify the complete original result on every reopen. The previous
+        # read cannot attest to later changes in the workflow or delivery.
+        saved = _read(result_path)
+        intent = _read(driver.records / "intent.json")
         driver._same(intent, credential, ref, intent["key"])
-        verified = driver._verify_result(saved, intent)
-        basis, _, frontier = self._bound(credential, ref)
         head = saved["controller"]["workflow_head_sha256"]
         _check(
-            frontier["activation_sha256"] == basis["activation_sha256"]
+            frontier is not None
+            and frontier["activation_sha256"] == basis["activation_sha256"]
             and frontier["workflow_head_sha256"] == head,
             "stage2-continuation-result-not-current",
         )
-        manifest_receipt = saved["controller"]["controller_manifest_sha256"]
-        manifest_path = (
-            driver.controller_dir
-            / "controller_manifests"
-            / (manifest_receipt + ".json")
+        verified = driver._verify_result(saved, intent)
+        original = intent["binding"]
+        expected = {
+            **original,
+            "workflow_head_sha256": head,
+            "frontier_sequence": original["frontier_sequence"]
+            + (original["workflow_head_sha256"] != head),
+        }
+        _check(
+            canonical_hash(_json(driver.service.binding(ref)))
+            == canonical_hash(expected),
+            "stage2-continuation-result-not-current",
         )
-        pins[manifest_path] = saved["manifest_file_sha256"]
-        source_root = Path(intent["binding"]["source_root"])
-        pins[Path(intent["binding"]["packet_path"])] = intent["sources"]["packet"]
-        pins.update(
-            {
-                source_root / name: digest
-                for name, digest in intent["sources"].items()
-                if name != "packet"
-            }
-        )
-        event = verified["workflow"]["events"][-1]
-        event_dir = verified["workflow"]["root"] / "events"
-        event_path = event_dir / f"{event['sequence']:06d}.json"
-        next_event = event_dir / f"{event['sequence'] + 1:06d}.json"
-        pins[event_path] = _digest(event_path)
-        projection = self._public(
+        _, _, current_frontier = self._bound(credential, ref)
+        _check(frontier == current_frontier, "stage2-continuation-result-not-current")
+        if verified["delivery"] is not None:
+            packet = json.loads(_raw(intent["binding"]["packet_path"]))
+            return self._delivery(basis, verified, packet["comparison"])
+        return self._public(
             basis,
             "no-candidate",
             workflow_head_sha256=head,
             controller_status=saved["controller"]["status"],
         )
-        delivery = verified["delivery"]
-        if delivery is not None:
-            selection = next(
-                row
-                for row in delivery["manifest"]["files"]
-                if row["path"] == "selection.json"
-            )
-            pins[driver.delivery_dir / "selection.json"] = selection["sha256"]
-            initial_comparison = json.loads(_raw(intent["binding"]["packet_path"]))[
-                "comparison"
-            ]
-            projection = self._delivery(basis, verified, initial_comparison)
-        _check(
-            self._matches_pins(pins),
-            "stage2-continuation-result-not-current",
-        )
-        with self.lock:
-            self.views[ref] = projection, pins, next_event
 
     def _delivery(self, basis, verified, initial_comparison):
         delivery = verified["delivery"]
@@ -361,7 +325,7 @@ def install_stage2_continuation(host):
                 _check(host.authenticate(token) is not None, "credential-rejected", 401)
                 if method == "GET":
                     _check(not length, "invalid-project-read", 400)
-                    result = service.read(token, ref)
+                    result = service.read(token, ref, self._remaining)
                     self._remaining()
                     return self._reply(200, result)
                 _check(
