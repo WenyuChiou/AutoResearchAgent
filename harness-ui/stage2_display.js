@@ -70,8 +70,10 @@ function wikiStage2Basis() {
 }
 
 function wikiStage2OwnsView() {
-  return !!wikiStage2State?.result && wikiStage2State.result.status !== "selection-available"
-    && JSON.stringify(wikiStage2Basis()) === JSON.stringify(wikiStage2State.basis);
+  const state = wikiStage2State;
+  return !!state && JSON.stringify(wikiStage2Basis()) === JSON.stringify(state.basis)
+    && (state.error === "stage2-continuation-original-admission-unavailable"
+      || (!!state.result && state.result.status !== "selection-available"));
 }
 
 async function wikiStage2Load(state, submit) {
@@ -79,7 +81,6 @@ async function wikiStage2Load(state, submit) {
   const [ref, inputVersion, brief] = state.basis;
   if (JSON.stringify(wikiStage2Basis()) !== JSON.stringify(state.basis)) return;
   state.busy = true;
-  state.error = "";
   try {
     if (submit && !state.key) state.key = crypto.randomUUID();
     const result = await liveRequest(projectPath(ref, "stage2/continuation"), submit ? {
@@ -88,6 +89,7 @@ async function wikiStage2Load(state, submit) {
     if (result.project_ref !== ref || result.input_version !== inputVersion
         || result.brief_sha256 !== brief) throw Error("project-binding-mismatch");
     state.result = result;
+    state.error = "";
   } catch (error) {
     if (error.message !== "stage2-continuation-worker-busy") state.result = null;
     state.error = error.message;

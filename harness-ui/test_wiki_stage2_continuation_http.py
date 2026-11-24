@@ -17,7 +17,9 @@ import sys
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -29,7 +31,9 @@ from research_workspace_native.project_stage2_controller_config import (
 )
 from stage2_common import Stage2Error
 from stage2_common import canonical_hash
+from stage2_live.preparation import _write as write_preparation_receipt
 from stage2_workflow import inspect_workflow
+from wiki_stage23_services import configure_services
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -371,6 +375,80 @@ def prepare_renderer(root):
 
 
 class WikiStage2ContinuationHttpTests(unittest.TestCase):
+    def test_expired_wiki_configuration_keeps_the_original_readback_identity(self):
+        with tempfile.TemporaryDirectory(prefix="w511-") as directory:
+            root = Path(directory).resolve()
+            deadline = time.time() + 60
+            spec = {"native": {}, "workspaces": {}}
+            admission = {
+                "status": "admitted",
+                "mode": "synthetic",
+                "execution_policy_sha256": canonical_hash(spec["native"]),
+                "runtime_sha256": "a" * 64,
+                "deadline_unix": deadline,
+                "remaining_budget": {"model_calls": 0},
+            }
+            case = SimpleNamespace(
+                root=root,
+                ref="project-test",
+                spec=spec,
+                handler=SimpleNamespace(admission_context=admission),
+                output=root / "controller",
+                delivery=root / "delivery",
+            )
+            path, pin = controller_config(case)
+            args = SimpleNamespace(
+                stage2_controller_config=path, stage2_controller_sha256=pin
+            )
+            stage2 = SimpleNamespace(
+                intake=SimpleNamespace(read=lambda token, ref: None),
+                binding=lambda ref: {"workflow_root": root / "workflow"},
+            )
+            services = {"projects": object(), "stage2": stage2, "credential": "fixture"}
+            configure_services(services, args)
+            original = services["stage2_controllers"][case.ref]
+            self.assertTrue(callable(original.handler.prepare))
+            with patch("time.time", return_value=deadline + 1):
+                with self.assertRaisesRegex(
+                    Stage2Error, "^native-prerequisite-original-admission-required$"
+                ):
+                    load_stage2_controllers(stage2, "fixture", path, pin)
+                configure_services(services, args)
+                reopened = services["stage2_controllers"][case.ref]
+                self.assertEqual(reopened._configuration(), original._configuration())
+                self.assertEqual(reopened.handler.admission_context, admission)
+                self.assertFalse(hasattr(reopened.handler, "prepare"))
+
+                output = root / "original-preparation"
+                self.assertFalse(output.exists())
+                preparation = root / "wiki-config-valid/prep.json"
+                original_preparation = preparation.read_bytes()
+                preparation.write_bytes(original_preparation + b" ")
+                with self.assertRaisesRegex(
+                    Stage2Error, "^native-prerequisite-configuration-hash-differs$"
+                ):
+                    configure_services(services, args)
+                preparation.write_bytes(original_preparation)
+
+                output.mkdir()
+                receipt = output / "provider-binding.json"
+                write_preparation_receipt(receipt, {"different": True})
+                with self.assertRaisesRegex(
+                    Stage2Error, "^native-prerequisite-provider-binding-differs$"
+                ):
+                    configure_services(services, args)
+                receipt.unlink()
+                write_preparation_receipt(receipt, original.handler.binding)
+                write_preparation_receipt(
+                    output / "native-reservation.json", {"binding_sha256": "0" * 64}
+                )
+                with self.assertRaisesRegex(
+                    Stage2Error, "^native-prerequisite-budget-binding-differs$"
+                ):
+                    configure_services(services, args)
+            self.assertFalse(case.output.exists())
+            self.assertFalse(case.delivery.exists())
+
     def test_unconfigured_wiki_refuses_requests_and_refresh_is_read_only(self):
         with tempfile.TemporaryDirectory(prefix="w508-") as directory:
             root = Path(directory).resolve()
@@ -419,8 +497,6 @@ class WikiStage2ContinuationHttpTests(unittest.TestCase):
 
 class WikiStage2ContinuationJourney(unittest.TestCase):
     def test_request_concurrency_and_reopen_real_wiki(self):
-        from unittest.mock import patch
-
         import test_project_stage2 as activation_fixture
         from test_project_stage2_controller import ProjectStage2ControllerTests
         import test_project_stage2_host_controller as host_fixture
@@ -495,6 +571,10 @@ class WikiStage2ContinuationJourney(unittest.TestCase):
         params = [*controller_params, *selection_config(case)]
         selected_route = route.replace("/continuation", "/selection")
         workers = root / "workers.jsonl"
+        unavailable = (
+            409,
+            {"error": "stage2-continuation-original-admission-unavailable"},
+        )
         for admission in ("missing", "expired"):
             invalid_path, invalid_pin = controller_config(case, admission=admission)
             refusal = "native-prerequisite-original-admission-required"
@@ -503,18 +583,19 @@ class WikiStage2ContinuationJourney(unittest.TestCase):
                     load_stage2_controllers(
                         case.service, case.token, invalid_path, invalid_pin
                     )
-                with (
-                    self.assertRaisesRegex(AssertionError, refusal),
-                    wiki(
-                        case.store_root,
-                        root,
-                        "--stage2-controller-config",
-                        invalid_path,
-                        "--stage2-controller-sha256",
-                        invalid_pin,
-                    ),
-                ):
-                    self.fail("Wiki started with a refused original configuration")
+                with wiki(
+                    case.store_root,
+                    root,
+                    "--stage2-controller-config",
+                    invalid_path,
+                    "--stage2-controller-sha256",
+                    invalid_pin,
+                ) as (base, token):
+                    for intent in (None, body):
+                        status, response = request(
+                            base, route, credential=token, body=intent
+                        )
+                        self.assertEqual((status, json.loads(response)), unavailable)
             (root / "release").unlink()
             with (
                 self.subTest(admission=admission),
@@ -526,10 +607,7 @@ class WikiStage2ContinuationJourney(unittest.TestCase):
                 status, payload = request(base, route, credential=token, body=body)
                 self.assertEqual(
                     (status, json.loads(payload)),
-                    (
-                        409,
-                        {"error": "stage2-continuation-original-admission-unavailable"},
-                    ),
+                    unavailable,
                 )
                 self.assertFalse(
                     (case.output / "project_stage2_driver/wiki-request.json").exists()
@@ -641,6 +719,52 @@ class WikiStage2ContinuationJourney(unittest.TestCase):
             self.assertEqual(
                 request(base, route, credential=token, body=body), (200, payload)
             )
+        deadline = max(
+            fixture.handler.admission_context["deadline_unix"]
+            for fixture in (case, second)
+        )
+        future = (
+            f"wall = time.time\noffset = {deadline!r} + 1 - wall()\n"
+            "time.time = lambda: wall() + offset\n"
+        )
+        expired_child = CHILD.replace("import run_v7\n", future + "import run_v7\n", 1)
+        with (
+            patch.dict(globals(), {"CHILD": expired_child}),
+            wiki(case.store_root, root, *params) as (base, token),
+        ):
+            for _ in range(2):
+                self.assertEqual(request(base, route, credential=token), (200, payload))
+            self.assertEqual(
+                request(base, route, credential=token, body=body), (200, payload)
+            )
+            status, stale = request(
+                base,
+                route,
+                credential=token,
+                body={**body, "input_version": str(body["input_version"])},
+            )
+            self.assertEqual(
+                (status, json.loads(stale)),
+                (409, {"error": "stage2-continuation-project-stale"}),
+            )
+            status, overview = request(
+                base, "/api/projects/" + other + "/overview", credential=token
+            )
+            self.assertEqual(
+                (status, json.loads(overview)["project"]["project_ref"]), (200, other)
+            )
+            for intent in (None, second_body):
+                status, response = request(
+                    base, second_route, credential=token, body=intent
+                )
+                self.assertEqual((status, json.loads(response)), unavailable)
+            self.assertFalse(
+                (second.output / "project_stage2_driver/wiki-request.json").exists()
+            )
+            self.assertEqual(
+                hashlib.sha256(Path(path).read_bytes()).hexdigest(), digest
+            )
+
             selection = case.delivery / "selection.json"
             original = selection.read_bytes()
             for changed in (
@@ -676,12 +800,17 @@ class WikiStage2ContinuationJourney(unittest.TestCase):
                 )
         finally:
             selection.write_bytes(original)
-        with wiki(
-            case.store_root,
-            root,
-            *controller_params,
-            *selection_config(case, manifest_sha256=result["delivery_manifest_sha256"]),
-        ) as (base, token):
+        with (
+            patch.dict(globals(), {"CHILD": expired_child}),
+            wiki(
+                case.store_root,
+                root,
+                *controller_params,
+                *selection_config(
+                    case, manifest_sha256=result["delivery_manifest_sha256"]
+                ),
+            ) as (base, token),
+        ):
             self.assertEqual(request(base, selected_route, credential=token)[0], 200)
             status, preferred = request(base, route, credential=token)
             self.assertEqual(status, 200)

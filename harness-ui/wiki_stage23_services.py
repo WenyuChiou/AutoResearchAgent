@@ -41,7 +41,11 @@ def configure_services(services, args):
         )
 
         services["stage2_controllers"] = load_stage2_controllers(
-            stage2, token, args.stage2_controller_config, args.stage2_controller_sha256
+            stage2,
+            token,
+            args.stage2_controller_config,
+            args.stage2_controller_sha256,
+            allow_readback_without_admission=True,
         )
     bindings = {}
     if getattr(args, "stage2_direct_import_config", None):
