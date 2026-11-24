@@ -40,6 +40,12 @@ def main(argv=None):
     ):
         command = commands.add_parser(name)
         command.add_argument("--request", type=Path, required=True)
+    admit = commands.add_parser(
+        "admit-saved-candidate",
+        help="Register externally provided saved material, without search or screening",
+    )
+    admit.add_argument("--request", type=Path, required=True)
+    admit.add_argument("--source", type=Path, required=True)
     query = commands.add_parser("complete-query")
     query.add_argument("--query-id", required=True)
     for name in (
@@ -60,6 +66,16 @@ def main(argv=None):
                 args.run, run_id=args.run_id, objective=args.objective
             )
             result = ledger.manifest
+        elif args.command == "admit-saved-candidate":
+            from stage1_deliverable.common import reject_links
+
+            request = decode(args.request.read_bytes(), str(args.request))
+            reject_links(args.source.absolute())
+            if args.source.is_symlink() or not args.source.is_file():
+                raise LedgerError("provided-regular-file-required")
+            with args.source.open("rb") as stream:
+                material = stream.read(ledger.manifest["max_artifact_bytes"] + 1)
+            result = ledger.admit_saved_candidate(material=material, **request)
         elif args.command in {
             "start",
             "finish",
