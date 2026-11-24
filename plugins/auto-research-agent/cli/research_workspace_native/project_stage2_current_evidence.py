@@ -234,5 +234,5 @@ def current_evidence(delivery, credential, stage1, project, *, check_deadline=No
         return _blocked(view, error.code)
     except (LedgerError, sqlite3.OperationalError):
         return _blocked(view, "stage2-current-evidence-owner-unavailable")
-    except (OSError, ValueError, KeyError, TypeError):
+    except (OSError, ValueError, KeyError, TypeError, RecursionError):
         return _blocked(view, "stage2-current-evidence-validation-failed")

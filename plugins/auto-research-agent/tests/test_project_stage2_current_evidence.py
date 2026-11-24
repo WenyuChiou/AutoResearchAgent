@@ -273,7 +273,39 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
                     invalid["current_evidence"]["reason"],
                     "stage2-current-input-receipt-binding-differs",
                 )
-                marker.write_bytes(original)
+                marker.write_bytes(b"[" * 2000 + b"0" + b"]" * 2000)
+                try:
+                    for endpoint in ("stage2", "stage2/offers", "overview"):
+                        with self.subTest(damaged_receipt_endpoint=endpoint):
+                            status, response = request(origin, f"{route}/{endpoint}")
+                            self.assertEqual(status, 200, response)
+                            if endpoint == "overview":
+                                self.assertEqual(
+                                    response["project"]["project_ref"], ref
+                                )
+                                self.assertEqual(
+                                    response["stage1"]["checkpoint"]["event_id"],
+                                    accepted["source"]["checkpoint_event_id"],
+                                )
+                                response = response["stage2"]
+                            evidence = response.pop("current_evidence")
+                            self.assertEqual(evidence["status"], "blocked")
+                            self.assertEqual(
+                                evidence["reason"],
+                                "stage2-current-evidence-validation-failed",
+                            )
+                            self.assertNotIn("packet_sha256", evidence)
+                            self.assertEqual(
+                                response,
+                                {
+                                    key: value
+                                    for key, value in initial.items()
+                                    if key != "current_evidence"
+                                },
+                            )
+                finally:
+                    marker.write_bytes(original)
+                self.assertEqual(request(origin, route + "/stage2"), (200, initial))
                 (receiver / "receipt.json").rename(receiver / "unobserved.json")
                 status, pending = request(origin, route + "/stage2")
                 self.assertEqual(status, 200)
