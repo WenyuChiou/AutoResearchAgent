@@ -914,10 +914,21 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
             with self.assertRaises(SessionApiError) as error:
                 self.delivery.deliver("alice-token", fixture["ref"], body)
             self.assertEqual(error.exception.code, "intake-operation-failed")
-            self.assertEqual(error.exception.receipt["status"], "failed")
-            self.assertEqual(
-                error.exception.receipt["error"], "stage1-delivery-offer-hash-differs"
+            self.assertEqual(error.exception.status, 409)
+            receipt = error.exception.receipt
+            self.assertEqual(receipt["status"], "execution-unknown")
+            self.assertEqual(receipt["failure_phase"], "publication-outcome-unobserved")
+            self.assertEqual(receipt["error"], "stage1-delivery-offer-hash-differs")
+            self.assertIs(receipt["execution_authorized"], False)
+            self.assertIs(receipt["replayed"], False)
+            build.assert_not_called()
+            self.assertIsNone(
+                self.delivery.read("alice-token", fixture["ref"])["canonical_package"]
             )
+            self.assertEqual(list(self.intake_root.rglob("s1d-*")), [])
+            self.reopen()
+            replay = self.delivery.deliver("alice-token", fixture["ref"], body)
+            self.assertEqual(replay, {**receipt, "replayed": True})
             build.assert_not_called()
 
     def test_receipt_observation_drift_rejects_even_with_new_records_hash(self):
@@ -1277,20 +1288,33 @@ class ProjectStage1DeliveryTests(unittest.TestCase):
         with patch(
             "research_workspace_native.project_stage1_delivery.package.build",
             side_effect=partial,
-        ):
+        ) as build:
             with self.assertRaises(SessionApiError) as error:
                 self.delivery.deliver("alice-token", fixture["ref"], body)
-        self.assertEqual(error.exception.receipt["status"], "failed")
+            self.assertEqual(build.call_count, 1)
+        self.assertEqual(error.exception.code, "intake-operation-failed")
+        self.assertEqual(error.exception.status, 409)
+        receipt = error.exception.receipt
+        self.assertEqual(receipt["status"], "execution-unknown")
+        self.assertEqual(receipt["failure_phase"], "publication-outcome-unobserved")
+        self.assertEqual(receipt["error"], "authored failure after partial output")
+        self.assertIs(receipt["execution_authorized"], False)
+        self.assertIs(receipt["replayed"], False)
         self.assertEqual(outputs[0].read_bytes(), b"preserved partial build")
+        self.assertIsNone(
+            self.delivery.read("alice-token", fixture["ref"])["canonical_package"]
+        )
         self.reopen()
         with patch(
             "research_workspace_native.project_stage1_delivery.package.build"
         ) as build:
             replay = self.delivery.deliver("alice-token", fixture["ref"], body)
-            self.assertTrue(replay["replayed"])
-            self.assertEqual(replay["status"], "failed")
+            self.assertEqual(replay, {**receipt, "replayed": True})
             build.assert_not_called()
         self.assertEqual(outputs[0].read_bytes(), b"preserved partial build")
+        self.assertIsNone(
+            self.delivery.read("alice-token", fixture["ref"])["canonical_package"]
+        )
 
     def test_crash_after_build_remains_unknown_and_reopen_does_not_rebuild(self):
         fixture = self.saved()
