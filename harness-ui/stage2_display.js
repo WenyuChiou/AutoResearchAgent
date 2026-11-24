@@ -58,6 +58,122 @@ function n2Files(){const documents=n2.meta.documents.filter(d=>d.role!=='source-
 function n2Feedback(){return ''; }
 function n2Render(app){n2.records=new Map();if(!n2.model)return `<section class="hs-panel"><h2>${rl('正在读取最新Stage2交付','Loading latest Stage2 delivery','正在讀取最新Stage2交付')}</h2><p>${rx(n2.error||rl('核验原文件与来源身份…','Verifying files & source identities…','核驗原檔案與來源身分…'))}</p></section>`;const model=n2.model,counts=model.levels;return `<details class="n2-boundary"><summary>${rl('独立自然提问 · prehuman · 尚未真人选案','Independent natural request · prehuman · no human direction choice','獨立自然提問 · prehuman · 尚未真人選案')}</summary><p>${rl('当前Stage1 v3和本Stage2交付没有正式血缘绑定。作者推荐与具名报告评分接受均不自动批准Stage3。','Current Stage1 v3 and this Stage2 delivery have no formal lineage binding. Neither author recommendation nor named score-record acceptance approves Stage3.','目前Stage1 v3與此Stage2交付無正式血緣綁定。作者推薦及具名報告評分接受均不自動批准Stage3。')}</p></details><details class="lp-results" data-local-results="2" open><summary><strong>Stage2 · ${rl('方向与文献工作台','Directions & literature workbench','方向與文獻工作臺')}</strong></summary><div class="lp-result-body"><section class="hs-panel n2-workbench" data-n2-workbench><div class="hs-panel-head"><div><h2>${rl('研究比较','Research comparison','研究比較')}</h2><p>${model.sources.length} ${rl('项来源资料','source materials','項來源資料')} · ${rx(counts['full-text']??0)} full-text · ${rx(counts.abstract??0)} abstract · ${model.routes.length} ${rl('条方向','directions','條方向')}</p></div><span class="hs-status">${n2Array(model.selection.recommendations).length} recommend · ${n2Array(model.selection.parked_options).length} park</span></div><nav class="n2-tabs" role="tablist" aria-label="Stage2">${Object.entries(n2Views).map(([id,label])=>`<button class="hs-button" id="n2-tab-${id}" role="tab" aria-selected="${n2.view===id}" aria-controls="n2-panel" tabindex="${n2.view===id?'0':'-1'}" data-n2-view="${id}">${rl(...label)}</button>`).join('')}</nav><p class="n2-notice" aria-live="polite">${rx(n9Message(n2.notice)||'')}</p><div id="n2-panel" role="tabpanel" aria-labelledby="n2-tab-${n2.view}">${n2.view==='papers'?n2Papers():n2.view==='routes'?n2Routes():n2Relations()}</div></section>${n2Evidence()}${n2Raw()}${n2Document()}${n2Files()}</div></details>${n2Feedback()}`;}
 stage2=function(app){if(!n2Active())return n2OldStage2(app);if(!n2.meta&&!n2.loading&&!n2.error)queueMicrotask(()=>{if(n2Active()&&apps[0]?.stage===2)n2Load();});return `${typeof canonicalTop==='function'?canonicalTop():''}${canonicalHeading(app)}${canonicalOperations(app)}${n2Render(app)}`;};
+
+const wikiStage2Original = stage2;
+let wikiStage2State;
+
+function wikiStage2Basis() {
+  const project = rt.overview?.project;
+  if (!project || project.project_ref !== rt.ref || canonicalReadonly()
+      || rt.overview?.stage2?.receiving_only) return null;
+  return [project.project_ref, project.input_version, project.brief_sha256];
+}
+
+function wikiStage2OwnsView() {
+  const state = wikiStage2State;
+  return !!state && JSON.stringify(wikiStage2Basis()) === JSON.stringify(state.basis)
+    && (state.error === "stage2-continuation-original-admission-unavailable"
+      || (!!state.result && state.result.status !== "selection-available"));
+}
+
+async function wikiStage2Load(state, submit) {
+  if (state !== wikiStage2State || state.busy) return;
+  const [ref, inputVersion, brief] = state.basis;
+  if (JSON.stringify(wikiStage2Basis()) !== JSON.stringify(state.basis)) return;
+  state.busy = true;
+  try {
+    if (submit && !state.key) state.key = crypto.randomUUID();
+    const result = await liveRequest(projectPath(ref, "stage2/continuation"), submit ? {
+      key: state.key, input_version: inputVersion, brief_sha256: brief, confirmed: true,
+    } : undefined);
+    if (result.project_ref !== ref || result.input_version !== inputVersion
+        || result.brief_sha256 !== brief) throw Error("project-binding-mismatch");
+    state.result = result;
+    state.error = "";
+  } catch (error) {
+    if (error.message !== "stage2-continuation-worker-busy") state.result = null;
+    state.error = error.message;
+  } finally {
+    state.busy = false;
+    if (state === wikiStage2State && JSON.stringify(wikiStage2Basis()) === JSON.stringify(state.basis)
+        && apps[0]?.page === "workspace" && apps[0]?.stage === 2) livePaint();
+  }
+}
+
+function wikiStage2Panel(state) {
+  const label = (zh, en, tw) => rl(zh, en, tw);
+  const status = state.result?.status;
+  const descriptions = {
+    ready: label("项目已接入。可请求生成候选。", "This project is connected. You can request candidates.", "專案已接入。可請求產生候選。"),
+    "request-saved": label("请求已保存。可查看处理状态。", "Request saved. You can check its status.", "請求已儲存。可查看處理狀態。"),
+    running: label("正在处理此请求。", "This request is in progress.", "正在處理此請求。"),
+    "candidate-ready": label("当前版本的候选已保存。", "Candidates saved for this version.", "目前版本的候選已儲存。"),
+    "no-candidate": label("已有控制器回执。候选交付尚未保存。", "A controller receipt is saved. Candidate delivery is pending.", "已有控制器回執。候選交付尚未儲存。"),
+    "execution-unknown": label("已有请求。请由操作者核对原运行记录。", "A request exists. Ask the operator to check the retained run.", "已有請求。請由操作者核對原執行紀錄。"),
+    blocked: label("已保存的请求受阻。请由操作者检查交接。", "The saved request is blocked. Ask the operator to check the handoff.", "已儲存的請求受阻。請由操作者檢查交接。"),
+    "stage2-controller-not-connected": label("当前项目还缺受信操作者的 Stage 2 接入。", "This project is waiting for the operator to connect Stage 2.", "目前專案仍缺受信操作者的 Stage 2 接入。"),
+    "stage2-continuation-activation-required": label("请先完成本项目的 Stage 2 启用。", "Complete Stage 2 activation for this project first.", "請先完成本專案的 Stage 2 啟用。"),
+    "stage2-continuation-original-admission-unavailable": label("原运行许可缺失或已过期。请联系操作者。", "The original run admission is missing or expired. Contact the operator.", "原執行許可缺失或已過期。請聯絡操作者。"),
+    "stage2-continuation-project-stale": label("当前输入版本和已接入作业不一致。请重新打开项目。", "Reopen the project. The input version has changed.", "目前輸入版本和已接入作業不一致。請重新開啟專案。"),
+    "stage2-continuation-result-not-current": label("保存的候选与当前记录不一致。请联系操作者。", "The saved candidates could not be verified for this version. Contact the operator.", "保存的候選與目前紀錄不一致。請聯絡操作者。"),
+    "stage2-continuation-request-exists": label("已有请求。请查看保存状态。", "A request already exists. Check its saved status.", "已有請求。請查看儲存狀態。"),
+    "stage2-continuation-worker-busy": label("另一个请求正在处理。请稍后再试。", "Another request is running. Try again shortly.", "另一個請求正在處理。請稍後再試。"),
+  };
+  const message = state.busy
+    ? label("正在读取请求状态。", "Checking request status.", "正在讀取請求狀態。")
+    : descriptions[state.error || status] || (state.error
+      ? label("暂时无法读取回执。请再查一次保存状态。", "The receipt could not be read. Check its saved status again.", "暫時無法讀取回執。請再查一次儲存狀態。")
+      : "");
+  const cards = state.result?.cards || [];
+  const heading = label("候选方向", "Candidate directions", "候選方向");
+  const prompts = [
+    ["suggested_approach", label("方法", "Approach", "方法")],
+    ["requirements", label("需要的资料", "Requirements", "需要的資料")],
+    ["limitations", label("限制", "Limitations", "限制")],
+  ];
+  return `<section class="hs-panel" data-wiki-stage2-continuation><h2>${heading}</h2>
+    <small>${rx(rt.overview.project.brief?.original_description || state.basis[0])} · ${label("输入版本", "Input version", "輸入版本")} ${rx(state.basis[1])}</small>
+    <p role="status">${rx(message)}</p><div class="n9-page-actions">
+      ${status === "ready" ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
+      <button type="button" class="hs-button" data-wiki-stage2-action="read" ${state.busy ? "disabled" : ""}>${label("查看保存状态", "Check saved status", "查看儲存狀態")}</button>
+    </div>
+    ${state.result?.synthetic_test_only ? `<p>${label("合成工程候选", "Synthetic engineering candidates", "合成工程候選")}</p>` : ""}
+    ${state.result?.human_selection === "pending" ? `<p>${label("等待人工选案", "Human selection pending", "等待人工選案")}</p>` : ""}
+    ${state.result?.assessment_status === "missing" ? `<p>${label("独立评估尚未提供", "Independent assessment unavailable", "獨立評估尚未提供")}</p>` : ""}
+    ${status === "candidate-ready" && state.result.comparison ? `<p><strong>${state.result.comparison_is_input_baseline
+      ? label("接入时的比较基线", "Comparison baseline at intake", "接入時的比較基線")
+      : label("交付中记录的比较", "Comparison recorded in the delivery", "交付中記錄的比較")}</strong> ${rx(state.result.comparison)}</p>` : ""}
+    ${cards.map(card => `<details class="n2-secondary"><summary>${rx(card.candidate_question)} · v${rx(card.candidate_version)}</summary>
+      <dl>${prompts.map(([field, name]) => `<dt>${name}</dt><dd>${rx(Array.isArray(card[field]) ? card[field].join(" · ") || null : card[field])}</dd>`).join("")}</dl>
+    </details>`).join("")}</section>`;
+}
+
+stage2 = function (app) {
+  const original = wikiStage2Original(app);
+  const basis = wikiStage2Basis();
+  if (!basis) return original;
+  if (JSON.stringify(wikiStage2State?.basis) !== JSON.stringify(basis)) {
+    const state = {basis, key: null, result: null, busy: false, error: ""};
+    wikiStage2State = state;
+    queueMicrotask(() => wikiStage2Load(state, false));
+  }
+  if (window.RESEARCH_PROJECTS?.stage2_selection_projects?.includes(rt.ref)
+      && !wikiStage2OwnsView()) return original;
+  const panel = wikiStage2Panel(wikiStage2State);
+  if (!wikiStage2State.result) return panel + original;
+  return `${liveHeader(app)}${panel}<details class="hs-panel">
+    <summary>${rl("先前的 Wiki 输入和记录", "Earlier Wiki inputs and records", "先前的 Wiki 輸入和紀錄")}</summary>
+    ${original}</details>`;
+};
+
+document.addEventListener("click", event => {
+  const button = event.target.closest?.("[data-wiki-stage2-action]");
+  if (!button || !wikiStage2State || button.disabled) return;
+  const submit = button.dataset.wikiStage2Action === "request";
+  if (submit && wikiStage2State.result?.status !== "ready") return;
+  wikiStage2Load(wikiStage2State, submit);
+  livePaint();
+});
 v7AfterRender=function(app){n2OldAfter(app);if(n2Active()&&app.stage===2)n2Load();};
 function n2Paint(open){livePaint();if(open)apps[0].el.querySelector(open)?.setAttribute('open','');}
 document.addEventListener('change',event=>{if(!n2Active()||apps[0]?.stage!==2||!n2.model)return;const el=event.target;if(el.matches('[data-n2-select]')){const sources=el.dataset.n2Select==='sources',key=sources?'papers':'routes',allowed=sources?n2.model.sources.map(s=>s.source_id):n2.model.routes.map(r=>r.candidate.candidate_id);if(!allowed.includes(el.value))return;if(el.checked&&!n2[key].includes(el.value)){if(n2[key].length>=3){el.checked=false;n2.notice=()=>rl('最多并排3个对象，请先取消一个。','Up to 3 objects; deselect one first.','最多並排3個對象，請先取消一個。');}else{n2[key].push(el.value);n2.notice='';}}else if(!el.checked)n2[key]=n2[key].filter(v=>v!==el.value);n2.evidence=null;n2.raw=null;n2Paint('.n2-picker');}if(el.matches('[data-n2-draft]')&&n2.model.routes.some(r=>r.candidate.candidate_id===el.dataset.n2Draft)){if(n2.draft!==el.dataset.n2Draft)n2.note='';n2.draft=el.dataset.n2Draft;n2.draftStatus='unsaved-local-only';n2Paint('[data-n2-review]');}});

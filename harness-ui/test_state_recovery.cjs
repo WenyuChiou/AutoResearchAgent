@@ -230,6 +230,7 @@ function stage1LoopBinding() {
 
 async function main() {
   const checks = [
+    ['Stage 2 shows admission feedback and a read-only retry unless selection is available', stage2AdmissionFeedback],
     ['Stage 1 loop requires a current project and binding', stage1LoopBinding],
     ['stage navigation preserves canonical project, locale, path and read-only URL state', stageNavigationRoute],
     ['saved-result hierarchy and on-demand operations/materials', savedResultLayout],
@@ -259,6 +260,55 @@ async function main() {
   console.log(JSON.stringify({kind: 'synthetic-actual-source-state-regression',
     tests: checks.length, failures: failed, browser_acceptance: false, research_execution: false}));
   if (failed) process.exitCode = 1;
+}
+
+async function stage2AdmissionFeedback() {
+  const project = {project_ref: 'project-A', input_version: 1,
+    revision: 2, brief_sha256: 'a'.repeat(64)};
+  const requests = [], listeners = [];
+  let selectionAvailable = false;
+  const context = {
+    rt: {ref: project.project_ref, overview: {project}},
+    apps: [{page: 'workspace', stage: 2, lang: 'en'}],
+    stage2: () => '<saved-inputs/>', laterStage: () => '',
+    v7BeforeRender() {}, v7AfterRender() {}, livePaint() {},
+    canonicalReadonly: () => false, queueMicrotask, rx: String, rl: (zh, en) => en,
+    document: {addEventListener: (type, handler) => listeners.push({type, handler})},
+    window: {addEventListener() {},
+      RESEARCH_PROJECTS: {stage2_selection_projects: [project.project_ref]}},
+    projectPath: (ref, suffix) => '/api/projects/' + ref + '/' + suffix,
+    async liveRequest(path, body) {
+      requests.push([path, body]);
+      if (!selectionAvailable) throw Error('stage2-continuation-original-admission-unavailable');
+      return {...project, status: 'selection-available'};
+    },
+  };
+  vm.createContext(context);
+  for (const file of ['stage2_display.js', 'v9-stage3-bridge.js']) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), context, {filename: file});
+  }
+  const render = () => vm.runInContext('stage2(apps[0])', context);
+  const wait = () => new Promise(resolve => setImmediate(resolve));
+  render();
+  await wait();
+  const feedback = render();
+  assert.match(feedback, /The original run admission is missing or expired/);
+  assert.match(feedback, /Check saved status/);
+  assert.doesNotMatch(feedback, /data-wiki-stage2-action="request"|data-v93-choice/);
+  const click = listeners.find(listener => listener.type === 'click').handler;
+  const retry = {dataset: {wikiStage2Action: 'read'}};
+  click({target: {closest: () => retry}});
+  assert.doesNotMatch(render(), /data-v93-choice/);
+  await wait();
+  assert.match(render(), /The original run admission is missing or expired/);
+
+  selectionAvailable = true;
+  click({target: {closest: () => retry}});
+  await wait();
+  assert.match(render(), /data-v93-choice/);
+  assert.doesNotMatch(render(), /data-wiki-stage2-continuation/);
+  assert.deepEqual(requests, Array.from({length: 3}, () =>
+    ['/api/projects/project-A/stage2/continuation', undefined]));
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
