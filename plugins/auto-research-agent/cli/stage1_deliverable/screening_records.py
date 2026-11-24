@@ -265,15 +265,6 @@ def _row(row, candidate, claims, decisions, queries, ranks):
             and all(observed[k] == v for k, v in discovery.items()),
             "discovery observation rewritten",
         )
-        if "provided" in discovery:
-            _require(
-                observed["candidate_discovery_order_in_run"]
-                == ranks[discovery["discovery_id"]]
-                and observed["result_position"] is None
-                and observed["round_number"] is None,
-                "provided observation promoted to query result",
-            )
-            continue
         query = queries.get(discovery["query_id"])
         _require(query is not None, "discovery query omitted")
         attempt = next(
@@ -302,9 +293,7 @@ def _row(row, candidate, claims, decisions, queries, ranks):
         )
     history = [d for d in decisions if d["subject_id"] == work]
     work_claims = [c for c in claims if c["work_id"] == work]
-    query_ids = {
-        d["query_id"] for d in candidate["discoveries"] if d["query_id"] is not None
-    }
+    query_ids = {d["query_id"] for d in candidate["discoveries"]}
     _require(
         row["decision_history"] == history
         and row["current_decision"] == (history[-1] if history else None)
@@ -402,11 +391,7 @@ def _row(row, candidate, claims, decisions, queries, ranks):
             "discoveries": len(row["discoveries"]),
             "distinct_queries": len(query_ids),
             "discovery_producing_backend_attempts": len(
-                {
-                    d["attempt_id"]
-                    for d in row["discoveries"]
-                    if d["attempt_id"] is not None
-                }
+                {d["attempt_id"] for d in row["discoveries"]}
             ),
             "query_backend_attempts": sum(
                 len(queries[q]["backend_attempts"]) for q in query_ids
@@ -521,11 +506,9 @@ def validate_extension(records):
     candidates = {c["work_id"]: c for c in core["CandidateSnapshot"]}
     _require(len(candidates) == len(core["CandidateSnapshot"]), "duplicate candidates")
     queries = _queries(library["query_history"])
-    from stage1_ledger.provided import discovery_order
-
     discoveries = sorted(
         (d for c in candidates.values() for d in c["discoveries"]),
-        key=discovery_order,
+        key=lambda d: (int(d["completion_id"][1:]), d["record_index"]),
     )
     ranks = {d["discovery_id"]: i for i, d in enumerate(discoveries, 1)}
     _require(len(ranks) == len(discoveries), "duplicate discoveries")
@@ -764,16 +747,6 @@ def journal_rows(records, raw):
     reviews = {p["work_id"]: p for p in events if p["kind"] == "CoverageWorkReview"}
     for row in library["rows"]:
         work = row["work_id"]
-        event_index = {p["event_id"]: p for p in events}
-        for discovery in row["discoveries"]:
-            if "provided" in discovery:
-                event = event_index.get(discovery["provided"]["event_id"])
-                _require(
-                    event is not None
-                    and event["kind"] == "CandidateRevision"
-                    and discovery["completion_created_at"] == event["created_at"],
-                    "provided observation time differs",
-                )
         sources = [
             {"started": p, "finished": source_finishes.get(p["event_id"])}
             for p in events

@@ -140,7 +140,14 @@ class ProvidedCandidateTests(unittest.TestCase):
             with self.subTest(field=field):
                 body = self.body("bad-" + field)
                 body[field] = value
-                with self.assertRaises((SessionApiError, LedgerError)):
+                expected = {
+                    "source_project_ref": "provided-project-differs",
+                    "input_version": "intake-source-version-differs",
+                    "version_id": "provided-work-version-differs",
+                    "material_sha256": "provided-material-hash-differs",
+                    "ledger_state_sha256": "stage1-ledger-state-stale",
+                }[field]
+                with self.assertRaisesRegex((SessionApiError, LedgerError), expected):
                     self.admit(body)
                 self.assertEqual(ledger.events(), before)
 
@@ -252,3 +259,40 @@ class ProvidedCandidateTests(unittest.TestCase):
             with self.assertRaises(LedgerError):
                 ledger.admit_saved_candidate(**request)
             self.assertEqual(ledger.events(), before)
+
+    def test_core_write_before_lost_receipt_holds_reopen_and_new_keys(self):
+        body = self.body()
+        original = Ledger.admit_saved_candidate
+
+        def write_then_fail(ledger, **request):
+            original(ledger, **request)
+            raise OSError("simulated loss after durable candidate")
+
+        with patch.object(Ledger, "admit_saved_candidate", write_then_fail):
+            with self.assertRaises(SessionApiError) as failure:
+                self.admit(body)
+        self.assertEqual(failure.exception.receipt["status"], "execution-unknown")
+        ledger = self.private_ledger(self.ref)
+        before = ledger.events()
+        self.assertEqual(len(ledger.candidates()), 1)
+        self.assertEqual(self.admit(body)["status"], "execution-unknown")
+        self.assertTrue(
+            self.service.read("alice-token", self.ref)["coverage_actions"]["held"]
+        )
+        with self.assertRaisesRegex(
+            SessionApiError, "stage1-coverage-write-outcome-unobserved"
+        ):
+            self.admit(self.body("new-key-after-loss"))
+        self.intake.close()
+        from research_workspace_native.project_intake import ProjectIntakeService
+        from research_workspace_native.project_stage1 import ProjectStage1Service
+        from test_workspace_project_intake import authenticate
+
+        self.intake = ProjectIntakeService(self.root, authenticate=authenticate)
+        self.service = ProjectStage1Service(self.intake)
+        self.assertEqual(self.admit(body)["status"], "execution-unknown")
+        with self.assertRaisesRegex(
+            SessionApiError, "stage1-coverage-write-outcome-unobserved"
+        ):
+            self.admit(self.body("new-key-after-reopen"))
+        self.assertEqual(ledger.events(), before)

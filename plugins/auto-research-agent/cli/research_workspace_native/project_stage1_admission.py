@@ -2,6 +2,7 @@
 
 from stage1_deliverable.common import private_output, reject_links, safe_path
 from stage1_ledger.journal import canonical, digest
+from stage1_ledger.provided import check_identity
 
 from .session_api import _check
 
@@ -27,6 +28,7 @@ def execute(
 
     def request(ledger, actor):
         _check(body["source_project_ref"] == project_ref, "provided-project-differs")
+        check_identity(body["record"], body["work_id"], body["version_id"])
         path = safe_path(root, body["source_relative"])
         reject_links(path)
         _check(path.is_file(), "provided-regular-file-required")
