@@ -4,6 +4,7 @@ from copy import deepcopy
 from hashlib import sha256
 import json
 from pathlib import Path
+import subprocess
 import sys
 import unittest
 from unittest.mock import Mock, patch
@@ -11,11 +12,18 @@ from unittest.mock import Mock, patch
 PLUGIN = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PLUGIN.parents[1] / "harness-ui"), str(PLUGIN / "cli")]
 import test_stage3_workflow as workflow_fixture  # noqa: E402
+from research_workspace_native.journal import Journal  # noqa: E402
+from stage1_eval.common import EvaluationError  # noqa: E402
 from stage3_plan.contracts import Stage3Error, canonical_bytes, digest  # noqa: E402
 from stage3_plan.decision import record_plan_decision  # noqa: E402
+from stage3_plan.jobs import PlanningJobs  # noqa: E402
+from stage3_plan.native import NativePlanner  # noqa: E402
 from stage3_plan.planner import draft_plan  # noqa: E402
 from stage3_plan_review_readback import plan_review_identity, read_plan_review  # noqa: E402
 from test_stage3_plan_decision import semantic_review  # noqa: E402
+
+
+_call_native_adapter = NativePlanner.__call__
 
 
 class ProjectStage3ReviewReadbackTests(unittest.TestCase):
@@ -227,12 +235,107 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
         self.assertEqual(callback.call_count, 1)
         self.assertEqual(self.snapshot(), before)
 
+    def test_pinned_review_and_job_reopen_original_native_archive_after_evaluator_drift(
+        self,
+    ):
+        # Patch only transport while writing the native receipt. The source
+        # admission is the same explicitly authored fixture as the other tests.
+        root = self.fx.root
+        project = self.view["project_ref"]
+        journal = Journal(root / "history.sqlite")
+        self.addCleanup(journal.close)
+        journal.bind_project(project, "a" * 64)
+        owner = journal.acquire_owner(project, "engineering-test")
+        jobs = PlanningJobs(journal, project, owner, root / "jobs")
+        home = root / "home"
+        home.mkdir()
+        adapter = NativePlanner(
+            codex=sys.executable,
+            codex_home=home,
+            capture_dir=root / "capture",
+            timeout_seconds=30,
+        )
+        self.fx.intake["selection_conditions"] = []
+        initial_path = root / "native-initial.json"
+        initial = workflow_fixture.start_workflow(
+            "source",
+            "delivery",
+            expected_source_manifest_sha256=self.fx.plan["source_manifest_sha256"],
+            output=initial_path,
+            workflow_id="native-review-history",
+        )
+        checkpoint = {"path": str(initial_path), "sha256": initial["checkpoint_sha256"]}
+
+        def transport(command, **_):
+            raw = canonical_bytes(self.fx.plan)
+            Path(command[command.index("-o") + 1]).write_bytes(raw)
+            events = [
+                {
+                    "type": "item.completed",
+                    "item": {"type": "agent_message", "text": raw.decode()},
+                },
+                {"type": "turn.completed"},
+            ]
+            return subprocess.CompletedProcess(
+                command, 0, b"\n".join(map(canonical_bytes, events)), b""
+            )
+
+        with (
+            patch("stage3_plan.intake.admit_intake", return_value=self.fx.intake),
+            patch("stage3_plan.jobs.admit_intake", return_value=self.fx.intake),
+            patch.object(NativePlanner, "__call__", _call_native_adapter),
+            patch(
+                "stage1_eval.model_calls._execute_bound_process", side_effect=transport
+            ) as sent,
+        ):
+            prepared = jobs.prepare(
+                "history",
+                checkpoint=checkpoint,
+                configuration={"model": "fixture", "reasoning": "medium"},
+                adapter_context=adapter.request_context,
+                plan_id=self.fx.plan["plan_id"],
+                expected_revision=journal.snapshot(project)["revision"],
+            )
+            pins = dict(
+                expected_request_sha256=prepared["request_sha256"],
+                current_checkpoint=checkpoint,
+            )
+            saved = jobs.run("history", callback=adapter, **pins)["result"]
+            self.assertEqual(sent.call_count, 1)
+            self.fx.current = Path(saved["checkpoint"]["path"])
+            self.fx.saved = workflow_fixture.inspect_workflow(
+                self.fx.current,
+                expected_checkpoint_sha256=saved["checkpoint"]["sha256"],
+            )
+            review = self.attach_review(status="unknown")
+            self.view = self.view_for_saved_plan(self.fx.plan)
+            self.view["job"]["request_sha256"] = pins["expected_request_sha256"]
+            binding = self.binding()
+            pins["expected_plan_manifest_sha256"] = saved["plan"]["manifest_sha256"]
+
+        before = self.snapshot()
+        with (
+            patch("stage3_plan.intake.admit_intake", return_value=self.fx.intake),
+            patch("stage3_plan.jobs.admit_intake", return_value=self.fx.intake),
+            patch("stage1_eval.model_calls._evaluator_code_sha", return_value="f" * 64),
+            patch("stage1_eval.model_calls._execute_bound_process") as sent,
+        ):
+            visible = read_plan_review(self.view, trusted_binding=binding)
+            self.assertEqual(visible["review"]["sha256"], review["sha256"])
+            self.assertIsNone(visible["decision"])
+            self.assertFalse(visible["execution_authorized"])
+            self.assertEqual(jobs.inspect_saved("history", **pins)["result"], saved)
+            with self.assertRaisesRegex(EvaluationError, "current evaluator changed"):
+                self.fx.transition("attach-review", review)
+            sent.assert_not_called()
+        self.assertEqual(self.snapshot(), before)
+
     def test_cross_project_and_stale_input_rejected_before_checkpoint_read(self):
         saved = self.binding()
         cross = deepcopy(self.view)
         cross["project_ref"] = cross["job"]["project_ref"] = "project-other"
         stale = dict(self.view, input_version="synthetic-input-v2")
-        with patch("stage3_plan_review_readback.inspect_workflow") as opened:
+        with patch("stage3_plan_review_readback.inspect_completed_workflow") as opened:
             for view in (cross, stale):
                 with (
                     self.subTest(view=view["project_ref"]),
