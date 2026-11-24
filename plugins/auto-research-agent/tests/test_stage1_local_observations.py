@@ -133,6 +133,67 @@ class LocalObservationTests(unittest.TestCase):
                 )
                 self.assertEqual(got["observation"]["cell"]["unit"], unit)
 
+    def test_unit_evidence_distinguishes_symbols_annotations_and_footnotes(self):
+        examples = (
+            ("Pressure (in Hg)", "in Hg", ("Hg", "in")),
+            ("Concentration (mg/L) (estimated)", "mg/L", ("estimated", "mg", "L")),
+            ("Number of consumer units (in thousands)[1]", "thousands", ("units", "1")),
+            ("Income (in dollars)[1][2]", "dollars", ("in",)),
+            ("Mass (estimated) (mg)", "mg", ("estimated",)),
+        )
+        for label, valid, invalid in examples:
+            raw = f"Item,A\n{label},42\n".encode("utf8")
+            with self.subTest(label=label), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                start = raw.index(b"42")
+                before = self.journal_rows(c)
+                for unit in invalid:
+                    with self.subTest(unit=unit), self.assertRaises(SessionApiError):
+                        service.record(
+                            "alice-token", c.ref, self.sample_body(c, unit, start=start)
+                        )
+                    self.assertEqual(self.journal_rows(c), before)
+                body = self.sample_body(c, valid, start=start)
+                first = service.record("alice-token", c.ref, body)
+                c.intake.close()
+                c.intake = ProjectIntakeService(c.root, authenticate=authenticate)
+                service = ProjectStage1LocalObservationService(
+                    ProjectStage1Service(c.intake), agent_id="test-agent"
+                )
+                stored = self.journal_rows(c)
+                self.assertEqual(
+                    service.read("alice-token", c.ref, body["key"])["observation"],
+                    first["observation"],
+                )
+                self.assertTrue(service.record("alice-token", c.ref, body)["replayed"])
+                self.assertEqual(self.journal_rows(c), stored)
+
+    def test_ambiguous_or_unknown_unit_evidence_refuses_without_rewriting(self):
+        for label, unit in (
+            ("Mass (mg) (g)", "mg"),
+            ("Mass (estimated)", "estimated"),
+            ("Mass (mg) (per day)", "mg"),
+            ("Mass (mg)/(L)", "mg"),
+            ("Mass ((mg))", "mg"),
+            ("Mass (mg)[unresolved]", "mg"),
+            ("Mass (unknown-unit)", "unknown-unit"),
+        ):
+            raw = f"Item,A\n{label},42\n".encode("utf8")
+            with self.subTest(label=label), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                before = self.journal_rows(c)
+                with self.assertRaises(SessionApiError):
+                    service.record(
+                        "alice-token",
+                        c.ref,
+                        self.sample_body(c, unit, start=raw.index(b"42")),
+                    )
+                self.assertEqual(self.journal_rows(c), before)
+
     def test_checkpoint_must_exist_and_cover_source_before_any_action(self):
         for timing, reason in (
             ("none", "local-observation-checkpoint-required"),

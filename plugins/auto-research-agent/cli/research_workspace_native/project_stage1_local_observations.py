@@ -46,6 +46,101 @@ def _text(value, maximum=512):
     return value
 
 
+def _declared_unit(label):
+    """Resolve bounded literal evidence, not the last parenthesis or a word.
+
+    A label suffix consists of parenthesized declarations/annotations and
+    numeric footnotes. Exactly one recognized unit expression is required.
+    Unknown groups are ambiguous, not silently discarded. This is not a unit
+    converter or a general natural-language measurement interpreter.
+    """
+    start = label.find("(")
+    _check(start >= 0, "local-observation-unit-evidence-unavailable")
+    suffix = label[start:]
+    groups = re.findall(r"\(([^()]+)\)", suffix)
+    remainder = re.sub(r"\([^()]+\)|\[\d+\]", "", suffix)
+    _check(not remainder.strip(), "local-observation-unit-evidence-ambiguous")
+
+    # Case matters in symbols. Prefixes are only permitted on SI-style bases;
+    # in (inch) and Hg are literal atoms and must never lose their first atom.
+    bases = (
+        "m",
+        "g",
+        "s",
+        "L",
+        "l",
+        "A",
+        "K",
+        "mol",
+        "cd",
+        "Hz",
+        "N",
+        "Pa",
+        "J",
+        "W",
+        "C",
+        "V",
+        "F",
+        "ohm",
+        "Ω",
+        "S",
+        "Wb",
+        "T",
+        "H",
+    )
+    prefixes = (
+        "",
+        "p",
+        "n",
+        "u",
+        "µ",
+        "μ",
+        "m",
+        "c",
+        "d",
+        "da",
+        "h",
+        "k",
+        "M",
+        "G",
+        "T",
+    )
+    atoms = {p + b for p in prefixes for b in bases}
+    atoms.update(
+        ("in", "ft", "yd", "mi", "oz", "lb", "h", "min", "d", "Hg", "%", "°C", "°F")
+    )
+    atom = (
+        "(?:"
+        + "|".join(re.escape(a) for a in sorted(atoms, key=lambda a: (-len(a), a)))
+        + ")"
+    )
+    factor = atom + r"(?:\^[+-]?\d+|[⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]+)?"
+    expression = factor + r"(?:(?:\s*[/·*]\s*|\s+)" + factor + r")*"
+    # In prose, "in" is a preposition only before these explicit count/scale
+    # and currency declarations. Unknown "in ..." stays unclassified.
+    words = r"(?:dollars|cents|percent|units|thousands|millions|billions)(?: of (?:dollars|units))?"
+    annotations = {
+        "estimated",
+        "provisional",
+        "preliminary",
+        "seasonally adjusted",
+        "not seasonally adjusted",
+    }
+    candidates = []
+    for group in groups:
+        declared = group.strip()
+        if re.fullmatch(expression, declared):
+            candidates.append(declared)
+        elif re.fullmatch(words, declared):
+            candidates.append(declared)
+        elif declared.startswith("in ") and re.fullmatch(words, declared[3:]):
+            candidates.append(declared[3:])
+        elif declared not in annotations:
+            _check(False, "local-observation-unit-evidence-ambiguous")
+    _check(len(candidates) == 1, "local-observation-unit-evidence-ambiguous")
+    return candidates[0]
+
+
 def _cell(raw, body):
     """Single-line CSV records only; retain exact token bytes, not inferred prose."""
     lines = raw.splitlines(keepends=True)
@@ -84,17 +179,13 @@ def _cell(raw, body):
     begin, end = offsets[column - 1]
     prefix = sum(map(len, lines[: row - 1]))
     unit = _text(body["unit"], 128)
-    # Support an explicit trailing unit declaration, not arbitrary prose or a
-    # component of a compound unit. "in dollars" is the saved BLS convention.
-    # Ambiguous/nested declarations fail closed; no conversion is inferred.
-    declaration = re.search(r"\((?:in )?([^()]+)\)\s*$", rows[row - 1][0])
+    declared_unit = _declared_unit(rows[row - 1][0])
     _check(
         type(body["start_byte"]) is int
         and type(body["end_byte"]) is int
         and (body["start_byte"], body["end_byte"]) == (prefix + begin, prefix + end)
         and raw[prefix + begin : prefix + end] == _text(body["quote"]).encode("utf8")
-        and declaration is not None
-        and unit == declaration.group(1).strip(),
+        and unit == declared_unit,
         "local-observation-cell-bytes-or-unit-differs",
     )
     return dict(
