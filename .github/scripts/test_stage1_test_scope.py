@@ -1344,6 +1344,51 @@ class Serial(unittest.TestCase):
         )
         self.assertEqual(rows[-1]["skips"], 2)
 
+    def test_windows_full_keeps_timing_outside_class_stdout_capture(self):
+        fixture = self.write(
+            TESTS + "test_source_saved_pipeline.py",
+            """from contextlib import redirect_stdout
+import io
+from pathlib import Path
+import unittest
+
+class Capture(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.output = cls.enterClassContext(io.StringIO())
+        cls.enterClassContext(redirect_stdout(cls.output))
+
+    @classmethod
+    def tearDownClass(cls):
+        Path(__file__).with_name("captured.txt").write_bytes(
+            cls.output.getvalue().encode("utf-8")
+        )
+
+    def test_public_output(self):
+        print("normal application output")
+        self.assertEqual(self.output.getvalue(), "normal application output\\n")
+""",
+        )
+        result, rows = self.windows_full_rows()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            fixture.with_name("captured.txt").read_bytes(),
+            b"normal application output\n",
+        )
+        starts = [row for row in rows if "serial_test_started" in row]
+        ends = [row for row in rows if "serial_test_completed" in row]
+        self.assertEqual(len(starts), 1)
+        self.assertEqual(len(ends), 1)
+        start, end = starts[0], ends[0]
+        self.assertEqual(
+            start["serial_test_started"],
+            "test_source_saved_pipeline.Capture.test_public_output",
+        )
+        self.assertEqual(end["serial_test_completed"], start["serial_test_started"])
+        self.assertEqual(end["partition_id"], start["partition_id"])
+        self.assertEqual((start["sequence"], end["sequence"]), (1, 1))
+        self.assertEqual(end["outcome"], "passed")
+
     def test_parallel_full_suite_propagates_failures_import_errors_and_crashes(self):
         for source, marker in (
             (PASSING.replace("pass", "self.fail('parallel failure')"), '"failures": 1'),

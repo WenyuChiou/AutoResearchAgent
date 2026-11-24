@@ -356,8 +356,10 @@ def partition_id(ids):
 def emit_timing(row):
     # A verbose unittest prefix may lack a newline, especially after a worker
     # stops. Frame timing records even when the caller merges stdout and stderr.
-    sys.stdout.write(f"\n{json.dumps(row)}\n")
-    sys.stdout.flush()
+    # Use the interpreter's original stream when a fixture captures sys.stdout.
+    stream = sys.__stdout__
+    stream.write(f"\n{json.dumps(row)}\n")
+    stream.flush()
 
 
 class TimedSerialResult(unittest.TextTestResult):
