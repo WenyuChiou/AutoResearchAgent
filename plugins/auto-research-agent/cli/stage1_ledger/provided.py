@@ -52,6 +52,9 @@ def provided_revision(previous, *, record, provenance, source_ref):
 
 def check_provided(discovery, read_ref, manifest):
     provenance = discovery["provided"]
+    check_source_arguments(
+        dict(kind="SourceImportStarted", source_uri=provenance.get("source_uri"))
+    )
     check(provenance, "ProvidedCandidateProvenance")
     check_record(discovery["record"])
     work_key(discovery["record"])
@@ -82,7 +85,7 @@ def check_provided(discovery, read_ref, manifest):
     read_ref(provenance["material_ref"])
 
 
-def admit(
+def prepare(
     ledger,
     *,
     record,
@@ -97,9 +100,10 @@ def admit(
     work_id,
     version_id,
 ):
-    """Called under the ledger writer; all validation precedes saved bytes."""
+    """Validate deterministic admission inputs without writing artifacts/events."""
     from .validation import validate_run
 
+    check_source_arguments(dict(kind="SourceImportStarted", source_uri=source_uri))
     if not validate_run(ledger.root)["valid"]:
         raise LedgerError("provided-invalid-ledger")
     if expected_state_sha256 != ledger.state_hash():
@@ -146,6 +150,16 @@ def admit(
         or parts.password
     ):
         raise LedgerError("provided-public-url-required")
+    return provenance
+
+
+def admit(ledger, **request):
+    """Recheck under the ledger writer, then persist provided material."""
+    provenance = prepare(ledger, **request)
+    record, material = request["record"], request["material"]
+    work_id, version_id = request["work_id"], request["version_id"]
+    material_sha256 = request["material_sha256"]
+    source_uri, original_type = request["source_uri"], request["original_type"]
     previous = ledger.candidates().get(work_id)
     if previous:
         for discovery in previous["discoveries"]:

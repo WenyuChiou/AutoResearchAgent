@@ -2,7 +2,7 @@
 
 from stage1_deliverable.common import private_output, reject_links, safe_path
 from stage1_ledger.journal import canonical, digest
-from stage1_ledger.provided import check_identity
+from stage1_ledger.provided import check_identity, prepare
 
 from .session_api import _check
 
@@ -53,7 +53,7 @@ def execute(
         )
 
     def preflight(_state, _run, ledger, _report, actor):
-        request(ledger, actor)
+        prepare(ledger, **request(ledger, actor))
 
     def producer(_state, _run, ledger, _request_hash, actor):
         return ledger.admit_saved_candidate(**request(ledger, actor))
