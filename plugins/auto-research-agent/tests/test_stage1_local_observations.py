@@ -77,6 +77,47 @@ class LocalObservationTests(unittest.TestCase):
             for table in ("intake_projects", "intake_actions", "intake_events")
         }
 
+    def test_row_and_selected_column_units_must_agree_before_save(self):
+        raw = (
+            b"Analyte,Mean (mg/L),Coefficient of variation (%)\n"
+            b"Concentration (mg/L),42,8\n"
+        )
+        with self.sample(raw) as c:
+            service = ProjectStage1LocalObservationService(
+                c.service, agent_id="test-agent"
+            )
+            for unit in ("mg/L", "%"):
+                before = self.journal_rows(c)
+                with (
+                    self.subTest(unit=unit),
+                    self.assertRaisesRegex(
+                        SessionApiError, "local-observation-row-column-unit-conflict"
+                    ),
+                ):
+                    service.record(
+                        "alice-token",
+                        c.ref,
+                        self.sample_body(c, unit, column=3, quote="8", start=73),
+                    )
+                self.assertEqual(self.journal_rows(c), before)
+            body = self.sample_body(c, "mg/L", start=70)
+            first = service.record("alice-token", c.ref, body)
+            c.intake.close()
+            c.intake = ProjectIntakeService(c.root, authenticate=authenticate)
+            c.service = ProjectStage1Service(c.intake)
+            service = ProjectStage1LocalObservationService(
+                c.service, agent_id="test-agent"
+            )
+            before = self.journal_rows(c)
+            self.assertEqual(
+                service.read("alice-token", c.ref, body["key"])["observation"],
+                first["observation"],
+            )
+            again = service.record("alice-token", c.ref, body)
+            self.assertTrue(again["replayed"])
+            self.assertEqual(again["observation"], first["observation"])
+            self.assertEqual(self.journal_rows(c), before)
+
     def test_complete_compound_unit_refuses_both_components_without_writes(self):
         with self.sample(b"Item,A\nConcentration (mg/L),42\n") as c:
             service = ProjectStage1LocalObservationService(

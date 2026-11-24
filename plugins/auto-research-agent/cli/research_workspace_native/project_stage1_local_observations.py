@@ -180,6 +180,12 @@ def _cell(raw, body):
     prefix = sum(map(len, lines[: row - 1]))
     unit = _text(body["unit"], 128)
     declared_unit = _declared_unit(rows[row - 1][0])
+    column_label = rows[0][column - 1]
+    if "(" in column_label:
+        _check(
+            _declared_unit(column_label) == declared_unit,
+            "local-observation-row-column-unit-conflict",
+        )
     _check(
         type(body["start_byte"]) is int
         and type(body["end_byte"]) is int
@@ -192,7 +198,7 @@ def _cell(raw, body):
         row=row,
         column=column,
         row_label=rows[row - 1][0],
-        column_label=rows[0][column - 1],
+        column_label=column_label,
         cell_text=rows[row - 1][column - 1],
         unit=unit,
         start_byte=prefix + begin,
