@@ -626,8 +626,11 @@ def validate_extension(records):
                 "provided unread promoted or evidence hidden",
             )
         elif paper["reading_status"] == "discovery-only":
+            from .provided_records import provided_for_version
+
             _require(
-                not selected_sources
+                provided_for_version(candidates[work], paper["version_id"]) is None
+                and not selected_sources
                 and not selected_claims
                 and row["current_review"] is None
                 and not paper["roles"]

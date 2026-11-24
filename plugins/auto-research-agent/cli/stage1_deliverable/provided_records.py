@@ -5,7 +5,9 @@ def unread_provided(candidate, events, reviews):
     """Only a genuinely unscreened, unassessed provided version gets this view."""
     work = candidate["work_id"]
     return (
-        bool(candidate["discoveries"][-1].get("provided"))
+        bool(
+            provided_for_version(candidate, candidate["discoveries"][-1]["version_id"])
+        )
         and work not in reviews
         and not any(
             (p["kind"] == "DecisionEvent" and p["subject_id"] == work)
@@ -19,11 +21,15 @@ def unread_provided(candidate, events, reviews):
 
 
 def provided_for_version(candidate, version):
-    return next(
-        (
-            d["provided"]
-            for d in reversed(candidate["discoveries"])
-            if d["version_id"] == version and "provided" in d
-        ),
-        None,
-    )
+    """Latest metadata fallback; report provenance uses the complete list."""
+    materials = provided_materials_for_version(candidate, version)
+    return materials[-1] if materials else None
+
+
+def provided_materials_for_version(candidate, version):
+    """Preserve each recorded material and its own URI/hash in journal order."""
+    return [
+        d["provided"]
+        for d in candidate["discoveries"]
+        if d["version_id"] == version and "provided" in d
+    ]

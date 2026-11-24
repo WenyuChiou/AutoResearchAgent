@@ -206,3 +206,159 @@ class ProvidedScreeningPackageTests(unittest.TestCase):
             SessionApiError, "saved-reading-current-record-required"
         ):
             self.produce()
+
+
+class ProvidedProvenanceTests(unittest.TestCase):
+    """External material provenance survives without relaxing reading gates."""
+
+    def setUp(self):
+        self.case = provided_fixture.ProvidedCandidateTests()
+        self.case.setUp()
+        self.addCleanup(self.case.tearDown)
+        self.ledger = self.case.private_ledger(self.case.ref)
+
+        @contextmanager
+        def guard(run, ledger, report):
+            with ledger.writing(repair=False):
+
+                def check():
+                    self.assertEqual(
+                        validate_run(ledger.root)["state_sha256"],
+                        report["state_sha256"],
+                    )
+
+                check()
+                yield check
+                check()
+
+        self.producer = ProjectStage1RecordsService(
+            ProjectStage1DeliveryService(self.case.service),
+            materials_root=self.case.material,
+            mutation_guard=guard,
+        )
+
+    def produce(self):
+        c = self.case
+        c.service.checkpoint("alice-token", c.ref, c.action_body(c.ref, "checkpoint"))
+        stage = c.service.read("alice-token", c.ref)
+        offer = self.producer.produce_records(
+            c.ref,
+            expected_ledger_state_sha256=stage["ledger"]["state_sha256"],
+            expected_checkpoint_event_id=stage["checkpoint"]["event_id"],
+        )
+        self.assertFalse(offer["eligible_for_stage2"])
+        saved = c.intake._load("alice", c.ref)["stage1_delivery_offers"][
+            offer["offer_ref"]
+        ]
+        return Path(saved["records_path"])
+
+    def test_include_and_exclude_without_registered_reading_are_refused(self):
+        c = self.case
+        c.admit()
+        for index, decision in enumerate(("include", "exclude")):
+            self.ledger.decide(
+                c.work,
+                decision,
+                reason="fixture-screening",
+                rationale="Offline fixture decision, not an actual research choice.",
+                evidence_refs=[
+                    self.ledger.candidates()[c.work]["discoveries"][0]["source_ref"]
+                ],
+            )
+            with (
+                self.subTest(decision=decision),
+                self.assertRaisesRegex(
+                    SessionApiError, "saved-reading-current-record-required"
+                ),
+            ):
+                # A new key is necessary after the changed ledger frontier.
+                c.service.checkpoint(
+                    "alice-token", c.ref, c.action_body(c.ref, f"cp-{index}")
+                )
+                stage = c.service.read("alice-token", c.ref)
+                self.producer.produce_records(
+                    c.ref,
+                    expected_ledger_state_sha256=stage["ledger"]["state_sha256"],
+                    expected_checkpoint_event_id=stage["checkpoint"]["event_id"],
+                )
+            discovery = self.ledger.candidates()[c.work]["discoveries"][0]
+            self.assertEqual(
+                self.ledger.read_ref(discovery["provided"]["material_ref"]), c.data
+            )
+            self.assertEqual(
+                discovery["provided"]["source_uri"], "https://example.org/table"
+            )
+
+    def test_mixed_search_and_provided_material_origins_in_both_formats(self):
+        from stage1_ledger.journal import canonical
+
+        c, ledger = self.case, self.ledger
+        state = ledger.coverage_state()
+        plan = next(iter(state.queries))
+        query = ledger.start_planned(plan)
+        backend = ledger.start(
+            "backend",
+            {"input": state.arguments(plan)},
+            backend="openalex",
+            parent_id=query,
+        )
+        raw = ledger.save_bytes(canonical([c.record]), producer=backend)
+        empty = ledger.save_bytes(b"", producer=backend)
+        ledger.finish(
+            backend,
+            outcome="success_nonempty",
+            http_status=200,
+            exit_code=0,
+            stdout=empty,
+            stderr=empty,
+            records=raw,
+        )
+        ledger.complete_query(query)
+        ledger.extract()
+        c.admit()
+        self.assert_views_contain(
+            self.produce(),
+            [
+                "Recorded search discovery: query " + query,
+                "backend attempt " + backend,
+                "externally provided saved material",
+                "https://example.org/table",
+                sha(c.data),
+            ],
+        )
+
+    def test_every_provided_material_url_and_hash_in_both_formats(self):
+        c = self.case
+        c.admit()
+        first = sha(c.data)
+        c.data = b"category,value\nfood,200\n"
+        (c.material / "table.csv").write_bytes(c.data)
+        body = c.body("second")
+        body["source_uri"] = "https://example.org/second-file"
+        c.admit(body)
+        self.assert_views_contain(
+            self.produce(),
+            [
+                "https://example.org/table",
+                first,
+                "https://example.org/second-file",
+                sha(c.data),
+            ],
+        )
+
+    def assert_views_contain(self, path, phrases):
+        output = _io_root(private_output(self.case.root / "package"))
+        receipt = build(path, output, sha(path.read_bytes()))
+        self.assertEqual(
+            validate(output, receipt["manifest_sha256"])["status"], "passed"
+        )
+        md = MarkdownIt().render(
+            (output / "literature_review.md").read_text(encoding="utf8")
+        )
+        docx = "\n".join(
+            p.text for p in Document(output / "literature_review.docx").paragraphs
+        )
+        for text in (md, docx):
+            for phrase in phrases:
+                with self.subTest(phrase=phrase):
+                    self.assertIn(phrase, text)

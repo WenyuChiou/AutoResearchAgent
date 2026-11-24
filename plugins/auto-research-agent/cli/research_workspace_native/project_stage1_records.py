@@ -1056,12 +1056,19 @@ class ProjectStage1RecordsService:
             matches = matches_by_work[work]
             if not matches:
                 version = candidate["discoveries"][-1]["version_id"]
-                from stage1_deliverable.provided_records import unread_provided
+                from stage1_deliverable.provided_records import (
+                    provided_for_version,
+                    unread_provided,
+                )
 
                 provided_unread = unread_provided(candidate, events, reviews)
+                provided = provided_for_version(candidate, version)
                 _check(
                     provided_unread
-                    or not self._reading_required(work, candidate, events, reviews),
+                    or (
+                        provided is None
+                        and not self._reading_required(work, candidate, events, reviews)
+                    ),
                     "saved-reading-current-record-required",
                 )
                 metadata = candidate["discoveries"][-1]["record"]
@@ -1075,11 +1082,7 @@ class ProjectStage1RecordsService:
                         venue=metadata.get("venue") or "Unknown",
                         doi=metadata.get("doi"),
                         url=metadata.get("url")
-                        or (
-                            candidate["discoveries"][-1]["provided"]["source_uri"]
-                            if provided_unread
-                            else None
-                        ),
+                        or (provided["source_uri"] if provided_unread else None),
                         evidence_level="metadata",
                         source_ids=[],
                         claim_ids=[],
