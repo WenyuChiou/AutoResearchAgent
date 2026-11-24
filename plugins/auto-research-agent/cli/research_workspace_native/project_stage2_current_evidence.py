@@ -40,8 +40,12 @@ def _reference(view, bound, binding, brief, native_run_id):
         "input_version": view["input_version"],
         "brief_sha256": view["brief_sha256"],
         "canonical_brief_sha256": canonical_hash(brief),
+        # Match the importer's universal-newline read of resources.txt.
         "resources_sha256": canonical_hash(
-            binding["settings"]["resource_envelope"].strip()
+            binding["settings"]["resource_envelope"]
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .strip()
         ),
         "native_run_id": native_run_id,
         "plan_manifest_sha256": binding["plan_manifest_sha256"],

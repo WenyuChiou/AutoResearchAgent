@@ -85,6 +85,86 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
         identity.start()
         self.addCleanup(identity.stop)
 
+    def test_windows_resource_lines_receive_and_reopen_original_evidence(self):
+        lines = ("Use the saved evidence.", "Leave research and model work unstarted.")
+        original_resources = "\r\n".join(lines)
+        packet_resources = "\n".join(lines)
+        submit_body = delivery_fixture.submit_body
+
+        def windows_submit(view):
+            return dict(submit_body(view), resource_envelope=original_resources)
+
+        with (
+            patch.object(delivery_fixture, "submit_body", side_effect=windows_submit),
+            current_core_stage1_case(screened=True) as data,
+        ):
+            case, ref = data["case"], data["project_ref"]
+            route = f"/api/projects/{ref}"
+            case.reopen()
+            database = case.intake_root / "project-intake.sqlite"
+            database_before = sha256(database.read_bytes()).hexdigest()
+            with serve(case) as origin:
+                status, project = request(origin, route)
+                self.assertEqual(status, 200)
+                settings = project["settings"]
+                self.assertEqual(settings["resource_envelope"], original_resources)
+                status, stage2 = request(origin, route + "/stage2")
+            self.assertEqual(status, 200, stage2)
+            evidence = stage2["current_evidence"]
+            receivers = list((case.intake_root / ref).glob("s2r-*"))
+            self.assertEqual(
+                evidence["status"],
+                "received",
+                {
+                    "evidence": evidence,
+                    "saved_settings_preserve_crlf": settings["resource_envelope"]
+                    == original_resources,
+                    "packet_written": any(
+                        (path / "seed/packet.json").is_file() for path in receivers
+                    ),
+                    "receipt_written": any(
+                        (path / "receipt.json").is_file() for path in receivers
+                    ),
+                },
+            )
+            [receiver] = receivers
+            self.assertEqual(
+                (receiver / "resources.txt").read_bytes(),
+                original_resources.encode("utf-8"),
+            )
+            packet_path = receiver / "seed/packet.json"
+            packet = json.loads(packet_path.read_bytes())
+            self.assertEqual(packet["resources"], packet_resources)
+            self.assertEqual(
+                evidence["source"]["resources_sha256"],
+                packet["upstream"]["resources_sha256"],
+            )
+            self.assertEqual(
+                evidence["source"]["settings_sha256"],
+                sha256(canonical(settings)).hexdigest(),
+            )
+            self.assertEqual(evidence["candidate_count"], 0)
+            self.assertFalse(evidence["execution_authorized"])
+            receipt = receiver / "receipt.json"
+            before = (
+                packet_path.read_bytes(),
+                receipt.read_bytes(),
+                receipt.stat().st_mtime_ns,
+            )
+            case.reopen()
+            with serve(case) as origin:
+                self.assertEqual(request(origin, route + "/stage2"), (200, stage2))
+            self.assertEqual(list((case.intake_root / ref).glob("s2r-*")), [receiver])
+            self.assertEqual(
+                (
+                    packet_path.read_bytes(),
+                    receipt.read_bytes(),
+                    receipt.stat().st_mtime_ns,
+                ),
+                before,
+            )
+            self.assertEqual(sha256(database.read_bytes()).hexdigest(), database_before)
+
     def test_missing_query_guard_blocks_owned_snapshot_at_receiver_boundary(self):
         with (
             TemporaryDirectory(prefix="s2-owner-") as directory,
