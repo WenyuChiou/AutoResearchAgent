@@ -9,13 +9,14 @@ const route=bridge.slice(bridge.indexOf('function v93RouteTarget('),bridge.index
 const flush=async()=>{await new Promise(setImmediate);await new Promise(setImmediate);};
 async function page({storage=new Map(),url='http://localhost/',list=projects,denied=null,pending=null,caseRef=refs[0],blockedStorage=false,foreignOverview=false,waitOverview=null,createResponse=null}={}){
   const options=projects.map(p=>({value:p.project_ref,textContent:topic}));
-  const location=new URL(url),events=[],requests=[],app={stage:1,lang:'en',el:{querySelector(){return null;},querySelectorAll(){return [{options}];}}};
+  const notices=[],location=new URL(url),events=[],requests=[],app={page:'workspace',stage:1,lang:'en',el:{querySelector(selector){return selector==='.hs-content'?{prepend:note=>notices.push(note)}:selector==='[data-live-project-notice]'?notices.at(-1):null;},querySelectorAll(){return [{options}];}}};
   const session=new Map(pending?[['v7-pending-action',JSON.stringify(pending)]]:[]);
   const context={apps:[app],URLSearchParams,location,crypto:webcrypto,TextEncoder,Uint8Array,
     history:{state:{kept:true},replaceState(state,unused,target){assert.equal(state,this.state);location.href=new URL(target,location).href;}},
     localStorage:{getItem(k){if(blockedStorage)throw Error('blocked storage');return storage.get(k)??null;},setItem(k,v){if(blockedStorage)throw Error('blocked storage');storage.set(k,v);}},
     sessionStorage:{getItem:k=>session.get(k)??null,setItem:(k,v)=>session.set(k,v),removeItem:k=>session.delete(k)},
-    document:{hidden:false,activeElement:null,addEventListener:(type,handler)=>events.push({type,handler})},
+    document:{hidden:false,activeElement:null,createElement(){return {dataset:{},setAttribute(){}};},addEventListener:(type,handler)=>events.push({type,handler})},
+    localStage(app,stage,options){assert.equal(options.historyMode,'restore');app.page='workspace';app.stage=stage;},
     window:{RESEARCH_PROJECTS:{credential:'synthetic-test',models:false},addEventListener:(type,handler)=>events.push({type,handler})},setInterval(){},v7AfterRender(){},render(){},esc:v=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),
     translated:(app,values)=>values[{zh:0,en:1,tw:2}[app.lang]],
     fetch:async(url,options)=>{requests.push({url,method:options.method});
@@ -30,7 +31,7 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,den
       return {ok:status===200,status,json:async()=>value};}}
   vm.createContext(context);vm.runInContext(route+'\n'+runtime,context);await flush();
   const run=code=>vm.runInContext(code,context);
-  return {run,storage,requests,location,app,session,options,async navigate(hash){location.hash=hash;for(const entry of events)if(entry.type==='hashchange')await entry.handler();await flush();},async choose(ref){const event={target:{value:ref,matches:s=>s==='[data-live-project]'},stopImmediatePropagation(){}};
+  return {run,storage,requests,location,app,session,options,notices,async navigate(hash){location.hash=hash;for(const entry of events)if(entry.type==='hashchange')await entry.handler();await flush();},async choose(ref){const event={target:{value:ref,matches:s=>s==='[data-live-project]'},stopImmediatePropagation(){}};
     for(const entry of events)if(entry.type==='change')await entry.handler(event);await flush();}};
 }
 (async()=>{
@@ -59,6 +60,7 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,den
   const pending={ref:refs[1],path:'/api/projects/project-B/compile',body:{key:'original-key',revision:11,input_version:2,brief_sha256:'2'.repeat(64)}};
   const held=await page({storage:first.storage,pending,url:'http://localhost/#project-A?stage=1&lang=en'});
   assert.equal(held.run('rt.ref'),refs[1]);assert.equal(held.run('rt.pending.body.key'),'original-key');assert(held.session.has('v7-pending-action'));
+  assert.equal(held.location.hash,'#project-A?stage=1&lang=en','an unresolved intent never overwrites the explicit original link');
   await held.navigate('#project-A?stage=1&lang=en');assert.equal(held.run('rt.ref'),refs[1]);assert.equal(held.run('rt.pending.body.key'),'original-key');
   const blocked=await page({blockedStorage:true});await blocked.choose(refs[1]);assert(blocked.location.hash.includes(refs[1]));
   const empty=await page({list:[],caseRef:'foreign-case'});assert.equal(empty.requests.filter(r=>r.url.includes('/overview')).length,0);
@@ -72,8 +74,14 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,den
   assert(racing.location.hash.startsWith('#project-C?'),'an obsolete callback cannot commit a route while the current B is loading');
   releases[1]({ok:false,status:403,json:async()=>({error:'denied-current'})});await latest;
   assert.equal(racing.run('rt.ref'),refs[2]);assert(racing.location.hash.startsWith('#project-C?'));
+  let releaseLatest;const parameters=await page({waitOverview:ref=>ref===refs[1]?new Promise(resolve=>{releaseLatest=resolve;}):null});
+  parameters.app.page='settings';const navigation=parameters.navigate('#project-B?stage=2&lang=zh-TW');await flush();
+  await parameters.navigate('#project-B?stage=3&lang=zh-CN');
+  releaseLatest({ok:true,status:200,json:async()=>({project:projects[1],stage1:{ledger:{run_ref:'run-B'}}})});await navigation;
+  assert.equal(parameters.app.stage,3);assert.equal(parameters.app.lang,'zh');assert.equal(parameters.app.page,'workspace');
+  parameters.app.page='history';await parameters.navigate('#project-gone?stage=1&lang=en');parameters.run('v7AfterRender(apps[0])');assert.equal(parameters.notices.length,1,'fallback is visible outside Stage1');
   const foreign=await page({storage:new Map(),foreignOverview:true});assert.equal(foreign.storage.size,0,'mismatched overview never becomes a remembered selection');
   const another=await page();assert.equal(another.run('rt.ref'),refs[0],'independent profile does not borrow the other selection');
-  for(const env of [first,reopened,explicit,fallback,denied,removed,held,blocked,empty,noFallback,foreign,another,racing])assert(env.requests.every(r=>r.method==='GET'));
-  console.log('PASS same-title labels, profile reopen, explicit and hash-only links, bounded truthful fallback, pending marker, versions, synthetic create and stale callbacks; 14 environments; recovery GET only');
+  for(const env of [first,reopened,explicit,fallback,denied,removed,held,blocked,empty,noFallback,foreign,another,racing,parameters])assert(env.requests.every(r=>r.method==='GET'));
+  console.log('PASS same-title labels, profile reopen, latest public routes, bounded truthful fallback, pending marker/link, versions, synthetic create and stale callbacks; 15 environments; recovery GET only');
 })().catch(e=>{console.error(e);process.exitCode=1;});

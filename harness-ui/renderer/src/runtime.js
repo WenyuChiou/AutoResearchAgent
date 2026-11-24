@@ -114,11 +114,11 @@ const liveProjectPreference='v7-last-project-v1';
 function liveSavedProject(){try{const ref=localStorage.getItem(liveProjectPreference),available=rt.list.find(p=>p.project_ref===ref)?.project_ref;if(ref&&!available)rt.projectFallback=true;return available;}catch(_){return null;}}
 function liveHomeProject(excluded=null){return rt.list.find(p=>p.project_ref===rt.meta?.case_ref&&p.project_ref!==excluded)?.project_ref||rt.list.find(p=>p.project_ref!==excluded)?.project_ref;}
 function liveRememberProject(){
- if(!rt.ref||(rt.overview?.project?.project_ref!==rt.ref&&rt.savedRun?.entry?.project_ref!==rt.ref))return;
+ if(rt.pending||!rt.ref||(rt.overview?.project?.project_ref!==rt.ref&&rt.savedRun?.entry?.project_ref!==rt.ref))return;
  try{localStorage.setItem(liveProjectPreference,rt.ref);}catch(_){/* The explicit project URL still works without optional browser storage. */}
 }
 function liveProjectRoute(){
- if(rt.error||!rt.ref||!rt.list.some(p=>p.project_ref===rt.ref))return;
+ if(rt.pending||rt.error||!rt.ref||!rt.list.some(p=>p.project_ref===rt.ref))return;
  const base=location.pathname+location.search;
  if(!/^[A-Za-z0-9_-]{1,64}$/.test(rt.ref)){history.replaceState(history.state,'',base);return;}
  const app=apps[0],separator=location.hash.indexOf('?');let previous;
@@ -150,7 +150,8 @@ async function liveSelectProject(ref,route=null){
   rt.projectFallback=true;if(fallback)await liveRefresh(fallback);
  }
  if(selection!==liveProjectSelection||rt.loading)return;
- if(route&&route.ref===rt.ref&&!rt.error){apps[0].stage=route.stage;apps[0].lang=route.lang;}
+ const current=typeof v93RouteTarget==='function'?v93RouteTarget(rt.list):null;
+ if(!rt.pending&&current?.ref===rt.ref&&!rt.error){apps[0].lang=current.lang;if(route||apps[0].page==='workspace')localStage(apps[0],current.stage,{historyMode:'restore'});}
  // Only a successfully bound read commits the preference/link, including create read-back.
  if(!rt.error){liveRememberProject();liveProjectRoute();}livePaint();
 }
@@ -259,7 +260,10 @@ v7AfterRender=function(app){previousAfter(app);const footer=app.el.querySelector
 document.addEventListener('change',event=>{if(event.target.matches('[data-live-labels]')){rt.graphLabels=event.target.checked;apps[0].v7Spatial?.setLabels(rt.graphLabels);}if(event.target.matches('[data-live-related]')){rt.related=event.target.checked;livePaint();}});
 document.addEventListener('click',event=>{const button=event.target.closest('[data-live-fit],[data-live-focus]');if(!button)return;event.preventDefault();if(button.hasAttribute('data-live-focus'))apps[0].v7Spatial?.fitFocus();else apps[0].v7Spatial?.fit();});
 const liveProjectAfter=v7AfterRender;
-v7AfterRender=function(app){liveProjectAfter(app);for(const select of app.el.querySelectorAll('select[data-live-project]'))for(const option of select.options){const project=rt.list.find(p=>p.project_ref===option.value);if(project)option.textContent=liveProjectLabel(project);}};
+v7AfterRender=function(app){
+ liveProjectAfter(app);for(const select of app.el.querySelectorAll('select[data-live-project]'))for(const option of select.options){const project=rt.list.find(p=>p.project_ref===option.value);if(project)option.textContent=liveProjectLabel(project);}
+ if(rt.projectFallback&&!app.el.querySelector('[data-live-project-notice]')){const content=app.el.querySelector('.hs-content');if(content){const notice=document.createElement('p');notice.dataset.liveProjectNotice='';notice.setAttribute('role','status');notice.textContent=liveProjectNotice();content.prepend(notice);}}
+};
 document.addEventListener('change',async e=>{liveScopeInput(e);if(e.target.matches('[data-live-project]')){e.stopImmediatePropagation();rt.projectFallback=false;await liveSelectProject(e.target.value);} });
 document.addEventListener('input',e=>{liveScopeInput(e);if(e.target.matches('[data-live-review],[data-live-draft]'))rt.draft=e.target.value;if(e.target.matches('[data-live-topic]'))rt.topicDraft=e.target.value;});
 document.addEventListener('toggle',e=>{if(e.target.matches('[data-live-feedback]'))rt.feedback=e.target.open;if(e.target.matches('[data-live-assistant]'))rt.assistant=e.target.open;},true);
