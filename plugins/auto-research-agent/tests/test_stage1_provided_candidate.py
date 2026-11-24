@@ -316,7 +316,9 @@ class ProvidedCandidateTests(unittest.TestCase):
                 self.assertEqual(ledger.events(), before)
                 self.assertEqual(self.intake.history("alice-token", self.ref), history)
                 self.assertEqual(self.intake.read("alice-token", self.ref), view)
-                self.assertNotIn("api_key=private", "\n".join(self.intake.db.iterdump()))
+                self.assertNotIn(
+                    "api_key=private", "\n".join(self.intake.db.iterdump())
+                )
                 self.assertFalse(
                     self.service.read("alice-token", self.ref)["coverage_actions"][
                         "held"
