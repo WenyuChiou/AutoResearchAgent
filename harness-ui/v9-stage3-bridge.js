@@ -231,10 +231,10 @@ function v93PublicArchive(){
   <h2>${rl('已发布的研究设计案例','Published research design case','已發布的研究設計案例')}</h2>
   <p>${rl('美国居民消费案例是独立的只读归档。当前项目的计划状态见上方。','The U.S. household spending case is a separate read-only archive. This project’s plan status is shown above.','美國居民消費案例是獨立的唯讀歸檔。目前專案的計畫狀態見上方。')}</p>
   <div class="n9-page-actions">
-   <a class="hs-button" rel="noreferrer" href="${report}#household-case">${rl('查看美国居民消费案例','Open the U.S. household spending case','查看美國居民消費案例')}</a>
-   <a class="hs-button" rel="noreferrer" href="${report}#data-methods">${rl('数据与方法','Data and methods','資料與方法')}</a>
-   <a class="hs-button" rel="noreferrer" href="${report}#validation">${rl('研究验证','Study validation','研究驗證')}</a>
-   <a class="hs-button" rel="noreferrer" href="${report}#harness-evaluation">${rl('计划评估','Plan evaluation','計畫評估')}</a>
+   <a class="hs-button" target="_blank" rel="noopener noreferrer" href="${report}#household-case">${rl('查看美国居民消费案例','Open the U.S. household spending case','查看美國居民消費案例')}</a>
+   <a class="hs-button" target="_blank" rel="noopener noreferrer" href="${report}#data-methods">${rl('数据与方法','Data and methods','資料與方法')}</a>
+   <a class="hs-button" target="_blank" rel="noopener noreferrer" href="${report}#validation">${rl('研究验证','Study validation','研究驗證')}</a>
+   <a class="hs-button" target="_blank" rel="noopener noreferrer" href="${report}#harness-evaluation">${rl('计划评估','Plan evaluation','計畫評估')}</a>
   </div>
  </section>`;
 }

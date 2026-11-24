@@ -154,6 +154,8 @@ test('Wiki labels the older cards and does not imply a missing plan exists',asyn
 test('Stage 3 without a planning connection offers the public archive in each Wiki language',()=>{
  const f=fixture(()=>assert.fail('opening the archive must not request data from the project'));
  f.ctx.canonicalReadonly=()=>true;
+ f.state.ref='view:saved-a';
+ f.ctx.location.hash='';
  const labels=[['zh','已发布的研究设计案例'],['en','Published research design case'],['tw','已發布的研究設計案例']];
  const url='https://wenyuchiou.github.io/AutoResearchAgent/stage-3/';
  const anchors=['household-case','data-methods','validation','harness-evaluation'];
@@ -163,7 +165,12 @@ test('Stage 3 without a planning connection offers the public archive in each Wi
   assert.ok(html.startsWith('<later/>'),'keep the existing unconnected state');
   assert.ok(html.includes('<h2>'+title+'</h2>'));
   assert.deepEqual([...html.matchAll(/href="([^"]+)"/g)].map(match=>match[1]),anchors.map(anchor=>url+'#'+anchor));
-  assert.equal((html.match(/rel="noreferrer"/g)||[]).length,anchors.length);
+  const links=[...html.matchAll(/<a\b[^>]*>/g)].map(match=>match[0]);
+  assert.equal(links.length,anchors.length);
+  for(const link of links){
+   assert.match(link,/\btarget="_blank"/,'keep the saved Wiki view open in its original tab');
+   assert.match(link,/\brel="noopener noreferrer"/);
+  }
   assert.doesNotMatch(html,/<button|data-v93-read|data-live-action|已保存的规划摘要|Saved planning summary|已保存的規劃摘要/);
  }
  f.app.stage=4;
