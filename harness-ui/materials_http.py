@@ -1,18 +1,89 @@
 """Authenticated material routes; execution remains owned by Harness."""
 import json
 import re
-from urllib.parse import quote
+from sqlite3 import Error as DatabaseError
+from urllib.parse import parse_qsl, quote, urlsplit
 from manual_materials import Materials
 
-def install_materials(host, projects, root, incoming, entries=(), review_sources=()):
+
+def install_materials(
+    host,
+    projects,
+    root,
+    incoming,
+    entries=(),
+    review_sources=(),
+    *,
+    saved_candidate_application=None,
+    saved_candidate_provenance=None,
+):
+    """Attach material HTTP routes. The trusted bootstrap opts in to the writer."""
     from research_workspace_native.session_api import SessionApiError
-    store=Materials(root,incoming,list(entries),review_sources)
+    from research_workspace_native.transport import _decode
+    from saved_candidate_admission import ROUTE, SavedCandidateAdmission
+    from stage1_deliverable.common import private_output
+
+    root = private_output(root)
+    store = Materials(root, incoming, list(entries), review_sources)
+    candidate_admission = SavedCandidateAdmission(
+        projects,
+        getattr(host, "project_stage1", None),
+        store,
+        saved_candidate_application,
+        saved_candidate_provenance,
+    )
     host.materials=store
     if getattr(host, 'project_stage3_http', None) is not None:
         host.project_stage3_http.material_resolver = store.stage3_reference
     inherited=host.RequestHandlerClass
 
     class V9Handler(inherited):
+        def saved_candidate(self, method, credential, length):
+            try:
+                path = urlsplit(self.path)
+                if method == "GET":
+                    operation = {
+                        ROUTE + "offer": "binding",
+                        ROUTE + "read": "intent",
+                    }.get(path.path)
+                    if operation is None or length or len(path.query) > 8192:
+                        raise SessionApiError("saved-candidate-query-invalid", 400)
+                    params = parse_qsl(
+                        path.query, strict_parsing=True, errors="strict", max_num_fields=1
+                    )
+                    if len(params) != 1 or params[0][0] != operation:
+                        raise SessionApiError("saved-candidate-query-invalid", 400)
+                    value = _decode(params[0][1])
+                    self._remaining()
+                    result = (
+                        candidate_admission.offer(credential, value, self._remaining)
+                        if operation == "binding"
+                        else candidate_admission.read(credential, value)
+                    )
+                elif path.path == ROUTE + "submit" and not path.query:
+                    if self.headers.get("Content-Type", "").lower() != "application/json":
+                        raise SessionApiError("json-body-required", 415)
+                    if not 0 < length <= 4096:
+                        raise SessionApiError("saved-candidate-body-bound", 413)
+                    self._remaining()
+                    raw = self.rfile.read(length)
+                    if len(raw) != length:
+                        raise SessionApiError("partial-body", 400)
+                    result = candidate_admission.submit(
+                        credential, _decode(raw.decode("utf-8")), self._remaining
+                    )
+                else:
+                    raise SessionApiError("unknown-material-operation", 404)
+                self._remaining()
+                return self._reply(200, result)
+            except SessionApiError as error:
+                return self._reply(error.status, {"error": error.code})
+            except TimeoutError:
+                self.close_connection = True
+                return
+            except (ValueError, TypeError, KeyError, OSError, DatabaseError):
+                return self._reply(409, {"error": "saved-candidate-request-or-state-invalid"})
+
         def material_project(self, credential, ref):
             if not isinstance(ref,str): raise SessionApiError('project-required',400)
             if ref.startswith('view:'):
@@ -45,6 +116,8 @@ def install_materials(host, projects, root, incoming, entries=(), review_sources
                     raise SessionApiError('cross-site-rejected',403)
                 if self.server.authenticate(credential) is None:
                     raise SessionApiError('credential-rejected',401)
+                if self.path.startswith(ROUTE):
+                    return self.saved_candidate(method, credential, length)
                 if method=='GET':
                     if length: raise SessionApiError('invalid-read-request',400)
                     if self.path=='/api/v9/materials':
