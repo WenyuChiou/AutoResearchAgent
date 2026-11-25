@@ -84,6 +84,61 @@ class FixedReplayTests(unittest.TestCase):
             query_sha256=q["query_sha256"],
         )
 
+    def test_malformed_envelopes_reject_before_any_store_or_config_access(self):
+        from research_workspace_native.session_api import SessionApiError
+        from stage1_deliverable.common import DeliverableError
+
+        body = self.body()
+        missing = dict(body)
+        del missing["key"]
+        cases = [
+            ("list-key", dict(body, key=[]), DeliverableError, None),
+            ("object-key", dict(body, key={}), DeliverableError, None),
+            ("boolean-key", dict(body, key=True), DeliverableError, None),
+            ("missing-key", missing, SessionApiError, "intake-fields-invalid"),
+            ("list-body", [], SessionApiError, "intake-fields-invalid"),
+            ("null-body", None, SessionApiError, "intake-fields-invalid"),
+            (
+                "extra-field",
+                dict(body, extra=True),
+                SessionApiError,
+                "intake-fields-invalid",
+            ),
+            (
+                "unconfirmed",
+                dict(body, confirmed=False),
+                SessionApiError,
+                "stage1-action-binding-invalid",
+            ),
+            (
+                "invalid-ledger",
+                dict(body, ledger_state_sha256=[]),
+                SessionApiError,
+                "stage1-action-binding-invalid",
+            ),
+        ]
+        before = self.snapshot()
+        for name, request, error_type, code in cases:
+            with self.subTest(name=name):
+                with (
+                    patch.object(
+                        self.case.intake,
+                        "_load",
+                        side_effect=AssertionError("store read before validation"),
+                    ),
+                    patch.object(
+                        self.case.service.fixed_inputs,
+                        "load",
+                        side_effect=AssertionError("config read before validation"),
+                    ),
+                    self.assertRaises(error_type) as caught,
+                ):
+                    self.case.service.execute_query("alice-token", self.ref, request)
+                if code:
+                    self.assertEqual(caught.exception.code, code)
+                    self.assertEqual(caught.exception.status, 400)
+                self.assertEqual(self.snapshot(), before)
+
     def test_all_twelve_same_plan_queries_and_same_key_cold_reopen(self):
         first = None
         import subprocess

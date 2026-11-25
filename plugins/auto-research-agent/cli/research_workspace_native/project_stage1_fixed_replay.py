@@ -12,7 +12,9 @@ from pathlib import Path
 from stage1_ledger.contracts import check_record
 from stage1_ledger.journal import canonical
 from .planned_query_contract import raw_file, require
-from .project_stage1 import ProjectStage1Service
+from .project_intake_contract import _fields
+from .project_stage1 import BODY_FIELDS, ProjectStage1Service
+from .session_api import _check, _hash
 
 
 class FixedReplayInputs:
@@ -288,6 +290,18 @@ class FixedReplayStage1Service(ProjectStage1Service):
             return result
 
     def execute_query(self, credential, project_ref, body, *, check_deadline=None):
+        # Match _mutate's public envelope checks before history/config reads or
+        # the idempotency-key lookup. Attribution never accepts unchecked JSON.
+        _fields(
+            body,
+            BODY_FIELDS | {"ledger_state_sha256", "query_ref", "query_sha256"},
+        )
+        _check(
+            body["confirmed"] is True and _hash(body["ledger_state_sha256"]),
+            "stage1-action-binding-invalid",
+            400,
+        )
+
         def selected(state, run, ledger, report, actor):
             binding = self.intake.binding(project_ref)
             query = next(

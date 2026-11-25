@@ -1123,7 +1123,7 @@ class ProjectHandler(AtlasHandler):
             self._reply(200, result)
         except SessionApiError as error:
             response = {"error": error.code}
-            if called is not None:
+            if called is not None and type(called[2]) is dict:
                 kind, project_ref, body = called
                 try:
                     response["receipt"] = self.server.projects.record_refusal(
