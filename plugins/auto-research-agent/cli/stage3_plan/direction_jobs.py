@@ -125,7 +125,11 @@ class DirectionPlanningJobs(PlanningJobs):
         plan_id,
         version,
         schema_version,
+        *,
+        inspect_checkpoint=None,
     ):
+        # Shared saved-job validation also accepts a workflow inspector.
+        # Direction jobs always verify their typed input document directly.
         closed(checkpoint, {"path", "sha256"}, "direction input binding")
         document = file_binding(checkpoint["path"], checkpoint["sha256"])
         closed(document, {"kind", "source"}, "direction input")

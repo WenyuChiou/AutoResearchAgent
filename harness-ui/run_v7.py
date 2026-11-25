@@ -16,7 +16,8 @@ LAUNCHER = "plugins/auto-research-agent/references/research-workspace/examples/r
 LIMIT_KEYS = {"model_calls", "seconds", "search_calls", "source_reads", "rounds"}
 HOST_KEYS = ("projects", "models", "stage1", "stage2", "credential", "files", "views",
              "stage1_materials_root", "stage1_sources", "stage1_source_dispatcher",
-             "stage2_selection", "stage3_planning", "stage3_recovery_pins", "stage2_readings")
+             "stage2_selection", "stage3_planning", "stage3_recovery_pins", "stage2_readings",
+             "stage2_controllers")
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
        "connect-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; "
        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
@@ -96,7 +97,7 @@ def install_renderer(host, assets, meta, project_handler, atlas_handler):
 
 
 def configure_host_lifecycle(host, services):
-    if services.get('planning_resources') is not None:
+    if services.get('planning_resources') is not None or services.get('stage2_controllers'):
         # Match ProjectHost's supported CLI: wait for all request handlers.
         host.daemon_threads = False
         host.block_on_close = True
@@ -151,7 +152,7 @@ def main(argv=None):
                         help="Explicit project resource envelope JSON, not research authorization or acceptance")
     parser.add_argument('--native-stage1-config', type=Path)
     parser.add_argument('--native-stage1-config-sha256')
-    for stem in ('stage2-direct-import', 'selection', 'stage3-planning', 'stage2-reading'):
+    for stem in ('stage2-direct-import', 'selection', 'stage3-planning', 'stage2-reading', 'stage2-controller'):
         parser.add_argument('--' + stem + '-config', type=Path)
         parser.add_argument('--' + stem + '-sha256')
     args = parser.parse_args(argv)
@@ -187,6 +188,8 @@ def main(argv=None):
     primary_failure = None
     try:
         configure_services(services, args)
+        if services['stage2_controllers']:
+            meta['stage2'] = receipt['stage2'] = 'controller configured; explicit Wiki request required'
         if services['stage3_planning'] is not None:
             meta['stages3_to6'] = 'Stage3 planning configured; research execution unconnected'
             receipt['stages3_to6'] = meta['stages3_to6']
@@ -210,6 +213,8 @@ def main(argv=None):
                 host.v7_native_stage1 = NativeStage1Service(private, native_config['cases'],
                     on_completed=host.v7_native_results.collect)
             install_renderer(host, assets, meta, ProjectHandler, AtlasHandler)
+            from wiki_stage2_continuation import install_stage2_continuation
+            install_stage2_continuation(host)
             receipt["url"] = host.expected_origin + "/"
         receipt["status"] = "prepared-only" if args.prepare_only else "local-V7-Wiki-ready"
         print(json.dumps(receipt, sort_keys=True), flush=True)
