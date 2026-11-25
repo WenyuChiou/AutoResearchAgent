@@ -227,7 +227,18 @@ class OfflineSourcesTests(unittest.TestCase):
     def changed_configuration(self, *, replace_sdk=False):
         self.start()
         original = self.body()
-        self.assertEqual(self.http("/stage1/sources/execute", original)[0], 200)
+        status, registered = self.http("/stage1/sources/execute", original)
+        self.assertEqual(status, 200, registered)
+        self.ledger().decide(
+            self.work,
+            "pending",
+            reason="fixture-unassessed",
+            rationale="Synthetic isolation-test agent leaves assessment pending.",
+            evidence_refs=[registered["finish"]["raw_ref"]],
+            actor="synthetic-isolation-test-agent",
+        )
+        reading_status, reading = self.http("/stage1/source-reading/" + self.work)
+        self.assertEqual(reading_status, 200, reading)
         before = self.counts()
         old_pin = self.pin
         self.stop()
@@ -275,6 +286,10 @@ class OfflineSourcesTests(unittest.TestCase):
         records = self.host.project_stage1_records
         self.assertEqual(
             records._entries(records._context(self.ref, self.ledger().state_hash())), []
+        )
+        self.assertEqual(
+            self.http("/stage1/source-reading/" + self.work),
+            (409, {"error": "reading-eligible-saved-source-unavailable-or-bound"}),
         )
         self.assertEqual(self.counts(), before)
         self.assertEqual(self.http("/stage1/sources/execute", original)[0], 409)
