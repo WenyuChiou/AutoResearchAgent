@@ -46,21 +46,13 @@ def _text(value, maximum=512):
     return value
 
 
-def _declared_unit(label):
-    """Resolve bounded literal evidence, not the last parenthesis or a word.
+def _declared_unit(label, *, column=False):
+    """Return a whole unit, or no column unit for a classification/annotation.
 
-    A label suffix consists of parenthesized declarations/annotations and
-    numeric footnotes. Exactly one recognized unit expression is required.
-    Unknown groups are ambiguous, not silently discarded. This is not a unit
-    converter or a general natural-language measurement interpreter.
+    Rows still require exactly one explicit unit. Columns also recognize whole
+    bare units, except the established bare A classification. Unknown explicit
+    declarations and conflicting units fail closed on save, read and replay.
     """
-    start = label.find("(")
-    _check(start >= 0, "local-observation-unit-evidence-unavailable")
-    suffix = label[start:]
-    groups = re.findall(r"\(([^()]+)\)", suffix)
-    remainder = re.sub(r"\([^()]+\)|\[\d+\]", "", suffix)
-    _check(not remainder.strip(), "local-observation-unit-evidence-ambiguous")
-
     # Case matters in symbols. Prefixes are only permitted on SI-style bases;
     # in (inch) and Hg are literal atoms and must never lose their first atom.
     bases = (
@@ -126,19 +118,63 @@ def _declared_unit(label):
         "seasonally adjusted",
         "not seasonally adjusted",
     }
+
+    def literal(declared):
+        if re.fullmatch(expression, declared):
+            return declared
+        if re.fullmatch(words, declared):
+            return declared
+        if declared.startswith("in ") and re.fullmatch(words, declared[3:]):
+            return declared[3:]
+        return None
+
+    label = label.strip()
+    start = label.find("(")
+    if start < 0:
+        _check(column, "local-observation-unit-evidence-unavailable")
+        # Only A has established historical classification evidence. Explicit
+        # (A) remains amperes; this exception does not cover other unit symbols.
+        if label == "A":
+            return None
+        unit = literal(label)
+        if unit is not None:
+            return unit
+        _check(
+            not any(c in label for c in "/·*^%()[]"),
+            "local-observation-unit-evidence-ambiguous",
+        )
+        return None
+
+    suffix = label[start:]
+    groups = re.findall(r"\(([^()]+)\)", suffix)
+    remainder = re.sub(r"\([^()]+\)|\[\d+\]", "", suffix)
+    _check(not remainder.strip(), "local-observation-unit-evidence-ambiguous")
     candidates = []
+    if column:
+        prefix = label[:start].strip()
+        # A with extra syntax is not the approved bare-A exception. Do not
+        # infer whether a newly ambiguous prefix means a category or amperes.
+        _check(prefix != "A", "local-observation-unit-evidence-ambiguous")
+        unit = literal(prefix)
+        if unit is not None:
+            candidates.append(unit)
+        else:
+            _check(
+                not any(c in prefix for c in "/·*^%()[]"),
+                "local-observation-unit-evidence-ambiguous",
+            )
     for group in groups:
         declared = group.strip()
-        if re.fullmatch(expression, declared):
-            candidates.append(declared)
-        elif re.fullmatch(words, declared):
-            candidates.append(declared)
-        elif declared.startswith("in ") and re.fullmatch(words, declared[3:]):
-            candidates.append(declared[3:])
-        elif declared not in annotations:
-            _check(False, "local-observation-unit-evidence-ambiguous")
-    _check(len(candidates) == 1, "local-observation-unit-evidence-ambiguous")
-    return candidates[0]
+        unit = literal(declared)
+        if unit is not None:
+            candidates.append(unit)
+        else:
+            _check(declared in annotations, "local-observation-unit-evidence-ambiguous")
+    _check(
+        len(candidates) == 1 or (column and not candidates),
+        "local-observation-unit-evidence-ambiguous",
+    )
+    return candidates[0] if candidates else None
 
 
 def _cell(raw, body):
@@ -181,9 +217,10 @@ def _cell(raw, body):
     unit = _text(body["unit"], 128)
     declared_unit = _declared_unit(rows[row - 1][0])
     column_label = rows[0][column - 1]
-    if "(" in column_label:
+    column_unit = _declared_unit(column_label, column=True)
+    if column_unit is not None:
         _check(
-            _declared_unit(column_label) == declared_unit,
+            column_unit == declared_unit,
             "local-observation-row-column-unit-conflict",
         )
     _check(

@@ -77,6 +77,70 @@ class LocalObservationTests(unittest.TestCase):
             for table in ("intake_projects", "intake_actions", "intake_events")
         }
 
+    def test_column_declaration_precedence_uses_source_not_request(self):
+        cases = (
+            ("%", "mg/L", False),
+            ("mg/L", "mg/L", True),
+            ("mg/L", "mg", False),
+            ("Mean (mg/L)", "mg/L", True),
+            ("Mean (estimated)", "mg/L", True),
+            ("Mean (estimated)", "mg", False),
+            ("Mean", "mg/L", True),
+            ("A", "mg/L", True),
+            ("(A)", "mg/L", False),
+            ("L", "mg/L", False),
+            ("mg/L (estimated)", "mg/L", True),
+            ("% (estimated)", "mg/L", False),
+            ("Mean (unknown)", "mg/L", False),
+            ("Mean (mg/L) (%)", "mg/L", False),
+            ("mg/L (g)", "mg/L", False),
+            ("mg/L extra", "mg/L", False),
+            ("Mean (mg/L", "mg/L", False),
+        )
+        for label, unit, valid in cases:
+            raw = f"Item,{label}\nConcentration (mg/L),42\n".encode()
+            with self.subTest(label=label, unit=unit), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                body = self.sample_body(c, unit, start=raw.index(b"42"))
+                before = self.journal_rows(c)
+                if not valid:
+                    with self.assertRaises(SessionApiError):
+                        service.record("alice-token", c.ref, body)
+                    self.assertEqual(self.journal_rows(c), before)
+                    continue
+                first = service.record("alice-token", c.ref, body)
+                c.intake.close()
+                c.intake = ProjectIntakeService(c.root, authenticate=authenticate)
+                c.service = ProjectStage1Service(c.intake)
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                before = self.journal_rows(c)
+                read = service.read("alice-token", c.ref, body["key"])
+                repeat = service.record("alice-token", c.ref, body)
+                self.assertEqual(first["observation"], read["observation"])
+                self.assertEqual(first["observation"], repeat["observation"])
+                self.assertTrue(repeat["replayed"])
+                self.assertEqual(self.journal_rows(c), before)
+
+    def test_column_annotation_cannot_replace_required_row_unit(self):
+        for row_label in ("Concentration", "Concentration (estimated)"):
+            raw = f"Item,mg/L\n{row_label},42\n".encode()
+            with self.subTest(row=row_label), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                before = self.journal_rows(c)
+                with self.assertRaises(SessionApiError):
+                    service.record(
+                        "alice-token",
+                        c.ref,
+                        self.sample_body(c, "mg/L", start=raw.index(b"42")),
+                    )
+                self.assertEqual(self.journal_rows(c), before)
+
     def test_row_and_selected_column_units_must_agree_before_save(self):
         raw = (
             b"Analyte,Mean (mg/L),Coefficient of variation (%)\n"
