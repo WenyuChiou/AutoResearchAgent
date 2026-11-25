@@ -427,3 +427,61 @@ if (require.main === module) {
   });
 }
 module.exports = {fixture, web};
+
+if(require.main === module){
+  function reviewedPlan(){
+    const data=fixture(),hash='b'.repeat(64);
+    Object.assign(data,{project_ref:'project-a',input_version:'fresh-1',revision:10,brief_sha256:hash,selection_request_sha256:hash});
+    Object.assign(data.job,{project_ref:'project-a',request_sha256:hash,plan_manifest_sha256:hash});
+    data.feedback={binding:{parent_plan_sha256:hash}};
+    data.plan_review={readback_status:'bound',planning_status:'needs-information',identity:{
+      project_ref:data.project_ref,input_version:data.input_version,revision:data.revision,brief_sha256:hash,selection_request_sha256:hash,
+      job_request_sha256:hash,source_manifest_sha256:data.plan.source_manifest_sha256,plan_manifest_sha256:hash,
+      plan_id:data.plan.plan_id,plan_version:data.plan.version,plan_sha256:hash},checkpoint_sha256:hash,
+      next_action:'resolve-plan-blockers',reason:'stage3-plan-decision-not-recorded',
+      review:{sha256:hash,reviewer_kind:'synthetic',identity_authenticated:false,finding_counts:{unknown:5}},decision:null,execution_authorized:false};
+    return data;
+  }
+  test('receipt page displays the bound saved review and missing human decision in all languages GET-only',async()=>{
+    const data=reviewedPlan(),before=JSON.stringify(data),p=await page(data);
+    for(const language of ['en','zh-CN','zh-TW']){
+      p.elements.language.value=language;p.elements.language.onchange();const text=p.text();
+      assert.ok(text.includes('synthetic'));assert.match(text,/unknown[^]*5/);assert.ok(text.includes('false'));
+      assert.ok(text.includes('stage3-plan-decision-not-recorded'));assert.ok(!text.includes('no semantic-review'));
+    }
+    assert.equal(p.calls.length,1);assert.equal(p.calls[0].options.method,'GET');assert.equal(JSON.stringify(data),before);
+  });
+  test('receipt page rejects stale/foreign and typed review identities without showing their details',async()=>{
+    for(const patch of [{project_ref:'project-b'},{input_version:1},{revision:11},{brief_sha256:'c'.repeat(64)},
+      {selection_request_sha256:'c'.repeat(64)},{job_request_sha256:'c'.repeat(64)},
+      {plan_id:'foreign-plan'},{plan_version:2},{source_manifest_sha256:'c'.repeat(64)},
+      {plan_manifest_sha256:'c'.repeat(64)},{plan_sha256:'c'.repeat(64)}]){
+      const data=reviewedPlan();Object.assign(data.plan_review.identity,patch);data.plan_review.review.reviewer_kind='FOREIGN_REVIEW_SENTINEL';
+      const p=await page(data);assert.ok(p.text().includes('stage3-plan-review-binding-differs'));
+      assert.ok(!p.text().includes('FOREIGN_REVIEW_SENTINEL'));assert.equal(p.calls.length,1);
+    }
+  });
+  test('receipt page preserves index gaps, pending decisions and inert finding values',async()=>{
+    for(const projection of [undefined,{readback_status:'unlinked',reason:'stage3-plan-review-index-unconnected'},
+      {readback_status:'unavailable',reason:'stage3-plan-review-index-unavailable'},
+      {readback_status:'rejected',reason:'stage3-plan-review-binding-rejected',review:{reviewer_kind:'DO_NOT_SHOW'}}]){
+      const data=reviewedPlan();data.plan_review=projection;const p=await page(data);
+      assert.ok(p.text().includes(projection?.reason || 'stage3-plan-review-not-provided'));assert.ok(!p.text().includes('DO_NOT_SHOW'));
+    }
+    const data=reviewedPlan();data.plan_review.review.finding_counts={unknown:5,supported:0,unavailable:null};
+    data.plan_review.review.reviewer_kind='<img src=x onerror=alert(1)>';
+    data.plan_review.decision={decision:'revise',status:'decision-recorded-pending-host-verification',identity_authenticated:false};
+    const p=await page(data);assert.match(p.text(),/supported: 0/);assert.match(p.text(),/unavailable: null/);
+    assert.ok(p.text().includes('revise / decision-recorded-pending-host-verification / false'));
+    assert.ok(!p.created.includes('img'));assert.equal(p.calls.length,1);assert.equal(data.execution_authorized,false);
+  });
+  test('receipt page retains the original409 and refuses a whole foreign-project200',async()=>{
+    const data=reviewedPlan();
+    const denied=await page(data,async()=>({ok:false,json:async()=>({error:'stage3-saved-job-binding-differs'})}));
+    assert.ok(denied.elements.status.textContent.includes('stage3-saved-job-binding-differs'));
+    assert.ok(!denied.text().includes(data.plan.plan_id));
+    const foreign=structuredClone(data);foreign.project_ref='project-b';
+    const p=await page(foreign);assert.ok(p.elements.status.textContent.includes('stage3-project-binding-differs'));
+    assert.ok(!p.text().includes('synthetic-plan'));assert.equal(p.calls.length,1);
+  });
+}

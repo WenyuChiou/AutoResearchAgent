@@ -16,6 +16,61 @@ function fixture(request){
   document:{addEventListener:(name,fn)=>listeners[name]=fn},location:{hash:'#project-a?stage=3&lang=zh-TW'},URLSearchParams,encodeURIComponent,decodeURIComponent,console};
  vm.createContext(ctx);vm.runInContext(source,ctx);return {ctx,state,app,button,listeners,mounts,basis};
 }
+
+function reviewedPlan(basis){
+ const hash='b'.repeat(64), plan={kind:'Stage3ResearchPlan',plan_id:'synthetic-plan',version:1,source_manifest_sha256:hash};
+ const job={project_ref:basis.project_ref,status:'completed',outcome:'saved',request_sha256:hash,plan_manifest_sha256:hash};
+ return {...basis,selection_status:'recorded',selection_request_sha256:hash,job,plan,
+  feedback:{binding:{parent_plan_sha256:hash}},plan_review:{readback_status:'bound',planning_status:'needs-information',
+   identity:{...basis,selection_request_sha256:hash,job_request_sha256:hash,source_manifest_sha256:hash,plan_manifest_sha256:hash,plan_id:plan.plan_id,plan_version:1,plan_sha256:hash},
+   checkpoint_sha256:hash,next_action:'resolve-plan-blockers',reason:'stage3-plan-decision-not-recorded',
+   review:{sha256:hash,reviewer_kind:'synthetic',identity_authenticated:false,finding_counts:{unknown:5}},decision:null,execution_authorized:false}};
+}
+
+test('Wiki shows a bound saved review, separate Unknown findings and missing human decision',async()=>{
+ let view;const calls=[],f=fixture(async path=>{calls.push(path);return view;});view=reviewedPlan(f.basis);
+ const before=JSON.stringify(view);await f.listeners.click({target:{closest:()=>f.button}});
+ for(const language of ['zh','tw','en']){
+  f.app.lang=language;const html=f.ctx.laterStage(f.app);
+  assert.match(html,/data-v93-plan-review/);assert.match(html,/synthetic-plan/);assert.match(html,/unknown[^]*5/);
+  assert.match(html,/synthetic/);assert.match(html,/false/);assert.match(html,/stage3-plan-decision-not-recorded/);
+  assert.doesNotMatch(html,/no semantic-review/);
+ }
+ assert.equal(calls.length,1);assert.equal(JSON.stringify(view),before);
+});
+
+test('Wiki refuses foreign, stale and typed-mismatched review identities without exposing their review',async()=>{
+ for(const patch of [{project_ref:'foreign'},{input_version:'1'},{revision:3},{brief_sha256:'c'.repeat(64)},
+   {selection_request_sha256:'c'.repeat(64)},{job_request_sha256:'c'.repeat(64)},{plan_id:'foreign-plan'},
+   {plan_version:2},{source_manifest_sha256:'c'.repeat(64)},{plan_manifest_sha256:'c'.repeat(64)},{plan_sha256:'c'.repeat(64)}]){
+  let view;const f=fixture(async()=>view);view=reviewedPlan(f.basis);Object.assign(view.plan_review.identity,patch);
+  view.plan_review.review.reviewer_kind='FOREIGN_REVIEW_SENTINEL';
+  await f.listeners.click({target:{closest:()=>f.button}});const html=f.ctx.laterStage(f.app);
+  assert.match(html,/stage3-plan-review-binding-differs/);assert.doesNotMatch(html,/FOREIGN_REVIEW_SENTINEL/);
+ }
+});
+
+test('Wiki retains missing/rejected review states and the original planning409',async()=>{
+ for(const state of [undefined,{readback_status:'unlinked',reason:'stage3-plan-review-index-unconnected'},
+  {readback_status:'rejected',reason:'stage3-plan-review-binding-rejected',review:{reviewer_kind:'DO_NOT_SHOW'}}]){
+  let view;const f=fixture(async()=>view);view=reviewedPlan(f.basis);view.plan_review=state;
+  await f.listeners.click({target:{closest:()=>f.button}});const html=f.ctx.laterStage(f.app);
+  assert.match(html,/data-v93-plan-review/);assert.doesNotMatch(html,/DO_NOT_SHOW/);
+ }
+ const f=fixture(async()=>{throw Error('stage3-saved-job-binding-differs');});
+ await f.listeners.click({target:{closest:()=>f.button}});const html=f.ctx.laterStage(f.app);
+ assert.match(html,/stage3-saved-job-binding-differs/);assert.doesNotMatch(html,/data-v93-plan-review/);
+});
+
+test('Wiki keeps saved pending decision, zero/null findings and inert text without granting authority',async()=>{
+ let view;const f=fixture(async()=>view);view=reviewedPlan(f.basis);
+ view.plan_review.review.finding_counts={unknown:5,supported:0,unavailable:null};
+ view.plan_review.review.reviewer_kind='<img src=x onerror=alert(1)>';
+ view.plan_review.decision={sha256:'d'.repeat(64),decision:'revise',status:'decision-recorded-pending-host-verification',plan_status:'needs-information',identity_authenticated:false};
+ await f.listeners.click({target:{closest:()=>f.button}});const html=f.ctx.laterStage(f.app);
+ assert.match(html,/supported: 0/);assert.match(html,/unavailable: null/);assert.match(html,/revise \/ decision-recorded-pending-host-verification \/ false/);
+ assert.match(html,/&lt;img/);assert.doesNotMatch(html,/<img/);assert.equal(view.plan_review.execution_authorized,false);
+});
 test('utility headings follow the current page and preserve pending/error content',()=>{
  const f=fixture();
  for(const [page,title] of [['files','專案檔案'],['history','操作歷史'],['settings','連線與設定']]){
