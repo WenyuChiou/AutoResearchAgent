@@ -8,8 +8,8 @@ from stage2_workflow.interaction import _user_text
 from stage3_plan.contracts import Stage3Error, digest
 from stage3_plan.preparation import closed, file_binding, sha256, text
 from stage3_plan.review import validate_review
-from stage3_plan.storage import inspect_package, read_bytes
-from stage3_plan.workflow import inspect_workflow
+from stage3_plan.storage import inspect_completed_package, read_bytes
+from stage3_plan.workflow import inspect_completed_workflow
 
 
 def plan_review_identity(view):
@@ -181,7 +181,7 @@ def read_plan_review(view, *, trusted_binding=None):
         raise Stage3Error("readback binding differs from the displayed project or plan")
     checkpoint_ref = trusted_binding["checkpoint"]
     closed(checkpoint_ref, {"path", "sha256"}, "readback checkpoint reference")
-    checkpoint = inspect_workflow(
+    checkpoint = inspect_completed_workflow(
         checkpoint_ref["path"], expected_checkpoint_sha256=checkpoint_ref["sha256"]
     )["checkpoint"]
     refs = checkpoint["bindings"]
@@ -191,7 +191,7 @@ def read_plan_review(view, *, trusted_binding=None):
         or refs["source"]["manifest_sha256"] != identity["source_manifest_sha256"]
     ):
         raise Stage3Error("workflow checkpoint does not bind the displayed plan")
-    artifacts = inspect_package(
+    artifacts = inspect_completed_package(
         refs["plan"]["package"], identity["plan_manifest_sha256"]
     )["artifacts"]
     saved_plan = artifacts.get("plan.json")
