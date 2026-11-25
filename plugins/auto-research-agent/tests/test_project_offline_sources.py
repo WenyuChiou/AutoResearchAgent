@@ -20,6 +20,49 @@ from research_workspace_native.project_offline_sources import (
 from stage1_deliverable.common import sha
 
 
+class OfflineSourceRefusalShapeTests(unittest.TestCase):
+    def test_only_complete_typed_server_bound_envelopes_can_unlock(self):
+        from research_workspace_native.project_intake_contract import refusal_shape
+
+        body = dict(
+            key="source-request",
+            revision=0,
+            input_version=1,
+            brief_sha256="a" * 64,
+            confirmed=True,
+            ledger_state_sha256="b" * 64,
+            work_ref="work-test",
+            offer_sha256="c" * 64,
+            offline_config_sha256="d" * 64,
+        )
+
+        def allowed(value):
+            return refusal_shape(
+                "stage1-offline-source", value, "source-request", "project-test"
+            )
+
+        self.assertTrue(allowed(body))
+        for name in body:
+            with self.subTest(missing=name):
+                self.assertFalse(allowed({k: v for k, v in body.items() if k != name}))
+        for changes in (
+            dict(confirmed=1),
+            dict(confirmed=False),
+            dict(input_version=True),
+            dict(input_version="1"),
+            dict(revision=True),
+            dict(brief_sha256="bad"),
+            dict(ledger_state_sha256=None),
+            dict(offer_sha256=1),
+            dict(offline_config_sha256="bad"),
+            dict(work_ref=None),
+            dict(path="D:/untrusted"),
+            dict(key="other"),
+        ):
+            with self.subTest(changes=changes):
+                self.assertFalse(allowed(dict(body, **changes)))
+
+
 class OfflineSourcesTests(unittest.TestCase):
     def setUp(self):
         self.token = "offline-authored-engineering-token-32-chars"
@@ -200,6 +243,81 @@ class OfflineSourcesTests(unittest.TestCase):
         self.assertEqual(
             self.http("/stage1/source-reading/" + self.work),
             (409, {"error": "stage1-reading-review-unconnected"}),
+        )
+
+    def test_second_window_rejection_has_durable_bound_unsent_receipt(self):
+        self.start()
+        first = self.body("first-window")
+        second = dict(first, key="second-window")
+        self.assertEqual(self.http("/stage1/sources/execute", first)[0], 200)
+        before = self.counts()
+        for changed in (
+            dict(confirmed=1),
+            dict(input_version=True),
+            dict(revision=True),
+            dict(ledger_state_sha256=1),
+            dict(offline_config_sha256=self.pin),
+        ):
+            status, invalid = self.http(
+                "/stage1/sources/execute", dict(first, **changed)
+            )
+            self.assertEqual(status, 400, invalid)
+            self.assertIsNone(invalid.get("receipt"))
+            self.assertEqual(self.counts(), before)
+        status, rejected = self.http("/stage1/sources/execute", second)
+        self.assertEqual(status, 409, rejected)
+        self.assertEqual(
+            rejected["error"], "offline-source-existing-action-reopen-required"
+        )
+        self.assertIsInstance(rejected.get("receipt"), dict, rejected)
+        receipt = rejected["receipt"]
+        self.assertEqual(receipt["status"], "known-unsent")
+        self.assertEqual(receipt["key"], second["key"])
+        self.assertEqual(receipt["kind"], "stage1-offline-source")
+        from stage1_ledger.journal import canonical
+
+        semantic = {k: v for k, v in second.items() if k != "revision"}
+        semantic["offline_config_sha256"] = self.pin
+        self.assertEqual(
+            receipt["request_sha256"],
+            sha(canonical(dict(kind="stage1-offline-source", body=semantic))),
+        )
+        self.assertEqual(self.counts(), (before[0], before[1] + 1))
+        self.assertEqual(
+            self.http("/stage1/sources")[1]["sources"][0]["status"],
+            "source-registered",
+        )
+        history = self.intake.history(self.token, self.ref)["actions"]
+        self.assertTrue(any(r["key"] == second["key"] for r in history))
+        self.stop()
+        self.start()
+        _, replay = self.http("/stage1/sources/execute", second)
+        self.assertEqual(replay["status"], "known-unsent")
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(replay["request_sha256"], receipt["request_sha256"])
+        self.assertEqual(self.counts(), (before[0], before[1] + 1))
+
+    def test_unsent_offer_does_not_block_a_fresh_explicit_source_action(self):
+        self.start()
+        body = self.body("stale-offer")
+        before = self.counts()
+        status, rejected = self.http(
+            "/stage1/sources/execute", dict(body, offer_sha256="0" * 64)
+        )
+        self.assertEqual(status, 409, rejected)
+        self.assertEqual(rejected["error"], "offline-source-offer-stale")
+        self.assertEqual(rejected["receipt"]["status"], "known-unsent")
+        self.assertEqual(self.counts(), (before[0], before[1] + 1))
+        self.assertEqual(
+            self.http("/stage1/sources")[1]["sources"][0]["status"],
+            "ready-for-explicit-local-import",
+        )
+        status, saved = self.http("/stage1/sources/execute", self.body("fresh-offer"))
+        self.assertEqual(status, 200, saved)
+        self.assertEqual(saved["status"], "saved")
+        self.assertEqual(
+            self.http("/stage1/sources")[1]["sources"][0]["receipt"]["key"],
+            "fresh-offer",
         )
 
     def test_ordinary_source_registration_reading_refusal_and_cold_same_key(self):

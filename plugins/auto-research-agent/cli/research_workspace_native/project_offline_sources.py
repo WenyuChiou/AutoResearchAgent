@@ -16,6 +16,7 @@ from stage1_deliverable.common import (
     sha,
 )
 from .planned_query_contract import raw_file
+from .project_intake_contract import refusal_shape
 from .project_stage1_fixed_replay import FixedReplayStage1Service
 from .project_stage1_delivery import ProjectStage1DeliveryService
 from .project_stage1_records import ProjectStage1RecordsService
@@ -262,6 +263,7 @@ class ProjectOfflineSourceService:
                     r
                     for r in actions
                     if r["request"].get("work_ref") == item["work_ref"]
+                    and r["status"] != "known-unsent"
                 ]
                 saved = related[-1] if related else None
                 registry = (
@@ -368,6 +370,37 @@ class ProjectOfflineSourceService:
     def authorize(self, *args, **kwargs):
         _check(False, "offline-source-live-authorization-forbidden")
 
+    def record_refusal(self, credential, ref, body, code):
+        """Bind a caught, definitely unsent refusal to this trusted owner only."""
+        if type(body) is not dict or "offline_config_sha256" in body:
+            return None
+        request = dict(body, offline_config_sha256=self.inputs.sha256)
+        if not refusal_shape(KIND, request, request.get("key"), ref):
+            return None
+        principal = self.intake._principal(credential)
+        with self.intake._lock:
+            # A previous write/unknown result wins, even if current inputs changed.
+            prior = next(
+                (
+                    r
+                    for r in self._actions(principal, ref, all_configs=True)
+                    if r["key"] == body["key"]
+                ),
+                None,
+            )
+            if prior is not None:
+                return self.intake._receipt(prior, replayed=True)
+            _, binding, _, _, _, config = self._context(principal, ref)
+            _check(
+                body["input_version"] == binding["input_version"]
+                and body["brief_sha256"] == binding["brief_sha256"]
+                and any(r["work_ref"] == body["work_ref"] for r in config["sources"]),
+                "offline-source-refusal-binding-differs",
+            )
+            return self.intake.record_refusal(
+                credential, body["key"], ref, KIND, request, code
+            )
+
     def execute(self, credential, ref, body, *, check_deadline=None):
         principal = self.intake._principal(credential)
         _check(
@@ -388,6 +421,11 @@ class ProjectOfflineSourceService:
         )
         identifier(body["key"])
         body = dict(body, offline_config_sha256=self.inputs.sha256)
+        _check(
+            refusal_shape(KIND, body, body["key"], ref),
+            "offline-source-action-values",
+            400,
+        )
         with self.intake._lock:
             context = self._context(principal, ref)
             prior = next(
@@ -412,6 +450,7 @@ class ProjectOfflineSourceService:
             _check(
                 not any(
                     r["request"].get("work_ref") == body["work_ref"]
+                    and r["status"] != "known-unsent"
                     for r in self._actions(principal, ref)
                 ),
                 "offline-source-existing-action-reopen-required",

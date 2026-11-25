@@ -91,9 +91,14 @@ def handle_sources(handler, method):
             response["receipt"] = error.receipt
         elif called is not None and type(body) is dict:
             try:
-                response["receipt"] = handler.server.projects.record_refusal(
-                    token, body.get("key"), ref, called, body, error.code
-                )
+                if called == "stage1-offline-source":
+                    response["receipt"] = service.record_refusal(
+                        token, ref, body, error.code
+                    )
+                else:
+                    response["receipt"] = handler.server.projects.record_refusal(
+                        token, body.get("key"), ref, called, body, error.code
+                    )
             except (SessionApiError, ValueError, OSError, KeyError, TypeError):
                 pass
         handler._reply(error.status, response)
