@@ -126,6 +126,114 @@ class FixedReplayTests(unittest.TestCase):
             self.assertEqual(q["status"], "fixed-replay-recorded")
         self.assertEqual(view["fixed_replay"]["completed_queries"], 12)
 
+    def empty_config(self):
+        (self.inputs / "empty.json").write_bytes(b"[]")
+        for row in self.config["responses"]:
+            row.update(records_path="empty.json", records_sha256=sha(b"[]"))
+        self.connect()
+
+    def test_completed_a_is_not_completed_b_and_same_key_cannot_cross_config(self):
+        first = self.body()
+        for i in range(12):
+            self.case.service.execute_query(
+                "alice-token", self.ref, first if i == 0 else self.body(i, str(i))
+            )
+        old_pin = self.pin
+        before = self.snapshot()
+        self.empty_config()
+        view = self.case.service.read("alice-token", self.ref)
+        self.assertEqual(view["fixed_replay"]["completed_queries"], 0)
+        self.assertEqual(
+            view["fixed_replay"]["reason"], "fixed-replay-history-config-differs"
+        )
+        self.assertTrue(
+            all(q["historical_config_sha256"] == [old_pin] for q in view["queries"])
+        )
+        with self.assertRaisesRegex(Exception, "fixed-replay-history-config-differs"):
+            self.case.service.execute_query("alice-token", self.ref, first)
+        self.assertEqual(before, self.snapshot())
+
+    def test_partial_a_cannot_append_b_or_replay_a_under_b(self):
+        first = self.body()
+        self.case.service.execute_query("alice-token", self.ref, first)
+        before = self.snapshot()
+        self.empty_config()
+        view = self.case.service.read("alice-token", self.ref)
+        self.assertEqual(view["fixed_replay"]["completed_queries"], 0)
+        self.assertFalse(any(q["execution_available"] for q in view["queries"]))
+        for body in (first, self.body(1, "new-config")):
+            with self.assertRaisesRegex(
+                Exception, "fixed-replay-history-config-differs"
+            ):
+                self.case.service.execute_query("alice-token", self.ref, body)
+        self.assertEqual(before, self.snapshot())
+
+    def test_same_key_rechecks_project_plan_and_current_material_bytes(self):
+        body = self.body()
+        self.case.service.execute_query("alice-token", self.ref, body)
+        before = self.snapshot()
+        original = copy.deepcopy(self.config)
+        for field, value in (
+            ("project_ref", "another"),
+            ("input_version", 2),
+            ("brief_sha256", "0" * 64),
+            ("plan_manifest_sha256", "0" * 64),
+        ):
+            with self.subTest(field=field):
+                self.config = dict(original, **{field: value})
+                self.connect()
+                self.assertEqual(
+                    self.case.service.read("alice-token", self.ref)["fixed_replay"][
+                        "completed_queries"
+                    ],
+                    0,
+                )
+                with self.assertRaises(Exception):
+                    self.case.service.execute_query("alice-token", self.ref, body)
+        self.config = original
+        self.connect()
+        (self.inputs / "response.json").write_bytes(b"[]")
+        with self.assertRaises(Exception):
+            self.case.service.execute_query("alice-token", self.ref, body)
+        (self.inputs / "response.json").write_bytes(self.raw)
+        self.assertTrue(
+            self.case.service.execute_query("alice-token", self.ref, body)["replayed"]
+        )
+        self.assertEqual(before, self.snapshot())
+
+    def test_unattributed_legacy_attempt_remains_unknown_without_mutation(self):
+        # An ordinary pre-fixed-input Core record is valid, but has no pin.
+        ledger = self.case.private_ledger(self.ref)
+        query = self.case.service.read("alice-token", self.ref)["queries"][0]
+        started = ledger.start_planned(query["planned_query_id"])
+        attempt = ledger.start(
+            "backend", {"query": query["query"]}, backend="openalex", parent_id=started
+        )
+        raw = ledger.save_bytes(self.raw, producer=attempt)
+        ledger.finish(
+            attempt,
+            outcome="success_nonempty",
+            http_status=200,
+            exit_code=0,
+            stdout=raw,
+            stderr=raw,
+            records=raw,
+        )
+        ledger.complete_query(started)
+        ledger.extract()
+        before = self.snapshot()
+        view = self.case.service.read("alice-token", self.ref)
+        self.assertEqual(view["fixed_replay"]["completed_queries"], 0)
+        self.assertEqual(
+            view["fixed_replay"]["reason"], "fixed-replay-history-unattributed"
+        )
+        self.assertEqual(view["queries"][0]["historical_config_sha256"], [])
+        with self.assertRaisesRegex(Exception, "fixed-replay-history-unattributed"):
+            self.case.service.execute_query(
+                "alice-token", self.ref, self.body(1, "next")
+            )
+        self.assertEqual(before, self.snapshot())
+
     def test_wrong_binding_confirmation_and_stale_refuse_without_actions(self):
         good = self.body()
         for change in [
