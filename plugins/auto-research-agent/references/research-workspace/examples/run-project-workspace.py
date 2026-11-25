@@ -212,6 +212,8 @@ def parser():
     value.add_argument("--stage1-materials-root", type=Path)
     value.add_argument("--stage1-fixed-replay", type=Path)
     value.add_argument("--stage1-fixed-replay-sha256")
+    value.add_argument("--stage1-offline-sources-config", type=Path)
+    value.add_argument("--stage1-offline-sources-sha256")
     value.add_argument(
         "--source-cap-seconds",
         type=int,
@@ -363,6 +365,26 @@ def inspect_inputs(args):
             "fixed replay bytes differ",
         )
         fixed_replay = dict(path=fixed_path, sha256=fixed_sha)
+    offline_path = getattr(args, "stage1_offline_sources_config", None)
+    offline_sha = getattr(args, "stage1_offline_sources_sha256", None)
+    require(
+        (offline_path is None) == (offline_sha is None),
+        "offline sources path and SHA required together",
+    )
+    offline_sources = None
+    if offline_path is not None:
+        require(
+            fixed_replay is not None,
+            "offline sources require explicit fixed offline query configuration",
+        )
+        offline_path = unlinked(offline_path)
+        require(
+            type(offline_sha) is str
+            and HASH.fullmatch(offline_sha)
+            and digest(raw_file(offline_path, 262144)) == offline_sha,
+            "offline sources bytes differ",
+        )
+        offline_sources = dict(path=offline_path, sha256=offline_sha)
     query_runtime = None
     if runtime_path is not None:
         runtime_path = unlinked(runtime_path)
@@ -452,6 +474,7 @@ def inspect_inputs(args):
         executable=executable,
         query_runtime=query_runtime,
         fixed_replay=fixed_replay,
+        offline_sources=offline_sources,
         stage1_materials_root=materials,
     )
 
@@ -522,6 +545,30 @@ def prepare(args, checked, *, source=None, inventory=None):
 
         selected = checked["fixed_replay"]
         fixed_inputs = FixedReplayInputs(selected["path"], selected["sha256"])
+    offline = checked.get("offline_sources")
+    if offline is not None:
+        from research_workspace_native.project_offline_sources import (
+            OfflineSourceInputs,
+        )
+
+        # Validate the owner's actual SDK/material contract before opening a store.
+        # The Host revalidates it on read/write; browser data cannot select paths.
+        source_inputs = OfflineSourceInputs(offline["path"], offline["sha256"])
+        query_document = fixed_inputs.load()
+        source_document = source_inputs.load()
+        require(
+            all(
+                type(source_document[k]) is type(query_document[k])
+                and source_document[k] == query_document[k]
+                for k in (
+                    "project_ref",
+                    "input_version",
+                    "brief_sha256",
+                    "plan_manifest_sha256",
+                )
+            ),
+            "offline sources and query binding differ",
+        )
     credential = secrets.token_urlsafe(32)
     authenticate = token_authenticator({credential: "local-viewer"})
     projects = ProjectIntakeService(checked["root"], authenticate=authenticate)
@@ -656,6 +703,8 @@ def prepare(args, checked, *, source=None, inventory=None):
             stage1_sources=sources,
             stage1_source_dispatcher=source_dispatcher,
             stage1_materials_root=checked.get("stage1_materials_root"),
+            stage1_offline_sources_config=offline["path"] if offline else None,
+            stage1_offline_sources_sha256=offline["sha256"] if offline else None,
             credential=credential,
             files=files,
             views=views,
@@ -829,6 +878,17 @@ def main(argv=None):
                         "stage1_source_dispatcher",
                     )
                 },
+                **(
+                    {
+                        k: services[k]
+                        for k in (
+                            "stage1_offline_sources_config",
+                            "stage1_offline_sources_sha256",
+                        )
+                    }
+                    if checked.get("offline_sources") is not None
+                    else {}
+                ),
                 host="127.0.0.1",
                 port=args.port,
             )

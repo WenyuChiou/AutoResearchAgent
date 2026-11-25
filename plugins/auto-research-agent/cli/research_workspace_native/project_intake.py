@@ -292,6 +292,7 @@ class ProjectIntakeService:
                         in {
                             "stage1-coverage",
                             "stage1-execute-query",
+                            "stage1-offline-source",
                             "stage1-claim",
                             "stage1-agent-pending",
                             "stage1-agent-analysis",
@@ -301,7 +302,8 @@ class ProjectIntakeService:
                             "stage2-select",
                         }
                         and not (
-                            isinstance(error, SessionApiError)
+                            kind == "stage1-execute-query"
+                            and isinstance(error, SessionApiError)
                             and error.code == "stage1-query-execution-unconnected"
                         )
                     )
@@ -318,6 +320,7 @@ class ProjectIntakeService:
                 elif receipt["status"] == "execution-unknown" and kind in {
                     "stage1-coverage",
                     "stage1-execute-query",
+                    "stage1-offline-source",
                     "stage1-claim",
                     "stage1-agent-pending",
                     "stage1-agent-analysis",

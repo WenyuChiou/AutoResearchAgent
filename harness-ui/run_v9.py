@@ -31,7 +31,13 @@ def main(argv=None):
     selection.add_argument('--display-translations', type=Path)
     selection.add_argument('--review-sources', type=Path)
     selection.add_argument('--review-sources-sha256')
+    selection.add_argument('--stage1-offline-sources-config', type=Path)
+    selection.add_argument('--stage1-offline-sources-sha256')
     selected, rest = selection.parse_known_args(sys.argv[1:] if argv is None else argv)
+    for name in ('stage1_offline_sources_config', 'stage1_offline_sources_sha256'):
+        value = getattr(selected, name)
+        if value is not None:
+            rest.extend(('--' + name.replace('_', '-'), str(value)))
     state = private_directory(selected.ui_state_root)
     incoming = private_directory(selected.incoming_root)
     if not incoming.is_dir() or state.is_relative_to(incoming) or incoming.is_relative_to(state):
@@ -39,6 +45,7 @@ def main(argv=None):
     translations = load_translations(selected.display_translations)
     review_sources = load_review_sources(selected.review_sources, selected.review_sources_sha256)
     original = run_v7.install_renderer
+    original_host_keys = run_v7.HOST_KEYS
 
     def install(host, assets, meta, project_handler, atlas_handler):
         original(host, assets, meta, project_handler, atlas_handler)
@@ -81,10 +88,16 @@ def main(argv=None):
         host._assets['/host-binding.json'] = canonical(host.host_binding)
 
     run_v7.install_renderer = install
+    # V9's trusted CLI additions must survive the V7 transport allowlist.
+    # Keep the shared V7 launcher unchanged and restore process globals on exit.
+    if selected.stage1_offline_sources_config is not None:
+        run_v7.HOST_KEYS = (*original_host_keys, 'stage1_offline_sources_config',
+                           'stage1_offline_sources_sha256')
     try:
         return run_v7.main(rest)
     finally:
         run_v7.install_renderer = original
+        run_v7.HOST_KEYS = original_host_keys
 
 
 if __name__ == '__main__':

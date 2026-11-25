@@ -36,6 +36,7 @@ def unresolved(service, ref, actor, version):
         in {
             "stage1-coverage",
             "stage1-execute-query",
+            "stage1-offline-source",
             "stage1-claim",
             "stage1-agent-pending",
             "stage1-agent-analysis",
