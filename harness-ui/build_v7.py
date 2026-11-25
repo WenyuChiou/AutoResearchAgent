@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SOURCE_NAMES = ("base.js", "shell.html", "runtime.js", "control-intent.js", "retirement-ui.js", "real-runtime.js", "expansion-ui.js", "query-feedback.js", "canonical-stage2.js", "canonical-runs.js", "native-case-ui.js", "runtime.css")
+SOURCE_NAMES = ("base.js", "shell.html", "startup-recovery.js", "runtime.js", "control-intent.js", "retirement-ui.js", "real-runtime.js", "expansion-ui.js", "query-feedback.js", "canonical-stage2.js", "canonical-runs.js", "native-case-ui.js", "runtime.css")
 LOCAL_VENDORS = ("atlas-spatial.js", "three.core.js", "three-LICENSE.txt", "three.core.provenance.json")
 SHARED_VENDORS = {
     "3d-force-graph-1.80.1.min.js": "vendor/3d-force-graph-1.80.1.min.js",
@@ -47,7 +47,8 @@ def snapshot(repo, package=HERE):
                'canonical-runs.js', 'native-case-ui.js')
     app = inputs["base.js"].replace(marker, b'\n'.join(inputs[name] for name in modules))
     assets = {"/": inputs["shell.html"], "/index.html": inputs["shell.html"],
-              "/app.js": app, "/runtime.css": inputs["runtime.css"]}
+              "/app.js": app, "/runtime.css": inputs["runtime.css"],
+              "/startup-recovery.js": inputs["startup-recovery.js"]}
     local = {name: read_regular(vendor, name) for name in LOCAL_VENDORS}
     if sha(local["three.core.js"]) != THREE_SHA256:
         raise ValueError("Three.js local distribution differs from reviewed SHA256")
