@@ -514,6 +514,10 @@
     },
     {
       "capability_id": "cli:stage2-workflow",
+      "wiki_admitted_continuation_contract": "Ordinary Wiki users can submit one project- and typed-input-version-bound intent for an operator-configured, already admitted Stage 2 controller. The existing ProjectHost continuation preserves its original admission, deadline, and budget. Same-intent repeats share one dispatch. A busy Wiki refuses another dispatch before saving its intent, leaving read capacity available. Read-only reopen prefers the verified current selection or revalidates the activation, sources, complete workflow and delivery without running the controller. Missing assessment and pending human selection remain visible.",
+      "wiki_admitted_continuation_test_refs": [
+        "harness-ui/test_wiki_stage2_continuation_http.py"
+      ],
       "evaluation_dimensions_presentation_contract": "New evaluated deliveries use presentation1.4, with the Dimensions table scrolling inside the report. Content-gate applicability and provisional audit labels remain bound to their original inputs. Inspection reconstructs the declared presentation, pins both fresh and legacy bytes, and rejects rehashed HTML changes. No evaluation dispatch, scientific promotion, or selection authority changes.",
       "evaluation_dimensions_presentation_test_refs": [
         "plugins/auto-research-agent/tests/test_stage2_content_delivery.py",
