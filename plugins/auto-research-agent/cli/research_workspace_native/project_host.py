@@ -21,6 +21,7 @@ from .project_stage1_progress import project_progress
 from .project_stage1_records import reading_registration_view
 from .project_stage1_atlas import ProjectStage1AtlasService
 from .project_stage2_context import ProjectStage2InputReviewService
+from .project_stage2_current_evidence import current_evidence
 from .project_stage2_selection import ProjectStage2SelectionService
 from .project_stage3_planning import ProjectStage3PlanningService
 from .project_stage3_http import (
@@ -497,7 +498,31 @@ class ProjectHost(AtlasHost):
             raise SessionApiError("stage2-controller-not-connected", 409)
         return driver.run(credential, ref, key=key)
 
-    def overview(self, credential, ref, *, automatic=False):
+    def stage2_view(
+        self, credential, ref, *, project=None, stage1=None, check_deadline=None
+    ):
+        with self.projects._lock:
+            result = self.project_stage2.read(credential, ref)
+            delivery = getattr(self, "project_stage1_delivery", None)
+            if (
+                delivery is not None
+                and self.project_stage1 is not None
+                and not result.get("receiving_only")
+            ):
+                if project is None:
+                    project = self.projects.read(credential, ref)
+                if stage1 is None:
+                    stage1 = self.project_stage1.read(credential, ref)
+                result["current_evidence"] = current_evidence(
+                    delivery,
+                    credential,
+                    stage1,
+                    project,
+                    check_deadline=check_deadline,
+                )
+            return result
+
+    def overview(self, credential, ref, *, automatic=False, check_deadline=None):
         # One store lock joins matching saved revisions. Workers cannot commit
         # another input/version between the UI brief and its action offers.
         with self.projects._lock:
@@ -505,6 +530,11 @@ class ProjectHost(AtlasHost):
             direct_receiving = (
                 project.get("input_origin") == "stage2-direct-request"
                 and project.get("receiving_only") is True
+            )
+            stage1 = (
+                None
+                if self.project_stage1 is None or direct_receiving
+                else self.stage1_view(credential, ref, automatic=automatic)
             )
             result = dict(
                 project=project,
@@ -514,12 +544,16 @@ class ProjectHost(AtlasHost):
                 model_offers=None
                 if self.project_models is None
                 else self.project_models.offers(credential, ref),
-                stage1=None
-                if self.project_stage1 is None or direct_receiving
-                else self.stage1_view(credential, ref, automatic=automatic),
+                stage1=stage1,
                 stage2=None
                 if self.project_stage2 is None
-                else self.project_stage2.read(credential, ref),
+                else self.stage2_view(
+                    credential,
+                    ref,
+                    project=project,
+                    stage1=stage1,
+                    check_deadline=check_deadline,
+                ),
             )
             if result["stage1"] is not None:
                 result["stage1"]["progress"] = project_progress(result)
@@ -797,6 +831,10 @@ class ProjectHandler(AtlasHandler):
                     result = (
                         extension.native_view(token, ref)
                         if action == "native" and operation == "models"
+                        else self.server.stage2_view(
+                            token, ref, check_deadline=self._remaining
+                        )
+                        if operation == "stage2" and action in {None, "offers"}
                         else extension.offers(token, ref)
                         if action == "offers"
                         else extension.history(token, ref)
@@ -808,7 +846,12 @@ class ProjectHandler(AtlasHandler):
                 elif operation == "overview":
                     if action or resolution:
                         raise SessionApiError("invalid-project-read", 400)
-                    result = self.server.overview(token, ref, automatic=True)
+                    result = self.server.overview(
+                        token,
+                        ref,
+                        automatic=True,
+                        check_deadline=self._remaining,
+                    )
                 elif operation == "contract":
                     with service._lock:
                         result = project_view(
