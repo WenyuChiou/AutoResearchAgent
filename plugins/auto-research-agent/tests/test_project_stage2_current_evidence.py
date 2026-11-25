@@ -85,6 +85,33 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
         identity.start()
         self.addCleanup(identity.stop)
 
+    def test_optional_or_inapplicable_delivery_keeps_saved_stage2_readable(self):
+        for mode in ("unconfigured", "without-stage1", "direct-receiving"):
+            with self.subTest(mode=mode):
+                saved = {"offers": [], "execution_authorized": False}
+                if mode == "direct-receiving":
+                    saved["receiving_only"] = True
+                host = object.__new__(ProjectHost)
+                host.projects = SimpleNamespace(_lock=threading.RLock())
+                host.project_stage2 = Mock()
+                host.project_stage2.read.return_value = dict(saved)
+                host.project_stage1 = None if mode == "without-stage1" else Mock()
+                if mode != "unconfigured":
+                    host.project_stage1_delivery = Mock()
+                with patch(
+                    "research_workspace_native.project_host.current_evidence"
+                ) as receive:
+                    result = host.stage2_view("alice-token", "saved-project")
+                self.assertEqual(result, saved)
+                host.project_stage2.read.assert_called_once_with(
+                    "alice-token", "saved-project"
+                )
+                receive.assert_not_called()
+                if host.project_stage1 is not None:
+                    host.project_stage1.read.assert_not_called()
+                if mode != "unconfigured":
+                    host.project_stage1_delivery.read.assert_not_called()
+
     def test_windows_resource_lines_receive_and_reopen_original_evidence(self):
         lines = ("Use the saved evidence.", "Leave research and model work unstarted.")
         original_resources = "\r\n".join(lines)

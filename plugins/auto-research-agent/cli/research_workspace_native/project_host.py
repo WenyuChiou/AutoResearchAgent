@@ -503,15 +503,18 @@ class ProjectHost(AtlasHost):
     ):
         with self.projects._lock:
             result = self.project_stage2.read(credential, ref)
-            if self.project_stage1_delivery is not None and not result.get(
-                "receiving_only"
+            delivery = getattr(self, "project_stage1_delivery", None)
+            if (
+                delivery is not None
+                and self.project_stage1 is not None
+                and not result.get("receiving_only")
             ):
                 if project is None:
                     project = self.projects.read(credential, ref)
                 if stage1 is None:
                     stage1 = self.project_stage1.read(credential, ref)
                 result["current_evidence"] = current_evidence(
-                    self.project_stage1_delivery,
+                    delivery,
                     credential,
                     stage1,
                     project,
