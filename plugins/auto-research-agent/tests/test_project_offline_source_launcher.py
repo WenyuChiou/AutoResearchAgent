@@ -111,7 +111,9 @@ class OfflineSourceUnknownTests(unittest.TestCase):
         self.check_unknown(OSError("source producer outcome unavailable"))
 
     def test_source_failure_cannot_borrow_query_only_unsent_exception(self):
-        self.check_unknown(fixture.SessionApiError("stage1-query-execution-unconnected"))
+        self.check_unknown(
+            fixture.SessionApiError("stage1-query-execution-unconnected")
+        )
 
     def check_unknown(self, error):
         case = fixture.ProjectStage1Tests()
