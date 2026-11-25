@@ -664,6 +664,11 @@ def inspect_saved_admission(
 
 
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "export-snapshot":
+        from .saved_source_snapshot import main as export_main
+
+        return export_main(argv[1:])
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("evidence_root")
     parser.add_argument(
