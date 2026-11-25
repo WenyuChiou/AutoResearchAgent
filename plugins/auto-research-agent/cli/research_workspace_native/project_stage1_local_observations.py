@@ -128,6 +128,30 @@ def _declared_unit(label, *, column=False):
             return declared[3:]
         return None
 
+    def bare_declaration(text):
+        # A complete expression has priority: mg/L and in Hg are single
+        # units, not lists of choices. Never choose an operand from a list.
+        unit = literal(text)
+        if unit is not None:
+            return unit
+        relation = re.search(
+            r"\b(?:and\s*/\s*or|or|and|versus|vs|to)\b", text, re.IGNORECASE
+        )
+        unit_tokens = re.findall(
+            r"(?<!\w)(?:" + expression + "|" + words + r")(?!\w)", text
+        )
+        # A choice/list is not a single declaration, even when an option is
+        # outside the unit vocabulary. Do not guess whether its words mean
+        # units or categories. Whole-token recognition additionally catches
+        # multiple known units without relying on a particular separator.
+        _check(
+            len(unit_tokens) < 2
+            and not relation
+            and not any(c in text for c in "/·*^%()[];,|&+\\"),
+            "local-observation-unit-evidence-ambiguous",
+        )
+        return None
+
     label = label.strip()
     start = label.find("(")
     if start < 0:
@@ -136,33 +160,21 @@ def _declared_unit(label, *, column=False):
         # (A) remains amperes; this exception does not cover other unit symbols.
         if label == "A":
             return None
-        unit = literal(label)
-        if unit is not None:
-            return unit
-        _check(
-            not any(c in label for c in "/·*^%()[]"),
-            "local-observation-unit-evidence-ambiguous",
-        )
-        return None
+        return bare_declaration(label)
 
     suffix = label[start:]
     groups = re.findall(r"\(([^()]+)\)", suffix)
     remainder = re.sub(r"\([^()]+\)|\[\d+\]", "", suffix)
     _check(not remainder.strip(), "local-observation-unit-evidence-ambiguous")
     candidates = []
+    prefix = label[:start].strip()
+    prefix_unit = bare_declaration(prefix)
     if column:
-        prefix = label[:start].strip()
         # A with extra syntax is not the approved bare-A exception. Do not
         # infer whether a newly ambiguous prefix means a category or amperes.
         _check(prefix != "A", "local-observation-unit-evidence-ambiguous")
-        unit = literal(prefix)
-        if unit is not None:
-            candidates.append(unit)
-        else:
-            _check(
-                not any(c in prefix for c in "/·*^%()[]"),
-                "local-observation-unit-evidence-ambiguous",
-            )
+        if prefix_unit is not None:
+            candidates.append(prefix_unit)
     for group in groups:
         declared = group.strip()
         unit = literal(declared)

@@ -141,6 +141,95 @@ class LocalObservationTests(unittest.TestCase):
                     )
                 self.assertEqual(self.journal_rows(c), before)
 
+    def test_alternative_unit_declarations_cannot_borrow_row_or_request_unit(self):
+        import csv
+        import io
+
+        declarations = (
+            "m or ft",
+            "m OR ft",
+            "m versus ft",
+            "m vs. ft",
+            "m and ft",
+            "m and/or ft",
+            "m | ft",
+            "m; ft",
+            "m, ft",
+            "m & ft",
+            "m + ft",
+            "m to ft",
+            "m-ft",
+            "m = ft",
+            "m → ft",
+            "m or unknown",
+            "meters or feet",
+            "Mean or median",
+            "Length in m or ft",
+            "m or ft (estimated)",
+        )
+        for declaration in declarations:
+            text = io.StringIO(newline="")
+            csv.writer(text, lineterminator="\n").writerows(
+                [["Item", declaration], ["Length (cm)", "42"]]
+            )
+            raw = text.getvalue().encode()
+            with self.subTest(declaration=declaration), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                before = self.journal_rows(c)
+                for unit in ("cm", "m", "ft"):
+                    body = self.sample_body(c, unit, start=raw.index(b"42"))
+                    with self.assertRaisesRegex(
+                        SessionApiError, "local-observation-unit-evidence-ambiguous"
+                    ):
+                        service.record("alice-token", c.ref, body)
+                    self.assertEqual(self.journal_rows(c), before)
+
+    def test_row_prefix_alternatives_are_not_hidden_by_one_parenthesized_unit(self):
+        raw = b"Item,Mean\nLength m or ft (cm),42\n"
+        with self.sample(raw) as c:
+            service = ProjectStage1LocalObservationService(
+                c.service, agent_id="test-agent"
+            )
+            before = self.journal_rows(c)
+            with self.assertRaisesRegex(
+                SessionApiError, "local-observation-unit-evidence-ambiguous"
+            ):
+                service.record(
+                    "alice-token",
+                    c.ref,
+                    self.sample_body(c, "cm", start=raw.index(b"42")),
+                )
+            self.assertEqual(self.journal_rows(c), before)
+
+    def test_whole_unit_expressions_and_non_unit_categories_still_reopen(self):
+        for column, row, unit in (
+            ("m/ft", "Ratio (m/ft)", "m/ft"),
+            ("Median", "Length (cm)", "cm"),
+        ):
+            raw = f"Item,{column}\n{row},42\n".encode()
+            with self.subTest(column=column), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                body = self.sample_body(c, unit, start=raw.index(b"42"))
+                saved = service.record("alice-token", c.ref, body)
+                c.intake.close()
+                c.intake = ProjectIntakeService(c.root, authenticate=authenticate)
+                service = ProjectStage1LocalObservationService(
+                    ProjectStage1Service(c.intake), agent_id="test-agent"
+                )
+                before = self.journal_rows(c)
+                self.assertEqual(
+                    service.read("alice-token", c.ref, body["key"])["observation"],
+                    saved["observation"],
+                )
+                retry = service.record("alice-token", c.ref, body)
+                self.assertEqual(retry["observation"], saved["observation"])
+                self.assertTrue(retry["replayed"])
+                self.assertEqual(self.journal_rows(c), before)
+
     def test_row_and_selected_column_units_must_agree_before_save(self):
         raw = (
             b"Analyte,Mean (mg/L),Coefficient of variation (%)\n"
