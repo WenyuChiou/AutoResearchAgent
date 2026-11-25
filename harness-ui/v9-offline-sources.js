@@ -24,8 +24,10 @@ function offlineIndex(value) {
  }
  return value;
 }
-function offlineOffer(value, row) {
+function offlineOffer(value, row, config) {
  offlineBound(value);
+ if(!offlineHash(config) || !offlineHash(value.config_sha256) || value.config_sha256!==config)
+  throw new Error('offline-source-config-binding-mismatch');
  if(value.work_ref!==row.work_ref || value.version_id!==row.version_id || !offlineHash(value.offer_sha256))
   throw new Error('offline-source-offer-binding-mismatch');
  return value;
@@ -44,7 +46,7 @@ async function offlineLoad() {
    try {
     const offer=await liveRequest(projectPath(ref,'stage1/sources/works/'+encodeURIComponent(row.work_ref)));
     if(ref!==rt.ref || basis!==offlineBasis() || epoch!==rt.epoch) return;
-    offers[row.work_ref]=offlineOffer(offer,row);
+    offers[row.work_ref]=offlineOffer(offer,row,value.config_sha256);
    } catch(error) { errors[row.work_ref]=error.message; }
   }
   if(ref===rt.ref && basis===offlineBasis() && epoch===rt.epoch) offlineSourceView={basis,value,offers,errors,reading:{}};
@@ -66,9 +68,31 @@ liveReceiptBound=async function(p,receipt) {
 };
 async function offlineRegister(work) {
  const view=offlineCurrentView(), row=view?.value.sources.find(r=>r.work_ref===work), offer=view?.offers[work];
- if(!view || !offer || row?.status!=='ready-for-explicit-local-import' || liveDisabled() || offlineSourceBusy || rt.overview?.stage1?.coverage_actions?.held) return;
- offlineIndex(view.value);offlineOffer(offer,row);
- const ref=rt.ref, body={...liveBound(),confirmed:true,ledger_state_sha256:offer.ledger_state_sha256,
+ if(liveDisabled() || offlineSourceBusy || rt.overview?.stage1?.coverage_actions?.held) return;
+ if(!view) {offlineSourceError='offline-source-view-stale';livePaint();return;}
+ if(!offer || row?.status!=='ready-for-explicit-local-import') return;
+ const ref=rt.ref, basis=offlineBasis(), epoch=rt.epoch;
+ offlineSourceBusy=true;rt.busy=true;offlineSourceError='';livePaint();
+ try {
+  offlineIndex(view.value);offlineOffer(offer,row,view.value.config_sha256);
+  // Re-read the server's source configuration at the explicit click. A cached
+  // offer alone cannot establish which configuration the Host currently serves.
+  const current=await liveRequest(projectPath(ref,'stage1/sources'));
+  if(ref!==rt.ref || basis!==offlineBasis() || epoch!==rt.epoch || view!==offlineCurrentView())
+   throw new Error('offline-source-view-stale');
+  offlineIndex(current);
+  if(current.config_sha256!==view.value.config_sha256) throw new Error('offline-source-config-binding-mismatch');
+  const currentRow=current.sources.find(r=>r.work_ref===work);
+  if(currentRow?.version_id!==row.version_id || currentRow.status!=='ready-for-explicit-local-import')
+   throw new Error('offline-source-offer-stale');
+  const fresh=await liveRequest(projectPath(ref,'stage1/sources/works/'+encodeURIComponent(work)));
+  if(ref!==rt.ref || basis!==offlineBasis() || epoch!==rt.epoch || view!==offlineCurrentView())
+   throw new Error('offline-source-view-stale');
+  offlineOffer(fresh,currentRow,current.config_sha256);
+  if(fresh.offer_sha256!==offer.offer_sha256) throw new Error('offline-source-offer-stale');
+ } catch(error) {offlineSourceError=error.message;return;}
+ finally {offlineSourceBusy=false;rt.busy=false;livePaint();}
+ const body={...liveBound(),confirmed:true,ledger_state_sha256:offer.ledger_state_sha256,
   work_ref:work,offer_sha256:offer.offer_sha256,key:crypto.randomUUID()};
  const pending={ref,path:projectPath(ref,'stage1/sources/execute'),body,offline_source_config_sha256:view.value.config_sha256};
  const bytes=JSON.stringify(pending);
