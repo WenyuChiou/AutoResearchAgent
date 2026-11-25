@@ -160,6 +160,18 @@ def _declared_unit(label, *, column=False):
         # (A) remains amperes; this exception does not cover other unit symbols.
         if label == "A":
             return None
+        # A complete numeric age interval selects a population, not the
+        # measurement unit of its cells. For example an income row keeps
+        # dollars under an open-ended age column. Full-label matching is
+        # essential: extra unit choices or declarations must still refuse.
+        if re.fullmatch(
+            r"(?:(?:under|over)\s+[0-9]+\s+years?"
+            r"|[0-9]+(?:\s*[-–]\s*|\s+to\s+)[0-9]+\s+years?"
+            r"|[0-9]+\s+years?\s+(?:and|or)\s+(?:older|younger|over|under))",
+            label,
+            re.IGNORECASE,
+        ):
+            return None
         return bare_declaration(label)
 
     suffix = label[start:]

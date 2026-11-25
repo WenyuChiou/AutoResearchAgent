@@ -141,6 +141,70 @@ class LocalObservationTests(unittest.TestCase):
                     )
                 self.assertEqual(self.journal_rows(c), before)
 
+    def test_age_group_column_grammar_keeps_row_unit_on_reopen(self):
+        for column in (
+            "All consumer units",
+            "Under 25 years",
+            "25–34 years",
+            "35–44 years",
+            "45–54 years",
+            "55–64 years",
+            "65 years and older",
+            "65–74 years",
+            "75 years and older",
+            "18 years or older",
+            "12 years and younger",
+            "Over 18 years",
+            "18 to 24 years",
+            "30-39 years",
+        ):
+            raw = f"Item,{column}\nIncome (in dollars),42\n".encode()
+            with self.subTest(column=column), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                body = self.sample_body(c, "dollars", start=raw.index(b"42"))
+                saved = service.record("alice-token", c.ref, body)
+                self.assertEqual(saved["observation"]["cell"]["unit"], "dollars")
+                self.assertEqual(saved["observation"]["cell"]["column_label"], column)
+                c.intake.close()
+                c.intake = ProjectIntakeService(c.root, authenticate=authenticate)
+                service = ProjectStage1LocalObservationService(
+                    ProjectStage1Service(c.intake), agent_id="test-agent"
+                )
+                before = self.journal_rows(c)
+                self.assertEqual(
+                    service.read("alice-token", c.ref, body["key"])["observation"],
+                    saved["observation"],
+                )
+                again = service.record("alice-token", c.ref, body)
+                self.assertTrue(again["replayed"])
+                self.assertEqual(again["observation"], saved["observation"])
+                self.assertEqual(self.journal_rows(c), before)
+
+    def test_age_category_cannot_hide_unit_options_or_supply_requested_unit(self):
+        for column, row, unit in (
+            ("65 years and older or ft", "Income (dollars)", "dollars"),
+            ("65 mg and older", "Mass (mg)", "mg"),
+            ("65 years and older (A)", "Income (dollars)", "dollars"),
+            ("65 years and unknown", "Income (dollars)", "dollars"),
+            ("65 years and older", "Income", "dollars"),
+            ("65 years and older", "Income (dollars)", "cents"),
+        ):
+            raw = f"Item,{column}\n{row},42\n".encode()
+            with self.subTest(column=column, row=row, unit=unit), self.sample(raw) as c:
+                service = ProjectStage1LocalObservationService(
+                    c.service, agent_id="test-agent"
+                )
+                before = self.journal_rows(c)
+                with self.assertRaises(SessionApiError):
+                    service.record(
+                        "alice-token",
+                        c.ref,
+                        self.sample_body(c, unit, start=raw.index(b"42")),
+                    )
+                self.assertEqual(self.journal_rows(c), before)
+
     def test_alternative_unit_declarations_cannot_borrow_row_or_request_unit(self):
         import csv
         import io
