@@ -210,6 +210,8 @@ def parser():
     value.add_argument("--stage1-query-runtime", type=Path)
     value.add_argument("--stage1-query-runtime-sha256")
     value.add_argument("--stage1-materials-root", type=Path)
+    value.add_argument("--stage1-fixed-replay", type=Path)
+    value.add_argument("--stage1-fixed-replay-sha256")
     value.add_argument(
         "--source-cap-seconds",
         type=int,
@@ -337,6 +339,30 @@ def inspect_inputs(args):
         (runtime_path is None) == (runtime_sha is None),
         "Stage1 query runtime path and SHA256 required together",
     )
+    fixed_path = getattr(args, "stage1_fixed_replay", None)
+    fixed_sha = getattr(args, "stage1_fixed_replay_sha256", None)
+    require(
+        (fixed_path is None) == (fixed_sha is None),
+        "fixed replay path and SHA required together",
+    )
+    fixed_replay = None
+    if fixed_path is not None:
+        require(
+            runtime_path is None
+            and not args.enable_public_sources
+            and not args.enable_content_model
+            and not args.enable_stage1_run
+            and not args.existing_stage23_store,
+            "fixed replay cannot compose with live runtimes or grants",
+        )
+        fixed_path = unlinked(fixed_path)
+        require(
+            type(fixed_sha) is str
+            and HASH.fullmatch(fixed_sha)
+            and digest(raw_file(fixed_path, 262144)) == fixed_sha,
+            "fixed replay bytes differ",
+        )
+        fixed_replay = dict(path=fixed_path, sha256=fixed_sha)
     query_runtime = None
     if runtime_path is not None:
         runtime_path = unlinked(runtime_path)
@@ -425,6 +451,7 @@ def inspect_inputs(args):
         user_config=config,
         executable=executable,
         query_runtime=query_runtime,
+        fixed_replay=fixed_replay,
         stage1_materials_root=materials,
     )
 
@@ -487,6 +514,14 @@ def prepare(args, checked, *, source=None, inventory=None):
         if args.views_config
         else ({}, [])
     )
+    fixed_inputs = None
+    if checked.get("fixed_replay") is not None:
+        from research_workspace_native.project_stage1_fixed_replay import (
+            FixedReplayInputs,
+        )
+
+        selected = checked["fixed_replay"]
+        fixed_inputs = FixedReplayInputs(selected["path"], selected["sha256"])
     credential = secrets.token_urlsafe(32)
     authenticate = token_authenticator({credential: "local-viewer"})
     projects = ProjectIntakeService(checked["root"], authenticate=authenticate)
@@ -526,6 +561,12 @@ def prepare(args, checked, *, source=None, inventory=None):
             analysis_coverage=args.enable_stage1_run,
         )
         stage1, stage2 = ProjectStage1Service(projects), ProjectStage2Service(projects)
+        if fixed_inputs is not None:
+            from research_workspace_native.project_stage1_fixed_replay import (
+                FixedReplayStage1Service,
+            )
+
+            stage1 = FixedReplayStage1Service(projects, fixed_inputs=fixed_inputs)
         if runtime is not None:
             from research_workspace_native.project_stage1_queries import (
                 ProjectStage1QueryService,
