@@ -489,7 +489,9 @@
         "plugins/auto-research-agent/tests/test_project_selection_read_sources.py",
         "plugins/auto-research-agent/tests/test_project_stage3_read_verification.py",
         "plugins/auto-research-agent/tests/test_project_stage1_fixed_replay.py",
-        "plugins/auto-research-agent/tests/test_project_offline_source_launcher.py"
+        "plugins/auto-research-agent/tests/test_project_offline_source_launcher.py",
+        "plugins/auto-research-agent/tests/test_project_offline_sources.py",
+        "plugins/auto-research-agent/tests/test_project_stage1_saved_import.py"
       ],
       "live_ab_required_at": "stage1-general-formal-milestone",
       "quality_improvement_claimed": false,

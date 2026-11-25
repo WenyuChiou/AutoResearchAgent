@@ -102,7 +102,7 @@ class OfflineSourcesTests(unittest.TestCase):
         state = self.intake._load("local-viewer", self.ref)
         return self.stage1._ledger(state, self.intake.binding(self.ref))[1]
 
-    def start(self, *, enabled=True):
+    def start(self, *, enabled=True, models=None):
         args = (
             dict(
                 stage1_offline_sources_config=self.config_path,
@@ -117,6 +117,7 @@ class OfflineSourcesTests(unittest.TestCase):
             stage1=self.stage1,
             files={},
             views=[],
+            models=models,
             port=0,
             **args,
         )
@@ -171,6 +172,24 @@ class OfflineSourcesTests(unittest.TestCase):
         return len(self.ledger().events()), self.intake.db.execute(
             "SELECT count(*) FROM intake_actions"
         ).fetchone()[0]
+
+    def test_normal_launcher_inert_model_broker_is_not_a_live_provider(self):
+        from research_workspace_native.project_model import ProjectModelService
+
+        disabled = ProjectModelService(self.intake)
+        self.addCleanup(disabled.close)
+        self.start(models=disabled)
+        self.assertFalse(self.http("/models")[1]["connected"])
+        status, saved = self.http("/stage1/sources/execute", self.body())
+        self.assertEqual(status, 200, saved)
+        self.assertEqual(saved["status"], "saved")
+        self.stop()
+        live = ProjectModelService(self.intake, provider_factory=lambda **kw: None)
+        self.addCleanup(live.close)
+        before = self.counts()
+        with self.assertRaisesRegex(ValueError, "cannot compose live models"):
+            self.start(models=live)
+        self.assertEqual(self.counts(), before)
 
     def test_default_keeps_original_two_unconnected_refusals(self):
         self.start(enabled=False)

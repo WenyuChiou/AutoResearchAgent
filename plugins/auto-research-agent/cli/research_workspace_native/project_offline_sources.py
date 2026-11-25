@@ -353,6 +353,7 @@ class ProjectOfflineSourceService:
             )
             return dict(
                 mode=MODE,
+                config_sha256=self.inputs.sha256,
                 project_ref=ref,
                 revision=state["revision"],
                 input_version=state["input_version"],

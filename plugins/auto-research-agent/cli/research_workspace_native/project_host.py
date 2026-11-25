@@ -125,8 +125,19 @@ class ProjectHost(AtlasHost):
                 "offline sources require their external configuration SHA256"
             )
         if stage1_offline_sources_config is not None:
+            from .project_model import ProjectModelService
+
+            inert_models = (
+                type(models) is ProjectModelService
+                and models.intake is projects
+                and models.factory is None
+                and models.run_grants is None
+                and models.analysis_coverage is False
+                and not models._workers
+                and not models._providers
+            )
             if (
-                models is not None
+                (models is not None and not inert_models)
                 or stage1_sources is not None
                 or stage1_source_dispatcher is not None
             ):
