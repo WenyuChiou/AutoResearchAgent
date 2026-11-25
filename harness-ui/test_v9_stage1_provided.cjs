@@ -43,3 +43,8 @@ test('uncertain or receipt-bearing failures keep the exact request',async()=>{
   const f=fixture({fail:error});await f.fill();await f.click();f.rt.overview.project.revision=10;await f.click();assert.deepEqual(f.calls[1],f.calls[0]);
  }
 });
+test('HTTP 200 unknown receipts remain unconfirmed on same-key replay',async()=>{
+ const f=fixture();f.ctx.canonicalOldRequest=async(url,body)=>{f.calls.push({url,body:JSON.parse(JSON.stringify(body))});return {key:body.key,status:'execution-unknown'};};
+ await f.fill();await f.click();assert.match(f.html(),/Registration unconfirmed/);assert.doesNotMatch(f.html(),/Registered; still/);
+ await f.click();assert.deepEqual(f.calls[1],f.calls[0]);assert.match(f.html(),/Registration unconfirmed/);
+});
