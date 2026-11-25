@@ -57,6 +57,10 @@ def handle_sources(handler, method):
                 raise SessionApiError("invalid-json", 400) from None
             handler._remaining()
             called = "stage1-source-" + action
+            from .project_offline_sources import ProjectOfflineSourceService, KIND
+
+            if type(service) is ProjectOfflineSourceService and action == "execute":
+                called = KIND
             result = getattr(service, action)(
                 token, ref, body, check_deadline=handler._remaining
             )
@@ -78,7 +82,14 @@ def handle_sources(handler, method):
         handler._reply(200, result)
     except SessionApiError as error:
         response = {"error": error.code}
-        if called is not None and type(body) is dict:
+        if (
+            called == "stage1-offline-source"
+            and type(getattr(error, "receipt", None)) is dict
+        ):
+            # The owner added its trusted config binding to the durable request.
+            # Return that actual outcome instead of replacing it with an unsent one.
+            response["receipt"] = error.receipt
+        elif called is not None and type(body) is dict:
             try:
                 response["receipt"] = handler.server.projects.record_refusal(
                     token, body.get("key"), ref, called, body, error.code

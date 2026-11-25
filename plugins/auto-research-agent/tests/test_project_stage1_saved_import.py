@@ -29,7 +29,7 @@ class SavedSdkImportTests(unittest.TestCase):
     saved = records_fixture.SavedStage1RecordsTests.saved
     body = records_fixture.SavedStage1RecordsTests.body
 
-    def local_import(self):
+    def local_import(self, *, unknown_original=False):
         fixture = self.saved()
         ledger = fixture["ledger"]
         paper = fixture["records"]["papers"][0]
@@ -46,9 +46,9 @@ class SavedSdkImportTests(unittest.TestCase):
             raw_path=raw.name,
             raw_sha256=sha(raw.read_bytes()),
             content_type="text/html",
-            original_acquired_at=(
-                datetime.now(timezone.utc) - timedelta(seconds=2)
-            ).isoformat(),
+            original_acquired_at=None
+            if unknown_original
+            else (datetime.now(timezone.utc) - timedelta(seconds=2)).isoformat(),
         )
         manifest_path = directory / "input.json"
         write_json(manifest_path, manifest)
@@ -211,6 +211,101 @@ class SavedSdkImportTests(unittest.TestCase):
         self.assertIn("Unknown", records["papers"][0]["findings"]["main_findings"])
         self.assertFalse(offer["eligible_for_stage2"])
         self.assertEqual(arguments["result_path"].read_bytes(), original)
+        self.runner.assert_not_called()
+
+    def test_unknown_original_time_registers_without_changing_sdk_bytes(self):
+        fixture, arguments, receipt, original = self.local_import(unknown_original=True)
+        result = self.complete(fixture, arguments)
+        self.assertIsNone(result["original_acquired_at"])
+        self.assertEqual(result["sdk_retrieved_at"], receipt["retrieved_at"])
+        self.assertLessEqual(receipt["retrieved_at"], result["local_observed_at"])
+        registered = self.producer.register_source(
+            fixture["ref"],
+            source_id=result["source_id"],
+            result_path=arguments["result_path"],
+            expected_result_sha256=sha(original),
+            access_note="Unknown original acquisition; authored engineering input only.",
+            expected_ledger_state_sha256=fixture["ledger"].state_hash(),
+        )
+        self.assertTrue(registered)
+        self.assertEqual(arguments["result_path"].read_bytes(), original)
+        self.assertTrue(validate_run(fixture["ledger"].root)["valid"])
+        self.runner.assert_not_called()
+
+    def test_unknown_time_keeps_manifest_hash_and_chronology_refusals(self):
+        from research_workspace_native.project_stage1_saved_import import _inspect
+        from stage1_deliverable.sources import artifact_map, receipt_digest
+
+        fixture, arguments, receipt, original = self.local_import(unknown_original=True)
+        path = arguments["result_path"]
+        provenance_path = (
+            path.parent / artifact_map(receipt)[receipt["attempts"][0]["raw_path"]]
+        )
+        provenance = provenance_path.read_bytes()
+        manifest = read_json(provenance_path)
+        events = fixture["ledger"].events()
+        # Each mutation is on an isolated SDK test bundle, never a historical receipt.
+        cases = [
+            ("original-after-import", "saved-import-original-time-order"),
+            ("request-after-completion", "saved-import-original-time-order"),
+            ("attempt-request-differs", "saved-import-original-attempt-differs"),
+            ("attempt-completion-differs", "saved-import-original-attempt-differs"),
+            ("manifest-receipt-differ", "saved-import-original-provenance-differs"),
+            ("invalid-original-format", "original_acquired_at"),
+            ("invalid-import-format", "saved-import-time-format-invalid"),
+            ("missing-original-key", "saved-import-original-provenance-differs"),
+            ("missing-import-key", "saved-import-original-provenance-differs"),
+            ("wrong-internal-digest", "saved-import-sdk-binding-differs"),
+            ("wrong-file-digest", "saved-import-bytes-differ"),
+        ]
+        for name, expected in cases:
+            with self.subTest(name=name):
+                bad, m = deepcopy(receipt), deepcopy(manifest)
+                d = bad["diagnostics"]["saved_import"]
+                if name == "original-after-import":
+                    m["original_acquired_at"] = d["original_acquired_at"] = (
+                        datetime.now(timezone.utc) + timedelta(days=1)
+                    ).isoformat()
+                elif name == "request-after-completion":
+                    d["import_started_at"] = (
+                        datetime.now(timezone.utc) + timedelta(days=1)
+                    ).isoformat()
+                    for a in bad["attempts"]:
+                        a["requested_at"] = d["import_started_at"]
+                elif name == "attempt-request-differs":
+                    bad["attempts"][0]["requested_at"] = bad["retrieved_at"]
+                elif name == "attempt-completion-differs":
+                    bad["attempts"][1]["received_at"] = d["import_started_at"]
+                elif name == "manifest-receipt-differ":
+                    d["original_acquired_at"] = d["import_started_at"]
+                elif name == "invalid-original-format":
+                    m["original_acquired_at"] = d["original_acquired_at"] = "not-a-date"
+                elif name == "invalid-import-format":
+                    d["import_started_at"] = "not-a-date"
+                elif name == "missing-original-key":
+                    del m["original_acquired_at"]
+                elif name == "missing-import-key":
+                    del d["import_started_at"]
+                write_json(provenance_path, m)
+                raw = provenance_path.read_bytes()
+                bad["attempts"][0]["raw_sha256"] = sha(raw)
+                bad["attempts"][0]["response_bytes"] = len(raw)
+                d["manifest_sha256"] = sha(raw)
+                bad["receipt_sha256"] = receipt_digest(bad)
+                if name == "wrong-internal-digest":
+                    bad["receipt_sha256"] = "0" * 64
+                write_json(path, bad)
+                digest = (
+                    "0" * 64 if name == "wrong-file-digest" else sha(path.read_bytes())
+                )
+                with self.assertRaisesRegex((ValueError, SessionApiError), expected):
+                    _inspect(arguments["materials_root"], path, digest)
+                self.assertEqual(fixture["ledger"].events(), events)
+        path.write_bytes(original)
+        provenance_path.write_bytes(provenance)
+        self.assertEqual(
+            _inspect(arguments["materials_root"], path, sha(original))[2], receipt
+        )
         self.runner.assert_not_called()
 
     def test_reopened_ledger_refuses_repeat_without_new_core_events(self):

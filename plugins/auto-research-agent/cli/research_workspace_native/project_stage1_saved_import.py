@@ -25,7 +25,11 @@ SCOPE = "saved SDK import-saved local observation; not HTTP, native or scientifi
 
 
 def _time(value):
-    observed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    _check(type(value) is str, "saved-import-time-format-invalid")
+    try:
+        observed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        _check(False, "saved-import-time-format-invalid")
     _check(observed.tzinfo is not None, "saved-import-timezone-required")
     return observed.astimezone(timezone.utc)
 
@@ -176,12 +180,13 @@ def _inspect(materials_root, result_path, result_sha256):
         ),
         "saved-import-selected-artifact-differs",
     )
+    original_at = manifest["original_acquired_at"]
+    original_time = None if original_at is None else _time(original_at)
+    import_started = _time(diagnostics["import_started_at"])
     retrieved = _time(receipt["retrieved_at"])
     _check(
-        _time(manifest["original_acquired_at"])
-        <= _time(diagnostics["import_started_at"])
-        <= retrieved
-        <= datetime.now(timezone.utc),
+        (original_time is None or original_time <= import_started)
+        and import_started <= retrieved <= datetime.now(timezone.utc),
         "saved-import-original-time-order",
     )
     for attempt in attempts:
@@ -190,8 +195,10 @@ def _inspect(materials_root, result_path, result_sha256):
             and attempt["received_at"] == diagnostics["import_completed_at"]
             and attempt["url"] == request["url"]
             and attempt["final_url"] == receipt["final_url"]
-            and _time(manifest["original_acquired_at"])
-            <= _time(attempt["requested_at"])
+            and (
+                original_time is None or original_time <= _time(attempt["requested_at"])
+            )
+            and _time(attempt["requested_at"])
             <= _time(attempt["received_at"])
             <= retrieved,
             "saved-import-original-attempt-differs",

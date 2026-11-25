@@ -104,12 +104,49 @@ class ProjectHost(AtlasHost):
         stage1_materials_root=None,
         stage1_sources=None,
         stage1_source_dispatcher=None,
+        stage1_offline_sources_config=None,
+        stage1_offline_sources_sha256=None,
         **options,
     ):
         if not isinstance(projects, ProjectIntakeService):
             raise ValueError("trusted project intake service required")
         if projects.authenticate(credential) != "local-viewer":
             raise ValueError("same local principal required")
+        from .project_offline_sources import (
+            OfflineSourceInputs,
+            ProjectOfflineSourceService,
+        )
+
+        offline_sources = None
+        if (stage1_offline_sources_config is None) != (
+            stage1_offline_sources_sha256 is None
+        ):
+            raise ValueError(
+                "offline sources require their external configuration SHA256"
+            )
+        if stage1_offline_sources_config is not None:
+            if (
+                models is not None
+                or stage1_sources is not None
+                or stage1_source_dispatcher is not None
+            ):
+                raise ValueError(
+                    "offline sources cannot compose live models or sources"
+                )
+            offline_sources = ProjectOfflineSourceService(
+                stage1,
+                OfflineSourceInputs(
+                    stage1_offline_sources_config, stage1_offline_sources_sha256
+                ),
+            )
+            if (
+                stage1_materials_root is not None
+                and Path(stage1_materials_root).resolve()
+                != offline_sources.root.resolve()
+            ):
+                raise ValueError("offline source materials root differs")
+            stage1_materials_root = offline_sources.root
+            stage1_sources = offline_sources
         if stage2_selection is not None and (
             type(stage2_selection) is not ProjectStage2SelectionService
             or stage2_selection.intake is not projects
@@ -159,7 +196,10 @@ class ProjectHost(AtlasHost):
             for ref in controllers:
                 projects.read(credential, ref)
         if stage1_sources is not None and (
-            not isinstance(stage1_sources, ProjectStage1SourceService)
+            not (
+                isinstance(stage1_sources, ProjectStage1SourceService)
+                or type(stage1_sources) is ProjectOfflineSourceService
+            )
             or stage1_sources.stage1 is not stage1
         ):
             raise ValueError("same trusted Stage1 source service required")
@@ -267,7 +307,10 @@ class ProjectHost(AtlasHost):
             from .project_stage1_queries import ProjectStage1QueryService
 
             queries = getattr(stage1, "query_service", None)
-            if (
+            if offline_sources is not None:
+                self.project_stage1_records = offline_sources.records
+                self.project_stage1_delivery = offline_sources.delivery
+            elif (
                 not isinstance(queries, ProjectStage1QueryService)
                 or queries.stage1 is not stage1
                 or queries.intake is not projects
@@ -275,9 +318,10 @@ class ProjectHost(AtlasHost):
                 raise ValueError(
                     "saved records require the attached trusted query owner"
                 )
-            self.project_stage1_records = queries.create_records_service(
-                self.project_stage1_delivery, materials_root=stage1_materials_root
-            )
+            else:
+                self.project_stage1_records = queries.create_records_service(
+                    self.project_stage1_delivery, materials_root=stage1_materials_root
+                )
             from .project_records_prepare import ProjectRecordsPrepareService
 
             self.project_records_prepare = ProjectRecordsPrepareService(
