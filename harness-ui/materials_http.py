@@ -22,6 +22,9 @@ def install_materials(host, projects, root, incoming, entries=(), review_sources
 
         def material_catalog(self, credential):
             value=store.catalog(); allowed={}
+            if callable(getattr(getattr(host, 'project_stage1', None),
+                                'admit_saved_candidate', None)):
+                value['stage1_provided_admission'] = True
             def visible(item):
                 ref=item.get('project_ref')
                 if ref not in allowed:
@@ -72,6 +75,10 @@ def install_materials(host, projects, root, incoming, entries=(), review_sources
                 body=json.loads(data)
                 if not isinstance(body,dict): raise SessionApiError('object-required',400)
                 operation=self.path.removeprefix('/api/v9/')
+                if operation=='stage1/admit-material':
+                    from stage1_provided_materials import admit_material
+                    value=admit_material(host,store,credential,body,check_deadline=self._remaining)
+                    return self._reply(200,value)
                 methods={'register':store.register_delivery,'upload/start':store.begin_upload,
                     'upload/chunk':store.upload_chunk,'upload/finish':store.finish_upload,
                     'upload/abort':store.abort_upload,
