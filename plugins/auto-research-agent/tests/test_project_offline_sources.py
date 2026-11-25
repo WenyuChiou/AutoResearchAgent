@@ -320,6 +320,75 @@ class OfflineSourcesTests(unittest.TestCase):
             "fresh-offer",
         )
 
+    def test_expired_config_records_unsent_without_revalidating_mutated_inputs(self):
+        self.start()
+        body = self.body("expired-config")
+        original = self.config_path.read_bytes()
+        self.config_path.write_bytes(original + b"\n")
+        before = self.counts()
+        status, rejected = self.http("/stage1/sources/execute", body)
+        self.assertEqual(status, 409, rejected)
+        self.assertIsInstance(rejected.get("receipt"), dict, rejected)
+        receipt = rejected["receipt"]
+        self.assertEqual(receipt["status"], "known-unsent")
+        self.assertEqual(receipt["key"], body["key"])
+        self.assertEqual(self.counts(), (before[0], before[1] + 1))
+        for changed in (dict(input_version=2), dict(brief_sha256="0" * 64)):
+            _, invalid = self.http(
+                "/stage1/sources/execute", dict(body, key="wrong-binding", **changed)
+            )
+            self.assertIsNone(invalid.get("receipt"), invalid)
+        _, wrong_project = self.http(
+            "/stage1/sources/execute", body, ref="project-other"
+        )
+        self.assertIsNone(wrong_project.get("receipt"), wrong_project)
+        self.assertEqual(self.counts(), (before[0], before[1] + 1))
+        self.assertEqual(
+            self.http("/stage1/sources/execute", body)[1]["receipt"]["key"], body["key"]
+        )
+        history = self.http("/history")[1]["actions"]
+        self.assertTrue(
+            any(
+                r["key"] == body["key"] and r["status"] == "known-unsent"
+                for r in history
+            )
+        )
+        self.stop()
+        self.config_path.write_bytes(original)
+        self.start()
+        _, replay = self.http("/stage1/sources/execute", body)
+        self.assertEqual(replay["status"], "known-unsent")
+        self.assertEqual(replay["request_sha256"], receipt["request_sha256"])
+        self.assertEqual(self.counts(), (before[0], before[1] + 1))
+
+    def test_expired_config_preserves_saved_outcome(self):
+        self.start()
+        saved_body = self.body("saved-before-expiry")
+        _, saved = self.http("/stage1/sources/execute", saved_body)
+        self.assertEqual(saved["status"], "saved")
+        original = self.config_path.read_bytes()
+        self.config_path.write_bytes(original + b"\n")
+        before = self.counts()
+        _, refused = self.http("/stage1/sources/execute", saved_body)
+        self.assertEqual(refused["receipt"]["status"], "saved")
+        self.assertEqual(refused["receipt"]["source_id"], saved["source_id"])
+        self.assertEqual(self.counts(), before)
+
+    def test_expired_sdk_records_unsent_with_original_trusted_binding(self):
+        self.start()
+        body = self.body("expired-sdk")
+        path = (
+            Path(self.config["materials_root"])
+            / self.config["sources"][0]["result_path"]
+        )
+        path.write_bytes(path.read_bytes() + b"\n")
+        before = self.counts()
+        status, result = self.http("/stage1/sources/execute", body)
+        self.assertEqual(status, 409, result)
+        self.assertIsInstance(result.get("receipt"), dict, result)
+        self.assertEqual(result["receipt"]["status"], "known-unsent")
+        self.assertEqual(self.counts(), (before[0], before[1] + 1))
+
     def test_ordinary_source_registration_reading_refusal_and_cold_same_key(self):
         self.start()
         body = self.body()
@@ -588,6 +657,13 @@ class OfflineSourcesTests(unittest.TestCase):
         self.assertEqual(result["receipt"]["status"], "execution-unknown")
         self.assertEqual(result["receipt"]["key"], body["key"])
         before = self.counts()
+        original = self.config_path.read_bytes()
+        self.config_path.write_bytes(original + b"\n")
+        status, expired = self.http("/stage1/sources/execute", body)
+        self.assertEqual(status, 409, expired)
+        self.assertEqual(expired["receipt"]["status"], "execution-unknown")
+        self.assertEqual(self.counts(), before)
+        self.config_path.write_bytes(original)
         self.stop()
         self.start()
         self.assertEqual(

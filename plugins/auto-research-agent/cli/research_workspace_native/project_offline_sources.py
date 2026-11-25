@@ -390,9 +390,20 @@ class ProjectOfflineSourceService:
             )
             if prior is not None:
                 return self.intake._receipt(prior, replayed=True)
-            _, binding, _, _, _, config = self._context(principal, ref)
+            # This is rejection evidence, not permission to execute. Use the
+            # configuration admitted when this owner opened: rereading expired
+            # bytes here would erase the definitely-unsent outcome. Still bind
+            # the authenticated project to its current input/brief/plan.
+            config = self.inputs.document
+            self.intake._load(principal, ref)
+            binding = self.intake.binding(ref)
             _check(
-                body["input_version"] == binding["input_version"]
+                ref == config["project_ref"]
+                and all(
+                    type(config[k]) is type(binding[k]) and config[k] == binding[k]
+                    for k in ("input_version", "brief_sha256", "plan_manifest_sha256")
+                )
+                and body["input_version"] == binding["input_version"]
                 and body["brief_sha256"] == binding["brief_sha256"]
                 and any(r["work_ref"] == body["work_ref"] for r in config["sources"]),
                 "offline-source-refusal-binding-differs",
