@@ -123,7 +123,7 @@ class FixedReplayStage1Service(ProjectStage1Service):
             "fixed-replay-storage-overlap",
         )
 
-    def _selected(self, ref, binding, run, ledger, query, config=None):
+    def _selected(self, ref, binding, run, ledger, query, config=None, coverage=None):
         config = self.fixed_inputs.load() if config is None else config
         require(
             config["project_ref"] == ref
@@ -143,7 +143,10 @@ class FixedReplayStage1Service(ProjectStage1Service):
             not run.get("query_owned") and ledger.manifest["mode"] == "offline-import",
             "fixed-replay-offline-ledger-required",
         )
-        require(ledger.coverage_state().active == 1, "fixed-replay-first-round-only")
+        require(
+            (coverage or ledger.coverage_state()).active == 1,
+            "fixed-replay-first-round-only",
+        )
         require(query is not None, "stage1-query-offer-differs")
         matches = [
             row
@@ -157,6 +160,89 @@ class FixedReplayStage1Service(ProjectStage1Service):
         )
         return matches
 
+    def _history(self, ref, binding, run, ledger, queries, config):
+        """Attribute immutable attempts, not merely completed planned query IDs.
+
+        Original receipts already pin the complete config (including project,
+        typed version, brief and plan) and response bytes. Those are sufficient
+        for legacy attribution; an unpinned attempt is Unknown, never upgraded.
+        validate_run in _ledger verifies the saved artifact bytes and query links.
+        """
+        events = [event["payload"] for event in ledger.events()]
+        coverage = ledger.coverage_state()
+        completed = {e["query_id"] for e in events if e["kind"] == "QueryEvent"}
+        finishes = {e["attempt_id"]: e for e in events if e["kind"] == "ActionFinished"}
+        attributed_ids = {qid for q in queries for qid in q["recorded_query_ids"]}
+        reason = (
+            "fixed-replay-history-unattributed"
+            if any(
+                e["kind"] == "ActionStarted"
+                and e["operation"] == "search"
+                and e["event_id"] not in attributed_ids
+                for e in events
+            )
+            else None
+        )
+        for query in queries:
+            inputs = self._selected(ref, binding, run, ledger, query, config, coverage)
+            expected = {row["backend"]: row for row in inputs}
+            states, pins = [], set()
+            for query_id in query["recorded_query_ids"]:
+                attempts = [
+                    e
+                    for e in events
+                    if e["kind"] == "ActionStarted"
+                    and e["operation"] == "backend"
+                    and e["parent_id"] == query_id
+                ]
+                state = "current"
+                if not attempts:
+                    state = "unknown"
+                for attempt in attempts:
+                    args = attempt["arguments"]
+                    pin = args.get("config_sha256")
+                    if isinstance(pin, str):
+                        pins.add(pin)
+                    row = expected.get(attempt["backend"])
+                    if not pin or args.get("mode") != "fixed-offline-engineering":
+                        state = "unknown"
+                    elif pin != self.fixed_inputs.sha256:
+                        state = "different"
+                    elif (
+                        row is None
+                        or args.get("records_sha256") != row["records_sha256"]
+                        or args.get("network") is not False
+                        or args.get("model") is not False
+                    ):
+                        state = "unknown"
+                    finish = finishes.get(attempt["event_id"])
+                    if pin == self.fixed_inputs.sha256 and finish is not None:
+                        if (
+                            row is None
+                            or finish.get("records", {}).get("sha256")
+                            != row["records_sha256"]
+                            or finish.get("http_status") != row["http_status"]
+                            or finish.get("result_count") != row["_count"]
+                        ):
+                            state = "unknown"
+                if state == "current" and (
+                    query_id not in completed
+                    or sorted(a["backend"] for a in attempts) != sorted(expected)
+                ):
+                    state = "incomplete"
+                states.append(state)
+            query["historical_config_sha256"] = sorted(pins)
+            if "different" in states:
+                query["status"] = "fixed-replay-history-config-differs"
+                reason = query["status"]
+            elif "unknown" in states:
+                query["status"] = "fixed-replay-history-unattributed"
+                reason = reason or query["status"]
+            elif states and all(s == "current" for s in states):
+                query["status"] = "fixed-replay-recorded"
+            # Incomplete current attempts retain the ordinary unknown-write barrier.
+        return reason
+
     def read(self, credential, project_ref):
         with self.intake._lock:
             result = super().read(credential, project_ref)
@@ -167,6 +253,7 @@ class FixedReplayStage1Service(ProjectStage1Service):
                 model=False,
                 research_authorized=False,
                 reason=None,
+                completed_queries=0,
             )
             result["fixed_replay"] = status
             if result["ledger"] is None:
@@ -179,27 +266,21 @@ class FixedReplayStage1Service(ProjectStage1Service):
             except Exception as error:
                 status["reason"] = getattr(error, "code", "fixed-replay-input-invalid")
                 return result
-            if result.get("coverage_actions", {}).get("held"):
-                status["reason"] = "stage1-coverage-write-outcome-unobserved"
+            try:
+                status["reason"] = self._history(
+                    project_ref, binding, run, ledger, result["queries"], config
+                )
+            except Exception as error:
+                status["reason"] = getattr(error, "code", "fixed-replay-input-invalid")
                 return result
-            completed = {
-                e["payload"]["query_id"]
-                for e in ledger.events()
-                if e["payload"]["kind"] == "QueryEvent"
-            }
+            if result.get("coverage_actions", {}).get("held"):
+                status["reason"] = (
+                    status["reason"] or "stage1-coverage-write-outcome-unobserved"
+                )
             for query in result["queries"]:
-                if query["recorded_query_ids"] and all(
-                    q in completed for q in query["recorded_query_ids"]
-                ):
-                    query["status"] = "fixed-replay-recorded"
-                try:
-                    self._selected(project_ref, binding, run, ledger, query, config)
-                    query["execution_available"] = query["status"] == "not-executed"
-                except Exception as error:
-                    query["execution_available"] = False
-                    status["reason"] = getattr(
-                        error, "code", "fixed-replay-input-invalid"
-                    )
+                query["execution_available"] = (
+                    status["reason"] is None and query["status"] == "not-executed"
+                )
             status["completed_queries"] = sum(
                 q["status"] == "fixed-replay-recorded" for q in result["queries"]
             )
@@ -275,13 +356,60 @@ class FixedReplayStage1Service(ProjectStage1Service):
                 ledger_state_sha256=ledger.state_hash(),
             )
 
-        return self._mutate(
-            credential,
-            project_ref,
-            body,
-            "stage1-execute-query",
-            produce,
-            fields={"query_ref", "query_sha256"},
-            preflight=selected,
-            check_deadline=check_deadline,
-        )
+        # _perform returns saved keys before reserve/preflight. Recheck the trusted
+        # current input and historical attribution even for that read-only path.
+        # Do not change legacy request hashes or overwrite their saved receipts.
+        with self.intake._lock:
+            principal = self.intake._principal(credential)
+            state = self.intake._load(principal, project_ref)
+            binding = self.intake.binding(project_ref)
+            require(
+                type(body.get("input_version")) is type(binding["input_version"])
+                and body.get("input_version") == binding["input_version"]
+                and body.get("brief_sha256") == binding["brief_sha256"],
+                "fixed-replay-project-input-differs",
+            )
+            run, ledger, _ = self._ledger(state, binding)
+            queries = self._queries(run, ledger)
+            reason = self._history(
+                project_ref,
+                binding,
+                run,
+                ledger,
+                queries,
+                self.fixed_inputs.load(),
+            )
+            require(reason is None, reason or "fixed-replay-history-unattributed")
+            saved = self.intake.db.execute(
+                "SELECT receipt FROM intake_actions WHERE principal=? AND project=? AND key=?",
+                (principal, project_ref, body.get("key")),
+            ).fetchone()
+            if saved is not None:
+                receipt = json.loads(saved["receipt"])
+                pin = receipt.get("config_sha256")
+                require(
+                    pin is None or pin == self.fixed_inputs.sha256,
+                    "fixed-replay-history-config-differs",
+                )
+                # Unknown outcomes may predate any attributable backend event.
+                # They remain available through action history, not as a replay
+                # under whichever trusted configuration happens to be loaded.
+                require(
+                    pin is not None
+                    or any(
+                        q["query_ref"] == body.get("query_ref")
+                        and q["historical_config_sha256"] == [self.fixed_inputs.sha256]
+                        for q in queries
+                    ),
+                    "fixed-replay-saved-action-unattributed",
+                )
+            return self._mutate(
+                credential,
+                project_ref,
+                body,
+                "stage1-execute-query",
+                produce,
+                fields={"query_ref", "query_sha256"},
+                preflight=selected,
+                check_deadline=check_deadline,
+            )
