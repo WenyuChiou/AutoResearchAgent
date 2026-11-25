@@ -329,7 +329,17 @@ class ProjectHost(AtlasHost):
             )
             from .project_saved_claims import ProjectSavedClaimService
 
-            self.project_saved_claims = ProjectSavedClaimService(
+            from .project_offline_source_reading import (
+                OfflineSavedClaims,
+                OfflineReadingReview,
+            )
+
+            claims_type = (
+                OfflineSavedClaims
+                if offline_sources is not None
+                else ProjectSavedClaimService
+            )
+            self.project_saved_claims = claims_type(
                 stage1, self.project_stage1_records, models
             )
             if models is not None:
@@ -344,7 +354,12 @@ class ProjectHost(AtlasHost):
                     )
             from .project_reading_review import ProjectReadingReviewService
 
-            self.project_reading_review = ProjectReadingReviewService(
+            reading_type = (
+                OfflineReadingReview
+                if offline_sources is not None
+                else ProjectReadingReviewService
+            )
+            self.project_reading_review = reading_type(
                 self.project_stage1_claims, saved_claims=self.project_saved_claims
             )
         # Saved package build/replay is bounded filesystem work. The generic

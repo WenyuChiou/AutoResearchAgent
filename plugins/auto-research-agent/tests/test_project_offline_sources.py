@@ -300,6 +300,98 @@ class OfflineSourcesTests(unittest.TestCase):
     def test_changed_original_and_sdk_digest_do_not_inherit_source_or_reading(self):
         self.changed_configuration(replace_sdk=True)
 
+    def test_reading_post_replay_requires_same_offline_configuration(self):
+        self.start()
+        status, source = self.http("/stage1/sources/execute", self.body())
+        self.assertEqual(status, 200, source)
+        self.ledger().decide(
+            self.work,
+            "pending",
+            reason="fixture-unassessed",
+            rationale="Synthetic test agent leaves scientific assessment pending.",
+            evidence_refs=[source["finish"]["raw_ref"]],
+            actor="synthetic-test-agent",
+        )
+        status, view = self.http("/stage1/source-reading/" + self.work)
+        self.assertEqual(status, 200, view)
+        body = {
+            name: view[name]
+            for name in (
+                "revision",
+                "input_version",
+                "brief_sha256",
+                "ledger_state_sha256",
+                "work_ref",
+                "source_snapshot_sha256",
+            )
+        }
+        body.update(
+            key="synthetic-operator-reading",
+            confirmed=True,
+            offer_ref=view["reading_review_offer"]["offer_ref"],
+            offer_sha256=view["reading_review_offer"]["offer_sha256"],
+            review={
+                name: view[name] for name in ("classification", "findings", "roles")
+            },
+        )
+        status, saved = self.http("/stage1/reading-review", body)
+        self.assertEqual(status, 200, saved)
+        self.assertEqual(saved["status"], "saved")
+        before = self.counts()
+        self.stop()
+        self.start()
+        status, replay = self.http("/stage1/reading-review", body)
+        self.assertEqual(status, 200, replay)
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(self.counts(), before)
+        self.stop()
+        self.config_path.write_bytes(self.config_path.read_bytes() + b"\n")
+        self.pin = sha(self.config_path.read_bytes())
+        self.start()
+        status, rejected = self.http("/stage1/reading-review", body)
+        self.assertEqual(status, 409, rejected)
+        self.assertEqual(rejected["error"], "offline-reading-configuration-differs")
+        self.assertEqual(self.counts(), before)
+
+    def test_claim_post_replay_requires_current_saved_source(self):
+        from test_project_saved_claims import request as claim_request
+
+        self.start()
+        status, source = self.http("/stage1/sources/execute", self.body())
+        self.assertEqual(status, 200, source)
+        self.ledger().decide(
+            self.work,
+            "pending",
+            reason="fixture-unassessed",
+            rationale="Synthetic test decision, not a real research judgment.",
+            evidence_refs=[source["finish"]["raw_ref"]],
+            actor="synthetic-test-agent",
+        )
+        body = claim_request(
+            self.host.project_saved_claims,
+            self.ref,
+            self.work,
+            key="synthetic-operator-claim",
+        )
+        status, saved = self.http("/stage1/source-claim", body)
+        self.assertEqual(status, 200, saved)
+        self.assertEqual(saved["status"], "saved")
+        before = self.counts()
+        self.stop()
+        self.start()
+        status, replay = self.http("/stage1/source-claim", body)
+        self.assertEqual(status, 200, replay)
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(self.counts(), before)
+        self.stop()
+        self.config_path.write_bytes(self.config_path.read_bytes() + b"\n")
+        self.pin = sha(self.config_path.read_bytes())
+        self.start()
+        status, rejected = self.http("/stage1/source-claim", body)
+        self.assertEqual(status, 409, rejected)
+        self.assertEqual(rejected["error"], "offline-claim-configuration-differs")
+        self.assertEqual(self.counts(), before)
+
     def test_wrong_project_version_digest_and_live_authorization_refuse(self):
         self.start()
         body = self.body()
