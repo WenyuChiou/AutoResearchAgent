@@ -44,7 +44,9 @@ document.addEventListener('click',async e=>{
   const request=prior?.signature===signature?prior.body:{...body,key:crypto.randomUUID()};
   s1Provided.requests[id]={signature,body:request};s1ProvidedSave();s1Provided.busy=true;livePaint();
   const receipt=await canonicalOldRequest('/api/v9/stage1/admit-material',request);
-  state.message=rl('已登记，仍未筛选或阅读。回执：','Registered; still unscreened and unread. Receipt: ')+receipt.key;
+  state.message=(receipt.status==='saved'
+   ?rl('已登记，仍未筛选或阅读。回执：','Registered; still unscreened and unread. Receipt: ')
+   :rl('登记结果未确认；保留原请求，请核对保存历史。回执：','Registration unconfirmed; original request retained. Check saved history. Receipt: '))+receipt.key;
   await liveRefresh();await m9Load();
  }catch(error){
   state.error=error.message;
