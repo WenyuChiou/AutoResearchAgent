@@ -196,7 +196,7 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
         with (
             TemporaryDirectory(prefix="s2-owner-") as directory,
             closing(
-                ProjectIntakeService(Path(directory), authenticate=authenticate)
+                ProjectIntakeService(Path(directory).resolve(), authenticate=authenticate)
             ) as intake,
         ):
             created = intake.create(
