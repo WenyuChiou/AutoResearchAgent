@@ -71,6 +71,15 @@ test('Wiki keeps saved pending decision, zero/null findings and inert text witho
  assert.match(html,/supported: 0/);assert.match(html,/unavailable: null/);assert.match(html,/revise \/ decision-recorded-pending-host-verification \/ false/);
  assert.match(html,/&lt;img/);assert.doesNotMatch(html,/<img/);assert.equal(view.plan_review.execution_authorized,false);
 });
+
+test('Wiki cannot verify a review without a current plan hash, even if its other identity fields match',async()=>{
+ for(const pin of ['b'.repeat(64),'f'.repeat(64)]){
+  let view;const f=fixture(async()=>view);view=reviewedPlan(f.basis);delete view.feedback;view.plan_review.identity.plan_sha256=pin;
+  view.plan_review.review.reviewer_kind='UNVERIFIED_REVIEW_SENTINEL';
+  await f.listeners.click({target:{closest:()=>f.button}});const html=f.ctx.laterStage(f.app);
+  assert.match(html,/stage3-plan-review-plan-pin-unavailable/);assert.doesNotMatch(html,/UNVERIFIED_REVIEW_SENTINEL/);
+ }
+});
 test('utility headings follow the current page and preserve pending/error content',()=>{
  const f=fixture();
  for(const [page,title] of [['files','專案檔案'],['history','操作歷史'],['settings','連線與設定']]){

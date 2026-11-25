@@ -187,7 +187,7 @@
   const ref=()=>el("project").value;
   const current=(project,sequence)=>ref()===project && serial===sequence;
   const requestIdentity=(project,request)=>JSON.stringify([project,request?.key,request?.request_sha256]);
-  const remember=(data,project)=>{view=data;viewProject=project;readAt=new Date().toISOString();};
+  const remember=(data,project)=>{if(data.project_ref!==undefined&&data.project_ref!==project)throw new Error("stage3-project-binding-differs");view=data;viewProject=project;readAt=new Date().toISOString();};
   const node=(parent,tag,text)=>{const n=document.createElement(tag);n.textContent=String(text ?? "Unknown");parent.append(n);return n;};
   const rows=value=>Array.isArray(value)?value:[];
   const reviewPanel=document.createElement("section");reviewPanel.className="sq-record";reviewPanel.dataset.planReview="";reviewPanel.hidden=true;el("progress").append(reviewPanel);
@@ -198,20 +198,20 @@
       "zh-CN":{title:"计划评审与决定",project:"当前项目 / 输入版本",plan:"计划 / 版本",missing:"尚未取得与此计划匹配的评审与决定；保留计划和待查事项。",synthetic:"合成工程评审，不是真人评审。",review:"评审标识",identity:"评审者类型 / 身份已核验",findings:"原结论计数",noReview:"评审尚未记录。",noDecision:"尚未记录真人决定；不会据此启动研究。",decision:"原决定 / 核验状态 / 身份已核验",next:"计划状态 / 下一步",reason:"原缺件原因",details:"对应版本、完整摘要与原记录"},
       "zh-TW":{title:"計畫評審與決定",project:"目前專案 / 輸入版本",plan:"計畫 / 版本",missing:"尚未取得與此計畫匹配的評審與決定；保留計畫及待查事項。",synthetic:"合成工程評審，不是真人評審。",review:"評審識別",identity:"評審者類型 / 身分已核驗",findings:"原結論計數",noReview:"評審尚未記錄。",noDecision:"尚未記錄真人決定；不會據此啟動研究。",decision:"原決定 / 核驗狀態 / 身分已核驗",next:"計畫狀態 / 下一步",reason:"原缺件原因",details:"對應版本、完整摘要與原紀錄"}
     }[el("language").value] || {};
-    const saved=view.plan_review,plan=view.plan,job=view.job,identity=saved?.identity;
+    const saved=view.plan_review,plan=view.plan,job=view.job,identity=saved?.identity,planPin=view.feedback?.binding?.parent_plan_sha256;
     const expected={project_ref:view.project_ref,input_version:view.input_version,revision:view.revision,brief_sha256:view.brief_sha256,
       selection_request_sha256:view.selection_request_sha256,job_request_sha256:job?.request_sha256,
       source_manifest_sha256:plan.source_manifest_sha256,plan_manifest_sha256:job?.plan_manifest_sha256,plan_id:plan.plan_id,plan_version:plan.version};
     const bound=saved?.readback_status==="bound"&&view.project_ref===ref()&&view.selection_status==="recorded"&&job?.outcome==="saved"&&job.project_ref===view.project_ref&&
       Object.entries(expected).every(([key,value])=>value!==undefined&&value!==null&&identity?.[key]===value)&&
       /^[a-f0-9]{64}$/.test(identity?.plan_sha256 || "")&&
-      (!view.feedback?.binding?.parent_plan_sha256 || identity.plan_sha256===view.feedback.binding.parent_plan_sha256);
+      /^[a-f0-9]{64}$/.test(planPin || "")&&identity.plan_sha256===planPin;
     const value=x=>x===undefined?w().unknownValue:x===null?"null":String(x);
     const short=x=>{const text=value(x);return text.length>36?text.slice(0,20)+"…"+text.slice(-8):text;};
     const row=(label,text)=>node(reviewPanel,"p",label+": "+value(text));
     node(reviewPanel,"h2",labels.title);row(labels.project,short(view.project_ref)+" / "+value(view.input_version));row(labels.plan,short(plan.plan_id)+" / v"+value(plan.version));
     if(!bound){
-      const reason=saved?.readback_status==="bound"?"stage3-plan-review-binding-differs":saved?.reason || "stage3-plan-review-not-provided";
+      const reason=saved?.readback_status==="bound"?(!/^[a-f0-9]{64}$/.test(planPin || "")?"stage3-plan-review-plan-pin-unavailable":"stage3-plan-review-binding-differs"):saved?.reason || "stage3-plan-review-not-provided";
       node(reviewPanel,"p",labels.missing+" ("+value(reason)+")");return;
     }
     const review=saved.review,decision=saved.decision;
@@ -427,7 +427,7 @@
     if(viewProject!==project){view=null;readAt=null;acceptedRequest=null;viewProject=null;}
     notice=null;phase=null;reading=true;readingProject=project;readFailed=false;el("confirmed").checked=false;render();
     if(!/^[A-Za-z0-9_-]{1,64}$/.test(project)){reading=false;render();return;}
-    try{const data=await api(project);if(!current(project,sequence))return;if(data.project_ref!==undefined&&data.project_ref!==project)throw new Error("stage3-project-binding-differs");remember(data,project);}
+    try{const data=await api(project);if(!current(project,sequence))return;remember(data,project);}
     catch(e){if(!current(project,sequence))return;notice=e.message;readFailed=true;}
     if(!current(project,sequence))return;reading=false;render();
   }

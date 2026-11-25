@@ -484,4 +484,21 @@ if(require.main === module){
     const p=await page(foreign);assert.ok(p.elements.status.textContent.includes('stage3-project-binding-differs'));
     assert.ok(!p.text().includes('synthetic-plan'));assert.equal(p.calls.length,1);
   });
+  test('receipt page cannot attach a review without the current plan pin',async()=>{
+    const data=reviewedPlan();delete data.feedback;data.plan_review.identity.plan_sha256='f'.repeat(64);
+    data.plan_review.review.reviewer_kind='UNVERIFIED_REVIEW_SENTINEL';
+    const p=await page(data);assert.ok(p.text().includes('stage3-plan-review-plan-pin-unavailable'));
+    assert.ok(!p.text().includes('UNVERIFIED_REVIEW_SENTINEL'));
+  });
+  test('Inspect readback rejects a foreign project and retains the last trusted plan and review',async()=>{
+    const data=reviewedPlan(),foreign=structuredClone(data);foreign.project_ref='project-b';foreign.plan.plan_id='FOREIGN-PLAN-B';
+    let gets=0;const p=await page(data,async(url,options)=>options.method==='POST'?{ok:true,json:async()=>({})}:
+      {ok:true,json:async()=>structuredClone(++gets===1?data:foreign)});
+    await p.elements.inspect.onclick();await settle();
+    assert.ok(p.elements.status.textContent.includes('stage3-project-binding-differs'));
+    assert.ok(p.elements.status.textContent.includes('Last verified read'));
+    assert.equal(JSON.parse(p.elements['plan-json'].textContent).plan_id,data.plan.plan_id);
+    assert.ok(!p.text().includes('FOREIGN-PLAN-B'));assert.equal(gets,2);
+    assert.deepEqual(p.calls.map(call=>call.options.method),['GET','POST','GET']);
+  });
 }

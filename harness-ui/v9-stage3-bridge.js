@@ -228,7 +228,7 @@ function v93SavedPlanSummary(view){
 }
 function v93PlanReview(view){
  if(!view?.plan)return '';
- const saved=view.plan_review,plan=view.plan,job=view.job,identity=saved?.identity;
+ const saved=view.plan_review,plan=view.plan,job=view.job,identity=saved?.identity,planPin=view.feedback?.binding?.parent_plan_sha256;
  const expected={project_ref:view.project_ref,input_version:view.input_version,revision:view.revision,brief_sha256:view.brief_sha256,
   selection_request_sha256:view.selection_request_sha256,job_request_sha256:job?.request_sha256,
   source_manifest_sha256:plan.source_manifest_sha256,plan_manifest_sha256:job?.plan_manifest_sha256,plan_id:plan.plan_id,plan_version:plan.version};
@@ -236,13 +236,13 @@ function v93PlanReview(view){
  const bound=saved?.readback_status==='bound'&&view.selection_status==='recorded'&&job?.outcome==='saved'&&job.project_ref===view.project_ref&&
   Object.entries(expected).every(([key,value])=>value!==undefined&&value!==null&&identity?.[key]===value)&&
   /^[a-f0-9]{64}$/.test(identity?.plan_sha256||'')&&
-  (!view.feedback?.binding?.parent_plan_sha256||identity.plan_sha256===view.feedback.binding.parent_plan_sha256);
+  /^[a-f0-9]{64}$/.test(planPin||'')&&identity.plan_sha256===planPin;
  const value=x=>x===undefined?rl('Unknown / 未提供','Unknown / not supplied','Unknown / 未提供'):x===null?'null':String(x);
  const short=x=>{const text=value(x);return text.length>36?text.slice(0,20)+'…'+text.slice(-8):text;};
  const field=(label,x)=>`<p><strong>${label}:</strong> ${rx(value(x))}</p>`;
  let content=`<p>${rl('当前项目','Current project','目前專案')}: ${rx(short(view.project_ref))} · ${rl('输入版本','Input version','輸入版本')}: ${rx(value(view.input_version))} · ${rl('计划','Plan','計畫')}: ${rx(short(plan.plan_id))} · v${rx(value(plan.version))}</p>`;
  if(!bound){
-  const reason=saved?.readback_status==='bound'?'stage3-plan-review-binding-differs':saved?.reason||'stage3-plan-review-not-provided';
+  const reason=saved?.readback_status==='bound'?(!/^[a-f0-9]{64}$/.test(planPin||'')?'stage3-plan-review-plan-pin-unavailable':'stage3-plan-review-binding-differs'):saved?.reason||'stage3-plan-review-not-provided';
   content+=`<p role="status">${rl('尚未取得与此计划匹配的评审与决定；保留计划和待查事项。','A matching review and decision are not available; the plan and its unknowns remain saved.','尚未取得與此計畫匹配的評審與決定；保留計畫及待查事項。')} (${rx(value(reason))})</p>`;
  }else{
   const review=saved.review,decision=saved.decision;
