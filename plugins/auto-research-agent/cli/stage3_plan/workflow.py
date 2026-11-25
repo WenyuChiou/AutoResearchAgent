@@ -7,7 +7,13 @@ from .decision import revision_impact
 from .intake import admit_intake
 from .preparation import closed, file_binding, prepare_ab, sha256, text
 from .review import plan_status
-from .storage import inspect_package, private_output, safe_path, write_new
+from .storage import (
+    inspect_completed_package,
+    inspect_package,
+    private_output,
+    safe_path,
+    write_new,
+)
 
 KINDS = {"source", "plan", "review", "ab_definition"}
 MAX_CHECKPOINT_REVISIONS = 64
@@ -23,7 +29,7 @@ def source_binding(package, delivery, expected_manifest_sha256):
     }
 
 
-def _evaluate(bindings):
+def _evaluate(bindings, inspect_plan=inspect_package):
     closed(bindings, KINDS, "workflow bindings")
     source = bindings["source"]
     closed(source, {"package", "delivery", "manifest_sha256"}, "source")
@@ -51,7 +57,7 @@ def _evaluate(bindings):
         closed(ref, {"package", "manifest_sha256"}, "plan binding")
         text(ref["package"], "saved plan package")
         sha256(ref["manifest_sha256"])
-        saved = inspect_package(ref["package"], ref["manifest_sha256"])
+        saved = inspect_plan(ref["package"], ref["manifest_sha256"])
         request = saved["artifacts"]["request.json"]
         if (
             request.get("admission_scope") != "strict-selected"
@@ -240,7 +246,18 @@ def _transition(checkpoint, previous, evaluate=_evaluate):
 
 
 def inspect_workflow(path, *, expected_checkpoint_sha256):
-    """Verify bounded complete ancestry and current dependencies, without calls."""
+    """Verify complete ancestry against current dependencies, including for writes."""
+    return _inspect_workflow(path, expected_checkpoint_sha256, inspect_package)
+
+
+def inspect_completed_workflow(path, *, expected_checkpoint_sha256):
+    """Read pinned history using the original completed plan archive fingerprint."""
+    return _inspect_workflow(
+        path, expected_checkpoint_sha256, inspect_completed_package
+    )
+
+
+def _inspect_workflow(path, expected_checkpoint_sha256, inspect_plan):
     history, seen = [], set()
     cursor = {"path": str(safe_path(path)), "sha256": expected_checkpoint_sha256}
     while cursor is not None:
@@ -258,7 +275,7 @@ def inspect_workflow(path, *, expected_checkpoint_sha256):
     def evaluate(bindings):
         key = digest(bindings)
         if key not in evaluated:
-            evaluated[key] = _evaluate(bindings)
+            evaluated[key] = _evaluate(bindings, inspect_plan)
         return evaluated[key]
 
     for index, row in enumerate(history):

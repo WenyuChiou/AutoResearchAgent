@@ -20,7 +20,7 @@ from .storage import (
     write_new,
 )
 from .validation import check_plan
-from .workflow import advance_workflow, inspect_workflow
+from .workflow import advance_workflow, inspect_completed_workflow, inspect_workflow
 
 POLICY = dict.fromkeys(
     (
@@ -99,9 +99,11 @@ class PlanningJobs:
         plan_id,
         version,
         schema_version,
+        *,
+        inspect_checkpoint=inspect_workflow,
     ):
         closed(checkpoint, {"path", "sha256"}, "current workflow checkpoint")
-        saved = inspect_workflow(
+        saved = inspect_checkpoint(
             checkpoint["path"], expected_checkpoint_sha256=checkpoint["sha256"]
         )["checkpoint"]
         if saved["status"]["next_action"] == "resolve-stage2-scientific-mapping":
@@ -245,9 +247,22 @@ class PlanningJobs:
 
     def _saved_for_read(self, payload, manifest_sha256):
         saved = inspect_saved_plan(payload, manifest_sha256)
-        return self._verified_saved(payload, manifest_sha256, saved)
+        return self._verified_saved(
+            payload,
+            manifest_sha256,
+            saved,
+            inspect_checkpoint=inspect_completed_workflow,
+        )
 
-    def _verified_saved(self, payload, manifest_sha256, saved, *, attach=False):
+    def _verified_saved(
+        self,
+        payload,
+        manifest_sha256,
+        saved,
+        *,
+        attach=False,
+        inspect_checkpoint=inspect_workflow,
+    ):
         root = Path(payload["output"])
         plan_root = root / "plan"
         artifacts = saved["artifacts"]
@@ -276,7 +291,7 @@ class PlanningJobs:
                 binding=plan_ref,
             )
         checkpoint_ref = _ref(checkpoint_path)
-        checkpoint = inspect_workflow(
+        checkpoint = inspect_checkpoint(
             checkpoint_ref["path"], expected_checkpoint_sha256=checkpoint_ref["sha256"]
         )["checkpoint"]
         if digest(checkpoint["parent"]) != digest(payload["checkpoint"]) or digest(
@@ -324,6 +339,7 @@ class PlanningJobs:
             payload["plan"]["plan_id"],
             payload["plan"]["version"],
             payload["plan"]["schema_version"],
+            inspect_checkpoint=inspect_completed_workflow,
         )
         environment = {"runtime", "producer_sha256"}
         if set(payload) != set(expected) or digest(

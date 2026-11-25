@@ -4,6 +4,7 @@
 def validate_args(args):
     for stem in (
         "stage2_direct_import",
+        "stage2_controller",
         "selection",
         "stage3_planning",
         "stage2_reading",
@@ -27,12 +28,25 @@ def configure_services(services, args):
         services["stage2"],
     )
     services.update(
+        stage2_controllers=None,
         stage2_selection=None,
         stage3_planning=None,
         stage3_recovery_pins=None,
         stage2_readings=None,
         planning_resources=None,
     )
+    if getattr(args, "stage2_controller_config", None):
+        from research_workspace_native.project_stage2_controller_config import (
+            load_stage2_controllers,
+        )
+
+        services["stage2_controllers"] = load_stage2_controllers(
+            stage2,
+            token,
+            args.stage2_controller_config,
+            args.stage2_controller_sha256,
+            allow_readback_without_admission=True,
+        )
     bindings = {}
     if getattr(args, "stage2_direct_import_config", None):
         from research_workspace_native.project_stage2_direct_config import (
