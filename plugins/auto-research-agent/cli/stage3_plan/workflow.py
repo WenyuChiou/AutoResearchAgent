@@ -6,7 +6,7 @@ from .contracts import Stage3Error, digest
 from .decision import revision_impact
 from .intake import admit_intake
 from .preparation import closed, file_binding, prepare_ab, sha256, text
-from .review import plan_status
+from .review import plan_status, validate_new_review
 from .storage import (
     inspect_completed_package,
     inspect_package,
@@ -336,6 +336,15 @@ def advance_workflow(path, *, expected_checkpoint_sha256, action, output, bindin
             binding["package"], binding["delivery"], binding["manifest_sha256"]
         )
     parent = {"path": str(safe_path(path)), "sha256": expected_checkpoint_sha256}
+    if action == "attach-review":
+        # Only this new attachment is gated. Historical ancestry stays readable
+        # using its original rubric and immutable checkpoint projection.
+        intake, plan, _ = _evaluate(old["bindings"])
+        if plan is None:
+            raise Stage3Error("semantic review requires a saved plan")
+        ref = bindings["review"]
+        closed(ref, {"path", "sha256"}, "review binding")
+        validate_new_review(plan, intake, file_binding(ref["path"], ref["sha256"]))
     return _save(
         output,
         old["workflow_id"],

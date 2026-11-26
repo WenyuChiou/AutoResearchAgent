@@ -20,7 +20,7 @@ from stage3_plan.jobs import PlanningJobs  # noqa: E402
 from stage3_plan.native import NativePlanner  # noqa: E402
 from stage3_plan.planner import draft_plan  # noqa: E402
 from stage3_plan_review_readback import plan_review_identity, read_plan_review  # noqa: E402
-from test_stage3_plan_decision import semantic_review  # noqa: E402
+from test_stage3_review_content import actionable_review  # noqa: E402
 
 
 _call_native_adapter = NativePlanner.__call__
@@ -69,7 +69,9 @@ class ProjectStage3ReviewReadbackTests(unittest.TestCase):
         }
 
     def attach_review(self, *, status="adequate"):
-        review = semantic_review(self.fx.plan, self.fx.intake, status=status)
+        review = actionable_review(
+            self.fx.plan, self.fx.intake, status=status, kind="human-record"
+        )
         ref = self.fx.file_ref("review.json", review)
         self.fx.transition("attach-review", ref)
         return ref
