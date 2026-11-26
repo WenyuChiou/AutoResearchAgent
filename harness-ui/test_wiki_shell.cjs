@@ -24,7 +24,24 @@ assert(!view().next.includes('查询上次结果'),'do not point another project
 rt.pending.ref=null;rt.pending.path='/api/projects';assert.equal(view().state,'create-pending');
 assert(view().now.includes('新课题'),'a global create is not a submission of the currently viewed project');
 rt.pending={ref,body:{key:'original-key'}};assert(!view().next.includes('查询上次结果'),'do not name a recovery button missing from this page');
-app.el={querySelector:()=>({disabled:false})};assert(view().next.includes('查询上次结果'),'only name a current-project usable recovery control');app.el=undefined;rt.pending=null;
+const header=source.match(/^function liveHeader\(app\).*$/m)[0];
+const stage2Wrapper=bridge.slice(bridge.indexOf('const v93Stage2=stage2;'),bridge.indexOf('function v93RecoveryControl'));
+const stage2Fixture=vm.createContext({rt,rl:zh=>zh,rx:context.rx,v93ChoiceIdentity:()=>project});
+const renderStage2=vm.runInContext(header+'\nlet stage2=liveHeader;\n'+stage2Wrapper+'\nstage2',stage2Fixture);
+const foldedPending=[];
+for(const [state,owner,path] of [['pending',ref,'/api/projects/'+ref+'/compile'],['create-pending',null,'/api/projects']]){
+ rt.pending={ref:owner,path,body:{key:'original-key'}};rt.error='previous request incomplete';
+ const before=JSON.stringify(rt.pending),markup=renderStage2({stage:2});
+ const [,summary,label]=markup.match(/<details class="hs-panel"><summary>([^<]+)<\/summary>(?:(?!<\/details>)[\s\S])*?data-live-action="recover"\s*>([^<]+)<\/button>/);
+ const closed=Object.freeze({open:false,querySelector:()=>({textContent:summary})});
+ app.el={querySelector:s=>s==='[data-live-action="recover"]:not(:disabled)'?{closest:()=>closed,textContent:label}:null};
+ const result=view();
+ assert.equal(result.state,state);assert.equal(JSON.stringify(rt.pending),before);
+ foldedPending.push({state,showsPanel:result.next.includes(summary),showsButton:result.next.includes(label)});
+}
+assert.deepEqual(foldedPending,['pending','create-pending'].map(state=>({state,showsPanel:true,showsButton:true})));
+app.el={querySelector:()=>({textContent:'核对原回执'})};assert(view().next.includes('核对原回执'),'use the displayed recovery label');
+app.el=undefined;rt.pending=null;rt.error='';
 rt.overview={project:{...project,project_ref:'foreign'}};assert.equal(view().bound,false);assert.equal(view().origin,'unknown');
 rt.overview={project:{...project,input_version:'fresh-1',revision:0}};assert.equal(view().bound,true,'the existing Stage3 string version is a readable identity');assert.equal(view().raw.input_version,'fresh-1');assert.equal(view().raw.revision,0);
 for(const invalid of ['', 'x'.repeat(129),-1,1.5,null,true]){rt.overview.project.input_version=invalid;assert.equal(view().bound,false,'unsupported input versions stay unknown');}

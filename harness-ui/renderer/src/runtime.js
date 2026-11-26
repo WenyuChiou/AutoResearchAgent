@@ -331,6 +331,20 @@ function liveModelCase(){const offer=(rt.overview?.model_offers?.offers||[]).fin
 function liveModelOutputs(){const actions=rt.modelHistory?.actions||[];return `<details class="live-model-history" ${actions.length?'open':''}><summary>${rl('Codex 内容任务记录','Codex content task history')} · ${actions.length}</summary>${actions.map(row=>`<article class="live-detail-block"><strong>${rx(row.status)}</strong><p>${rx(row.output_preview??row.refusal??row.error??'Unknown')}</p><small>${rx(row.key)}</small></article>`).join('')}</details>`;}
 
 // Shared Wiki shell presentation. Reads saved state only; never grants execution.
+function wikiShellControlHint(app,action,say){
+ const button=app.el?.querySelector?.(`[data-live-action="${action}"]:not(:disabled)`);
+ const label=button?.textContent?.trim();
+ if(!label)return '';
+ const panels=[];
+ for(let detail=button.closest?.('details');detail;detail=detail.parentElement?.closest?.('details')){
+  if(detail.open)continue;
+  const title=detail.querySelector(':scope > summary')?.textContent?.trim();
+  if(!title)return '';
+  panels.unshift(title);
+ }
+ const use=say('使用「'+label+'」','Use “'+label+'”','使用「'+label+'」');
+ return panels.length?say('先展开折叠区 ','First expand ','先展開摺疊區 ')+panels.join(' → ')+say('。','. ','。')+use:use;
+}
 function wikiShellState(app){
  const say=(zh,en,tw=zh)=>translated(app,[zh,en,tw]);
  const p=rt.overview?.project;
@@ -344,19 +358,17 @@ function wikiShellState(app){
  else if(rt.pending){
   const own=typeof rt.pending.ref==='string'&&rt.pending.ref===rt.ref;
   const create=rt.pending.ref===null&&rt.pending.path==='/api/projects';
-  const recover=!!app.el?.querySelector?.('[data-live-action="recover"]:not(:disabled)');
+  const recover=(own||create)&&wikiShellControlHint(app,'recover',say);
   state=own?'pending':create?'create-pending':'foreign-pending';
   human=say('原请求已保留，请勿重复提交','The original request is retained; do not resubmit','原請求已保留，請勿重複提交');
-  if(own){now=say('本项目上次提交结果尚待核对','This project’s previous submission is unconfirmed','本專案上次提交結果尚待核對');next=recover?say('使用原页面的“查询上次结果”','Use the existing Check outcome control','使用原頁面的「查詢上次結果」'):say('本页没有结果核对入口；请回原提交工作台','No outcome control on this page; return to the original submitting workspace','本頁沒有結果核對入口；請回原提交工作台');}
-  else if(create){now=say('新课题创建结果尚待核对','New topic creation is unconfirmed','新課題建立結果尚待核對');next=recover?say('用“查询上次结果”核对新课题的创建','Use Check outcome to verify the new topic creation','用「查詢上次結果」核對新課題的建立'):say('返回原提交工作台核对创建结果','Return to the original workspace to check the creation','返回原提交工作台核對建立結果');}
+  if(own){now=say('本项目上次提交结果尚待核对','This project’s previous submission is unconfirmed','本專案上次提交結果尚待核對');next=recover||say('本页没有结果核对入口；请回原提交工作台','No outcome control on this page; return to the original submitting workspace','本頁沒有結果核對入口；請回原提交工作台');}
+  else if(create){now=say('新课题创建结果尚待核对','New topic creation is unconfirmed','新課題建立結果尚待核對');next=recover||say('返回原提交工作台核对创建结果','Return to the original workspace to check the creation','返回原提交工作台核對建立結果');}
   else{now=typeof rt.pending.ref==='string'?say('另一个项目有未确认提交','Another project has an unconfirmed submission','另一個專案有未確認提交'):say('有待核对提交，项目归属尚未确认','A submission is unconfirmed; its project is not established','有待核對提交，專案歸屬尚未確認');next=say('请切回原提交项目的工作台核对','Return to the original submitting project workspace','請切回原提交專案的工作台核對');}
  }
  else if(rt.error){
   state='error';now=say('读取或操作尚未完成','Read or operation did not complete','讀取或操作尚未完成');
-  const refresh=app.el?.querySelector?.('[data-live-action="refresh"]:not(:disabled)'),label=refresh?.textContent?.trim(),panels=[];
-  for(let detail=refresh?.closest?.('details');detail;detail=detail.parentElement?.closest?.('details')){const title=detail.querySelector('summary')?.textContent?.trim();if(!detail.open&&title)panels.unshift(title);}
-  const panel=panels.join(' → ');
-  next=refresh?say('查看技术细节中的原因；使用本页原读取按钮：','Read the reason in technical details; use the existing read control: ','查看技術細節中的原因；使用本頁原讀取按鈕：')+(label||say('读取','Read','讀取'))+(panel?say('；如已折叠请先展开：','; if collapsed, first expand: ','；如已折疊請先展開：')+panel:''):say('在左侧打开 Stage1「文献与证据」，核对原读取提示并重试','Open Stage1 Literature and evidence in the sidebar to check the original read status and retry','在左側開啟 Stage1「文獻與證據」，核對原讀取提示並重試');
+  const refresh=wikiShellControlHint(app,'refresh',say);
+  next=refresh?say('查看技术细节中的原因。','Read the reason in technical details. ','查看技術細節中的原因。')+refresh:say('在左侧打开 Stage1「文献与证据」，核对原读取提示并重试','Open Stage1 Literature and evidence in the sidebar to check the original read status and retry','在左側開啟 Stage1「文獻與證據」，核對原讀取提示並重試');
   human=say('失败记录保留；请先核对原因','Failure is retained; check its reason first','失敗紀錄保留；請先核對原因');
  }
  else if(rt.loading){state='loading';now=say('正在读取保存记录','Reading saved records','正在讀取儲存紀錄');next=say('等待本次读取完成','Wait for this read to finish','等待本次讀取完成');human=say('无需重复操作','No repeated action is needed','無需重複操作');}
