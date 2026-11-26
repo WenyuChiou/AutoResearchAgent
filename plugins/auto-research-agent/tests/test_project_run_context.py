@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
@@ -300,6 +300,32 @@ class ProjectRunContextTests(unittest.TestCase):
         os.link(source / "one", source / "two")
         with self.assertRaisesRegex(DeliverableError, "unlinked"):
             context._tree(source)
+
+        path = self.root / "sample.json"
+        path.write_bytes(b"data")
+        with patch.object(
+            Path, "open", autospec=True, return_value=mock_open(read_data=b"data")()
+        ) as opened:
+            self.assertEqual(context._raw(path), b"data")
+            opened.return_value.read.assert_called_once_with(5)
+
+        class GrowingFile:
+            def __fspath__(self):
+                return str(path)
+
+            def stat(self):
+                initial = path.stat()
+                with path.open("ab") as stream:
+                    stream.write(b"more")
+                return initial
+
+            def open(self, mode):
+                return path.open(mode)
+
+        with patch.object(context, "MAX_FILE_BYTES", 8):
+            self.assertEqual(context._raw(GrowingFile()), b"datamore")
+            with self.assertRaisesRegex(DeliverableError, "file bound exceeded"):
+                context._raw(GrowingFile())
 
     def test_legacy_artifact_is_explicit_and_never_silently_upgraded(self):
         self.assertEqual(
