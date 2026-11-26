@@ -92,11 +92,14 @@ function parentRecoveryControls(f,options={}) {
  const runtime=fs.readFileSync(path.join(__dirname,'../../../harness-ui/renderer/src/runtime.js'),'utf8');
  const bridge=fs.readFileSync(path.join(__dirname,'../../../harness-ui/v9-stage3-bridge.js'),'utf8');
  const part=(source,start,end)=>{const a=source.indexOf(start),b=source.indexOf(end,a);assert.ok(a>=0 && b>a);return source.slice(a,b);};
- const reads=[],listeners={},state={ref:f.binding.project_ref,epoch:0,list:[],overview:{project:f.binding}},app={page:'workspace',stage:2,previewOps:{}};
+ // Ordinary mounted pages already loaded metadata; also model a cold retry.
+ const reads=[],listeners={},uiUpdates=[],state={ref:f.binding.project_ref,epoch:0,meta:options.missingMeta?null:{},list:[],overview:{project:f.binding}},app={page:'workspace',stage:2,previewOps:{}};
  const context={rt:state,apps:[app],window:f.window,document:{createElement:tag=>new Element(tag),addEventListener:(name,handler)=>{listeners[name]=handler;}},
   rl:(zh,en,tw)=>f.els.get('language').value==='en'?en:f.els.get('language').value==='zh-TW'?(tw||zh):zh,rx:String,
   projectPath:(ref,sub)=>'/api/projects/'+ref+'/'+sub,livePaint:options.onPaint??(()=>{}),liveAtlasPath:()=>null,rows:()=>[],
-  liveRequest:async(url,body)=>{assert.equal(body,undefined);reads.push(url);if(url==='/api/projects')return {projects:[]};if(url.endsWith('/overview'))return {project:{...f.binding,revision:2,...options.overviewPatch}};if(url.endsWith('/history'))return {actions:[]};throw Error('unexpected parent GET '+url);},
+  // Homepage storage/routing have their own recovery suite; observe these leaves.
+  liveRememberProject:()=>uiUpdates.push('remember'),liveProjectRoute:()=>uiUpdates.push('route'),
+  liveRequest:async(url,body)=>{assert.equal(body,undefined);reads.push(url);if(url==='/v7-case.json')return {};if(url==='/api/projects')return {projects:[]};if(url.endsWith('/overview'))return {project:{...f.binding,revision:2,...options.overviewPatch}};if(url.endsWith('/history'))return {actions:[]};throw Error('unexpected parent GET '+url);},
   v93ChoiceIdentity:()=>state.overview.project,v93Matches:(a,b)=>['project_ref','input_version','revision','brief_sha256'].every(k=>a[k]===b[k]),v93Choices:new Map(),v93ActiveChoice:null};
  vm.runInNewContext(part(runtime,'async function liveRefresh(', 'async function liveReceiptBound(')+part(runtime,'function liveControls(', 'function liveEmpty(')+part(runtime,"document.addEventListener('click',async e=>{",'// Load only on this local server.')+part(bridge,'function v93RecoveryControl(', 'function v93MountChoice('),context);
  const html=context.liveControls(app),label=html.match(/<button[^>]*data-live-action="refresh"[^>]*>([^<]+)<\/button>/)[1];
@@ -104,7 +107,7 @@ function parentRecoveryControls(f,options={}) {
  const refresh=new Element('button');refresh.textContent=label;refresh.dataset.liveAction='refresh';refresh.hasAttribute=name=>name==='data-live-action';refresh.closest=selector=>selector.includes('data-live-action')?refresh:null;
  refresh.onclick=()=>listeners.click({target:refresh,preventDefault(){},stopImmediatePropagation(){}});
  function pendingControl(){if(!state.overview?.project)return null;const target=new Element();context.v93RecoveryControl(target,{instance:f.handle,binding:f.binding},state.overview.project,app);return {target,button:descendants(target).find(n=>n.tagName==='BUTTON')};}
- return {refresh,pendingControl,reads,state,outerLabel:context.rl(...outerLabels.slice(1))};
+ return {refresh,pendingControl,reads,state,uiUpdates,outerLabel:context.rl(...outerLabels.slice(1))};
 }
 async function loseSavedPreference(options={}) {
  const f=harness({intentReady:true,loseIntentResponse:true,...options});await tick();
@@ -496,11 +499,16 @@ test('lost saved response replaces the embedded retry with named parent recovery
  }
 });
 test('named parent refresh and receipt controls recover a lost preference save with GETs only',async()=>{
- const f=await loseSavedPreference(),raw=[...f.store.values.entries()],before=f.reads.length,parent=parentRecoveryControls(f);
+ for(const missingMeta of [false,true]){
+ const f=await loseSavedPreference(),raw=[...f.store.values.entries()],before=f.reads.length,parent=parentRecoveryControls(f,{missingMeta});
  await parent.refresh.onclick();assert.equal(parent.state.overview.project.revision,2);assert.deepEqual([...f.store.values.entries()],raw);
+ assert.equal(parent.state.error,'');
+ assert.deepEqual(parent.uiUpdates,['remember','route']);
+ assert.deepEqual(parent.reads,[...(missingMeta?['/v7-case.json']:[]),'/api/projects','/api/projects/'+f.binding.project_ref+'/overview','/api/projects/'+f.binding.project_ref+'/history']);
  const check=parent.pendingControl();await check.button.onclick();
- assert.equal(parent.reads.length+f.reads.length-before,5);assert.equal(f.writes.length,1);assert.equal(f.uuids(),1);assert.equal(f.store.length,0);assert.equal(f.handle.state().recovery.status,'verified');
+ assert.equal(parent.reads.length+f.reads.length-before,missingMeta?6:5);assert.equal(f.writes.length,1);assert.equal(f.uuids(),1);assert.equal(f.store.length,0);assert.equal(f.handle.state().recovery.status,'verified');
  assert.equal(f.writes.filter(x=>x.url.includes('/stage3/')).length,0);
+ }
 });
 test('two-step lost-save recovery rejects foreign typed versions briefs and missing receipts',async()=>{
  for(const options of [
