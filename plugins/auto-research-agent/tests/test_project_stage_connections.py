@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import sys
 import threading
+import time
 from types import SimpleNamespace
 from urllib.request import Request, urlopen
 import unittest
@@ -21,11 +22,13 @@ sys.path[:0] = [
 from current_core_stage12_fixtures import current_core_stage1_case
 from test_project_stage2_current_evidence import authenticate, request, VIEWER
 from research_workspace_native.project_host import ProjectHost
+from research_workspace_native.http import SessionHandler
 from research_workspace_native.project_model import ProjectModelService
 from research_workspace_native.project_stage2 import ProjectStage2Service
 from research_workspace_native.project_stage2_current_evidence import current_evidence
 from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage_connections import (
+    CONTROLLER_STAGE,
     ConnectionStore,
     BindingTable,
 )
@@ -701,6 +704,76 @@ class SelectionConnectionTests(Stage2SelectionFixture):
                 derived_from={},
             )
         self.assertEqual(counts(self.intake), before)
+
+    def test_controller_requests_preserve_unknown_under_original_and_new_keys(self):
+        store = ConnectionStore(self.intake, "own")
+        stage = CONTROLLER_STAGE
+        before_revision = self.intake.read("own", self.ref)["revision"]
+        checks = []
+
+        def expire_after_file():
+            checks.append(True)
+            if len(checks) == 3:
+                raise SessionApiError("session-deadline-exceeded", 408)
+
+        def record(key, revision, deadline=None):
+            return store.record(
+                self.ref,
+                stage,
+                {"authored_storage_probe": True},
+                derived_from={},
+                expected_revision=revision,
+                request_key=key,
+                maximum_projects=1,
+                check_deadline=deadline,
+            )
+
+        with self.assertRaisesRegex(SessionApiError, "intake-operation-failed"):
+            record("controller-first", before_revision, expire_after_file)
+        unknown = counts(self.intake)
+        current = self.intake.read("own", self.ref)["revision"]
+        for key, revision in (
+            ("controller-first", before_revision),
+            ("controller-next", current),
+        ):
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(
+                    SessionApiError, "write-outcome-unobserved"
+                ):
+                    record(key, revision)
+        self.assertEqual(counts(self.intake), unknown)
+        self.assertIsNone(store.resolve(self.ref, stage))
+
+    def test_controller_can_retry_a_host_deadline_before_work(self):
+        store = ConnectionStore(self.intake, "own")
+        requester = SimpleNamespace(
+            deadline=time.monotonic() + 10,
+            connection=SimpleNamespace(settimeout=lambda _: None),
+        )
+        checks = []
+
+        def expire_before_work():
+            checks.append(True)
+            if len(checks) == 2:
+                requester.deadline = time.monotonic() - 1
+            SessionHandler._remaining(requester)
+
+        def record(key, deadline=None):
+            return store.record(
+                self.ref,
+                CONTROLLER_STAGE,
+                {"authored_storage_probe": True},
+                derived_from={},
+                expected_revision=self.intake.read("own", self.ref)["revision"],
+                request_key=key,
+                maximum_projects=1,
+                check_deadline=deadline,
+            )
+
+        with self.assertRaisesRegex(SessionApiError, "intake-operation-failed"):
+            record("controller-expired-before-work", expire_before_work)
+        self.assertIsNone(store.resolve(self.ref, CONTROLLER_STAGE))
+        self.assertEqual(record("controller-retry")["receipt_id"], "controller-retry")
 
     def test_receipt_pointer_damage_and_long_root_are_rejected(self):
         store = ConnectionStore(self.intake, "own")
