@@ -258,6 +258,20 @@ class WindowsWriterLockRecoveryTests(unittest.TestCase):
         self.assertFalse(self.lock.exists())
         self.assertEqual(_tree(self.root), self.before)
 
+    def test_same_process_and_fixed_clock_stamp_distinct_generations(self):
+        ledger = CoverageLedger(self.root, clock=lambda: "2026-11-26T12:00:00Z")
+        locks = []
+        for _ in range(2):
+            with ledger.writing(repair=False):
+                locks.append(json.loads(self.lock.read_bytes()))
+            self.assertFalse(self.lock.exists())
+        first, second = locks
+        self.assertEqual(first["schema_version"], "1.0.0")
+        self.assertEqual(first["pid"], os.getpid())
+        self.assertNotEqual(first.pop("generation"), second.pop("generation"))
+        self.assertEqual(first, second)
+        self.assertEqual(_tree(self.root), self.before)
+
     def test_pinned_snapshot_never_includes_recovery_siblings(self):
         raw = self.interrupt_release()
         with self.assertRaisesRegex(ValueError, "ledger writer active"):

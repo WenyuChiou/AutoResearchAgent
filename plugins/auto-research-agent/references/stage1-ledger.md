@@ -194,6 +194,8 @@ identified writer that has exited. The command checks the lock's machine, boot,
 physical path, volume, directory identity, run-manifest digest and exact Windows
 process creation time. It refuses a live or reused PID, inaccessible process,
 changed digest, wrong run, remote volume, link, or otherwise unverifiable owner.
+Each acquisition gets a unique generation even if the process and timestamp
+repeat.
 A legacy `pid` / `created_at` lock does not contain sufficient owner evidence.
 Preserve it for operator review, including when its PID cannot be found. Other
 platforms and drivers without the recoverable owner record retain normal legacy

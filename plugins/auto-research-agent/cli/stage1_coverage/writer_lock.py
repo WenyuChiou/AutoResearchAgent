@@ -7,6 +7,7 @@ from functools import lru_cache
 import os
 from pathlib import Path
 import re
+import secrets
 import stat
 import sys
 import tempfile
@@ -18,6 +19,7 @@ from stage1_ledger.journal import LedgerError, canonical, decode, digest, utc_no
 LOCK = ".writer-lock"
 MAX_RECORD_BYTES = 8192
 HEX_SHA256 = re.compile(r"[0-9a-f]{64}")
+HEX_GENERATION = re.compile(r"[0-9a-f]{32}")
 PROOF_KIND = "Stage1CoverageWriterLockRecovery"
 EXIT_EVIDENCE = {"identified-owner-exited", "identified-owner-pid-absent"}
 
@@ -154,6 +156,7 @@ def owner_record(root, clock):
     return {
         "kind": "Stage1CoverageWriterLock",
         "schema_version": "1.0.0",
+        "generation": secrets.token_hex(16),
         "pid": os.getpid(),
         "created_at": clock(),
         "owner_creation_filetime": creation,
@@ -201,6 +204,7 @@ def _decoded_owner(contents, identity):
         == {
             "kind",
             "schema_version",
+            "generation",
             "pid",
             "created_at",
             "owner_creation_filetime",
@@ -208,6 +212,8 @@ def _decoded_owner(contents, identity):
         }
         and record["kind"] == "Stage1CoverageWriterLock"
         and record["schema_version"] == "1.0.0"
+        and type(record["generation"]) is str
+        and HEX_GENERATION.fullmatch(record["generation"]) is not None
         and type(record["pid"]) is int
         and 0 < record["pid"] <= 0xFFFFFFFF
         and type(record["owner_creation_filetime"]) is int
