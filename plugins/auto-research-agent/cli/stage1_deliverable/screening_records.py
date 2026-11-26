@@ -265,6 +265,15 @@ def _row(row, candidate, claims, decisions, queries, ranks):
             and all(observed[k] == v for k, v in discovery.items()),
             "discovery observation rewritten",
         )
+        if "provided" in discovery:
+            _require(
+                observed["candidate_discovery_order_in_run"]
+                == ranks[discovery["discovery_id"]]
+                and observed["result_position"] is None
+                and observed["round_number"] is None,
+                "provided observation promoted to query result",
+            )
+            continue
         query = queries.get(discovery["query_id"])
         _require(query is not None, "discovery query omitted")
         attempt = next(
@@ -293,7 +302,9 @@ def _row(row, candidate, claims, decisions, queries, ranks):
         )
     history = [d for d in decisions if d["subject_id"] == work]
     work_claims = [c for c in claims if c["work_id"] == work]
-    query_ids = {d["query_id"] for d in candidate["discoveries"]}
+    query_ids = {
+        d["query_id"] for d in candidate["discoveries"] if d["query_id"] is not None
+    }
     _require(
         row["decision_history"] == history
         and row["current_decision"] == (history[-1] if history else None)
@@ -391,7 +402,11 @@ def _row(row, candidate, claims, decisions, queries, ranks):
             "discoveries": len(row["discoveries"]),
             "distinct_queries": len(query_ids),
             "discovery_producing_backend_attempts": len(
-                {d["attempt_id"] for d in row["discoveries"]}
+                {
+                    d["attempt_id"]
+                    for d in row["discoveries"]
+                    if d["attempt_id"] is not None
+                }
             ),
             "query_backend_attempts": sum(
                 len(queries[q]["backend_attempts"]) for q in query_ids
@@ -506,9 +521,11 @@ def validate_extension(records):
     candidates = {c["work_id"]: c for c in core["CandidateSnapshot"]}
     _require(len(candidates) == len(core["CandidateSnapshot"]), "duplicate candidates")
     queries = _queries(library["query_history"])
+    from stage1_ledger.provided import discovery_order
+
     discoveries = sorted(
         (d for c in candidates.values() for d in c["discoveries"]),
-        key=lambda d: (int(d["completion_id"][1:]), d["record_index"]),
+        key=discovery_order,
     )
     ranks = {d["discovery_id"]: i for i, d in enumerate(discoveries, 1)}
     _require(len(ranks) == len(discoveries), "duplicate discoveries")
@@ -573,13 +590,47 @@ def validate_extension(records):
             if c["version_id"] == paper["version_id"]
         ]
         _require(
-            set(paper["source_ids"]) == set(selected_sources)
+            (
+                set(paper["source_ids"])
+                == (
+                    set()
+                    if paper["reading_status"] == "provided-unread"
+                    else set(selected_sources)
+                )
+            )
             and set(paper["claim_ids"]) == set(selected_claims),
             "selected source or claim observations omitted",
         )
-        if paper["reading_status"] == "discovery-only":
+        if paper["reading_status"] == "provided-unread":
+            from .provided_records import unread_provided, provided_for_version
+
+            p = provided_for_version(candidates[work], paper["version_id"])
             _require(
-                not selected_sources
+                unread_provided(
+                    candidates[work],
+                    {e["event_id"]: e for e in decisions + row["claims"]},
+                    {}
+                    if row["current_review"] is None
+                    else {work: row["current_review"]},
+                )
+                and p is not None
+                and not selected_claims
+                and not paper["roles"]
+                and not paper["source_ids"]
+                and paper["evidence_level"] == "metadata"
+                and paper["url"] == (row["metadata"].get("url") or p["source_uri"])
+                and paper["doi"] == row["metadata"].get("doi")
+                and paper["venue"] == (row["metadata"].get("venue") or "Unknown")
+                and paper["classification"] == dict.fromkeys(CLASSIFICATION, "Unknown")
+                and paper["findings"] == dict.fromkeys(FINDINGS, "Unknown"),
+                "provided unread promoted or evidence hidden",
+            )
+        elif paper["reading_status"] == "discovery-only":
+            from .provided_records import provided_for_version
+
+            _require(
+                provided_for_version(candidates[work], paper["version_id"]) is None
+                and not selected_sources
                 and not selected_claims
                 and row["current_review"] is None
                 and not paper["roles"]
@@ -703,6 +754,34 @@ def journal_rows(records, raw):
     library = records["screening_library"]
     events = [row["payload"] for row in rows]
     candidates = {p["work_id"]: p for p in events if p["kind"] == "CandidateRevision"}
+    from stage1_ledger.provided import provided_revision
+
+    previous = {}
+    for event in events:
+        if event["kind"] != "CandidateRevision":
+            continue
+        discovery = event["discoveries"][-1]
+        if "provided" in discovery:
+            p = discovery["provided"]
+            _require(
+                p["event_id"] == event["event_id"], "provided event binding differs"
+            )
+            expected_candidate = provided_revision(
+                previous.get(event["work_id"]),
+                record=discovery["record"],
+                provenance=p,
+                source_ref=discovery["source_ref"],
+            )
+            _require(
+                {
+                    k: v
+                    for k, v in event.items()
+                    if k not in {"event_id", "created_at", "schema_version"}
+                }
+                == expected_candidate,
+                "provided candidate identity differs",
+            )
+        previous[event["work_id"]] = event
     expected = (
         list(candidates.values()),
         [p for p in events if p["kind"] == "ClaimEvidence"],
@@ -747,6 +826,28 @@ def journal_rows(records, raw):
     reviews = {p["work_id"]: p for p in events if p["kind"] == "CoverageWorkReview"}
     for row in library["rows"]:
         work = row["work_id"]
+        if (
+            next(p for p in records["papers"] if p["work_id"] == work)["reading_status"]
+            == "provided-unread"
+        ):
+            from .provided_records import unread_provided
+
+            _require(
+                unread_provided(
+                    candidates[work], {p["event_id"]: p for p in events}, {}
+                ),
+                "provided unread hides journal assessment",
+            )
+        event_index = {p["event_id"]: p for p in events}
+        for discovery in row["discoveries"]:
+            if "provided" in discovery:
+                event = event_index.get(discovery["provided"]["event_id"])
+                _require(
+                    event is not None
+                    and event["kind"] == "CandidateRevision"
+                    and discovery["completion_created_at"] == event["created_at"],
+                    "provided observation time differs",
+                )
         sources = [
             {"started": p, "finished": source_finishes.get(p["event_id"])}
             for p in events
@@ -828,6 +929,16 @@ def validate_artifacts(records, read):
                 and values[discovery["record_index"]] == discovery["record"],
                 "saved discovery raw record differs",
             )
+    for row in library["rows"]:
+        for discovery in row["discoveries"]:
+            if "provided" in discovery:
+                ref = discovery["provided"]["material_ref"]
+                _require(
+                    ref["artifact_type"] == "provided-material"
+                    and ref["producer"] == "stage1-provider"
+                    and sha(raw[canonical(ref)]) == ref["sha256"],
+                    "provided material differs",
+                )
     return raw
 
 

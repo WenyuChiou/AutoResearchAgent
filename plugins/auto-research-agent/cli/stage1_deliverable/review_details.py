@@ -211,6 +211,77 @@ def by_work(records, receipts, *, journal=None):
                 else None
             ),
         )
+        from .provided_records import provided_materials_for_version
+
+        candidate = next(
+            c
+            for c in records["screening_library"]["snapshots"][0]["rows"]
+            if c["work_id"] == work
+        )
+        provided_materials = provided_materials_for_version(candidate, version)
+        if provided_materials:
+            binding = records["screening_library"]["binding"]
+            lines.extend(
+                [
+                    "Recorded origins for this work/version:",
+                    "Project: "
+                    + binding["project_id"]
+                    + "; input version: "
+                    + str(binding["input_version"]),
+                    "Work: " + work + "; version: " + version,
+                    "Candidate identity: "
+                    + row["identity_status"]
+                    + " (combined recorded discoveries; not a material-level verification).",
+                    "",
+                ]
+            )
+            for discovery in candidate["discoveries"]:
+                if (
+                    discovery["version_id"] == version
+                    and discovery["query_id"] is not None
+                ):
+                    lines.extend(
+                        [
+                            "Recorded search discovery: query "
+                            + discovery["query_id"]
+                            + "; backend attempt "
+                            + discovery["attempt_id"]
+                            + ".",
+                            "Discovery record: " + discovery["discovery_id"] + ".",
+                            "",
+                        ]
+                    )
+            for provided in provided_materials:
+                lines.extend(
+                    [
+                        "Origin: externally provided saved material (this material is not a search result).",
+                        "Provided event: " + provided["event_id"],
+                        LiteralLine(
+                            "Original material type: "
+                            + _display_text(provided["original_type"])
+                        ),
+                        LiteralLine(
+                            "Source URL: " + _display_text(provided["source_uri"])
+                        ),
+                        "Material SHA-256: " + provided["material_ref"]["sha256"],
+                        "Saved material path: screening_artifacts/"
+                        + provided["material_ref"]["sha256"]
+                        + ".bin",
+                        "Identity: "
+                        + provided["identity_status"]
+                        + " (operator-provided metadata; not independently checked).",
+                        "",
+                    ]
+                )
+            if paper.get("reading_status") == "provided-unread":
+                lines.extend(
+                    [
+                        "Reading: Unknown (saved material is not a complete-body reading record).",
+                        "Abstract/summary: Unknown (no abstract supplied).",
+                        "Research claims: Unknown (no claim assessment or screening decision recorded).",
+                        "",
+                    ]
+                )
         attempts = defaultdict(list)
         for item in row["source_attempts"]:
             attempts[item["started"]["version_id"]].append(item)

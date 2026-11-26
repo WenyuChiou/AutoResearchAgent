@@ -1056,8 +1056,19 @@ class ProjectStage1RecordsService:
             matches = matches_by_work[work]
             if not matches:
                 version = candidate["discoveries"][-1]["version_id"]
+                from stage1_deliverable.provided_records import (
+                    provided_for_version,
+                    unread_provided,
+                )
+
+                provided_unread = unread_provided(candidate, events, reviews)
+                provided = provided_for_version(candidate, version)
                 _check(
-                    not self._reading_required(work, candidate, events, reviews),
+                    provided_unread
+                    or (
+                        provided is None
+                        and not self._reading_required(work, candidate, events, reviews)
+                    ),
                     "saved-reading-current-record-required",
                 )
                 metadata = candidate["discoveries"][-1]["record"]
@@ -1070,12 +1081,15 @@ class ProjectStage1RecordsService:
                         year=metadata["year"],
                         venue=metadata.get("venue") or "Unknown",
                         doi=metadata.get("doi"),
-                        url=metadata.get("url"),
+                        url=metadata.get("url")
+                        or (provided["source_uri"] if provided_unread else None),
                         evidence_level="metadata",
                         source_ids=[],
                         claim_ids=[],
                         roles=[],
-                        reading_status="discovery-only",
+                        reading_status="provided-unread"
+                        if provided_unread
+                        else "discovery-only",
                         classification={key: "Unknown" for key in CLASSIFICATION},
                         findings={key: "Unknown" for key in FINDINGS},
                     )
@@ -1158,7 +1172,7 @@ class ProjectStage1RecordsService:
                 continue
             candidate = ledger.candidates()[decision["subject_id"]]
             discovery = candidate["discoveries"][0]
-            started = events[discovery["query_id"]]
+            started = events.get(discovery["query_id"])
             screening.append(
                 dict(
                     decision_id=decision["event_id"],
@@ -1166,8 +1180,12 @@ class ProjectStage1RecordsService:
                     version_id=versions[decision["subject_id"]],
                     status=decision["new_decision"],
                     reason=decision["rationale"],
-                    query=started["arguments"].get("query")
-                    or canonical(started["arguments"]).decode(),
+                    query=(
+                        started["arguments"].get("query")
+                        or canonical(started["arguments"]).decode()
+                    )
+                    if started is not None
+                    else "Not executed: externally provided material",
                     discovery_path=discovery["discovery_id"],
                     observed_at=decision["created_at"],
                 )

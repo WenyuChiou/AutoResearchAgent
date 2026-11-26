@@ -164,7 +164,10 @@ def validate_records(records):
             _text(paper[name])
         if not isinstance(paper["authors"], list) or (
             not paper["authors"]
-            and not (library and paper["reading_status"] == "discovery-only")
+            and not (
+                library
+                and paper["reading_status"] in {"discovery-only", "provided-unread"}
+            )
         ):
             raise DeliverableError(
                 "authors required; use explicit unknown when unverified"
@@ -202,7 +205,7 @@ def validate_records(records):
             ):
                 raise DeliverableError("paper reference belongs to another work")
         if not paper["source_ids"] and not (
-            library and paper["reading_status"] == "discovery-only"
+            library and paper["reading_status"] in {"discovery-only", "provided-unread"}
         ):
             raise DeliverableError("every paper needs a source attempt")
         if not isinstance(paper["roles"], list):
