@@ -40,6 +40,11 @@ function v9LegacyConnection(stage) {
   const view=v9ConnectionView;
   return v9ConnectionCurrent(view) && view.stage===stage && view.legacyMissing && !v9ConnectionPending();
 }
+function v9StaticStage3Read() {
+  const view=v9ConnectionView, configured=window.RESEARCH_PROJECTS?.stage3_planning_projects;
+  return v9ConnectionCurrent(view) && view.stage==='stage3-planning' && view.stage2Only &&
+    !view.error && !v9ConnectionPending() && Array.isArray(configured) && configured.includes(view.basis.project_ref);
+}
 function v9AllowsCandidateRequest() {
   return v9ConnectionConnected('stage2-controller') || v9LegacyConnection('stage2-controller');
 }
@@ -57,12 +62,31 @@ async function v9ReadConnection(view, afterWrite=false) {
   if (!v9ConnectionCurrent(view) || !fresh || !v9ConnectionFields.every(key => key==='revision' && afterWrite ? fresh.revision>=basis.revision : fresh[key]===basis[key]))
     throw Error('connection-project-binding-mismatch');
   if (missing) { view.legacyMissing = true; throw missing; }
+  // The Stage 2 adapter can be present while Stage 3 uses the original static bootstrap binding.
+  if (stage==='stage3-planning' && !afterWrite && v9Stage2OnlyDiscovery(response,basis)) {
+    view.stage2Only = true;
+    return null;
+  }
   const row=v9ConnectionRow(response,basis,stage);
   if (stage==='stage2-controller' && row.status==='consent-required' && row.reason==='stage2-continuation-activation-required') {
     const proof=await v9FindActivationOffer(fresh,row.profile_sha256);
     return {...row, proof, observedRevision:fresh.revision};
   }
   return {...row, observedRevision:fresh.revision};
+}
+function v9Stage2OnlyDiscovery(response,basis) {
+  const rows=response?.connections;
+  if (!Number.isSafeInteger(basis.input_version) || response?.project_ref!==basis.project_ref ||
+      response.execution_authorized!==false || Object.keys(response).length!==3 ||
+      !rows || typeof rows!=='object' || Array.isArray(rows) || Object.keys(rows).length!==1 ||
+      !Object.hasOwn(rows,'stage2-controller')) return false;
+  const controller=v9ConnectionRow(response,basis,'stage2-controller');
+  if (Object.keys(controller).length!==5) return false;
+  if (controller.status==='consent-required')
+    return controller.reason==='stage2-continuation-activation-required' && v9ConnectionHash(controller.profile_sha256);
+  if (controller.status==='unavailable')
+    return !!controller.reason?.trim() && (controller.reason!=='stage2-controller-profile-unavailable' || controller.profile_sha256===null);
+  return true;
 }
 function v9ConnectionRow(response,basis,stage) {
   if (response?.project_ref !== basis.project_ref || response.execution_authorized !== false || !response.connections || Array.isArray(response.connections))
@@ -125,7 +149,7 @@ function v9ConnectionAction(view) {
 }
 async function v9ConnectionRead(view) {
   if (!v9ConnectionCurrent(view) || view.reading) return;
-  view.reading = true; view.http=null; view.legacyMissing=false; view.row = null; view.error = ''; livePaint();
+  view.reading = true; view.http=null; view.legacyMissing=false; view.stage2Only=false; view.row = null; view.error = ''; livePaint();
   try { view.row = await v9ReadConnection(view); }
   catch (error) { view.error = error.message; view.http = error.status; }
   finally { view.reading = false; if (v9ConnectionCurrent(view)) livePaint(); }
@@ -171,6 +195,9 @@ function v9ConnectionPanel(app) {
   let message = rl('正在核对本课题的接通记录。','Checking this project’s saved connection.');
   if (unknown && rt.pending.path===projectPath(rt.ref,'stage2/actions')) message=rl('上次启用结果仍为 Unknown。请保留原请求，查询原启用回执。','Activation remains Unknown. Retain the request and check its original receipt.');
   else if (unknown) message = rl('上次登记结果仍为 Unknown。原请求键已保留；请只读核对接通状态及对应的操作回执。','Registration remains Unknown. Its key is retained. Check the saved connection and the matching action receipt.');
+  else if (view.stage2Only) message = v9StaticStage3Read()
+    ? rl('可查看原配置下本课题已保存的 Stage 3 规划。','Read the saved Stage 3 plan for this project under its original configuration.','可查看原設定下本課題已儲存的 Stage 3 規劃。')
+    : v9ConnectionReason('stage-connection-interface-unavailable', null, stage);
   else if (view.error || row?.status === 'consent-required' || row?.status === 'unavailable') message = v9ConnectionReason(code, view.http, stage);
   else if (row?.status === 'connected') message = rl('本课题已接通。已核对接通登记；执行与交付须另查原记录。','This project is connected. Registration was verified. Execution and delivery have separate records.');
   else if (row?.status === 'connectable') message = rl('本课题还没有接通。可以登记当前配置，登记不会启动研究。','This project is ready to connect. Registering the current configuration does not start research.');

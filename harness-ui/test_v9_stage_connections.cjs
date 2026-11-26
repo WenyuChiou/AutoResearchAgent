@@ -289,6 +289,58 @@ async function exerciseUnreadyStage2() {
   check(!errors.length,errors.join(' | '));
 }
 
+async function exerciseStaticPlanningRead() {
+  const controller = {status:'unavailable',reason:'stage2-controller-profile-unavailable',
+    profile_sha256:null,connection_id:null,receipt_id:null};
+  const stage2Only = {'stage2-controller':controller};
+  const unavailable = {...controller,reason:'stage3-current-selection-required'};
+  const connected = {...controller,status:'connected',reason:null};
+  const fallback = {response:{connections:stage2Only}};
+  const scenarios = [
+    ['#546 Stage 2-only response, listed',fallback,true,true,false],
+    ['#546 Stage 2-only response, unlisted',fallback,false,false,false],
+    ['explicit Stage 3 unavailable',{response:{connections:{...stage2Only,'stage3-planning':unavailable}}},true,false,false],
+    ['stale conflict',{getError:'stage3-planning-project-stale',http:409},true,false,false],
+    ['access denied',{getError:'credential-rejected',http:403},true,false,false],
+    ['verified Stage 3 connection',{response:{connections:{...stage2Only,'stage3-planning':connected}}},false,true,true],
+    ['older Host whole-interface 404',{getError:'not-found',http:404},true,true,true],
+    ['wrong connection project',{response:{connections:stage2Only,project_ref:'SYNTHETIC-B'}},true,false,false],
+    ['wrong execution flag',{response:{connections:stage2Only,execution_authorized:true}},true,false,false],
+    ['unexpected response field',{response:{connections:stage2Only,extra:true}},true,false,false],
+    ['missing rows',{response:{connections:{}}},true,false,false],
+    ['null controller',{response:{connections:{'stage2-controller':null}}},true,false,false],
+    ['invalid controller status',{response:{connections:{'stage2-controller':{...controller,status:'unknown'}}}},true,false,false],
+    ['malformed controller receipt',{response:{connections:{'stage2-controller':{...controller,receipt_id:'unexpected'}}}},true,false,false],
+    ['extra controller field',{response:{connections:{'stage2-controller':{...controller,unexpected:true}}}},true,false,false],
+    ['explicit null Stage 3',{response:{connections:{...stage2Only,'stage3-planning':null}}},true,false,false],
+    ['unexpected extra connection',{response:{connections:{...stage2Only,other:controller}}},true,false,false],
+    ['wrong project ID',{...fallback,overview:{project_id:'SYNTHETIC-OTHER'}},true,false,false],
+    ['wrong revision',{...fallback,overview:{revision:999}},true,false,false],
+    ['wrong brief pin',{...fallback,overview:{brief_sha256:'e'.repeat(64)}},true,false,false],
+    ['noninteger input',{...fallback,overview:{input_version:'1'}},true,false,false],
+    ['connection receipt pending',fallback,true,false,false,true],
+  ];
+  const tick=()=>new Promise(resolve=>setTimeout(resolve,10));
+  const defects=[];
+  for (const [name,config,listed,readable,hasWorkflowLink,pending] of scenarios) {
+    window.changes=config;calls.length=0;app.stage=3;
+    window.RESEARCH_PROJECTS.stage3_planning_projects=listed?[project.project_ref]:[];
+    rt.pending=pending?{ref:project.project_ref,path:projectPath(project.project_ref,'connections')}:null;
+    await liveRefresh();await tick();
+    const read=app.el.querySelector('[data-v93-read]');
+    const graph=app.el.querySelector('#v93-diagram');
+    const workflowLink=app.el.querySelector('a[href^="/project-stage3-planning.html"]');
+    if (!!read!==readable || !!graph!==readable || !!workflowLink!==hasWorkflowLink ||
+        app.el.querySelector('[data-v9-connection="connect"]')) defects.push(name+' controls');
+    if (read) {
+      read.click();await tick();
+      if (calls.filter(call=>call.tail==='stage3/planning'&&!call.body).length!==1) defects.push(name+' read');
+    }
+    if (calls.some(call=>call.body)) defects.push(name+' POST');
+  }
+  if (defects.length) throw Error(defects.join(' | '));
+}
+
 function runChromeExercise(exercise) {
   const chrome=[process.env.CHROME_BIN, process.env.CHROME_PATH,
     'C:/Program Files/Google/Chrome/Application/chrome.exe','/usr/bin/google-chrome','/usr/bin/chromium',
@@ -313,3 +365,5 @@ test('SYNTHETIC stage connections through the served renderer functions and real
   ()=>runChromeExercise(exercise));
 test('SYNTHETIC ordinary Stage 2 saved-status control and original not-connected 409',
   ()=>runChromeExercise(exerciseUnreadyStage2));
+test('SYNTHETIC Stage 3 static saved planning on the Stage 2-only Host contract',
+  ()=>runChromeExercise(exerciseStaticPlanningRead));
