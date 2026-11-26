@@ -31,9 +31,12 @@ for(const invalid of ['', 'x'.repeat(129),-1,1.5,null,true]){rt.overview.project
 rt.overview={project};
 const stage3=bridge.slice(bridge.indexOf('return `${canonicalTop()}<section class="hs-panel">'));
 assert(stage3.startsWith('return `${canonicalTop()}<section class="hs-panel">')&&stage3.includes('<h1>'),'test the actual enabled Stage3 title shape');
-let inserted='',position='';const title={insertAdjacentHTML(where,text){position=where;inserted=text;}};
-const content={querySelector(selector){if(selector==='[data-wiki-shell]')return null;if(selector.split(',').includes('h1'))return title;return null;},insertAdjacentHTML(where,text){position=where;inserted=text;}};
-app.el={querySelector:()=>content};context.wikiShellMount(app);assert.equal(position,'afterend','Stage3 state follows the real title, never before project selection');assert(inserted.includes('data-wiki-shell'));app.el=undefined;
+let inserted='',position='';const title={closest:()=>null,matches:()=>false,insertAdjacentHTML(where,text){position=where;inserted=text;}};
+const content={querySelectorAll:()=>[title],querySelector(selector){if(selector==='[data-wiki-shell]')return null;if(selector.split(',').includes('h1'))return title;return null;},insertAdjacentHTML(where,text){position=where;inserted=text;}};
+app.el={querySelector:()=>content};context.wikiShellMount(app);assert.equal(position,'afterend','Stage3 state follows the real title, never before project selection');assert(inserted.includes('data-wiki-shell'));
+const hiddenTitle={closest:()=>({}),matches:()=>true,insertAdjacentHTML(){throw Error('closed earlier materials must not own the shared state');}};content.querySelectorAll=()=>[hiddenTitle,title];context.wikiShellMount(app);assert.equal(position,'afterend','formal Stage2 keeps state outside earlier-materials disclosure');app.el=undefined;
+const outer={open:false,querySelector:()=>({textContent:'先前 Wiki 材料与本地草稿'}),parentElement:null};const inner={open:false,querySelector:()=>({textContent:'Stage2 · 操作'}),parentElement:{closest:()=>outer}};
+rt.error='fixed-nested-error';app.el={querySelector:()=>({textContent:'重新读取保存结果',closest:()=>inner})};assert(view().next.indexOf('先前 Wiki')<view().next.indexOf('Stage2 · 操作'),'recovery describes every closed ancestor from outside in');assert(view().next.includes('先前 Wiki'));app.el=undefined;rt.error='';
 const progress={binding:{project_ref:ref,input_version:1,revision:4,brief_sha256:'a'.repeat(64)},next_action:{phase_id:'screening'}};
 rt.overview.stage1={progress};assert(html().includes('文献筛选'));
 progress.binding.input_version='1';assert(!view().next.includes('文献筛选'),'typed input versions cannot borrow progress');progress.binding.input_version=1;

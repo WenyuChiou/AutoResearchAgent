@@ -353,7 +353,9 @@ function wikiShellState(app){
  }
  else if(rt.error){
   state='error';now=say('读取或操作尚未完成','Read or operation did not complete','讀取或操作尚未完成');
-  const refresh=app.el?.querySelector?.('[data-live-action="refresh"]:not(:disabled)'),label=refresh?.textContent?.trim(),panel=refresh?.closest?.('details')?.querySelector('summary')?.textContent?.trim();
+  const refresh=app.el?.querySelector?.('[data-live-action="refresh"]:not(:disabled)'),label=refresh?.textContent?.trim(),panels=[];
+  for(let detail=refresh?.closest?.('details');detail;detail=detail.parentElement?.closest?.('details')){const title=detail.querySelector('summary')?.textContent?.trim();if(!detail.open&&title)panels.unshift(title);}
+  const panel=panels.join(' → ');
   next=refresh?say('查看技术细节中的原因；使用本页原读取按钮：','Read the reason in technical details; use the existing read control: ','查看技術細節中的原因；使用本頁原讀取按鈕：')+(label||say('读取','Read','讀取'))+(panel?say('；如已折叠请先展开：','; if collapsed, first expand: ','；如已折疊請先展開：')+panel:''):say('在左侧打开 Stage1「文献与证据」，核对原读取提示并重试','Open Stage1 Literature and evidence in the sidebar to check the original read status and retry','在左側開啟 Stage1「文獻與證據」，核對原讀取提示並重試');
   human=say('失败记录保留；请先核对原因','Failure is retained; check its reason first','失敗紀錄保留；請先核對原因');
  }
@@ -385,7 +387,8 @@ function wikiShellMount(app){
  if(previous&&previous.wikiShellMarkup===markup)return;
  previous?.remove();
  if(!markup)return;
- const heading=content.querySelector('.hs-heading,.n9-stage-context,h1');
+ const headings=Array.from(content.querySelectorAll('.hs-heading,.n9-stage-context,h1,h2')).filter(node=>!node.closest('details:not([open]),[hidden],[aria-hidden="true"],.lp-topic,[data-v93-choice]'));
+ const heading=headings.find(node=>node.matches('.hs-heading,.n9-stage-context'))||headings[0];
  if(heading)heading.insertAdjacentHTML('afterend',markup);else content.insertAdjacentHTML('afterbegin',markup);
  const mounted=content.querySelector('[data-wiki-shell]');if(mounted)mounted.wikiShellMarkup=markup;
 }
