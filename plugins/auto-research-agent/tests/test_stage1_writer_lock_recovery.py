@@ -171,10 +171,7 @@ class WindowsWriterLockRecoveryTests(unittest.TestCase):
             outcomes = [pool.submit(self.recover_cli, pin) for _ in range(2)]
             replies = [future.result() for future in outcomes]
         self.assertEqual([code for code, _ in replies], [0, 0], replies)
-        self.assertEqual(
-            {reply["status"] for _, reply in replies},
-            {"recovered", "already-recovered"},
-        )
+        self.assert_same_recovery(replies, pin)
         self.assertEqual(receipt.read_bytes(), prepared)
         self.assertEqual((self.audit / (pin + ".lock")).read_bytes(), raw)
         self.assertEqual(_tree(self.root), self.before)
@@ -195,10 +192,72 @@ class WindowsWriterLockRecoveryTests(unittest.TestCase):
             with self.assertRaisesRegex(PermissionError, "before receipt publication"):
                 writer_lock.recover_writer_lock(self.root, pin)
         self.assertEqual(self.lock.read_bytes(), raw)
-        self.assertEqual(list(self.audit.iterdir()), [])
+        self.assertEqual([path.name for path in self.audit.iterdir()], ["owner.json"])
         outcome = writer_lock.recover_writer_lock(self.root, pin)
         self.assertEqual(outcome["status"], "recovered")
         self.assertEqual(Path(outcome["archived_lock"]).read_bytes(), raw)
+
+    def test_audit_name_occupied_by_another_ledger_refuses_without_writes(self):
+        Ledger.create(self.audit, run_id="other-ledger", objective="Separate run")
+        other_before = _tree(self.audit)
+        raw = self.interrupt_release()
+        code, outcome = self.recover_cli(digest(raw))
+        self.assertEqual(code, 1, outcome)
+        self.assertEqual(outcome["error"], "writer-lock-audit-owner-differs")
+        self.assertEqual(self.lock.read_bytes(), raw)
+        self.assertEqual(_tree(self.audit), other_before)
+
+    def test_wrong_audit_owner_refuses_new_archive_and_existing_archive_read(self):
+        raw = self.interrupt_release()
+        pin = digest(raw)
+        # Establish a genuine audit directory and preserve its original owner record.
+        code, outcome = self.recover_cli(pin)
+        self.assertEqual(code, 0, outcome)
+        owner = self.audit / "owner.json"
+        wrong = json.loads(owner.read_bytes())
+        wrong["run_identity"]["directory_file_id"] += 1
+        owner.write_bytes(canonical(wrong))
+        new_lock = self.interrupt_release()
+        for candidate in (pin, digest(new_lock)):
+            code, outcome = self.recover_cli(candidate)
+            self.assertEqual(code, 1, outcome)
+            self.assertEqual(outcome["error"], "writer-lock-audit-owner-differs")
+        self.assertEqual(self.lock.read_bytes(), new_lock)
+        self.assertEqual((self.audit / (pin + ".lock")).read_bytes(), raw)
+        self.assertFalse((self.audit / (digest(new_lock) + ".json")).exists())
+
+    def test_two_cli_calls_publish_one_audit_for_the_same_run(self):
+        raw = self.interrupt_release()
+        pin = digest(raw)
+        self.assertFalse(self.audit.exists())
+        with ThreadPoolExecutor(2) as pool:
+            outcomes = [pool.submit(self.recover_cli, pin) for _ in range(2)]
+            replies = [future.result() for future in outcomes]
+        self.assertEqual([code for code, _ in replies], [0, 0], replies)
+        self.assert_same_recovery(replies, pin)
+        self.assertEqual(
+            {path.name for path in self.audit.iterdir()},
+            {"owner.json", pin + ".json", pin + ".lock"},
+        )
+        self.assertEqual((self.audit / (pin + ".lock")).read_bytes(), raw)
+        self.assertEqual(_tree(self.root), self.before)
+        code, replay = self.recover_cli(pin)
+        self.assertEqual(code, 0, replay)
+        self.assertEqual(replay["status"], "already-recovered")
+
+    def assert_same_recovery(self, replies, pin):
+        statuses = {reply["status"] for _, reply in replies}
+        self.assertIn("recovered", statuses, replies)
+        self.assertLessEqual(statuses, {"recovered", "already-recovered"}, replies)
+        self.assertEqual({reply["lock_sha256"] for _, reply in replies}, {pin})
+        self.assertEqual(
+            {Path(reply["archived_lock"]) for _, reply in replies},
+            {self.audit / (pin + ".lock")},
+        )
+        self.assertEqual(
+            {Path(reply["receipt"]) for _, reply in replies},
+            {self.audit / (pin + ".json")},
+        )
 
     def test_delayed_rename_cannot_move_a_new_generation(self):
         raw = self.interrupt_release()

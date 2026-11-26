@@ -203,10 +203,14 @@ writing and have no automatic lock recovery.
 
 Successful recovery moves the original lock byte-for-byte to the sibling
 `.<run-name>.writer-lock-recovery` directory and retains a separate JSON receipt
-there. The `.lock` archive is the completion marker. If only the JSON exists,
+there. Its `owner.json` binds the archive to the physical run. An existing
+directory with a missing or different owner record causes recovery to refuse.
+The `.lock` archive is the completion marker. If only the receipt JSON exists,
 the rename has not completed. Rerun with the same expected digest to recheck
 the owner and finish, or obtain `already-recovered` without affecting a later
-writer. After lock recovery, verify the run through its normal read-only entry.
+writer. Concurrent commands may both report `recovered` for the same verified
+archive. A subsequent call for that digest reports `already-recovered`. After
+lock recovery, verify the run through its normal read-only entry.
 If it separately reports `projection-incomplete`, the existing
 `python -m stage1_ledger --run ... recover` is the separate operation that can
 repair eligible projections. It writes derived files. No recovery command
