@@ -289,6 +289,7 @@ class ProjectIntakeService:
                     if work_completed
                     or kind
                     in {
+                        "stage1-admit-saved-candidate",
                         "stage1-coverage",
                         "stage1-claim",
                         "stage1-agent-pending",
@@ -309,6 +310,7 @@ class ProjectIntakeService:
                 elif kind == "stage1-deliver":
                     receipt["failure_phase"] = "publication-outcome-unobserved"
                 elif kind in {
+                    "stage1-admit-saved-candidate",
                     "stage1-coverage",
                     "stage1-claim",
                     "stage1-agent-pending",

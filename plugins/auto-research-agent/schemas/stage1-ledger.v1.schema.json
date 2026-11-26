@@ -595,7 +595,14 @@
         "discoveries": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/Discovery"
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Discovery"
+              },
+              {
+                "$ref": "#/$defs/ProvidedDiscovery"
+              }
+            ]
           },
           "minItems": 1
         }
@@ -1086,6 +1093,96 @@
     },
     "CoverageHumanAction": {
       "$ref": "urn:auto-research-agent:stage1-coverage-run:1.0.0#/$defs/CoverageHumanAction"
+    },
+    "ProvidedDiscovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "discovery_id",
+        "query_id",
+        "attempt_id",
+        "completion_id",
+        "record_index",
+        "version_id",
+        "record",
+        "source_ref",
+        "provided"
+      ],
+      "properties": {
+        "discovery_id": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "query_id": {
+          "type": "null"
+        },
+        "attempt_id": {
+          "type": "null"
+        },
+        "completion_id": {
+          "type": "null"
+        },
+        "record_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "version_id": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "record": {
+          "$ref": "#/$defs/Record"
+        },
+        "source_ref": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"
+        },
+        "provided": {
+          "$ref": "#/$defs/ProvidedCandidateProvenance"
+        }
+      }
+    },
+    "ProvidedCandidateProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "source_uri",
+        "original_type",
+        "actor",
+        "reason",
+        "identity_status",
+        "scope",
+        "manifest_sha256",
+        "material_ref"
+      ],
+      "properties": {
+        "event_id": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "source_uri": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "original_type": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "actor": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "reason": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/Text"
+        },
+        "identity_status": {
+          "const": "unverified"
+        },
+        "scope": {
+          "const": "caller-attested-external-material-not-search"
+        },
+        "manifest_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "material_ref": {
+          "$ref": "urn:auto-research-agent:stage-contracts:1.0.0#/$defs/ArtifactRef"
+        }
+      }
     }
   }
 }
