@@ -361,6 +361,54 @@ class ProjectStage1RunGrantService:
             _, document = self._grant(principal, ref, grant_ref, grant_sha256)
             return deepcopy(document)
 
+    def resolve_current(self, credential, ref, *, input_version, brief_sha256):
+        """Recover the current grant's pins for a trusted Host after reopen.
+
+        This observes the original lease. It does not issue or renew consent,
+        reserve resources, or dispatch an action. Each lane still checks authority
+        and its own budgets at execution time.
+        """
+        _check(
+            type(input_version) is int and input_version > 0 and _hash(brief_sha256),
+            "stage1-run-binding-invalid",
+            400,
+        )
+        principal = self.intake._principal(credential)
+        with self.intake._lock:
+            state = self.intake._load(principal, ref)
+            binding = self._binding(state)
+            _check(
+                input_version == binding["input_version"]
+                and brief_sha256 == binding["brief_sha256"],
+                "intake-source-version-differs",
+            )
+            grants = state.get(STORE, {})
+            _check(
+                type(grants) is dict
+                and all(
+                    type(row) is dict and type(row.get("document")) is dict
+                    for row in grants.values()
+                ),
+                "stage1-run-grant-bytes-differ",
+            )
+            _check(bool(grants), "stage1-run-grant-unavailable")
+            matches = [
+                candidate
+                for candidate, row in grants.items()
+                if row["document"].get("binding") == binding
+            ]
+            _check(bool(matches), "stage1-run-grant-stale")
+            _check(len(matches) == 1, "stage1-run-grant-ambiguous")
+            grant_ref = matches[0]
+            pin = grants[grant_ref].get("sha256")
+            _, document = self._grant(principal, ref, grant_ref, pin)
+            return dict(
+                grant_ref=grant_ref,
+                grant_sha256=pin,
+                expires_at=document["expires_at"],
+                execution_authorized=False,
+            )
+
     def derive(self, credential, ref, *, grant_ref, grant_sha256, operation, identity):
         """Trusted driver only; no callable/provider is accepted or dispatched."""
         _check(
