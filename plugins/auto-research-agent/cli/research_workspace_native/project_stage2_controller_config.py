@@ -3,16 +3,22 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 from types import SimpleNamespace
 
+from stage1_deliverable.common import private_output, safe_path
 from stage2_common import Stage2Error, canonical_hash
 from stage2_live import native_prerequisites
 from stage2_live.preparation import _guard as _guard_preparation
 from stage2_live.preparation import _raw as _raw_preparation
 from stage2_live.preparation import implementation_pins
 from .project_stage2_controller import ProjectStage2ControllerDriver, _raw
-from .session_api import _check
+from .session_api import _check, _hash
 from .transport import _decode
+
+
+_PATHS = {"spec_path", "controller_root", "delivery_root", "preparation_path"}
+_ROW = _PATHS | {"spec_sha256", "preparation_sha256"}
 
 
 def _document(path, expected_sha256):
@@ -23,6 +29,64 @@ def _document(path, expected_sha256):
         "stage2-controller-configuration-hash-differs",
     )
     return _decode(raw.decode("utf-8"))
+
+
+class Stage2ControllerProfile:
+    """Trusted path templates under a private, operator-pinned project parent."""
+
+    def __init__(self, path, expected_sha256):
+        self.path, self.sha256 = path, expected_sha256
+        self._profile()
+
+    def _profile(self):
+        value = _document(self.path, self.sha256)
+        _check(
+            type(value) is dict
+            and set(value)
+            == _ROW
+            | {"kind", "schema_version", "project_parent", "max_projects", "policy_ref"}
+            and value["kind"] == "ProjectStage2ControllerProfile"
+            and value["schema_version"] == "1.0.0"
+            and type(value["max_projects"]) is int
+            and 1 <= value["max_projects"] <= 32
+            and type(value["project_parent"]) is str
+            and Path(value["project_parent"]).is_absolute()
+            and _hash(value["spec_sha256"])
+            and _hash(value["preparation_sha256"])
+            and value["policy_ref"]
+            == {
+                "route": "stage2-general-v3/daily_v3",
+                "packet_profile": "scientific-v3",
+            },
+            "stage2-controller-profile-invalid",
+        )
+        parent = private_output(value["project_parent"])
+        for key in _PATHS:
+            safe_path(parent, value[key])
+        return value, parent
+
+    def resolve(self, ref):
+        _check(
+            type(ref) is str and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", ref) is not None,
+            "stage2-controller-profile-project-invalid",
+        )
+        value, parent = self._profile()
+        root = safe_path(parent, ref)
+        row = {**{key: value[key] for key in _ROW}, "project_ref": ref}
+        for key in _PATHS:
+            row[key] = str(private_output(safe_path(root, value[key])))
+        paths = [Path(row[key]) for key in _PATHS]
+        _check(
+            all(
+                left != right
+                and left not in right.parents
+                and right not in left.parents
+                for index, left in enumerate(paths)
+                for right in paths[index + 1 :]
+            ),
+            "stage2-controller-profile-paths-overlap",
+        )
+        return row, value["policy_ref"], value["max_projects"]
 
 
 def _load_prerequisites(
@@ -97,18 +161,9 @@ def load_stage2_controllers(
         "stage2-controller-configuration-count",
     )
     result = {}
-    fields = {
-        "project_ref",
-        "spec_path",
-        "spec_sha256",
-        "controller_root",
-        "delivery_root",
-        "preparation_path",
-        "preparation_sha256",
-    }
     for row in rows:
         _check(
-            type(row) is dict and set(row) == fields,
+            type(row) is dict and set(row) == _ROW | {"project_ref"},
             "stage2-controller-configuration-row",
         )
         ref = row["project_ref"]
@@ -117,26 +172,34 @@ def load_stage2_controllers(
             "stage2-controller-configuration-duplicate",
         )
         service.intake.read(credential, ref)
-        binding = service.binding(ref)
-        spec = _document(row["spec_path"], row["spec_sha256"])
-        _check(type(spec) is dict, "stage2-controller-configuration-spec")
-        for key in ("controller_root", "delivery_root", "preparation_path"):
-            _check(
-                type(row[key]) is str and Path(row[key]).is_absolute(),
-                "stage2-controller-configuration-path",
-            )
-        handler = _load_prerequisites(
-            row["preparation_path"],
-            row["preparation_sha256"],
-            workflow=binding["workflow_root"],
-            spec=spec,
+        result[ref] = load_stage2_controller(
+            service,
+            service.binding(ref),
+            row,
             allow_readback_without_admission=allow_readback_without_admission,
         )
-        result[ref] = ProjectStage2ControllerDriver(
-            service,
-            spec=spec,
-            controller_dir=row["controller_root"],
-            delivery_dir=row["delivery_root"],
-            prerequisite_handler=handler,
-        )
     return result
+
+
+def load_stage2_controller(service, binding, row, *, allow_readback_without_admission):
+    spec = _document(row["spec_path"], row["spec_sha256"])
+    _check(type(spec) is dict, "stage2-controller-configuration-spec")
+    for key in ("controller_root", "delivery_root", "preparation_path"):
+        _check(
+            type(row[key]) is str and Path(row[key]).is_absolute(),
+            "stage2-controller-configuration-path",
+        )
+    handler = _load_prerequisites(
+        row["preparation_path"],
+        row["preparation_sha256"],
+        workflow=binding["workflow_root"],
+        spec=spec,
+        allow_readback_without_admission=allow_readback_without_admission,
+    )
+    return ProjectStage2ControllerDriver(
+        service,
+        spec=spec,
+        controller_dir=row["controller_root"],
+        delivery_dir=row["delivery_root"],
+        prerequisite_handler=handler,
+    )
