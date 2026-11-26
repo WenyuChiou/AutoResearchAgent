@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 import json
+import os
 import subprocess
 from docx import Document
 
@@ -18,8 +19,20 @@ from stage1_deliverable import views
 from stage1_ledger.claim_structure import split_hint
 from test_stage1_ledger import rewrite_for_tamper_test
 
+CLI_ROOT = Path(__file__).resolve().parents[1] / "cli"
 TEXT = "The sample contains 24 recordings in 2024. Accuracy increased. Latency decreased. Cost decreased."
 COMPOUND = "Accuracy increased; latency decreased; cost decreased."
+
+
+def run_cli(module, *arguments):
+    # A fresh interpreter cannot see the test runner's sys.path changes.
+    return subprocess.run(
+        [sys.executable, "-m", module, *arguments],
+        env=dict(os.environ, PYTHONPATH=str(CLI_ROOT)),
+        capture_output=True,
+        text=True,
+        encoding="utf8",
+    )
 
 
 class ClaimStructureTests(unittest.TestCase):
@@ -348,36 +361,17 @@ class ClaimStructureTests(unittest.TestCase):
             ),
             encoding="utf8",
         )
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "stage1_ledger",
-                "--run",
-                str(self.ledger.root),
-                "claim",
-                "--request",
-                str(request),
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf8",
+        result = run_cli(
+            "stage1_ledger",
+            "--run",
+            str(self.ledger.root),
+            "claim",
+            "--request",
+            str(request),
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(json.loads(result.stdout)["event_id"])
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "stage1_ledger",
-                "--run",
-                str(self.ledger.root),
-                "validate",
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf8",
-        )
+        result = run_cli("stage1_ledger", "--run", str(self.ledger.root), "validate")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(json.loads(result.stdout)["valid"])
 
@@ -398,20 +392,13 @@ class ClaimStructureTests(unittest.TestCase):
                     json.dumps(self.request("Accuracy increased.", **extra)),
                     encoding="utf8",
                 )
-                completed = subprocess.run(
-                    [
-                        sys.executable,
-                        "-m",
-                        "stage1_ledger",
-                        "--run",
-                        str(self.ledger.root),
-                        "claim",
-                        "--request",
-                        str(request),
-                    ],
-                    capture_output=True,
-                    text=True,
-                    encoding="utf8",
+                completed = run_cli(
+                    "stage1_ledger",
+                    "--run",
+                    str(self.ledger.root),
+                    "claim",
+                    "--request",
+                    str(request),
                 )
                 self.assertEqual(
                     completed.returncode, 1, completed.stdout + completed.stderr
@@ -515,19 +502,12 @@ class ClaimStructureTests(unittest.TestCase):
                 "basis_claim_ids",
                 (output / "claims_and_evidence.csv").read_text(encoding="utf8"),
             )
-            completed = subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "stage1_deliverable",
-                    "validate",
-                    str(output),
-                    "--expected-sha256",
-                    receipt["manifest_sha256"],
-                ],
-                capture_output=True,
-                text=True,
-                encoding="utf8",
+            completed = run_cli(
+                "stage1_deliverable",
+                "validate",
+                str(output),
+                "--expected-sha256",
+                receipt["manifest_sha256"],
             )
             self.assertEqual(
                 completed.returncode, 0, completed.stdout + completed.stderr
