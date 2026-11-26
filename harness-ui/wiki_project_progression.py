@@ -38,9 +38,14 @@ class WikiProjectProgression:
     def __init__(self, host, *, read_consent, steps, clock=None):
         if not isinstance(host.projects, ProjectIntakeService):
             raise ValueError("trusted project intake required")
-        if set(steps) != set(STAGES) or any(
-            type(step) is not StageStep or not _hash(step.profile_sha256)
-            for step in steps.values()
+        self._stages = STAGES[: len(steps)]
+        if (
+            not steps
+            or set(steps) != set(self._stages)
+            or any(
+                type(step) is not StageStep or not _hash(step.profile_sha256)
+                for step in steps.values()
+            )
         ):
             raise ValueError("exact trusted stage adapters required")
         self.intake = host.projects
@@ -107,7 +112,17 @@ class WikiProjectProgression:
         )
         return pin
 
-    def _claim(self, credential, key, binding, stage, upstream, consent_pin, profile):
+    def _claim(
+        self,
+        credential,
+        key,
+        binding,
+        stage,
+        upstream,
+        consent_pin,
+        profile,
+        check_deadline,
+    ):
         project = self.intake.read(credential, binding["project_ref"])
         _check(self._binding(project) == binding, "stage-progression-project-differs")
         body = {
@@ -141,6 +156,7 @@ class WikiProjectProgression:
                 "predecessor_sha256": upstream,
             },
             reserve=reserve,
+            check_deadline=check_deadline,
         )
 
     def _receipt(self, credential, ref, key):
@@ -151,8 +167,16 @@ class WikiProjectProgression:
                 raise
             return None
 
-    def _progress(self, credential, ref, *, advance):
+    def _progress(
+        self, credential, ref, *, advance, expected=None, check_deadline=None
+    ):
         project = self.intake.read(credential, ref)
+        if expected is not None:
+            _check(
+                type(project.get("input_version")) is int
+                and (project["input_version"], project["brief_sha256"]) == expected,
+                "stage-progression-project-differs",
+            )
         output = {"project_ref": ref, "execution_authorized": False, "stages": {}}
         if (
             type(project.get("input_version")) is not int
@@ -162,7 +186,7 @@ class WikiProjectProgression:
             return dict(output, status="waiting-for-project-scope")
         binding = self._binding(project)
         output["input_version"] = binding["input_version"]
-        for stage in STAGES:
+        for stage in self._stages:
             step = self._steps[stage]
             upstream = step.predecessor(credential, binding.copy())
             if upstream is None:
@@ -182,6 +206,8 @@ class WikiProjectProgression:
             if not advance:
                 return dict(output, status="not-started", stage=stage)
 
+            if check_deadline is not None:
+                check_deadline()
             consent_pin = self._consent(credential, binding, stage, step.profile_sha256)
             step.connect(credential, binding.copy(), upstream, consent_pin)
             grant = step.spending_grant(credential, binding.copy(), upstream, key)
@@ -200,6 +226,7 @@ class WikiProjectProgression:
                 upstream,
                 consent_pin,
                 step.profile_sha256,
+                check_deadline,
             )
             if receipt["replayed"]:
                 return dict(output, status="execution-unknown", stage=stage, key=key)
@@ -216,19 +243,36 @@ class WikiProjectProgression:
                 == consent_pin,
                 "stage-progression-consent-differs",
             )
-            step.submit(credential, binding.copy(), upstream, key, grant)
+            if check_deadline is None:
+                step.submit(credential, binding.copy(), upstream, key, grant)
+            else:
+                check_deadline()
+                step.submit(
+                    credential,
+                    binding.copy(),
+                    upstream,
+                    key,
+                    grant,
+                    check_deadline=check_deadline,
+                )
             result = step.read_result(credential, binding.copy(), upstream, key)
             if result is None:
                 return dict(output, status="execution-unknown", stage=stage, key=key)
             _check(_hash(result), "stage-progression-result-invalid")
             output["stages"][stage] = {"status": "saved", "result_sha256": result}
+        if len(self._stages) != len(STAGES):
+            return dict(
+                output,
+                status="waiting-for-predecessor",
+                stage=STAGES[len(self._stages)],
+            )
         return dict(output, status="saved")
 
     def read(self, credential, ref):
         """Pure readback of current verified artifacts and any pending attempt."""
         return self._progress(credential, ref, advance=False)
 
-    def advance(self, credential, ref):
+    def advance(self, credential, ref, *, expected=None, check_deadline=None):
         """Called after a normal authorized Host write or a verified completion."""
         self.intake.read(credential, ref)
         with self._lock:
@@ -240,7 +284,13 @@ class WikiProjectProgression:
                 }
             self._active.add(ref)
         try:
-            return self._progress(credential, ref, advance=True)
+            return self._progress(
+                credential,
+                ref,
+                advance=True,
+                expected=expected,
+                check_deadline=check_deadline,
+            )
         finally:
             with self._lock:
                 self._active.remove(ref)
