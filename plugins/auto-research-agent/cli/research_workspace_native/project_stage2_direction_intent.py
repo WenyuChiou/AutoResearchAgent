@@ -32,9 +32,9 @@ FIELDS = BOUND_FIELDS | {
 class ProjectStage2DirectionIntent:
     """Mixin using the same principal, intake journal, current view and paths."""
 
-    def read(self, credential, project_ref, *, check_deadline=None):
+    def _read_verified(self, credential, project_ref, *, check_deadline=None):
         with self.intake._lock, verified_selection_read(self.intake):
-            result = super().read(
+            result = super()._read_verified(
                 credential, project_ref, check_deadline=check_deadline
             )
             principal = self.intake._principal(credential)

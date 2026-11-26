@@ -209,9 +209,7 @@ class ProjectStage2SelectionView:
                     check_deadline()
                 binding = self.bindings.read_unregistered(credential, project_ref)
                 if binding is not None:
-                    view = ProjectStage2SelectionView(
-                        self.intake, {project_ref: binding}
-                    )
+                    view = type(self)(self.intake, {project_ref: binding})
                     return view._read_verified(
                         credential, project_ref, check_deadline=check_deadline
                     )
