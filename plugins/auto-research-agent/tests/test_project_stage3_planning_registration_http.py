@@ -118,8 +118,8 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
         return services
 
     @contextmanager
-    def wiki(self):
-        services = self.configure(self.connecting)
+    def wiki(self, args=None):
+        services = self.configure(self.connecting if args is None else args)
         resources = services["planning_resources"]
         host = ProjectHost(
             projects=self.intake,
@@ -170,6 +170,14 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
             "confirmed": True,
         }
 
+    def legacy_args(self, config):
+        path, pin = write_json(self.root / "legacy.json", config)
+        return SimpleNamespace(
+            **vars(self.connecting),
+            stage3_planning_config=path,
+            stage3_planning_sha256=pin,
+        )
+
     def check_events(self, journal, project_id, expected):
         state = journal.snapshot(project_id)
         events = [row["kind"] for row in journal.events(project_id)]
@@ -197,6 +205,18 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
         project_id = project["project_id"]
         journal_path = self.profile["journal_path"]
         self.assertIs(type(project["input_version"]), int)
+        self.assertFalse(Path(journal_path).exists())
+        other = self.intake.create(
+            VIEWER,
+            {"key": "other-static-project", "topic": "Separate authored fixture"},
+        )["project_ref"]
+        healthy = settings(self.root, [self.intake.read(VIEWER, other)])
+        overlapping = deepcopy(healthy)
+        overlapping["bindings"][0]["native"]["capture_dir"] = str(
+            Path(self.profile["project_parent"]) / self.ref / "capture"
+        )
+        with self.assertRaisesRegex(Stage3Error, "profile-output-overlap"):
+            self.configure(self.legacy_args(overlapping))
         self.assertFalse(Path(journal_path).exists())
         with self.wiki() as (origin, resources):
             code, view = self.observed(origin, "pending-selection", self.plan)
@@ -352,34 +372,53 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
             (Path(self.profile["project_parent"]) / self.ref / "jobs").exists()
         )
 
-        legacy_path, legacy_pin = write_json(self.root / "legacy.json", self.legacy)
-        args = SimpleNamespace(
-            **vars(self.connecting),
-            stage3_planning_config=legacy_path,
-            stage3_planning_sha256=legacy_pin,
-        )
         with self.assertRaisesRegex(Stage3Error, "bindings-overlap"):
-            self.configure(args)
-        other = self.intake.create(
-            VIEWER,
-            {"key": "other-static-project", "topic": "Separate authored fixture"},
-        )["project_ref"]
-        overlapping = settings(self.root, [self.intake.read(VIEWER, other)])
-        overlapping["bindings"][0]["native"]["capture_dir"] = stored["row"]["native"][
-            "capture_dir"
-        ]
-        args.stage3_planning_config, args.stage3_planning_sha256 = write_json(
-            legacy_path, overlapping
-        )
+            self.configure(self.legacy_args(self.legacy))
         with self.assertRaisesRegex(Stage3Error, "output-overlap"):
-            self.configure(args)
+            self.configure(self.legacy_args(overlapping))
+        connection_path = self.intake._path(
+            self.ref, "connection-" + stored["connection_id"][:32] + ".json"
+        )
+        retained_connection = connection_path.rename(
+            connection_path.with_suffix(".retained")
+        )
+        try:
+            with self.assertRaisesRegex(Stage3Error, "configuration-output-overlap"):
+                self.configure(self.legacy_args(overlapping))
+            own_root = Path(self.profile["project_parent"]) / other
+            healthy["bindings"][0]["jobs_root"] = str(own_root / "jobs")
+            healthy["bindings"][0]["native"]["capture_dir"] = str(own_root / "capture")
+            with self.wiki(self.legacy_args(healthy)) as (origin, resources):
+                code, unavailable = self.observed(
+                    origin, "damaged-connection", self.connect
+                )
+                self.assertEqual(code, 200, unavailable)
+                self.assertEqual(
+                    unavailable["connections"][PLANNING_STAGE]["reason"],
+                    "stage-connection-source-invalid",
+                )
+                code, available = self.observed(
+                    origin,
+                    "healthy-static-namespace",
+                    f"/api/projects/{other}/connections",
+                )
+                self.assertEqual(code, 200, available)
+                self.assertEqual(
+                    available["connections"][PLANNING_STAGE]["status"], "connected"
+                )
+                self.assertEqual(resources.journal.snapshot(other)["intents"], {})
+            with closing(Journal(journal_path)) as saved_journal:
+                self.assertIsNone(
+                    self.check_events(
+                        saved_journal, project_id, events + ["owner-released"]
+                    )
+                )
+        finally:
+            retained_connection.rename(connection_path)
         different = deepcopy(self.legacy)
         different["journal_path"] = str(self.root / "different.sqlite")
-        args.stage3_planning_config, args.stage3_planning_sha256 = write_json(
-            legacy_path, different
-        )
         with self.assertRaisesRegex(Stage3Error, "profile-journal-differs"):
-            self.configure(args)
+            self.configure(self.legacy_args(different))
         self.assertFalse(Path(different["journal_path"]).exists())
 
         journal = Path(journal_path)

@@ -174,12 +174,28 @@ class Stage3PlanningProfile:
             "recovery_pins": deepcopy(value["recovery_pins"]),
         }
 
-    def resolve(self, ref, project_id):
+    def _located(self, ref):
         if type(ref) is not str or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", ref) is None:
             raise Stage3Error("stage3-planning-profile-project-invalid")
-        text(project_id, "project id")
         value, parent = self._profile()
-        row = self._row(value, _relative_path(parent, ref))
+        return value, _relative_path(parent, ref)
+
+    def output_paths(self, ref):
+        value, root = self._located(ref)
+        return _output_paths(self._row(value, root))
+
+    def validate_static_outputs(self, row):
+        _, own_root = self._located(row["project_ref"])
+        if any(
+            _overlaps(path, own_root.parent) and not path.is_relative_to(own_root)
+            for path in _output_paths(row)
+        ):
+            raise Stage3Error("stage3-planning-profile-output-overlap")
+
+    def resolve(self, ref, project_id):
+        text(project_id, "project id")
+        value, root = self._located(ref)
+        row = self._row(value, root)
         _validated_settings(row, [_path(value["journal_path"], private=True)])
         return dict(row, project_ref=ref, project_id=project_id)
 
@@ -240,6 +256,8 @@ class Stage3PlanningHostResources:
                     for existing in reserved
                 ):
                     raise Stage3Error("stage3-planning-configuration-output-overlap")
+                if profile is not None:
+                    profile.validate_static_outputs(row)
         try:
             self.journal = Journal(journal_path)
             self._journal_file = self.journal.path.stat()
@@ -271,9 +289,13 @@ class Stage3PlanningHostResources:
                 if record is not None:
                     paths[ref] = _output_paths(record["row"])
             except (OSError, ValueError, KeyError, TypeError, RecursionError):
-                # A bad row still refuses direct use. It cannot reserve paths
-                # for another project's healthy, verified configuration.
-                continue
+                # Keep the trusted profile's slots for a saved but damaged
+                # connection. Its normal read still requires the raw receipt.
+                if self.profile is not None:
+                    try:
+                        paths[ref] = self.profile.output_paths(ref)
+                    except (OSError, ValueError, KeyError, TypeError, RecursionError):
+                        continue
         return paths
 
     def _open_binding(self, row, *, require_existing=False):
