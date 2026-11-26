@@ -130,19 +130,23 @@ async function v9ConnectionRead(view) {
   catch (error) { view.error = error.message; view.http = error.status; }
   finally { view.reading = false; if (v9ConnectionCurrent(view)) livePaint(); }
 }
-function v9ConnectionReason(code, http) {
+function v9ConnectionReason(code, http, stage) {
   if (code === 'stage2-continuation-activation-required')
     return rl('还差本项目的 Stage 2 启用同意。请查看本版启用记录并确认原提议。','Stage 2 needs your consent. Review this version’s activation record and confirm its original offer.');
   if (code === 'stage2-controller-current-input-required')
     return rl('还缺本课题已接收的 Stage 2 输入包和接收回执。请先查看 Stage 1 交付。','The current Stage 2 input packet and receiving receipt are required. Check the Stage 1 delivery.');
   if (code === 'stage3-current-selection-required')
     return rl('还缺本课题当前版本的正式选案和已核验的选案回执。','A verified formal selection and receipt for this version are required.');
+  if (code === 'stage2-controller-profile-unavailable')
+    return rl('这次启动没有提供 Stage 2 运行配置。请联系原项目操作者，请其用已核验的配置从原项目目录重开。','This launch has no Stage 2 configuration. Ask the project operator to reopen the original project directory with the verified configuration.','這次啟動沒有提供 Stage 2 執行設定。請聯絡原專案操作者，請其用已核驗的設定從原專案目錄重開。');
   if (/^stage[23]-(controller|planning)-profile-unavailable$/.test(code))
     return rl('这次启动没有提供本阶段的运行配置。请在原项目目录用已核验的配置重开。','This launch lacks the stage configuration. Reopen the original project directory with the verified configuration.');
   if (code === 'stage2-continuation-result-not-current' || /^(?:connection-project-binding-mismatch|(?:stage[23]|stage-connection)-[a-z0-9-]*(?:binding-differs|project-stale|connection-differs|path-mismatch|current-input-differs|native-input-differs|receipt-differs))$/.test(code))
     return rl('本次核对与原记录不一致。若搬过目录，请回原物理目录，用原已核配置重开，先只读核对项目、整数输入版本、原包和回执。原路径无法恢复时保留记录，等待经核验的迁移入口。请勿重新执行、换请求键或手改回执。','The binding differs. If files moved, reopen the original physical directory with the verified configuration. Check the project, integer input version, original packet and receipt using read-only requests. If the path cannot be restored, retain the records for a verified migration. Do not rerun, change keys or edit receipts.');
   if (code==='stage2-activation-record-unverified')
     return rl('已有启用提议或记录，但缺少同一项目、档案和请求键的可核回执。请保留原记录，只读复核。','The original activation offer lacks a verifiable matching request receipt. Retain the record and check again.');
+  if ((http === 404 || code === 'stage-connection-interface-unavailable') && stage === 'stage2-controller')
+    return rl('这次启动没有提供 Stage 2 接通接口。请联系原项目操作者，确认能否用支持该接口的版本重开。','This launch does not expose the Stage 2 connection interface. Ask the project operator whether it can be reopened with a version that supports it.','這次啟動沒有提供 Stage 2 接通介面。請聯絡原專案操作者，確認能否用支援該介面的版本重開。');
   if (http === 404 || code === 'stage-connection-interface-unavailable')
     return rl('这次启动没有提供本阶段接通接口，暂时无法核验。','This launch does not expose the stage connection interface.');
   if (code === 'project-lock-busy' || code === 'project-lock-failed')
@@ -167,7 +171,7 @@ function v9ConnectionPanel(app) {
   let message = rl('正在核对本课题的接通记录。','Checking this project’s saved connection.');
   if (unknown && rt.pending.path===projectPath(rt.ref,'stage2/actions')) message=rl('上次启用结果仍为 Unknown。请保留原请求，查询原启用回执。','Activation remains Unknown. Retain the request and check its original receipt.');
   else if (unknown) message = rl('上次登记结果仍为 Unknown。原请求键已保留；请只读核对接通状态及对应的操作回执。','Registration remains Unknown. Its key is retained. Check the saved connection and the matching action receipt.');
-  else if (view.error || row?.status === 'consent-required' || row?.status === 'unavailable') message = v9ConnectionReason(code, view.http);
+  else if (view.error || row?.status === 'consent-required' || row?.status === 'unavailable') message = v9ConnectionReason(code, view.http, stage);
   else if (row?.status === 'connected') message = rl('本课题已接通。已核对接通登记；执行与交付须另查原记录。','This project is connected. Registration was verified. Execution and delivery have separate records.');
   else if (row?.status === 'connectable') message = rl('本课题还没有接通。可以登记当前配置，登记不会启动研究。','This project is ready to connect. Registering the current configuration does not start research.');
   const token = rx(JSON.stringify([stage, view.epoch, ...Object.values(basis)]));
@@ -179,7 +183,10 @@ function v9ConnectionPanel(app) {
   const controls=!unknown && action?button(action,labels[action],!v9ConnectionCanWrite()||v9ConnectionWriting):'';
   const lockHint = controls && typeof globalThis.navigator?.locks?.request !== 'function'
     ? rl('此浏览器缺少跨标签页项目锁，仅可查看。','This browser lacks cross-tab project locks. Readback is available.') : '';
-  return `<section class="hs-panel" data-v9-connection-panel><h2>${heading}</h2><p role="status">${message} ${lockHint}</p>${proposal}${controls}
+  const missingInput = !unknown && !view.error && stage==='stage2-controller' &&
+    row?.status==='unavailable' && code==='stage2-controller-current-input-required';
+  const stage1 = missingInput ? `<button type="button" class="hs-button" data-stage="1">${rl('前往 Stage 1 查看交付','Go to Stage 1 to view delivery','前往 Stage 1 查看交付')}</button>` : '';
+  return `<section class="hs-panel" data-v9-connection-panel><h2 tabindex="-1">${heading}</h2><p role="status">${message} ${lockHint}</p>${proposal}${controls}${stage1}
     ${button('read', rl('重新核对接通记录','Check connection again'), view.reading || v9ConnectionWriting)}
     ${code ? '<details><summary>'+rl('技术详情','Technical details')+'</summary><code>'+rx(code)+'</code></details>' : ''}</section>`;
 }

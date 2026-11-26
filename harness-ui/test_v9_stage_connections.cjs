@@ -193,7 +193,7 @@ async function exercise() {
   await reset({postError:'cross-site-rejected',postHttp:403});
   button('connect').click();await tick();check(status().includes('访问被拒绝')&&!button('connect'),'rejected POST');
   await reset({getError:'not-found',http:404});
-  button('read').click();await tick();check(status().includes('没有提供本阶段接通接口')&&!posts().length,'missing endpoint');
+  button('read').click();await tick();check(status().includes('没有提供 Stage 2 接通接口')&&!posts().length,'missing endpoint');
   await reset({getError:'stage2-controller-binding-differs',http:409});
   button('read').click();await tick();check(status().includes('原物理目录')&&status().includes('原包和回执')&&!button('connect')&&!posts().length,'moved directory GET only');
   await reset({getError:'SYNTHETIC-other-conflict',http:409});
@@ -234,7 +234,62 @@ async function exercise() {
   rt.ref='SYNTHETIC-B';rt.overview={project:{...project,project_ref:rt.ref}};rt.epoch++;livePaint();release();await tick();
   check(!app.el.querySelector('[data-v93-read]')&&!status().includes('本课题已接通'),'late response for previous project');
 }
-test('SYNTHETIC stage connections through the served renderer functions and real button clicks',()=>{
+async function exerciseUnreadyStage2() {
+  const check=(value,description)=>{if(!value)throw Error(description);};
+  const tick=()=>new Promise(resolve=>setTimeout(resolve,10));
+  const connection=action=>app.el.querySelector('[data-v9-connection="'+action+'"]');
+  const continuation=action=>app.el.querySelector('[data-wiki-stage2-action="'+action+'"]');
+  const panel=()=>app.el.querySelector('[data-v9-connection-panel]');
+  const posts=()=>calls.filter(call=>call.body);
+  const errors=[];
+  const probe=(value,description)=>{if(!value)errors.push(description);};
+  const open=async config=>{
+    sessionStorage.clear();window.changes={continuationError:'stage2-controller-not-connected',...config};
+    calls.length=0;await liveRefresh();await tick();
+    const before=calls.filter(call=>call.tail==='stage2/continuation').length;
+    const read=continuation('read');
+    probe(!!read,'ordinary Stage 2 saved-status control is visible');
+    read?.click();await tick();
+    probe(calls.filter(call=>call.tail==='stage2/continuation').length===before+1,
+      'ordinary Stage 2 control rereads the real 409 error code');
+    probe(app.el.querySelector('[data-wiki-stage2-continuation] code')?.textContent==='stage2-controller-not-connected',
+      'ordinary Stage 2 exposes the original 409 code');
+    probe(!continuation('request')&&!app.el.querySelector('[data-v93-choice]'),'409 hides run and selection controls');
+    const next=continuation('connection');
+    probe(next && next.textContent.includes('查看 Stage 2 接通条件'),'ordinary Stage 2 offers a concrete next step');
+    const requests=calls.length;
+    next?.click();
+    probe(document.activeElement===panel()?.querySelector('h2')&&calls.length===requests,
+      'next step focuses the existing panel without making a request');
+    connection('read').click();await tick();
+    probe(!posts().length && !sessionStorage.getItem('v7-pending-action'),
+      'view and refresh preserve an unwritten project');
+  };
+  await open({getError:'not-found',http:404});
+  probe(panel().innerText.includes('联系原项目操作者')&&!connection('connect')&&!connection('publish'),
+    'missing connection interface names the operator and exposes no write');
+  await open({status:'unavailable',reason:'stage2-controller-profile-unavailable',row:{profile_sha256:null}});
+  probe(panel().innerText.includes('没有提供 Stage 2 运行配置')&&panel().innerText.includes('联系原项目操作者')&&!connection('connect'),
+    'missing host profile names the configuration and operator');
+  await open({status:'unavailable',reason:'stage2-controller-current-input-required'});
+  const stage1=panel().querySelector('button[data-stage="1"]');
+  probe(panel().innerText.includes('输入包和接收回执') && stage1?.textContent.includes('查看交付') && !connection('publish'),
+    'missing input offers the existing Stage 1 navigation without a write control');
+  window.RESEARCH_PROJECTS.stage2_selection_projects=[project.project_ref];
+  await open({getError:'not-found',http:404});
+  probe(!app.el.querySelector('[data-v93-choice]'),'known 409 suppresses the legacy selection allowlist');
+  window.RESEARCH_PROJECTS.stage2_selection_projects=[];
+  await open({status:'consent-required',reason:'stage2-continuation-activation-required',
+    afterPost:'consent-required',afterReason:'stage2-continuation-activation-required'});
+  probe(!connection('connect')&&!!connection('publish')&&!connection('activate'),
+    'an eligible project needs an explicit offer before consent');
+  connection('publish').click();await tick();
+  probe(posts().length===1&&posts()[0].tail==='connections'&&!!connection('activate'),
+    'publishing leaves a separate verified human consent action');
+  check(!errors.length,errors.join(' | '));
+}
+
+function runChromeExercise(exercise) {
   const chrome=[process.env.CHROME_BIN, process.env.CHROME_PATH,
     'C:/Program Files/Google/Chrome/Application/chrome.exe','/usr/bin/google-chrome','/usr/bin/chromium',
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p=>p&&existsSync(p));
@@ -253,4 +308,8 @@ test('SYNTHETIC stage connections through the served renderer functions and real
     assert.equal(run.status,0,run.error?.message||run.stderr);
     assert.equal(run.stdout.match(/<title>([^<]*)<\/title>/)?.[1],'SYNTHETIC_PASS');
   } finally { rmSync(temp,{recursive:true,force:true,maxRetries:8,retryDelay:100}); }
-});
+}
+test('SYNTHETIC stage connections through the served renderer functions and real button clicks',
+  ()=>runChromeExercise(exercise));
+test('SYNTHETIC ordinary Stage 2 saved-status control and original not-connected 409',
+  ()=>runChromeExercise(exerciseUnreadyStage2));
