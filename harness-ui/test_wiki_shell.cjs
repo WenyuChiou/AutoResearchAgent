@@ -54,9 +54,27 @@ app.el={querySelector:()=>content};context.wikiShellMount(app);assert.equal(posi
 const hiddenTitle={closest:()=>({}),matches:()=>true,insertAdjacentHTML(){throw Error('closed earlier materials must not own the shared state');}};content.querySelectorAll=()=>[hiddenTitle,title];context.wikiShellMount(app);assert.equal(position,'afterend','formal Stage2 keeps state outside earlier-materials disclosure');app.el=undefined;
 const outer={open:false,querySelector:()=>({textContent:'先前 Wiki 材料与本地草稿'}),parentElement:null};const inner={open:false,querySelector:()=>({textContent:'Stage2 · 操作'}),parentElement:{closest:()=>outer}};
 rt.error='fixed-nested-error';app.el={querySelector:()=>({textContent:'重新读取保存结果',closest:()=>inner})};assert(view().next.indexOf('先前 Wiki')<view().next.indexOf('Stage2 · 操作'),'recovery describes every closed ancestor from outside in');assert(view().next.includes('先前 Wiki'));app.el=undefined;rt.error='';
-const progress={binding:{project_ref:ref,input_version:1,revision:4,brief_sha256:'a'.repeat(64)},next_action:{phase_id:'screening'}};
-rt.overview.stage1={progress};assert(html().includes('文献筛选'));
+const progress={binding:{project_ref:ref,input_version:1,revision:4,brief_sha256:'a'.repeat(64)},next_action:{phase_id:'screening',target:'screening',reason:'screening-required'},phases:[{phase_id:'screening',status:'available',reason:'screening-required'}]};
+rt.overview.stage1={progress};assert(!view().next.includes('使用下方原操作'),'the view must provide the phase control');
+app.el={querySelector:s=>s==='[data-live-phase="screening"]:not(:disabled)'?{textContent:'文献筛选'}:null};
+assert(view().next.includes('文献筛选；使用下方原操作'));
 progress.binding.input_version='1';assert(!view().next.includes('文献筛选'),'typed input versions cannot borrow progress');progress.binding.input_version=1;
+// These three routes follow project_progress for unknown execution, an active model job and disconnected queries.
+const progressControls={'[data-page="history"]:not(:disabled)':'操作历史','[data-live-tab="chat"]:not(:disabled)':'Codex 问答','[data-n9-jump="feedback"]:not(:disabled)':'运行与反馈'};
+app.el={querySelector:s=>progressControls[s]?{textContent:progressControls[s]}:null};
+for(const [phase_id,target,reason,status,expected,phaseReason=reason] of [
+ ['scope','history','uncertain-action','held','操作历史'],['reading','native','active-action','held','Codex 问答'],
+ ['query','query','query-unconnected','unconnected','运行与反馈','query-permission-required'],['scope',undefined,'scope-required','required','待核对'],
+ ['scope','constructor','scope-required','required','待核对'],['scope','scope','uncertain-action','held','待核对'],
+ ['reading','reading','active-action','available','待核对']
+]){
+ progress.next_action={phase_id,target,reason};progress.phases=[{phase_id,status,reason:phaseReason}];
+ const hint=view().next;assert(hint.includes(expected),JSON.stringify({phase_id,target,reason,status,hint,expected}));
+ assert(!hint.includes('使用下方原操作'));
+}
+app.el=undefined;
+progress.next_action={phase_id:'scope',target:'history',reason:'uncertain-action'};
+assert(view().next.includes('待核对'));assert(!view().next.includes('操作历史'),'only name a history control when present');
 rt.savedRun={entry:{project_ref:'view:sample',ref:'sample',project_id:'sample-id',fixture:true},binding:{view_ref:'sample',project_id:'sample-id',fixture:true}};
 assert.equal(view().origin,'unknown','another project cannot lend its provenance');
 rt.ref='view:sample';assert.equal(view().origin,'synthetic');

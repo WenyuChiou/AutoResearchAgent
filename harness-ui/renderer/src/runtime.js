@@ -331,8 +331,8 @@ function liveModelCase(){const offer=(rt.overview?.model_offers?.offers||[]).fin
 function liveModelOutputs(){const actions=rt.modelHistory?.actions||[];return `<details class="live-model-history" ${actions.length?'open':''}><summary>${rl('Codex 内容任务记录','Codex content task history')} · ${actions.length}</summary>${actions.map(row=>`<article class="live-detail-block"><strong>${rx(row.status)}</strong><p>${rx(row.output_preview??row.refusal??row.error??'Unknown')}</p><small>${rx(row.key)}</small></article>`).join('')}</details>`;}
 
 // Shared Wiki shell presentation. Reads saved state only; never grants execution.
-function wikiShellControlHint(app,action,say){
- const button=app.el?.querySelector?.(`[data-live-action="${action}"]:not(:disabled)`);
+function wikiShellControlHint(app,selector,say){
+ const button=app.el?.querySelector?.(selector+':not(:disabled)');
  const label=button?.textContent?.trim();
  if(!label)return '';
  const panels=[];
@@ -358,7 +358,7 @@ function wikiShellState(app){
  else if(rt.pending){
   const own=typeof rt.pending.ref==='string'&&rt.pending.ref===rt.ref;
   const create=rt.pending.ref===null&&rt.pending.path==='/api/projects';
-  const recover=(own||create)&&wikiShellControlHint(app,'recover',say);
+  const recover=(own||create)&&wikiShellControlHint(app,'[data-live-action="recover"]',say);
   state=own?'pending':create?'create-pending':'foreign-pending';
   human=say('原请求已保留，请勿重复提交','The original request is retained; do not resubmit','原請求已保留，請勿重複提交');
   if(own){now=say('本项目上次提交结果尚待核对','This project’s previous submission is unconfirmed','本專案上次提交結果尚待核對');next=recover||say('本页没有结果核对入口；请回原提交工作台','No outcome control on this page; return to the original submitting workspace','本頁沒有結果核對入口；請回原提交工作台');}
@@ -367,7 +367,7 @@ function wikiShellState(app){
  }
  else if(rt.error){
   state='error';now=say('读取或操作尚未完成','Read or operation did not complete','讀取或操作尚未完成');
-  const refresh=wikiShellControlHint(app,'refresh',say);
+  const refresh=wikiShellControlHint(app,'[data-live-action="refresh"]',say);
   next=refresh?say('查看技术细节中的原因。','Read the reason in technical details. ','查看技術細節中的原因。')+refresh:say('在左侧打开 Stage1「文献与证据」，核对原读取提示并重试','Open Stage1 Literature and evidence in the sidebar to check the original read status and retry','在左側開啟 Stage1「文獻與證據」，核對原讀取提示並重試');
   human=say('失败记录保留；请先核对原因','Failure is retained; check its reason first','失敗紀錄保留；請先核對原因');
  }
@@ -382,8 +382,24 @@ function wikiShellState(app){
   const progress=app.stage===1&&bound?rt.overview?.stage1?.progress:null,pb=progress?.binding;
   const same=pb&&['project_ref','input_version','revision','brief_sha256'].every(k=>pb[k]===p[k]);
   const names={scope:['确认研究范围','Confirm scope','確認研究範圍'],planning:['查询规划','Query planning','查詢規劃'],query:['查询与来源','Queries and sources','查詢與來源'],screening:['文献筛选','Screening','文獻篩選'],reading:['阅读与证据','Reading and evidence','閱讀與證據'],coverage:['覆盖检查','Coverage check','覆蓋檢查'],delivery:['交付检查','Delivery check','交付檢查']};
-  const name=same?names[progress.next_action?.phase_id]:null;
-  if(name)next=translated(app,name)+say('；使用下方原操作','; use the original controls below','；使用下方原操作');
+  if(same){
+   const action=progress.next_action,target=action?.target,reason=action?.reason;
+   const phase=Array.isArray(progress.phases)?progress.phases.find(row=>row?.phase_id===action?.phase_id):null;
+   const named=typeof target==='string'&&target===action?.phase_id&&Object.hasOwn(names,target);
+   const phaseReasons=['scope-required','plan-required','query-permission-required','query-bootstrap-required','query-offered','screening-required','reading-registration-required','coverage-required','delivery-offered','delivery-required','package-saved-review-required'];
+   const normal=named&&!rt.controlHeld&&['available','required','recorded','partial'].includes(phase?.status)&&phaseReasons.includes(reason);
+   const phaseHint=normal&&wikiShellControlHint(app,`[data-live-phase="${target}"]`,say);
+   const check=say('下一步待核对。','The next step needs verification. ','下一步待核對。');
+   const active=say('当前任务正在处理。','The current task is in progress. ','目前任務正在處理。');
+   if(target==='history'||target==='native'){
+    const selector=target==='history'?'[data-page="history"]':'[data-live-tab="chat"]';
+    next=(reason==='active-action'?active:check)+wikiShellControlHint(app,selector,say);
+   }else if(phaseHint){
+    next=translated(app,names[target])+say('；使用下方原操作查看进度。','. Inspect saved progress with the existing control below. ','；使用下方原操作查看進度。')+phaseHint;
+   }else{
+    next=(normal?translated(app,names[target])+say('。查看保存的进度。','. Check saved progress. ','。查看儲存的進度。'):check)+wikiShellControlHint(app,'[data-n9-jump="feedback"]',say);
+   }
+  }
  }
  return {state,bound,saved,origin,provenance,now,next,human,source:saved?say('来自校验后的保存视图','From a validated saved view','來自校驗後的儲存視圖'):bound?say('来自本地 Harness 项目记录','From local Harness project records','來自本機 Harness 專案紀錄'):say('尚无可核对的数据来源','No verified record source yet','尚無可核對的資料來源'),raw:{read_error:rt.error||null,control_held:rt.controlHeld===true,project_ref:rt.ref??null,input_version:bound?p.input_version:null,revision:bound?p.revision:null,brief_sha256:bound?p.brief_sha256:null,fixture:saved?entry.fixture:null,provenance:origin==='unknown'?null:origin,pending:rt.pending?{project_ref:rt.pending.ref??null,scope:state}:null}};
 }
