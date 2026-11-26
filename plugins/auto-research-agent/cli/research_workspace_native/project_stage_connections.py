@@ -35,8 +35,11 @@ class ConnectionStore:
     def _resolve(self, ref, stage, *, current):
         with self.intake._lock:
             principal = self.intake._principal(self.credential)
-            state = self.intake._load(principal, ref)
-            saved = state.get("stage_connections", {}).get(stage)
+            try:
+                state = self.intake._load(principal, ref)
+                saved = state.get("stage_connections", {}).get(stage)
+            except (ValueError, KeyError, TypeError, AttributeError) as error:
+                raise SessionApiError("stage-connection-source-invalid", 409) from error
             if saved is None:
                 return None
             try:
@@ -331,9 +334,12 @@ class BindingTable(Mapping):
             for row in self.store.intake.db.execute(
                 "SELECT ref FROM intake_projects WHERE principal=?", (principal,)
             ).fetchall():
-                state = self.store.intake._load(principal, row[0])
-                if "stage2-selection" in state.get("stage_connections", {}):
-                    refs.add(row[0])
+                try:
+                    state = self.store.intake._load(principal, row[0])
+                    if "stage2-selection" in state.get("stage_connections", {}):
+                        refs.add(row[0])
+                except (SessionApiError, OSError, ValueError, KeyError, TypeError):
+                    continue
             return iter(sorted(refs))
 
     def __len__(self):

@@ -533,9 +533,11 @@ class ProjectHost(AtlasHost):
                             receipt_id=None,
                             execution_authorized=False,
                         )
-                    if evidence.get("reason") == "stage-connection-offer-differs":
-                        raise SessionApiError("stage-connection-offer-differs", 409)
-                    result = self.project_stage2.read(credential, ref)
+                    result = self.project_stage2.read(
+                        credential,
+                        ref,
+                        registered_only=evidence.get("status") != "received",
+                    )
                     result["current_evidence"] = evidence
                 else:
                     result["current_evidence"] = current_evidence(

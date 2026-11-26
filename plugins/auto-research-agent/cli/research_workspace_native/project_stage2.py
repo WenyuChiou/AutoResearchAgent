@@ -401,7 +401,7 @@ class ProjectStage2Service:
 
         return import_direct_request_project(self, credential, **trusted_inputs)
 
-    def read(self, credential, project_ref):
+    def read(self, credential, project_ref, *, registered_only=False):
         principal = self.intake._principal(credential)
         with self.intake._lock:
             state = self.intake._load(principal, project_ref)
@@ -428,7 +428,16 @@ class ProjectStage2Service:
                         for i in range(3, 7)
                     },
                 )
-            offers = [_public(row) for row in state.get("stage2_offers", {}).values()]
+            offers = []
+            for row in state.get("stage2_offers", {}).values():
+                if registered_only:
+                    try:
+                        self._require_registered_offer(
+                            project_ref, row, row["offer_sha256"]
+                        )
+                    except (SessionApiError, KeyError, TypeError, ValueError):
+                        continue
+                offers.append(_public(row))
             current_plan = current.get("plan")
             for offer in offers:
                 if (

@@ -267,10 +267,15 @@ class CurrentConnectionTests(unittest.TestCase):
                         )
                         case.intake.db.commit()
                         status, rejected = request(origin, route + "/stage2")
-                        self.assertEqual(status, 409)
+                        self.assertEqual(status, 200)
                         self.assertEqual(
-                            rejected, {"error": "stage-connection-offer-differs"}
+                            rejected["current_evidence"]["reason"],
+                            "stage-connection-offer-differs",
                         )
+                        self.assertEqual(
+                            rejected["current_evidence"]["status"], "blocked"
+                        )
+                        self.assertEqual(rejected["offers"], [])
                         if damaged_offer is not None:
                             changed["stage2_offers"][accepted["offer"]["offer_ref"]][
                                 "policy_ref"
@@ -294,9 +299,29 @@ class CurrentConnectionTests(unittest.TestCase):
                             )
                             self.assertEqual(status, 409, response)
                             self.assertEqual(
-                                response, {"error": "stage2-offer-journal-differs"}
+                                response["error"], "stage2-offer-journal-differs"
                             )
-                            self.assertEqual(counts(case.intake), stable)
+                            self.assertEqual(
+                                response["receipt"]["status"], "known-unsent"
+                            )
+                            refused = {
+                                name: value + 1 for name, value in stable.items()
+                            }
+                            self.assertEqual(counts(case.intake), refused)
+                            self.assertEqual(
+                                case.intake.db.execute(
+                                    "SELECT COUNT(*) FROM intake_events WHERE kind IN ('stage2-activate-intent','stage2-activate-saved')"
+                                ).fetchone()[0],
+                                0,
+                            )
+                            replay_status, replay = request(
+                                origin, route + "/stage2/actions", body=action
+                            )
+                            self.assertEqual(replay_status, 409)
+                            self.assertEqual(
+                                replay["receipt"]["status"], "known-unsent"
+                            )
+                            self.assertEqual(counts(case.intake), refused)
                     finally:
                         case.intake.db.execute(
                             "UPDATE intake_projects SET state=? WHERE ref=?",
@@ -453,6 +478,90 @@ class CurrentConnectionTests(unittest.TestCase):
 
 
 class SelectionConnectionTests(Stage2SelectionFixture):
+    def test_blocked_current_source_keeps_independently_registered_offer(self):
+        state = self.intake._load("researcher", self.ref)
+        raw_state = json.dumps(state)
+        bad = deepcopy(next(iter(state["stage2_offers"].values())))
+        bad["offer_ref"] = "stage2-" + "0" * 32
+        state["stage2_offers"][bad["offer_ref"]] = bad
+        self.intake.db.execute(
+            "UPDATE intake_projects SET state=? WHERE ref=?",
+            (json.dumps(state), self.ref),
+        )
+        self.intake.db.commit()
+        before = counts(self.intake)
+        self.service.receive_current = True
+        host = SimpleNamespace(
+            projects=self.intake,
+            project_stage2=self.service,
+            project_stage1_delivery=object(),
+            project_stage1=object(),
+        )
+        try:
+            for reason in (
+                "stage-connection-offer-differs",
+                "stage-connection-receipt-differs",
+                "stage2-input-bytes-differ",
+            ):
+                with (
+                    self.subTest(reason=reason),
+                    patch.object(
+                        self.service,
+                        "register_current",
+                        return_value={"status": "blocked", "reason": reason},
+                    ),
+                ):
+                    result = ProjectHost.stage2_view(
+                        host, "own", self.ref, project={}, stage1={}
+                    )
+                    self.assertEqual(
+                        [row["offer_ref"] for row in result["offers"]],
+                        [self.offer["offer_ref"]],
+                    )
+                    self.assertEqual(result["current_evidence"]["reason"], reason)
+                    self.assertEqual(counts(self.intake), before)
+        finally:
+            self.intake.db.execute(
+                "UPDATE intake_projects SET state=? WHERE ref=?", (raw_state, self.ref)
+            )
+            self.intake.db.commit()
+
+    def test_damaged_other_project_does_not_block_discovery(self):
+        store = ConnectionStore(self.intake, "own")
+        store.record(
+            self.ref, "stage2-selection", {"authored_storage_probe": 1}, derived_from={}
+        )
+        other = self.intake.create(
+            "own", {"key": "damaged-other", "topic": "Synthetic household research"}
+        )["project_ref"]
+        original = self.intake.db.execute(
+            "SELECT state FROM intake_projects WHERE ref=?", (other,)
+        ).fetchone()[0]
+        before = counts(self.intake)
+        table = BindingTable({}, store)
+        try:
+            bad_state = json.loads(original)
+            bad_state["stage_connections"] = None
+            for raw in (json.dumps(bad_state), "{"):
+                with self.subTest(raw=raw):
+                    self.intake.db.execute(
+                        "UPDATE intake_projects SET state=? WHERE ref=?", (raw, other)
+                    )
+                    self.intake.db.commit()
+                    self.assertEqual(list(table), [self.ref])
+                    self.assertIn(self.ref, table)
+                    self.assertNotIn(other, table)
+                    with self.assertRaisesRegex(
+                        SessionApiError, "stage-connection-source-invalid"
+                    ):
+                        table[other]
+                    self.assertEqual(counts(self.intake), before)
+        finally:
+            self.intake.db.execute(
+                "UPDATE intake_projects SET state=? WHERE ref=?", (original, other)
+            )
+            self.intake.db.commit()
+
     def test_unreadable_controller_discovery_does_not_block_other_projects(self):
         from research_workspace_native import project_stage_connections as connections
 
