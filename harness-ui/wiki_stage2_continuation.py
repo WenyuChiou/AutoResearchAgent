@@ -141,7 +141,8 @@ class WikiStage2Continuation:
         with self.lock, self.host.projects._lock:
             active = self.active.get(ref)
             if active is None:
-                basis, driver, _ = self._bound(credential, ref, check_deadline)
+                binding = self._bound(credential, ref, check_deadline)
+                basis, driver, _ = binding
             else:
                 basis, driver = active
                 self._check_active(credential, ref, basis)
@@ -187,7 +188,9 @@ class WikiStage2Continuation:
                 _check(
                     request["key"] == body["key"], "stage2-continuation-request-exists"
                 )
-        return False, self.read(credential, ref, check_deadline)
+        return False, self._read_bound(
+            credential, ref, binding, request, check_deadline
+        )
 
     def run(self, ref):
         driver = None
@@ -234,8 +237,15 @@ class WikiStage2Continuation:
                 basis, _ = active
                 self._check_active(credential, ref, basis)
                 return self._public(basis, "running")
-            basis, driver, frontier = self._bound(credential, ref, check_deadline)
+            binding = self._bound(credential, ref, check_deadline)
+            basis, driver, _ = binding
             request = self._request(driver, basis)
+        return self._read_bound(credential, ref, binding, request, check_deadline)
+
+    def _read_bound(self, credential, ref, binding, request, check_deadline):
+        # The current HTTP operation has verified the original files and
+        # activation. Replaying its saved request needs the same readback.
+        basis, driver, frontier = binding
         selection = self.host.project_stage2_selection
         if ref in self.bindings and selection is not None and ref in selection.bindings:
             try:
@@ -296,8 +306,12 @@ class WikiStage2Continuation:
             == canonical_hash(expected),
             "stage2-continuation-result-not-current",
         )
-        _, _, current_frontier = self._bound(credential, ref)
-        _check(frontier == current_frontier, "stage2-continuation-result-not-current")
+        with self.host.projects._lock:
+            current_basis, current_frontier = self._current(credential, ref)
+        _check(
+            current_basis == basis and current_frontier == frontier,
+            "stage2-continuation-result-not-current",
+        )
         if verified["delivery"] is not None:
             packet = json.loads(_raw(intent["binding"]["packet_path"]))
             return self._delivery(basis, verified, packet["comparison"])
