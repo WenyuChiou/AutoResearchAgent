@@ -4,6 +4,7 @@ import argparse
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from fnmatch import fnmatchcase
+from functools import partial
 import hashlib
 import importlib.util
 import json
@@ -12,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import time
 import traceback
 import types
 import unittest
@@ -347,7 +349,94 @@ def require_local_test_modules(names, directory):
                 break
 
 
-def run_partition(ids, directory):
+def partition_id(ids):
+    return hashlib.sha256(json.dumps(ids).encode()).hexdigest()
+
+
+def emit_timing(row):
+    # A verbose unittest prefix may lack a newline, especially after a worker
+    # stops. Frame timing records even when the caller merges stdout and stderr.
+    # Use the interpreter's original stream when a fixture captures sys.stdout.
+    stream = sys.__stdout__
+    stream.write(f"\n{json.dumps(row)}\n")
+    stream.flush()
+
+
+class TimedSerialResult(unittest.TextTestResult):
+    def __init__(self, *args, partition, planned_ids, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.partition = partition
+        self.planned_positions = {}
+        for position, test_id in enumerate(planned_ids, 1):
+            self.planned_positions.setdefault(test_id, []).append(position)
+
+    def outcome_counts(self):
+        return {
+            "error": len(self.errors),
+            "failed": len(self.failures),
+            "unexpected_success": len(self.unexpectedSuccesses),
+            "expected_failure": len(self.expectedFailures),
+            "skipped": len(self.skipped),
+        }
+
+    def emit_case(self, name, test, sequence, **fields):
+        test_id = test.id()
+        emit_timing(
+            {
+                name: test_id,
+                "partition_id": self.partition,
+                "sequence": sequence,
+                # Class fixtures can omit starts. A repeated ID has multiple
+                # candidate plan positions even when only one occurrence starts.
+                "planned_positions": self.planned_positions.get(test_id, []),
+                "monotonic_ns": time.monotonic_ns(),
+                **fields,
+            }
+        )
+
+    def startTest(self, test):
+        self.before_test = self.outcome_counts()
+        self.test_passed = False
+        self.emit_case("serial_test_started", test, self.testsRun + 1)
+        super().startTest(test)
+
+    def addSuccess(self, test):
+        super().addSuccess(test)
+        self.test_passed = True
+
+    def stopTest(self, test):
+        # unittest calls stopTest even when KeyboardInterrupt escapes a test
+        # or its cleanup. A previous assertion result then does not prove it finished.
+        if sys.exc_info()[0] is None:
+            outcome = next(
+                (
+                    name
+                    for name, count in self.outcome_counts().items()
+                    if count > self.before_test[name]
+                ),
+                "passed" if self.test_passed else None,
+            )
+            if outcome is not None:
+                fields = {"outcome": outcome}
+                new_skips = self.skipped[self.before_test["skipped"] :]
+                if new_skips:
+                    fields["skip_scope"] = (
+                        "test"
+                        if any(skipped is test for skipped, _ in new_skips)
+                        else "subtest"
+                    )
+                self.emit_case("serial_test_completed", test, self.testsRun, **fields)
+        super().stopTest(test)
+
+
+def run_partition(ids, directory, timing=None):
+    digest = partition_id(ids)
+    started = {"worker_started": digest, "planned_tests": len(ids)}
+    if timing:
+        started.update(
+            partition_kind=timing, pid=os.getpid(), monotonic_ns=time.monotonic_ns()
+        )
+        emit_timing(started)
     sys.path.insert(0, str(directory))
     require_local_test_modules(ids, directory)
     loader = unittest.TestLoader()
@@ -356,9 +445,14 @@ def run_partition(ids, directory):
     actual = list(test_ids(suite))
     if loader.errors or Counter(actual) != Counter(ids):
         raise ValueError("Worker test inventory differs from full discovery")
-    digest = hashlib.sha256(json.dumps(ids).encode()).hexdigest()
-    print(json.dumps({"worker_started": digest, "planned_tests": len(ids)}), flush=True)
-    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    if not timing:
+        print(json.dumps(started), flush=True)
+    runner_options = {}
+    if timing == "serial":
+        runner_options["resultclass"] = partial(
+            TimedSerialResult, partition=digest, planned_ids=ids
+        )
+    result = unittest.TextTestRunner(verbosity=2, **runner_options).run(suite)
     summary = {
         "test_ids_sha256": digest,
         "planned_tests": len(ids),
@@ -368,11 +462,28 @@ def run_partition(ids, directory):
         "skips": len(result.skipped),
         "passed": result.wasSuccessful() and result.testsRun == len(ids),
     }
-    print(json.dumps({"worker_completed": summary}), flush=True)
+    if timing:
+        summary.update(
+            partition_kind=timing, pid=os.getpid(), monotonic_ns=time.monotonic_ns()
+        )
+        emit_timing({"worker_completed": summary})
+    else:
+        print(json.dumps({"worker_completed": summary}), flush=True)
     return summary
 
 
-def run_parallel(suite, directory, workers):
+def report_worker_result_unavailable(ids, error, timing):
+    if timing:
+        emit_timing(
+            {
+                "worker_result_unavailable": partition_id(ids),
+                "monotonic_ns": time.monotonic_ns(),
+                "error": type(error).__name__,
+            }
+        )
+
+
+def run_parallel(suite, directory, workers, *, timing=False):
     ids = list(test_ids(suite))
     exclusive = SERIAL_DEADLINE_MODULES | SERIAL_SOURCE_MUTATION_MODULES
     serial = [name for name in ids if name.rsplit(".", 2)[0] in exclusive]
@@ -384,47 +495,61 @@ def run_parallel(suite, directory, workers):
         ids
     ):
         raise ValueError("Serial/parallel test inventory differs from full discovery")
-    print(
-        json.dumps(
-            {
-                "parallel_workers": len(groups),
-                "serial_tests": len(serial),
-                "planned_tests": len(ids),
-            }
-        ),
-        flush=True,
-    )
+    plan = {
+        "parallel_workers": len(groups),
+        "serial_tests": len(serial),
+        "planned_tests": len(ids),
+    }
+    if timing:
+        plan.update(
+            parallel_partition_ids=[partition_id(group) for group in groups],
+            serial_partition_id=partition_id(serial) if serial else None,
+            serial_test_ids=serial,
+        )
+        emit_timing(plan)
+    else:
+        print(json.dumps(plan), flush=True)
     results = []
     incomplete = 0
     if groups:
+        worker = partial(run_partition, timing="parallel") if timing else run_partition
         with ProcessPoolExecutor(
             max_workers=len(groups), mp_context=multiprocessing.get_context("spawn")
         ) as executor:
-            futures = []
+            futures = {}
             for index, group in enumerate(groups):
                 try:
-                    futures.append(executor.submit(run_partition, group, directory))
-                except (Exception, SystemExit):
+                    future = executor.submit(worker, group, directory)
+                    futures[future] = group
+                except (Exception, SystemExit) as error:
                     incomplete += len(groups) - index
+                    report_worker_result_unavailable(group, error, timing)
                     traceback.print_exc()
                     break
             for future in as_completed(futures):
                 try:
                     results.append(future.result())
-                except (Exception, SystemExit):
+                except KeyboardInterrupt as error:
+                    report_worker_result_unavailable(futures[future], error, timing)
+                    raise
+                except (Exception, SystemExit) as error:
                     incomplete += 1
+                    report_worker_result_unavailable(futures[future], error, timing)
                     traceback.print_exc()
     if serial:
+        worker = partial(run_partition, timing="serial") if timing else run_partition
         # Keep the supervisor alive even if a serial fixture terminates itself.
         with ProcessPoolExecutor(
             max_workers=1, mp_context=multiprocessing.get_context("spawn")
         ) as executor:
             try:
-                results.append(
-                    executor.submit(run_partition, serial, directory).result()
-                )
-            except (Exception, SystemExit):
+                results.append(executor.submit(worker, serial, directory).result())
+            except KeyboardInterrupt as error:
+                report_worker_result_unavailable(serial, error, timing)
+                raise
+            except (Exception, SystemExit) as error:
                 incomplete += 1
+                report_worker_result_unavailable(serial, error, timing)
                 traceback.print_exc()
     summary = {
         "planned_tests": len(ids),
@@ -548,7 +673,10 @@ def run_suite(
                 + " discovery contains import errors: "
                 + str(loader.errors)
             )
-        return run_parallel(suite, directory, workers)
+        windows_full = (
+            platform == "Windows" and profile == "full" and selection["mode"] == "full"
+        )
+        return run_parallel(suite, directory, workers, timing=windows_full)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     print(
         json.dumps(
