@@ -68,13 +68,13 @@ def build_prompt(intake, *, plan_id, version, schema_version="1.0.0"):
         )
     if schema_version == "1.2.0":
         instructions += (
-            "Each milestone must include step with inputs, operation, outputs, success_criteria "
+            "Include at least one milestone. Each milestone must include step with inputs, operation, outputs, success_criteria "
             "and named_entities. The four cells contain JSON Pointers to actual nonempty text "
             "in this plan, not summaries or external paths. Inputs locate resources or a direct "
             "predecessor milestone deliverable; operation locates a design procedure, analysis "
             "method, question measurement or this milestone description; outputs locate a "
             "result artifact or this milestone deliverable; success_criteria locate analysis "
-            "criteria or design credibility checks. Keep depends_on as milestone IDs. "
+            "criteria or design credibility checks. Keep depends_on as milestone IDs. References must belong to the designs named by this milestone or its dependency ancestors, never unrelated designs. "
             "Mark any named file, dataset or metric using {kind, name, location}, with its "
             "literal name present in one of the four referenced cells. Use an empty list when "
             "no name is known; do not invent one to silence a notice. Generic steps remain "

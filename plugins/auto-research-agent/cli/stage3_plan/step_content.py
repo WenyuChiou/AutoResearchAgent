@@ -33,6 +33,55 @@ def _cell(plan, pointer, pattern):
     return {"location": pointer, "text": value}
 
 
+def _design_scope(plan, milestone):
+    by_id = {row["milestone_id"]: row for row in plan["milestones"]}
+    pending = [milestone["milestone_id"]]
+    seen, designs = set(), set()
+    while pending:
+        identity = pending.pop()
+        if identity in seen or identity not in by_id:
+            continue  # Complete graph errors are reported by check_plan.
+        seen.add(identity)
+        row = by_id[identity]
+        designs.update(row["design_ids"])
+        pending.extend(row["depends_on"])
+    return designs
+
+
+def _in_scope(plan, pointer, designs):
+    collection, index, *_ = pointer[1:].split("/")
+    row = plan[collection][int(index)]
+    if collection == "designs":
+        return row["design_id"] in designs
+    if collection == "analyses":
+        return bool(row["design_ids"]) and set(row["design_ids"]) <= designs
+    if collection == "results":
+        analyses = {a["analysis_id"]: a for a in plan["analyses"]}
+        return bool(row["analysis_ids"]) and all(
+            identity in analyses
+            and bool(analyses[identity]["design_ids"])
+            and set(analyses[identity]["design_ids"]) <= designs
+            for identity in row["analysis_ids"]
+        )
+    questions = {
+        q
+        for d in plan["designs"]
+        if d["design_id"] in designs
+        for q in d["question_refs"]
+    }
+    if collection == "question_plans":
+        return row["question_ref"] in questions
+    if collection == "resources":
+        return any(
+            q["question_ref"] in questions
+            and any(
+                use["resource_id"] == row["resource_id"] for use in q["resource_uses"]
+            )
+            for q in plan["question_plans"]
+        )
+    return True  # Milestone fields are checked against their exact role below.
+
+
 def step_diagnostics(plan):
     """Project validated plan cells; errors reject v1.2, warnings remain notices.
 
@@ -71,6 +120,7 @@ def step_diagnostics(plan):
             steps.append(row)
             continue
         step = milestone["step"]
+        designs = _design_scope(plan, milestone)
         patterns = {
             "inputs": rf"/(?:resources/{INDEX}/(?:minimum|standard|access_conditions|fitness)|milestones/{INDEX}/deliverable)",
             "operation": rf"/(?:designs/{INDEX}/procedure|analyses/{INDEX}/method|question_plans/{INDEX}/measurement|milestones/{index}/description)",
@@ -84,6 +134,10 @@ def step_diagnostics(plan):
             for pointer in values:
                 try:
                     cell = _cell(plan, pointer, pattern)
+                    if not _in_scope(plan, pointer, designs):
+                        raise Stage3Error(
+                            "step reference is outside this milestone design/dependency scope"
+                        )
                     if field == "inputs" and pointer.startswith("/milestones/"):
                         predecessor = plan["milestones"][int(pointer.split("/")[2])]
                         if predecessor["milestone_id"] not in milestone["depends_on"]:

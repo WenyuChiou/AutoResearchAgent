@@ -88,7 +88,8 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/milestone"
-      }
+      },
+      "minItems": 1
     },
     "unknowns": {
       "type": "array",

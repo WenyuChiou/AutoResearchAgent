@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import sys
+import copy
 import tempfile
 import unittest
 
@@ -75,6 +76,32 @@ class Stage3StepContentTests(unittest.TestCase):
         result = check_plan(executable_plan())
         self.assertTrue(result["structural_valid"], result)
         self.assertEqual(result["step_warnings"], [])
+
+    def test_new_version_requires_at_least_one_step(self):
+        plan = executable_plan()
+        plan["milestones"] = []
+        self.assertFalse(check_plan(plan)["structural_valid"])
+
+    def test_step_cannot_borrow_unrelated_design_fields(self):
+        plan = make_plan(question_count=2)
+        plan.update(schema_version="1.2.0", condition_dispositions=[])
+        for index in range(2):
+            plan["milestones"][index]["step"] = copy.deepcopy(
+                executable_plan()["milestones"][index]["step"]
+            )
+            plan["milestones"][index]["step"]["named_entities"] = []
+        plan["milestones"][0]["design_ids"] = ["design-1"]
+        plan["milestones"][1]["design_ids"] = ["design-2"]
+        self.assertTrue(check_plan(plan)["structural_valid"])
+        for field, value in (
+            ("operation", "/designs/1/procedure"),
+            ("outputs", ["/results/1/artifact"]),
+            ("success_criteria", ["/analyses/1/criteria/0"]),
+        ):
+            with self.subTest(field=field):
+                bad = copy.deepcopy(plan)
+                bad["milestones"][0]["step"][field] = value
+                self.assertFalse(check_plan(bad)["structural_valid"])
 
     def test_each_missing_cell_rejects(self):
         for field in (
