@@ -84,14 +84,18 @@ def configure_services(services, args):
         ):
             raise ValueError("selection bindings overlap or have invalid shape")
         bindings.update(config["bindings"])
-    if getattr(args, "selection_config", None) or getattr(
-        args, "stage2_direct_import_config", None
-    ):
-        from research_workspace_native.project_stage2_selection import (
-            ProjectStage2SelectionService,
-        )
+    from research_workspace_native.project_stage_connections import (
+        ConnectionStore,
+        BindingTable,
+    )
+    from research_workspace_native.project_stage2_selection import (
+        ProjectStage2SelectionService,
+    )
 
-        services["stage2_selection"] = ProjectStage2SelectionService(projects, bindings)
+    services["stage2_selection"] = ProjectStage2SelectionService(
+        projects, BindingTable(bindings, ConnectionStore(projects, token))
+    )
+    stage2.receive_current = True
     if getattr(args, "stage2_reading_config", None):
         from research_workspace_native.project_stage2_reading import (
             Stage2ReadingRegistry,

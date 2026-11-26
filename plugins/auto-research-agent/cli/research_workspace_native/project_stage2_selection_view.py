@@ -20,37 +20,45 @@ from .project_selection_read_context import (
 from .session_api import SessionApiError, _check, _hash
 
 
+def validate_selection_binding(ref, binding):
+    _check(
+        isinstance(ref, str) and isinstance(binding, dict),
+        "selection-binding-invalid",
+    )
+    _check(
+        set(binding)
+        == {
+            "input_version",
+            "brief_sha256",
+            "workflow_root",
+            "delivery_root",
+            "delivery_manifest_sha256",
+        },
+        "selection-binding-shape",
+    )
+    _check(
+        valid_input_version(binding["input_version"], allow_string=True),
+        "selection-binding-version",
+    )
+    _check(
+        _hash(binding["delivery_manifest_sha256"]) and _hash(binding["brief_sha256"]),
+        "selection-binding-hash",
+    )
+
+
 class ProjectStage2SelectionView:
     """Host configuration supplies paths; browser input supplies only a project ref."""
 
     def __init__(self, intake, bindings):
         self.intake = intake
-        self.bindings = deepcopy(bindings)
-        for ref, binding in self.bindings.items():
-            _check(
-                isinstance(ref, str) and isinstance(binding, dict),
-                "selection-binding-invalid",
-            )
-            _check(
-                set(binding)
-                == {
-                    "input_version",
-                    "brief_sha256",
-                    "workflow_root",
-                    "delivery_root",
-                    "delivery_manifest_sha256",
-                },
-                "selection-binding-shape",
-            )
-            _check(
-                valid_input_version(binding["input_version"], allow_string=True),
-                "selection-binding-version",
-            )
-            _check(
-                _hash(binding["delivery_manifest_sha256"])
-                and _hash(binding["brief_sha256"]),
-                "selection-binding-hash",
-            )
+        from .project_stage_connections import BindingTable
+
+        self.bindings = (
+            bindings if isinstance(bindings, BindingTable) else deepcopy(bindings)
+        )
+        if not isinstance(bindings, BindingTable):
+            for ref, binding in self.bindings.items():
+                validate_selection_binding(ref, binding)
 
     def _project_context(self, project_ref, state, binding):
         service = ProjectStage2Service(self.intake)

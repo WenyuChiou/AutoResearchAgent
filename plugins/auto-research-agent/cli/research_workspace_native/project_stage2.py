@@ -265,6 +265,21 @@ class ProjectStage2Service:
 
         return import_stage1_project(self, credential, **trusted_inputs)
 
+    def register_current(
+        self, project_ref, *, credential, delivery, stage1=None, check_deadline=None
+    ):
+        """Register this project's verified native input; never grants execution."""
+        from .project_stage_connections import register_current
+
+        return register_current(
+            self,
+            project_ref,
+            credential=credential,
+            delivery=delivery,
+            stage1=stage1,
+            check_deadline=check_deadline,
+        )
+
     def register(
         self,
         project_ref,

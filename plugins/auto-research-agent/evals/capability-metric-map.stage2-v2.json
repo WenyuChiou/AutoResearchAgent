@@ -410,6 +410,41 @@
       ],
       "live_ab_required_at": "stage2-general-formal-milestone",
       "quality_improvement_claimed": false
+    },
+    {
+      "capability_id": "cli:project-stage-connections",
+      "kind": "cli",
+      "status": "experimental",
+      "runtime_integrity_required": false,
+      "metric_role": "enabler",
+      "owner_path": "plugins/auto-research-agent/cli/research_workspace_native",
+      "problem": "A running Wiki can receive its native Stage1 packet but cannot persist a project-bound Stage2 connection without startup configuration.",
+      "mechanism": "Wrap current-project verification in a journaled read connection, retaining typed project identity and original source hashes. Merge persisted selection bindings with legacy static configuration and reject overlaps. Connections grant no execution.",
+      "metric_effects": [
+        {
+          "metric_id": "P6",
+          "rubric_criteria": [
+            "P6V2.DISPOSITION"
+          ],
+          "expected_direction": "establish-measurement",
+          "hard_measures": [
+            "first reception, exact reopen without new actions, stale/tampered identity refusal and static/dynamic overlap rejection"
+          ],
+          "human_judgment": "Maintainers approve the engineering contract; research quality and actual selection remain unmeasured."
+        }
+      ],
+      "guardrails": [
+        "No browser supplied paths or grants",
+        "No activation, controller job, human selection or research authorization from reception",
+        "Original native package and journal remain unchanged",
+        "P4/P5/P6 are not combined"
+      ],
+      "test_refs": [
+        "plugins/auto-research-agent/tests/test_project_stage_connections.py",
+        "harness-ui/test_v9_stage23_services.py"
+      ],
+      "live_ab_required_at": "stage2-general-formal-milestone",
+      "quality_improvement_claimed": false
     }
   ],
   "capability_extensions": [

@@ -513,13 +513,33 @@ class ProjectHost(AtlasHost):
                     project = self.projects.read(credential, ref)
                 if stage1 is None:
                     stage1 = self.project_stage1.read(credential, ref)
-                result["current_evidence"] = current_evidence(
-                    delivery,
-                    credential,
-                    stage1,
-                    project,
-                    check_deadline=check_deadline,
-                )
+                if getattr(self.project_stage2, "receive_current", False) is True:
+                    try:
+                        evidence = self.project_stage2.register_current(
+                            ref,
+                            credential=credential,
+                            delivery=delivery,
+                            stage1=stage1,
+                            check_deadline=check_deadline,
+                        )
+                    except SessionApiError as error:
+                        evidence = dict(
+                            status="blocked",
+                            reason=error.code,
+                            connection_id=None,
+                            receipt_id=None,
+                            execution_authorized=False,
+                        )
+                    result = self.project_stage2.read(credential, ref)
+                    result["current_evidence"] = evidence
+                else:
+                    result["current_evidence"] = current_evidence(
+                        delivery,
+                        credential,
+                        stage1,
+                        project,
+                        check_deadline=check_deadline,
+                    )
             return result
 
     def overview(self, credential, ref, *, automatic=False, check_deadline=None):
@@ -555,6 +575,15 @@ class ProjectHost(AtlasHost):
                     check_deadline=check_deadline,
                 ),
             )
+            # A first read may journal one input connection. Return a coherent
+            # revision for subsequent explicit actions, never the pre-receive one.
+            if (
+                result["stage2"] is not None
+                and result["stage2"]["revision"] != project["revision"]
+            ):
+                result["project"] = self.projects.read(credential, ref)
+                if result["stage1"] is not None:
+                    result["stage1"]["revision"] = result["project"]["revision"]
             if result["stage1"] is not None:
                 result["stage1"]["progress"] = project_progress(result)
             return result
