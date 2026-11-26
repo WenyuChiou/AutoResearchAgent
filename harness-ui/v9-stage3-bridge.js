@@ -12,8 +12,8 @@ if(typeof otherPage==='function'){
 const v93={view:null,basis:null,errorBasis:null,sequence:0,busy:false,error:''};
 function v93ValidProject(p){return !!p&&((typeof p.input_version==='string'&&p.input_version.length>0&&p.input_version.length<=128)||(Number.isSafeInteger(p.input_version)&&p.input_version>=0))&&Number.isSafeInteger(p.revision)&&p.revision>=0&&typeof p.brief_sha256==='string'&&/^[a-f0-9]{64}$/.test(p.brief_sha256);}
 function v93Identity(){
- const p=rt.overview?.project;
- if(!v93ValidProject(p)||p.project_ref!==rt.ref||canonicalReadonly()||!Array.isArray(window.RESEARCH_PROJECTS?.stage3_planning_projects)||!window.RESEARCH_PROJECTS.stage3_planning_projects.includes(rt.ref))return null;
+ const p=rt.overview?.project, configured=window.RESEARCH_PROJECTS?.stage3_planning_projects;
+ if(!v93ValidProject(p)||p.project_ref!==rt.ref||canonicalReadonly()||!(Array.isArray(configured)&&configured.includes(rt.ref)||(typeof v9ConnectionConnected==='function'&&v9ConnectionConnected('stage3-planning'))))return null;
  return {project_ref:p.project_ref,input_version:p.input_version,revision:p.revision,brief_sha256:p.brief_sha256};
 }
 function v93Matches(a,b){return !!a&&!!b&&['project_ref','input_version','revision','brief_sha256'].every(k=>a[k]===b[k]);}
@@ -54,7 +54,10 @@ const v93Choices=new Map();let v93ActiveChoice=null;
 function v93ChoiceIdentity(){
  const p=rt.overview?.project, configured=window.RESEARCH_PROJECTS?.stage2_selection_projects;
  if(typeof wikiStage2OwnsView==='function'&&wikiStage2OwnsView())return null;
- if(!v93ValidProject(p)||p.project_ref!==rt.ref||canonicalReadonly()||!Array.isArray(configured)||!configured.includes(rt.ref))return null;
+ const dynamic=typeof v9ConnectionConnected==='function'&&v9ConnectionConnected('stage2-controller')&&
+   typeof wikiStage2State!=='undefined'&&wikiStage2State?.result?.status==='selection-available'&&
+   wikiStage2State.result.execution_authorized===false&&JSON.stringify(wikiStage2Basis())===JSON.stringify(wikiStage2State.basis);
+ if(!v93ValidProject(p)||p.project_ref!==rt.ref||canonicalReadonly()||!(Array.isArray(configured)&&configured.includes(rt.ref)||dynamic))return null;
  return {project_ref:p.project_ref,input_version:p.input_version,revision:p.revision,brief_sha256:p.brief_sha256};
 }
 const v93Before=v7BeforeRender;
@@ -67,9 +70,10 @@ v7BeforeRender=function(app){
 };
 const v93Stage2=stage2;
 stage2=function(app){
+ const panel=typeof v9ConnectionPanel==='function'?v9ConnectionPanel(app):'';
  const original=v93Stage2(app),basis=v93ChoiceIdentity();
- if(!basis)return original;
- return `<section class="hs-panel"><h2>${rl('当前交付的研究方向','Directions in the current delivery','目前交付的研究方向')}</h2><p>${rl('在此查看方向、材料和未知事项，再决定保存暂定偏好或正式选案。','Review the current directions, materials and unknowns here; a tentative preference is not a formal selection.','在此查看方向、材料與未知事項，再決定保存暫定偏好或正式選案。')}</p><div data-v93-choice></div></section><details class="hs-panel"><summary>${rl('先前 Wiki 材料与本地草稿','Earlier Wiki materials and local drafts','先前 Wiki 材料與本地草稿')}</summary><p>${rl('这些材料可能来自较早的导入版本，不能替代目前交付。','These materials may come from an earlier import and do not replace the current delivery.','這些材料可能來自較早匯入版本，不能取代目前交付。')}</p>${original}</details>`;
+ if(!basis)return panel+original;
+ return panel+`<section class="hs-panel"><h2>${rl('当前交付的研究方向','Directions in the current delivery','目前交付的研究方向')}</h2><p>${rl('在此查看方向、材料和未知事项，再决定保存暂定偏好或正式选案。','Review the current directions, materials and unknowns here; a tentative preference is not a formal selection.','在此查看方向、材料與未知事項，再決定保存暫定偏好或正式選案。')}</p><div data-v93-choice></div></section><details class="hs-panel"><summary>${rl('先前 Wiki 材料与本地草稿','Earlier Wiki materials and local drafts','先前 Wiki 材料與本地草稿')}</summary><p>${rl('这些材料可能来自较早的导入版本，不能替代目前交付。','These materials may come from an earlier import and do not replace the current delivery.','這些材料可能來自較早匯入版本，不能取代目前交付。')}</p>${original}</details>`;
 };
 function v93RecoveryControl(target,record,basis,app){
  // Queued render callbacks can find the same newly rendered Stage 2 slot.
@@ -242,11 +246,12 @@ function v93PublicArchive(){
 const v93Later=laterStage;
 laterStage=function(app){
  if(app.stage!==3)return v93Later(app);
+ const panel=typeof v9ConnectionPanel==='function'?v9ConnectionPanel(app):'';
  const basis=v93Identity();
- if(!basis)return v93Later(app)+v93PublicArchive();
+ if(!basis)return panel+v93Later(app)+v93PublicArchive();
  const view=v93Matches(v93.basis,basis)?v93.view:null, error=v93Matches(v93.errorBasis,basis)?v93.error:'';
  const href='/project-stage3-planning.html'+v93Fragment(basis.project_ref,app,3);
- return `${canonicalTop()}<section class="hs-panel"><p class="hs-eyebrow">STAGE 03</p><h1>${rl('研究设计与可行性','Research design & feasibility','研究設計與可行性')}</h1><p>${rl('将偏好方向逐题对应到资料、方法、设计与结果判读；草案不代表研究已执行。','Connect the preferred direction to data, methods, study design and interpretation, one question at a time. A draft does not mean research has been run.','將偏好方向逐題對應到資料、方法、設計與結果判讀；草案不代表研究已執行。')}</p><div class="n9-page-actions"><button class="hs-button hs-button-primary" data-v93-read ${v93.busy?'disabled':''}>${rl('查看已保存的规划','View saved plan','檢視已保存的規劃')}</button><a class="hs-button" href="${rx(href)}">${rl('打开规划与收据','Open planning and receipt','開啟規劃與收據')}</a></div><p role="status">${rx(error||(v93.busy?rl('正在读取已保存的规划，不会重新生成。','Reading the saved plan; no generation will be started.','正在讀取已保存的規劃，不會重新生成。'):!view?rl('先读取已保存的规划，查看摘要与待查事项。','Read the saved plan to see its summary and open checks.','先讀取已保存的規劃，查看摘要與待查事項。'):!view.plan?rl('目前没有已保存的规划；图中仅显示可用的问题与待确认事项。','No saved plan is available; the diagram shows only available questions and unknowns.','目前沒有已保存的規劃；圖中僅顯示可用的問題與待確認事項。'):''))}</p>${v93SavedPlanSummary(view)}<details class="n9-plan-graph"${view?.plan?.kind==='Stage3ResearchPlan'?' open':''}><summary>${rl('研究关系图与来源','Research map and sources','研究關係圖與來源')}</summary><div id="v93-diagram"></div></details></section>`+(view?.plan?'':v93PublicArchive());
+ return panel+`${canonicalTop()}<section class="hs-panel"><p class="hs-eyebrow">STAGE 03</p><h1>${rl('研究设计与可行性','Research design & feasibility','研究設計與可行性')}</h1><p>${rl('将偏好方向逐题对应到资料、方法、设计与结果判读；草案不代表研究已执行。','Connect the preferred direction to data, methods, study design and interpretation, one question at a time. A draft does not mean research has been run.','將偏好方向逐題對應到資料、方法、設計與結果判讀；草案不代表研究已執行。')}</p><div class="n9-page-actions"><button class="hs-button hs-button-primary" data-v93-read ${v93.busy?'disabled':''}>${rl('查看已保存的规划','View saved plan','檢視已保存的規劃')}</button><a class="hs-button" href="${rx(href)}">${rl('打开规划与收据','Open planning and receipt','開啟規劃與收據')}</a></div><p role="status">${rx(error||(v93.busy?rl('正在读取已保存的规划，不会重新生成。','Reading the saved plan; no generation will be started.','正在讀取已保存的規劃，不會重新生成。'):!view?rl('先读取已保存的规划，查看摘要与待查事项。','Read the saved plan to see its summary and open checks.','先讀取已保存的規劃，查看摘要與待查事項。'):!view.plan?rl('目前没有已保存的规划；图中仅显示可用的问题与待确认事项。','No saved plan is available; the diagram shows only available questions and unknowns.','目前沒有已保存的規劃；圖中僅顯示可用的問題與待確認事項。'):''))}</p>${v93SavedPlanSummary(view)}<details class="n9-plan-graph"${view?.plan?.kind==='Stage3ResearchPlan'?' open':''}><summary>${rl('研究关系图与来源','Research map and sources','研究關係圖與來源')}</summary><div id="v93-diagram"></div></details></section>`+(view?.plan?'':v93PublicArchive());
 };
 const v93After=v7AfterRender;
 v7AfterRender=function(app){

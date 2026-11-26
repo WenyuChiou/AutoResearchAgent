@@ -66,7 +66,7 @@ function wikiStage2Basis() {
   const project = rt.overview?.project;
   if (!project || project.project_ref !== rt.ref || canonicalReadonly()
       || rt.overview?.stage2?.receiving_only) return null;
-  return [project.project_ref, project.input_version, project.brief_sha256];
+  return [project.project_ref, project.input_version, project.brief_sha256, project.project_id, project.revision, rt.epoch];
 }
 
 function wikiStage2OwnsView() {
@@ -86,7 +86,7 @@ async function wikiStage2Load(state, submit) {
     const result = await liveRequest(projectPath(ref, "stage2/continuation"), submit ? {
       key: state.key, input_version: inputVersion, brief_sha256: brief, confirmed: true,
     } : undefined);
-    if (result.project_ref !== ref || result.input_version !== inputVersion
+    if (result.project_ref !== ref || (state.basis[3] !== undefined && result.project_id !== state.basis[3]) || result.input_version !== inputVersion
         || result.brief_sha256 !== brief) throw Error("project-binding-mismatch");
     state.result = result;
     state.error = "";
@@ -111,7 +111,7 @@ function wikiStage2Panel(state) {
     "no-candidate": label("已有控制器回执。候选交付尚未保存。", "A controller receipt is saved. Candidate delivery is pending.", "已有控制器回執。候選交付尚未儲存。"),
     "execution-unknown": label("已有请求。请由操作者核对原运行记录。", "A request exists. Ask the operator to check the retained run.", "已有請求。請由操作者核對原執行紀錄。"),
     blocked: label("已保存的请求受阻。请由操作者检查交接。", "The saved request is blocked. Ask the operator to check the handoff.", "已儲存的請求受阻。請由操作者檢查交接。"),
-    "stage2-controller-not-connected": label("当前项目还缺受信操作者的 Stage 2 接入。", "This project is waiting for the operator to connect Stage 2.", "目前專案仍缺受信操作者的 Stage 2 接入。"),
+    "stage2-controller-not-connected": label("本课题还没有接通 Stage 2。", "Stage 2 is not connected for this project.", "本課題還沒有接通 Stage 2。"),
     "stage2-continuation-activation-required": label("请先完成本项目的 Stage 2 启用。", "Complete Stage 2 activation for this project first.", "請先完成本專案的 Stage 2 啟用。"),
     "stage2-continuation-original-admission-unavailable": label("原运行许可缺失或已过期。请联系操作者。", "The original run admission is missing or expired. Contact the operator.", "原執行許可缺失或已過期。請聯絡操作者。"),
     "stage2-continuation-project-stale": label("当前输入版本和已接入作业不一致。请重新打开项目。", "Reopen the project. The input version has changed.", "目前輸入版本和已接入作業不一致。請重新開啟專案。"),
@@ -170,7 +170,7 @@ document.addEventListener("click", event => {
   const button = event.target.closest?.("[data-wiki-stage2-action]");
   if (!button || !wikiStage2State || button.disabled) return;
   const submit = button.dataset.wikiStage2Action === "request";
-  if (submit && wikiStage2State.result?.status !== "ready") return;
+  if (submit && (wikiStage2State.result?.status !== "ready" || rt.busy || rt.loading || rt.pending || rt.controlHeld)) return;
   wikiStage2Load(wikiStage2State, submit);
   livePaint();
 });
