@@ -26,13 +26,15 @@ test('the ordinary later-stage status uses the reader label', () => {
   const renderer = 'renderer/src/base.js';
   const labels = line(renderer, 'structurePreview:').split(',attemptVersion:')[0];
   const ctx = vm.createContext({li:()=>0, esc:escape, translated:(_app,values)=>values?.[0],
-    laterStageDefs:{3:{next:['后续阶段']}}, stageFeedback:()=>'', bottomAssistant:()=>''});
+    stageFeedback:()=>'', bottomAssistant:()=>''});
   const functions = ['function t(app,key)','function laterStage(app)','function laterImprovement(app)'];
-  vm.runInContext('const words={'+labels+'};'+functions.map(name=>line(renderer,name)).join('\n'),ctx);
+  vm.runInContext('const words={'+labels+'};const laterStageDefs={'+line(renderer,'3:{subtitle:')+'};'+
+    functions.map(name=>line(renderer,name)).join('\n'),ctx);
   const rendered = vm.runInContext("laterStage({stage:3,lang:'zh'})",ctx);
   assert.match(rendered,/<span class="hs-status">还没接通<\/span>/);
   assert.match(rendered,/<p>未提供<\/p>/);
-  assert.doesNotMatch(rendered,/planned \/ unconnected|>Unknown/);
+  assert.match(rendered,/本次规划及上一版本还没有关联/);
+  assert.doesNotMatch(rendered,/planned \/ unconnected|>Unknown|attempt \/ parent version/);
   assert.match(rendered,/ResearchRun\(run_id, versions, input_refs\)/);
 });
 
