@@ -80,7 +80,9 @@ def _packet(root, pin, source):
     return packet
 
 
-def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
+def _receive(
+    intake, view, binding, bound, source, check_deadline, check_owner, *, allow_publish
+):
     digest = canonical_hash(source)
     root = private_output(intake._path(view["project_ref"], "s2r-" + digest[:32]))
     check_deadline()
@@ -92,9 +94,15 @@ def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
         "source": source,
         "source_descriptor_sha256": digest,
     }
-    try:
-        root.mkdir()
-    except FileExistsError:
+    created = False
+    if allow_publish:
+        try:
+            root.mkdir()
+        except FileExistsError:
+            pass
+        else:
+            created = True
+    if not created:
         reject_links(root)
         if not receipt_path.is_file():
             return _blocked(view, "stage2-current-input-publication-unobserved")
@@ -149,7 +157,14 @@ def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
 
 
 def current_evidence(
-    delivery, credential, stage1, project, *, check_deadline=None, on_received=None
+    delivery,
+    credential,
+    stage1,
+    project,
+    *,
+    check_deadline=None,
+    on_received=None,
+    allow_publish=True,
 ):
     """Return the current project's verified Stage 2 input or its actual blockers."""
     ref = project["project_ref"]
@@ -233,6 +248,7 @@ def current_evidence(
                         source,
                         check_deadline,
                         check_owner,
+                        allow_publish=allow_publish,
                     )
                     if result["status"] == "received" and on_received is not None:
                         # The trusted connection writer uses its own intake

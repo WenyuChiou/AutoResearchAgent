@@ -12,6 +12,7 @@ from .session_api import SessionApiError, _check
 
 
 CONTROLLER_STAGE = "stage2-controller"
+SELECTION_STAGE = "stage2-selection"
 PLANNING_STAGE = "stage3-planning"
 
 
@@ -156,7 +157,7 @@ class ConnectionStore:
         """Trusted producer only; callers must verify the source before recording."""
         _check(
             stage
-            in {"stage2-input", "stage2-selection", CONTROLLER_STAGE, PLANNING_STAGE},
+            in {"stage2-input", SELECTION_STAGE, CONTROLLER_STAGE, PLANNING_STAGE},
             "stage-connection-kind",
         )
         with self.intake._lock:
@@ -325,7 +326,15 @@ class ConnectionStore:
             )
             return self.resolve(ref, stage)
 
-    def record_selection(self, ref, binding, *, check_deadline=None):
+    def record_selection(
+        self,
+        ref,
+        binding,
+        *,
+        check_deadline=None,
+        request_key=None,
+        expected_revision=None,
+    ):
         """Accept only a verified existing delivery of this activated project."""
         from .project_stage2_selection_view import ProjectStage2SelectionView
 
@@ -346,14 +355,19 @@ class ConnectionStore:
                 check_deadline()
             return self.record(
                 ref,
-                "stage2-selection",
+                SELECTION_STAGE,
                 binding,
                 derived_from={
                     "delivery_manifest_sha256": binding["delivery_manifest_sha256"]
                 },
                 check_deadline=check_deadline,
                 expected_identity=expected_identity,
-                expected_revision=verified[0]["revision"],
+                expected_revision=(
+                    verified[0]["revision"]
+                    if expected_revision is None
+                    else expected_revision
+                ),
+                request_key=request_key,
             )
 
 
@@ -370,7 +384,7 @@ class BindingTable(Mapping):
             validate_selection_binding(ref, binding)
 
     def __getitem__(self, ref):
-        dynamic = self.store.resolve(ref, "stage2-selection")
+        dynamic = self.store.resolve(ref, SELECTION_STAGE)
         _check(
             not (ref in self.static and dynamic is not None),
             "selection-bindings-overlap",
@@ -382,31 +396,48 @@ class BindingTable(Mapping):
         raise KeyError(ref)
 
     def __contains__(self, ref):
-        # Wiki membership is a discovery hint, not a verified binding. Only
-        # read() may receive a completed result; direct writes still need a row.
+        # Wiki membership is a discovery hint. A completed result can be read
+        # without a binding, while mutation still requires a registered row.
         return ref in iter(self)
 
-    def receive_completed(self, ref, *, check_deadline=None):
-        # Finish any local registration before entering the read-only view cache.
-        if check_deadline is not None:
+    @staticmethod
+    def _completed(driver, credential, ref):
+        if driver is None:
+            return None
+        try:
+            return _completed_binding(driver, credential, ref)
+        except SessionApiError:
+            raise
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise SessionApiError("stage2-selection-source-invalid", 409) from error
+
+    def read_unregistered(self, credential, ref):
+        if self.get(ref) is not None:
+            return None
+        return self._completed(self.controllers.get(ref), credential, ref)
+
+    def receive_completed(self, credential, ref, body, check_deadline, *, driver_for):
+        with self.store.intake._lock:
+            project = self.store.intake.read(credential, ref)
+            _check(
+                type(project["input_version"]) is int
+                and type(body["input_version"]) is int
+                and project["input_version"] == body["input_version"]
+                and project["brief_sha256"] == body["brief_sha256"],
+                "stage2-selection-project-stale",
+            )
+            _check(ref not in self.static, "selection-bindings-overlap")
             check_deadline()
-        dynamic = self.store.resolve(ref, "stage2-selection")
-        _check(
-            not (ref in self.static and dynamic is not None),
-            "selection-bindings-overlap",
-        )
-        if ref in self.static or dynamic is not None:
-            return
-        driver = self.controllers.get(ref)
-        if driver is not None:
-            try:
-                binding = _completed_binding(driver, self.store.credential, ref)
-            except SessionApiError:
-                raise
-            except (OSError, ValueError, KeyError, TypeError) as error:
-                raise SessionApiError("stage2-selection-source-invalid", 409) from error
-            if binding is not None:
-                self.store.record_selection(ref, binding, check_deadline=check_deadline)
+            driver = driver_for(credential, ref, check_deadline)
+            binding = self._completed(driver, credential, ref)
+            _check(binding is not None, "stage2-selection-completed-source-required")
+            return self.store.record_selection(
+                ref,
+                binding,
+                check_deadline=check_deadline,
+                expected_revision=body["revision"],
+                request_key=body["key"],
+            )
 
     def __iter__(self):
         with self.store.intake._lock:
@@ -426,7 +457,7 @@ class BindingTable(Mapping):
             ).fetchall():
                 try:
                     state = self.store.intake._load(principal, row[0])
-                    if "stage2-selection" in state.get("stage_connections", {}):
+                    if SELECTION_STAGE in state.get("stage_connections", {}):
                         refs.add(row[0])
                 except (
                     SessionApiError,

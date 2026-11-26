@@ -16,8 +16,10 @@ from research_workspace_native.project_stage2_controller_connections import (
     Stage2ControllerConnections,
 )
 from research_workspace_native.project_stage_connections import (
+    BindingTable,
     CONTROLLER_STAGE,
     PLANNING_STAGE,
+    SELECTION_STAGE,
 )
 from research_workspace_native.session_api import SessionApiError, _check, _hash
 from research_workspace_native.transport import _decode
@@ -58,11 +60,41 @@ class WikiStage2Continuation:
             self.bindings[ref] = basis
         host.project_stage2_controllers = self.connections
         selection = host.project_stage2_selection
-        if selection is not None:
-            from research_workspace_native.project_stage_connections import BindingTable
+        if selection is not None and isinstance(selection.bindings, BindingTable):
+            selection.bindings.controllers = self.connections
 
-            if isinstance(selection.bindings, BindingTable):
-                selection.bindings.controllers = self.connections
+    def register_selection(self, credential, ref, body, check_deadline):
+        self.host.projects.read(credential, ref)
+        profile = self.connections.profile
+        _check(
+            profile is not None and body["profile_sha256"] == profile.sha256,
+            "stage2-selection-profile-differs",
+        )
+        selection = self.host.project_stage2_selection
+        _check(
+            selection is not None and isinstance(selection.bindings, BindingTable),
+            "stage2-selection-unconnected",
+        )
+        _check(
+            ref not in self.connections.static,
+            "stage2-selection-dynamic-controller-required",
+        )
+        saved = selection.bindings.receive_completed(
+            credential, ref, body, check_deadline, driver_for=self.connections.driver
+        )
+        return {
+            "project_ref": ref,
+            "connections": {
+                SELECTION_STAGE: {
+                    "status": "connected",
+                    "reason": None,
+                    "profile_sha256": profile.sha256,
+                    "connection_id": saved["connection_id"],
+                    "receipt_id": saved["receipt_id"],
+                }
+            },
+            "execution_authorized": False,
+        }
 
     def _current(self, credential, ref):
         project = self.host.projects.read(credential, ref)
@@ -439,19 +471,27 @@ def install_stage2_continuation(host, profile=None, *, planning_resources=None):
                         and body["revision"] >= 0
                         and valid_input_version(body["input_version"])
                         and _hash(body["brief_sha256"])
-                        and body["stage"] in (CONTROLLER_STAGE, PLANNING_STAGE)
+                        and body["stage"]
+                        in (CONTROLLER_STAGE, SELECTION_STAGE, PLANNING_STAGE)
                         and _hash(body["profile_sha256"])
                         and body["confirmed"] is True,
                         "stage2-controller-connection-intent-required",
                         400,
                     )
-                    registry = (
-                        service.connections
-                        if body["stage"] == CONTROLLER_STAGE
-                        else planning
-                    )
-                    _check(registry is not None, "stage3-planning-profile-unavailable")
-                    result = registry.register(token, ref, body, self._remaining)
+                    if body["stage"] == SELECTION_STAGE:
+                        result = service.register_selection(
+                            token, ref, body, self._remaining
+                        )
+                    else:
+                        registry = (
+                            service.connections
+                            if body["stage"] == CONTROLLER_STAGE
+                            else planning
+                        )
+                        _check(
+                            registry is not None, "stage3-planning-profile-unavailable"
+                        )
+                        result = registry.register(token, ref, body, self._remaining)
                     self._remaining()
                     return self._reply(200, result)
                 start, result = service.submit(
