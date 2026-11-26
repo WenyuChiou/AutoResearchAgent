@@ -148,7 +148,9 @@ def derive(records, root, runtime, *, host_replay=None):
 
 def _render(records, manifests, root, review_format):
     journal = None
-    if review_format == views.REVIEW_FORMAT and screened(records):
+    if review_format in (views.REVIEW_FORMAT, views.SOURCE_REVIEW_FORMAT) and screened(
+        records
+    ):
         from .screening_records import journal_rows
 
         path = safe_path(root, records["screening_journal"]["path"])
@@ -298,7 +300,11 @@ def validate(root, expected_sha256, *, host_replay=None):
         or manifest["improvement"] != "not yet demonstrated"
         or manifest["docx"] != DOCX
         or manifest.get("review_format", views.REVIEW_FORMAT)
-        not in (views.REVIEW_FORMAT, views.PREVIOUS_REVIEW_FORMAT)
+        not in (
+            views.REVIEW_FORMAT,
+            views.SOURCE_REVIEW_FORMAT,
+            views.PREVIOUS_REVIEW_FORMAT,
+        )
     ):
         raise DeliverableError("unsupported package contract")
     review_format = manifest.get("review_format")

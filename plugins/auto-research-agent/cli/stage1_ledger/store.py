@@ -422,6 +422,8 @@ class Ledger(Journal):
         source_ref,
         verifier,
         assessment=None,
+        claim_type=None,
+        basis_claim_ids=None,
     ):
         candidate = self.candidates().get(work_id)
         if not candidate or version_id not in candidate["version_ids"]:
@@ -439,6 +441,18 @@ class Ledger(Journal):
         )
         if assessment is not None:
             value["assessment"] = assessment
+        if claim_type is not None or basis_claim_ids is not None:
+            value.update(claim_type=claim_type, basis_claim_ids=basis_claim_ids)
+        from .claim_structure import check_structure
+
+        check_structure(
+            value,
+            {
+                row["payload"]["event_id"]: row["payload"]
+                for row in self.events()
+                if row["payload"]["kind"] == "ClaimEvidence"
+            },
+        )
         claim_check(value, self.read_ref)
         imports = {
             p["event_id"]: p

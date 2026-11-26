@@ -58,6 +58,9 @@ def validate_extension(records):
         )
         event = row["payload"]
         check_payload(event)
+        from stage1_ledger.claim_structure import check_structure
+
+        check_structure(event, {key: item["payload"] for key, item in by_id.items()})
         unsigned = {k: v for k, v in row.items() if k != "event_sha256"}
         if (
             row["schema_version"] != "1.0.0"
