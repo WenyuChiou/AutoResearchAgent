@@ -12,6 +12,7 @@ from stage2_live import native_prerequisites
 from stage2_live.preparation import _guard as _guard_preparation
 from stage2_live.preparation import _raw as _raw_preparation
 from stage2_live.preparation import implementation_pins
+from stage2_workflow import inspect_workflow
 from .project_stage2_controller import ProjectStage2ControllerDriver, _raw
 from .session_api import _check, _hash
 from .transport import _decode
@@ -90,12 +91,51 @@ class Stage2ControllerProfile:
 
 
 def _load_prerequisites(
-    path, expected_sha256, *, workflow, spec, allow_readback_without_admission
+    path,
+    expected_sha256,
+    *,
+    workflow,
+    spec,
+    allow_readback_without_admission,
+    profile_binding=None,
 ):
-    try:
+    def configuration():
+        raw = _raw_preparation(path)
+        if hashlib.sha256(raw).hexdigest() != expected_sha256:
+            raise Stage2Error("native-prerequisite-configuration-hash-differs")
+        value = (
+            json.loads(raw) if profile_binding is None else _decode(raw.decode("utf-8"))
+        )
+        if profile_binding is not None:
+            value["output_root"] = str(
+                private_output(safe_path(Path(path).parent, value["output_root"]))
+            )
+            context = value.get("admission_context")
+            _check(
+                context is None
+                or (
+                    type(context) is dict
+                    and all(
+                        type(context.get(key)) is type(expected)
+                        and context[key] == expected
+                        for key, expected in profile_binding.items()
+                    )
+                ),
+                "stage2-controller-admission-project-differs",
+            )
+        return value
+
+    def load():
+        if profile_binding is not None:
+            return native_prerequisites.NativePrerequisiteHandler(
+                workflow, spec, configuration()
+            )
         return native_prerequisites.load_native_prerequisites(
             path, expected_sha256, workflow=workflow, spec=spec
         )
+
+    try:
+        return load()
     except Stage2Error as error:
         if not allow_readback_without_admission or error.args != (
             "native-prerequisite-original-admission-required",
@@ -104,15 +144,10 @@ def _load_prerequisites(
 
     # The native loader checked configuration, policy and output placement
     # before reporting unavailable admission. Reopen the same pinned bytes.
-    raw = _raw_preparation(path)
-    if hashlib.sha256(raw).hexdigest() != expected_sha256:
-        raise Stage2Error("native-prerequisite-configuration-hash-differs")
-    configuration = json.loads(raw)
-    if _guard_preparation(configuration["output_root"]).exists():
+    config = configuration()
+    if _guard_preparation(config["output_root"]).exists():
         # If provider output appeared meanwhile, verify its binding and budget.
-        verified = native_prerequisites.load_native_prerequisites(
-            path, expected_sha256, workflow=workflow, spec=spec
-        )
+        verified = load()
         return SimpleNamespace(
             identity=verified.identity, admission_context=verified.admission_context
         )
@@ -120,7 +155,7 @@ def _load_prerequisites(
     # Match the original provider identity for retained-record verification.
     # This descriptor has no prepare method and cannot admit a new run.
     binding = {
-        "configuration_sha256": canonical_hash(configuration),
+        "configuration_sha256": canonical_hash(config),
         "guard_implementations": implementation_pins(),
         "provider_sha256": hashlib.sha256(
             Path(native_prerequisites.__file__).read_bytes()
@@ -128,7 +163,7 @@ def _load_prerequisites(
     }
     return SimpleNamespace(
         identity="native-prerequisites-" + canonical_hash(binding),
-        admission_context=configuration.get("admission_context"),
+        admission_context=config.get("admission_context"),
     )
 
 
@@ -181,9 +216,25 @@ def load_stage2_controllers(
     return result
 
 
-def load_stage2_controller(service, binding, row, *, allow_readback_without_admission):
+def load_stage2_controller(
+    service, binding, row, *, allow_readback_without_admission, profile_paths=False
+):
     spec = _document(row["spec_path"], row["spec_sha256"])
     _check(type(spec) is dict, "stage2-controller-configuration-spec")
+    if profile_paths:
+        workflow = inspect_workflow(
+            binding["workflow_root"], binding["workflow_head_sha256"]
+        )
+        initial = workflow["snapshots"][0]
+        for key, expected in (
+            ("confirmed_brief_sha256", workflow["manifest"]["brief_sha256"]),
+            ("base_snapshot_sha256", initial["event"]["payload"]["snapshot_sha256"]),
+        ):
+            _check(
+                key in spec and spec[key] in (None, expected),
+                "stage2-controller-profile-spec-differs",
+            )
+            spec[key] = expected
     for key in ("controller_root", "delivery_root", "preparation_path"):
         _check(
             type(row[key]) is str and Path(row[key]).is_absolute(),
@@ -195,6 +246,17 @@ def load_stage2_controller(service, binding, row, *, allow_readback_without_admi
         workflow=binding["workflow_root"],
         spec=spec,
         allow_readback_without_admission=allow_readback_without_admission,
+        profile_binding=(
+            {
+                **{
+                    key: binding[key]
+                    for key in ("project_id", "input_version", "brief_sha256")
+                },
+                "project_ref": row["project_ref"],
+            }
+            if profile_paths
+            else None
+        ),
     )
     return ProjectStage2ControllerDriver(
         service,

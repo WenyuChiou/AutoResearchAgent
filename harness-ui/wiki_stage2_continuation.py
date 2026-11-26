@@ -12,6 +12,10 @@ from research_workspace_native.project_stage2_controller import (
     _read,
     _write,
 )
+from research_workspace_native.project_stage2_controller_connections import (
+    Stage2ControllerConnections,
+)
+from research_workspace_native.project_stage_connections import CONTROLLER_STAGE
 from research_workspace_native.session_api import SessionApiError, _check, _hash
 from research_workspace_native.transport import _decode
 from stage1_deliverable.common import private_output
@@ -22,6 +26,7 @@ from stage2_workflow.ui_submission import valid_input_version
 
 
 ROUTE = re.compile(r"/api/projects/([A-Za-z0-9_-]{1,64})/stage2/continuation")
+CONNECTION_ROUTE = re.compile(r"/api/projects/([A-Za-z0-9_-]{1,64})/connections")
 REQUEST_KEY = re.compile(r"[A-Za-z0-9_-]{1,128}")
 IDENTITY = ("project_ref", "project_id", "input_version", "brief_sha256")
 # The HTTP server has sixteen slots shared with ordinary reads. Only one
@@ -30,25 +35,35 @@ MAX_ACTIVE_RUNS = 1
 
 
 class WikiStage2Continuation:
-    def __init__(self, host):
+    def __init__(self, host, profile=None):
         self.host = host
         self.lock = Lock()
-        self.active = set()
-        self.drivers = host.project_stage2_controllers
-        records = [private_output(driver.records) for driver in self.drivers.values()]
+        self.active = {}
+        self.connections = Stage2ControllerConnections(host, profile)
+        records = [
+            private_output(driver.records)
+            for driver in self.connections.static.values()
+        ]
         if len(set(records)) != len(records):
             raise ValueError(
                 "Wiki Stage2 controllers require distinct record directories"
             )
         self.bindings = {}
-        for ref in self.drivers:
+        for ref in self.connections.static:
+            self.connections._resolve(ref)
             basis, _ = self._current(host.credential, ref)
             self.bindings[ref] = basis
+        host.project_stage2_controllers = self.connections
+        selection = host.project_stage2_selection
+        if selection is not None:
+            from research_workspace_native.project_stage_connections import BindingTable
+
+            if isinstance(selection.bindings, BindingTable):
+                selection.bindings.controllers = self.connections
 
     def _current(self, credential, ref):
-        with self.host.projects._lock:
-            project = self.host.projects.read(credential, ref)
-            stage = self.host.project_stage2.read(credential, ref)
+        project = self.host.projects.read(credential, ref)
+        stage = self.host.project_stage2.read(credential, ref)
         activation = stage["activation"]
         _check(
             activation is not None
@@ -61,12 +76,17 @@ class WikiStage2Continuation:
         }
         return basis, stage["frontier"]
 
-    def _bound(self, credential, ref):
-        self.host.projects.read(credential, ref)
-        _check(ref in self.drivers, "stage2-controller-not-connected")
-        current, frontier = self._current(credential, ref)
-        _check(current == self.bindings[ref], "stage2-continuation-project-stale")
-        return current, self.drivers[ref], frontier
+    def _bound(self, credential, ref, deadline=None):
+        with self.host.projects._lock:
+            self.host.projects.read(credential, ref)
+            driver = self.connections.driver(credential, ref, deadline)
+            _check(driver is not None, "stage2-controller-not-connected")
+            current, frontier = self._current(credential, ref)
+            _check(
+                ref not in self.bindings or current == self.bindings[ref],
+                "stage2-continuation-project-stale",
+            )
+            return current, driver, frontier
 
     @staticmethod
     def _admission(driver):
@@ -119,7 +139,12 @@ class WikiStage2Continuation:
             400,
         )
         with self.lock, self.host.projects._lock:
-            basis, driver, _ = self._bound(credential, ref)
+            active = self.active.get(ref)
+            if active is None:
+                basis, driver, _ = self._bound(credential, ref, check_deadline)
+            else:
+                basis, driver = active
+                self._check_active(credential, ref, basis)
             _check(
                 type(body["input_version"]) is type(basis["input_version"])
                 and body["input_version"] == basis["input_version"]
@@ -127,6 +152,12 @@ class WikiStage2Continuation:
                 "stage2-continuation-project-stale",
             )
             request = self._request(driver, basis)
+            if active is not None:
+                _check(
+                    request is not None and request["key"] == body["key"],
+                    "stage2-continuation-request-exists",
+                )
+                return False, self._public(basis, "running")
             if request is None and not any(
                 _guard(driver.records / name).exists()
                 for name in ("intent.json", "result.json")
@@ -148,7 +179,7 @@ class WikiStage2Continuation:
                 except FileExistsError:
                     request = self._request(driver, basis)
                 else:
-                    self.active.add(ref)
+                    self.active[ref] = (basis, driver)
                     return True, self._public(
                         basis, "request-saved", dispatch_observed=False
                     )
@@ -159,11 +190,11 @@ class WikiStage2Continuation:
         return False, self.read(credential, ref, check_deadline)
 
     def run(self, ref):
-        driver = self.drivers[ref]
+        driver = None
         status, reason = "execution-unknown", None
         try:
             credential = self.host.credential
-            basis, _, _ = self._bound(credential, ref)
+            basis, driver, _ = self._bound(credential, ref)
             request = self._request(driver, basis)
             self._admission(driver)
             # Never accept the browser's idempotency key as an operator argument.
@@ -181,22 +212,32 @@ class WikiStage2Continuation:
             logging.exception("Wiki Stage 2 continuation could not be verified")
         finally:
             try:
-                _write(
-                    driver.records / "wiki-outcome.json",
-                    {"status": status, "reason": reason},
-                )
+                if driver is not None:
+                    _write(
+                        driver.records / "wiki-outcome.json",
+                        {"status": status, "reason": reason},
+                    )
             finally:
                 with self.lock:
-                    self.active.discard(ref)
+                    self.active.pop(ref, None)
+
+    def _check_active(self, credential, ref, basis):
+        # The driver may be writing a new workflow head. During this window
+        # expose only the active request, without interpreting a partial head.
+        current, _ = self._current(credential, ref)
+        _check(current == basis, "stage2-continuation-project-stale")
 
     def read(self, credential, ref, check_deadline):
-        basis, driver, frontier = self._bound(credential, ref)
-        with self.lock:
-            if ref in self.active:
+        with self.lock, self.host.projects._lock:
+            active = self.active.get(ref)
+            if active is not None:
+                basis, _ = active
+                self._check_active(credential, ref, basis)
                 return self._public(basis, "running")
+            basis, driver, frontier = self._bound(credential, ref, check_deadline)
             request = self._request(driver, basis)
         selection = self.host.project_stage2_selection
-        if selection is not None and ref in selection.bindings:
+        if ref in self.bindings and selection is not None and ref in selection.bindings:
             try:
                 current = selection.read(credential, ref, check_deadline=check_deadline)
             except SessionApiError as error:
@@ -301,20 +342,26 @@ class WikiStage2Continuation:
         )
 
 
-def install_stage2_continuation(host):
-    service = WikiStage2Continuation(host)
+def install_stage2_continuation(host, profile=None):
+    service = WikiStage2Continuation(host, profile)
     inherited = host.RequestHandlerClass
 
     class Stage2ContinuationHandler(inherited):
         def do_GET(self):
+            match = CONNECTION_ROUTE.fullmatch(self.path)
+            if match:
+                return self._continuation("GET", match[1], connections=True)
             match = ROUTE.fullmatch(self.path)
             return self._continuation("GET", match[1]) if match else super().do_GET()
 
         def do_POST(self):
+            match = CONNECTION_ROUTE.fullmatch(self.path)
+            if match:
+                return self._continuation("POST", match[1], connections=True)
             match = ROUTE.fullmatch(self.path)
             return self._continuation("POST", match[1]) if match else super().do_POST()
 
-        def _continuation(self, method, ref):
+        def _continuation(self, method, ref, *, connections=False):
             try:
                 token, length = self._headers(method)
                 _check(
@@ -325,7 +372,11 @@ def install_stage2_continuation(host):
                 _check(host.authenticate(token) is not None, "credential-rejected", 401)
                 if method == "GET":
                     _check(not length, "invalid-project-read", 400)
-                    result = service.read(token, ref, self._remaining)
+                    result = (
+                        service.connections.discover(token, ref, self._remaining)
+                        if connections
+                        else service.read(token, ref, self._remaining)
+                    )
                     self._remaining()
                     return self._reply(200, result)
                 _check(
@@ -338,6 +389,39 @@ def install_stage2_continuation(host):
                 )
                 raw = self.rfile.read(length)
                 _check(len(raw) == length, "partial-body", 400)
+                if connections:
+                    try:
+                        body = _decode(raw.decode("utf-8"))
+                    except (ValueError, UnicodeError, RecursionError):
+                        raise SessionApiError("invalid-json", 400) from None
+                    _check(
+                        type(body) is dict
+                        and set(body)
+                        == {
+                            "key",
+                            "revision",
+                            "input_version",
+                            "brief_sha256",
+                            "stage",
+                            "profile_sha256",
+                            "confirmed",
+                        }
+                        and type(body["key"]) is str
+                        and REQUEST_KEY.fullmatch(body["key"]) is not None
+                        and type(body["revision"]) is int
+                        and body["revision"] >= 0
+                        and valid_input_version(body["input_version"])
+                        and _hash(body["brief_sha256"])
+                        and body["stage"] == CONTROLLER_STAGE
+                        and _hash(body["profile_sha256"])
+                        and body["confirmed"] is True,
+                        "stage2-controller-connection-intent-required",
+                        400,
+                    )
+                    return self._reply(
+                        200,
+                        service.connections.register(token, ref, body, self._remaining),
+                    )
                 start, result = service.submit(
                     token, ref, _decode(raw.decode("utf-8")), self._remaining
                 )

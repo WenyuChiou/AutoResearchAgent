@@ -297,6 +297,10 @@ class ProjectStage2Service:
         trusted_host_replay_sha256=None,
         historical_exporter_root=None,
         replayer_exporter_root=None,
+        expected_revision=None,
+        check_deadline=None,
+        connection_key=None,
+        connection_profile_sha256=None,
     ):
         """Trusted bootstrap only. Browser requests cannot supply these paths."""
         from .project_stage1_import import registration_mode
@@ -377,13 +381,28 @@ class ProjectStage2Service:
             ).fetchone()
             principal = row[0]
             state = self.intake._load(principal, project_ref)
+            existing = state.get("stage2_offers", {}).get(offer["offer_ref"])
+            if connection_key is not None and existing is not None:
+                self._require_registered_offer(project_ref, existing, offer_hash)
+                prior = self.intake.db.execute(
+                    "SELECT 1 FROM intake_actions WHERE principal=? AND project=? AND key=?",
+                    (principal, project_ref, connection_key),
+                ).fetchone()
+                if prior is None:
+                    return _public(existing)
             body = dict(
-                key="offer-" + offer_hash,
-                revision=state["revision"],
+                key=connection_key
+                if connection_key is not None
+                else "offer-" + offer_hash,
+                revision=state["revision"]
+                if expected_revision is None
+                else expected_revision,
                 input_version=binding["input_version"],
                 brief_sha256=binding["brief_sha256"],
                 offer_sha256=offer_hash,
             )
+            if connection_key is not None:
+                body["connection_profile_sha256"] = connection_profile_sha256
 
             def work(current, _, __):
                 saved = current.setdefault("stage2_offers", {})
@@ -391,9 +410,20 @@ class ProjectStage2Service:
                 saved[offer["offer_ref"]] = deepcopy(offer)
                 return {"offer": _public(offer)}
 
-            self.intake._perform(
-                principal, project_ref, "stage2-register-offer", body, work
+            receipt = self.intake._perform(
+                principal,
+                project_ref,
+                "stage2-register-offer",
+                body,
+                work,
+                check_deadline=check_deadline,
             )
+            if connection_key is not None:
+                _check(
+                    receipt["status"] == "saved",
+                    receipt.get("error")
+                    or "stage2-controller-activation-offer-outcome-unobserved",
+                )
             return _public(offer)
 
     def import_direct_request_project(self, credential, **trusted_inputs):

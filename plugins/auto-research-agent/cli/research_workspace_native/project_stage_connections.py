@@ -11,6 +11,9 @@ from .project_intake import MAX_ACTIONS
 from .session_api import SessionApiError, _check
 
 
+CONTROLLER_STAGE = "stage2-controller"
+
+
 class ConnectionStore:
     """Keep project-local connection receipts in the existing intake journal."""
 
@@ -108,15 +111,22 @@ class ConnectionStore:
         offer=None,
         expected_identity=None,
         expected_revision=None,
+        request_key=None,
+        maximum_projects=None,
     ):
         """Trusted producer only; callers must verify the source before recording."""
-        _check(stage in {"stage2-input", "stage2-selection"}, "stage-connection-kind")
+        _check(
+            stage in {"stage2-input", "stage2-selection", CONTROLLER_STAGE},
+            "stage-connection-kind",
+        )
         with self.intake._lock:
             identity = self._identity(ref)
             principal = self.intake._principal(self.credential)
             state = self.intake._load(principal, ref)
             _check(
-                expected_revision is None or state["revision"] == expected_revision,
+                request_key is not None
+                or expected_revision is None
+                or state["revision"] == expected_revision,
                 "stage-connection-project-stale",
             )
             _check(
@@ -154,14 +164,27 @@ class ConnectionStore:
                         == canonical_hash(offer),
                         "stage-connection-offer-differs",
                     )
+                if request_key is not None and request_key != previous["receipt_id"]:
+                    _check(
+                        self.intake.db.execute(
+                            "SELECT 1 FROM intake_actions WHERE principal=? AND project=? AND key=?",
+                            (principal, ref, request_key),
+                        ).fetchone()
+                        is None,
+                        "idempotency-payload-differs",
+                    )
                 return previous
-            principal = self.intake._principal(self.credential)
-            state = self.intake._load(principal, ref)
-            key = "connection-" + digest
+            _check(
+                expected_revision is None or state["revision"] == expected_revision,
+                "stage-connection-project-stale",
+            )
             relative = "connection-" + digest[:32] + ".json"
             # A failed local publication with no output can be attempted on a
             # new journal key. Never erase its failure or retry an unknown write.
             for attempt in range(MAX_ACTIONS + 1):
+                if request_key is not None:
+                    key = request_key
+                    break
                 key = "connection-" + digest + ("-" + str(attempt) if attempt else "")
                 old = self.intake.db.execute(
                     "SELECT receipt FROM intake_actions WHERE principal=? AND project=? AND key=?",
@@ -220,6 +243,15 @@ class ConnectionStore:
                     canonical_hash(self._identity(ref)) == canonical_hash(identity),
                     "stage-connection-project-stale",
                 )
+                if maximum_projects is not None:
+                    n = self.intake.db.execute(
+                        """SELECT COUNT(*) FROM intake_projects
+                        WHERE principal=? AND ref<>?
+                        AND json_type(state, '$.stage_connections."stage2-controller"')
+                            IS NOT NULL""",
+                        (principal, ref),
+                    ).fetchone()[0]
+                    _check(n < maximum_projects, "stage2-controller-profile-limit")
 
             receipt = self.intake._perform(
                 principal,
@@ -323,8 +355,9 @@ class BindingTable(Mapping):
         with self.store.intake._lock:
             principal = self.store.intake._principal(self.store.credential)
             refs = set(self.static)
-            for ref, driver in self.controllers.items():
+            for ref in self.controllers:
                 try:
+                    driver = self.controllers[ref]
                     if safe_path(driver.records, "result.json").is_file():
                         refs.add(ref)
                 except (OSError, ValueError):
