@@ -13,7 +13,16 @@ assert.equal(view().origin,'unknown','a project is not evidence of real executio
 assert(html().includes('来历未标注'));assert(!html().includes('真实运行'));
 rt.loading=true;assert.equal(view().state,'loading');rt.loading=false;
 rt.error='fixed-503';assert.equal(view().state,'error');assert(!html().includes('fixed-503'),'raw failure codes stay in the original error/details');rt.error='';
-rt.pending={body:{key:'original-key'}};assert.equal(view().state,'pending');assert.equal(rt.pending.body.key,'original-key');rt.pending=null;
+rt.pending={ref,path:'/api/projects/'+ref+'/compile',body:{key:'original-key'}};
+rt.busy=true;assert.equal(view().state,'busy','a live submission waits rather than directing users to a disabled recovery control');rt.busy=false;
+assert.equal(view().state,'pending');assert.equal(rt.pending.body.key,'original-key');
+rt.pending.ref='project-other';assert.equal(view().state,'foreign-pending','another project keeps its own pending ownership');
+assert.equal(view().raw.pending.project_ref,'project-other');assert.equal(view().raw.project_ref,ref);
+assert(!view().next.includes('查询上次结果'),'do not point another project at the current recovery control');
+rt.pending.ref=null;rt.pending.path='/api/projects';assert.equal(view().state,'create-pending');
+assert(view().now.includes('新课题'),'a global create is not a submission of the currently viewed project');
+rt.pending={ref,body:{key:'original-key'}};assert(!view().next.includes('查询上次结果'),'do not name a recovery button missing from this page');
+app.el={querySelector:()=>({disabled:false})};assert(view().next.includes('查询上次结果'),'only name a current-project usable recovery control');app.el=undefined;rt.pending=null;
 rt.overview={project:{...project,project_ref:'foreign'}};assert.equal(view().bound,false);assert.equal(view().origin,'unknown');
 rt.overview={project};
 const progress={binding:{project_ref:ref,input_version:1,revision:4,brief_sha256:'a'.repeat(64)},next_action:{phase_id:'screening'}};
@@ -23,6 +32,13 @@ rt.savedRun={entry:{project_ref:'view:sample',ref:'sample',project_id:'sample-id
 assert.equal(view().origin,'unknown','another project cannot lend its provenance');
 rt.ref='view:sample';assert.equal(view().origin,'synthetic');
 rt.savedRun.entry.fixture=false;rt.savedRun.binding.fixture=false;assert.equal(view().origin,'archive','non-fixture saved view is archive, never proof of a live run');
+rt.pending={ref:'project-other',path:'/api/projects/project-other/compile',body:{key:'original-key'}};
+const pendingBytes=JSON.stringify(rt.pending);
+assert.equal(view().state,'foreign-pending');assert(!view().next.includes('查询上次结果'),'archive has no recovery control for another project');
+rt.pending.ref=null;rt.pending.path='/api/projects';assert.equal(view().state,'create-pending');
+assert(!view().next.includes('查询上次结果'),'archive must not advertise an absent create-recovery button');
+rt.pending.ref='project-other';rt.pending.path='/api/projects/project-other/compile';
+assert.equal(JSON.stringify(rt.pending),pendingBytes,'presentation never alters the original pending intent');rt.pending=null;
 rt.savedRun.binding.fixture='false';assert.equal(view().origin,'unknown','typed provenance mismatch fails closed');
 rt.ref=null;rt.savedRun=null;rt.list=[];rt.overview=null;assert.equal(view().state,'empty');
 for(const [lang,word] of [['zh','现在'],['en','Now'],['tw','現在']]){app.lang=lang;assert(html().includes(word),'shell uses active locale');}

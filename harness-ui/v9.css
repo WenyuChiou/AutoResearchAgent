@@ -176,11 +176,11 @@
 #harness-trace-workbench-v6 .hs-product .wiki-shell-badges span {
  display:inline-block; font-size:13px; padding:3px 9px; border:1px solid #c4d1cd; border-radius:5px; background:#eef1ef;
 }
-#harness-trace-workbench-v6 .hs-product [data-shell-origin="synthetic"] { color:#8a5a12; background:#f8efdf; border:1px dashed #e2c891; }
+#harness-trace-workbench-v6 .hs-product .wiki-shell-badges [data-shell-origin="synthetic"] { color:#8a5a12; background:#f8efdf; border:1px dashed #e2c891; }
 #harness-trace-workbench-v6 .hs-product [data-shell-state="error"] { border-color:#e0b3ab; border-inline-start-color:#a1392b; background:#f6e8e5; }
 #harness-trace-workbench-v6 .hs-product [data-shell-state="loading"],
 #harness-trace-workbench-v6 .hs-product [data-shell-state="busy"] { border-inline-start-color:#3e6699; background:#edf3fc; }
-#harness-trace-workbench-v6 .hs-product [data-shell-state="pending"] { border-inline-start-color:#8a5a12; }
+#harness-trace-workbench-v6 .hs-product [data-shell-state$="pending"] { border-inline-start-color:#8a5a12; }
 #harness-trace-workbench-v6 .hs-product [data-shell-details] { border-top:1px solid #dde5e2; padding-top:6px; }
 #harness-trace-workbench-v6 .hs-product [data-shell-details] summary { min-height:44px; padding:10px 0; font-size:14px; cursor:pointer; }
 #harness-trace-workbench-v6 .hs-product [data-shell-details] pre { margin:8px 0 0; font:13px/1.6 ui-monospace,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }

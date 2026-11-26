@@ -340,10 +340,19 @@ function wikiShellState(app){
  const origin=saved?(entry.fixture?'synthetic':'archive'):'unknown';
  const provenance=origin==='synthetic'?say('合成样例','Synthetic sample','合成樣例'):origin==='archive'?say('保存归档','Saved archive','儲存歸檔'):say('来历未标注','Provenance not supplied','來歷未標註');
  let state='unavailable',now=say('尚未读取到本项目记录','Project records have not been read','尚未讀取到本專案紀錄'),next=say('查看原页面的读取提示','Check the existing read status','查看原頁面的讀取提示'),human=say('尚不据此启动任务','This does not start a task','尚不據此啟動任務');
- if(rt.pending){state='pending';now=say('上次提交结果尚待核对','Previous submission is unconfirmed','上次提交結果尚待核對');next=say('使用原页面的“查询上次结果”','Use the existing Check outcome control','使用原頁面的「查詢上次結果」');human=say('请先核对，勿重复提交','Check the outcome before submitting again','請先核對，勿重複提交');}
+ if(rt.busy){state='busy';now=say('有提交正在处理中','A submission is being processed','有提交正在處理中');next=say('等候原提交的保存回执','Wait for the original submission receipt','等候原提交的儲存回執');human=say('无需重复点击或查询','Do not repeat the action or query yet','無需重複點擊或查詢');}
+ else if(rt.pending){
+  const own=typeof rt.pending.ref==='string'&&rt.pending.ref===rt.ref;
+  const create=rt.pending.ref===null&&rt.pending.path==='/api/projects';
+  const recover=!!app.el?.querySelector?.('[data-live-action="recover"]:not(:disabled)');
+  state=own?'pending':create?'create-pending':'foreign-pending';
+  human=say('原请求已保留，请勿重复提交','The original request is retained; do not resubmit','原請求已保留，請勿重複提交');
+  if(own){now=say('本项目上次提交结果尚待核对','This project’s previous submission is unconfirmed','本專案上次提交結果尚待核對');next=recover?say('使用原页面的“查询上次结果”','Use the existing Check outcome control','使用原頁面的「查詢上次結果」'):say('本页没有结果核对入口；请回原提交工作台','No outcome control on this page; return to the original submitting workspace','本頁沒有結果核對入口；請回原提交工作台');}
+  else if(create){now=say('新课题创建结果尚待核对','New topic creation is unconfirmed','新課題建立結果尚待核對');next=recover?say('用“查询上次结果”核对新课题的创建','Use Check outcome to verify the new topic creation','用「查詢上次結果」核對新課題的建立'):say('返回原提交工作台核对创建结果','Return to the original workspace to check the creation','返回原提交工作台核對建立結果');}
+  else{now=typeof rt.pending.ref==='string'?say('另一个项目有未确认提交','Another project has an unconfirmed submission','另一個專案有未確認提交'):say('有待核对提交，项目归属尚未确认','A submission is unconfirmed; its project is not established','有待核對提交，專案歸屬尚未確認');next=say('请切回原提交项目的工作台核对','Return to the original submitting project workspace','請切回原提交專案的工作台核對');}
+ }
  else if(rt.error){state='error';now=say('读取或操作尚未完成','Read or operation did not complete','讀取或操作尚未完成');next=say('查看下方原因，使用原“刷新检查”','Read the reason below and use Refresh','查看下方原因，使用原「刷新檢查」');human=say('失败记录保留；请先核对原因','Failure is retained; check its reason first','失敗紀錄保留；請先核對原因');}
  else if(rt.loading){state='loading';now=say('正在读取保存记录','Reading saved records','正在讀取儲存紀錄');next=say('等待本次读取完成','Wait for this read to finish','等待本次讀取完成');human=say('无需重复操作','No repeated action is needed','無需重複操作');}
- else if(rt.busy){state='busy';now=say('正在处理你提交的操作','Processing your submitted action','正在處理你提交的操作');next=say('等候原操作的保存回执','Wait for the original action receipt','等候原操作的儲存回執');human=say('不要重复提交','Do not submit again','不要重複提交');}
  else if(!rt.ref&&rt.meta&&!rt.list.length){state='empty';now=say('还没有保存的课题','No saved topic yet','還沒有儲存的課題');next=say('在上方输入标题并保存选题','Enter a title above and save the topic','在上方輸入標題並儲存選題');human=say('需要你提供题目；保存不启动研究','You provide the topic; saving does not start research','需要你提供題目；儲存不啟動研究');}
  else if(bound||saved){state='saved';now=say('已读取当前项目的保存记录','Current project records are open','已讀取目前專案的儲存紀錄');next=say('查看本阶段的原结果和可用操作','Inspect this stage’s original results and available controls','查看本階段的原結果與可用操作');human=say('阅读不发任务；执行仍按原入口确认','Reading dispatches no work; execution uses the original confirmation','閱讀不發任務；執行仍按原入口確認');
   const progress=app.stage===1&&bound?rt.overview?.stage1?.progress:null,pb=progress?.binding;
@@ -352,7 +361,7 @@ function wikiShellState(app){
   const name=same?names[progress.next_action?.phase_id]:null;
   if(name)next=translated(app,name)+say('；使用下方原操作','; use the original controls below','；使用下方原操作');
  }
- return {state,bound,saved,origin,provenance,now,next,human,source:saved?say('来自校验后的保存视图','From a validated saved view','來自校驗後的儲存視圖'):bound?say('来自本地 Harness 项目记录','From local Harness project records','來自本機 Harness 專案紀錄'):say('尚无可核对的数据来源','No verified record source yet','尚無可核對的資料來源'),raw:{project_ref:rt.ref??null,input_version:bound?p.input_version:null,revision:bound?p.revision:null,brief_sha256:bound?p.brief_sha256:null,fixture:saved?entry.fixture:null,provenance:origin==='unknown'?null:origin}};
+ return {state,bound,saved,origin,provenance,now,next,human,source:saved?say('来自校验后的保存视图','From a validated saved view','來自校驗後的儲存視圖'):bound?say('来自本地 Harness 项目记录','From local Harness project records','來自本機 Harness 專案紀錄'):say('尚无可核对的数据来源','No verified record source yet','尚無可核對的資料來源'),raw:{project_ref:rt.ref??null,input_version:bound?p.input_version:null,revision:bound?p.revision:null,brief_sha256:bound?p.brief_sha256:null,fixture:saved?entry.fixture:null,provenance:origin==='unknown'?null:origin,pending:rt.pending?{project_ref:rt.pending.ref??null,scope:state}:null}};
 }
 function wikiShellMarkup(app){
  if(app.page!=='workspace'||app.stage<1||app.stage>3)return '';
