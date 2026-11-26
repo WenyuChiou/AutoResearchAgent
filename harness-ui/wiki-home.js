@@ -7,21 +7,34 @@ const wikiHomeDecisions = [
  ['对计划评审做决定', 'Stage 3。接受、修改后再评，或退回重选。']
 ];
 
+function wikiHomeArchiveRef(ref) {
+ return /^view:[A-Za-z0-9_-]{1,64}$/.test(ref || '');
+}
+
+function wikiHomeArchiveFragment() {
+ try { return wikiHomeArchiveRef(decodeURIComponent(location.hash.slice(1).split('?')[0])); }
+ catch (_) { return false; }
+}
+
+function wikiHomeArchiveBound(ref) {
+ return wikiHomeArchiveRef(ref) && rt.savedRun?.entry?.project_ref === ref;
+}
+
 function wikiHomeRow(project) {
  const saved = canonicalEntry(project.project_ref);
  const synthetic = saved?.fixture === true || [rt.meta?.case_ref, rt.meta?.chat_ref].includes(project.project_ref);
  const archive = saved?.fixture === false || project.stage1_status === 'imported-verified-delivery';
  const failed = project.status === 'source-binding-failed';
- const stage = failed ? null : project.stage2_status === 'delivery-received' ? 2 :
+ const stage = failed ? null : (saved?.stage2_available === true || project.stage2_status === 'delivery-received') ? 2 :
   saved || project.stage1_status ? 1 : null;
  // The initial create stores one intent and one result, advancing revision from 0 to 2.
  const waiting = stage === 1 && !saved && project.stage1_status === 'not-started' && project.stage1_intake_ready === false && project.revision === 2 && project.input_version === 1;
  const status = failed ? '项目资料读取失败' : waiting ? '确认研究范围' :
-  stage === 2 ? '已有交付材料' : saved ? '已保存，只读' : archive ? '已有保存材料' :
+  saved ? '已保存，只读' : stage === 2 ? '已有交付材料' : archive ? '已有保存材料' :
   project.stage1_intake_ready === true ? '范围与计划已保存' : '当前状态未提供';
  return {
   ref:project.project_ref, title:project.topic || '标题未提供', origin:synthetic?'synthetic':archive?'archive':stage?'local':'unknown',
-  stage, status, waiting, priorSaved:project.stage1_status === 'imported-verified-delivery'
+  stage, status, waiting, priorSaved:!!saved || project.stage1_status === 'imported-verified-delivery'
  };
 }
 
@@ -120,7 +133,7 @@ function wikiHomeProjectOpened(ref, stage) {
  if (app.lang !== 'zh' || app.page !== 'home' || rt.error || rt.ref !== ref ||
      (rt.overview?.project?.project_ref !== ref && rt.savedRun?.entry?.project_ref !== ref)) return;
  localStage(app, stage, {historyMode:'restore'});
- if (!canonicalEntry(ref)) history.pushState(history.state, '', location.pathname + location.search + v93Fragment(ref, app, stage));
+ history.pushState(history.state, '', location.pathname + location.search + v93Fragment(ref, app, stage));
  liveRememberProject();
  livePaint();
  window.scrollTo(0, 0);

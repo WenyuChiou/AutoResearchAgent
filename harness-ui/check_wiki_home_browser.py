@@ -125,6 +125,9 @@ def check(browser, url, evidence):
     binding = browser.get("/host-binding.json")
     for file_name in ("wiki-home.js", "wiki-harness-record.js"):
         assert binding["v9"]["modules"][file_name] == sha256((UI / file_name).read_bytes()).hexdigest()
+    for route in ("/app.js", "/runtime.css"):
+        with urlopen(browser.origin + route, timeout=5) as response:
+            assert sha256(response.read()).hexdigest() == binding["served_files"][route]
     assert "还没有保存的课题" in browser.js("document.querySelector('.wiki-home-empty').textContent")
     assert not browser.get("/api/projects")
     browser.screenshot(evidence / "home-empty-1440.png")
@@ -208,6 +211,83 @@ def check_legacy(browser, url, cases):
     assert not browser.external and not browser.errors
 
 
+def check_review_paths(browser):
+    # Reproduce the independent HOME review's injected read responses while keeping its evidence intact.
+    initial_writes, initial_errors = len(browser.writes), len(browser.errors)
+    script = browser.cdp("Page.addScriptToEvaluateOnNewDocument", source="""
+        const originalFetch = window.fetch;
+        window.wikiHomeListFailures = 0;
+        window.wikiHomeListAvailable = false;
+        window.fetch = function(path, ...args) {
+            if (path !== '/api/projects' || window.wikiHomeListAvailable) return originalFetch.call(this, path, ...args);
+            window.wikiHomeListFailures++;
+            return Promise.resolve(new Response(JSON.stringify({error:'review-list-unavailable'}), {status:503}));
+        };
+    """)["identifier"]
+    browser.cdp("Page.reload")
+    for attempt in range(1, 4):
+        wait(lambda: browser.js(f"window.wikiHomeListFailures === {attempt} && !!document.querySelector('[data-wiki-home-retry]:not(:disabled)')"))
+        assert browser.js("document.querySelector('.wiki-home-empty').textContent") == "暂时读不到项目列表。"
+        assert browser.js("document.querySelector('#wiki-home-topic').disabled")
+        if attempt < 3:
+            browser.click("[data-wiki-home-retry]")
+    browser.js("window.wikiHomeListAvailable = true")
+    browser.click("[data-wiki-home-retry]")
+    browser.home()
+    assert browser.js("document.querySelectorAll('tr[data-wiki-home-origin]').length") == 3
+    browser.cdp("Page.removeScriptToEvaluateOnNewDocument", identifier=script)
+
+    index = {"project_id":"independent-saved", "papers":[], "claims":[]}
+    index_pin, manifest_pin = "1" * 64, "2" * 64
+    entry = {"ref":"independent", "project_ref":"view:independent", "label":"独审归档", "fixture":False,
+             "project_id":index["project_id"], "index_sha256":index_pin, "manifest_sha256":manifest_pin,
+             "stage2_available":True, "payload_url":"/v7-saved-runs/independent.json", "execution_authority":False}
+    payload = json.dumps({"index":index, "index_sha256":index_pin, "stage2":{"project_id":index["project_id"]}})
+    binding = {name:entry[name] for name in ("project_id", "fixture", "index_sha256", "manifest_sha256")}
+    binding.update(kind="V7CanonicalSavedViewBinding", schema_version="1.0.0", view_ref=entry["ref"],
+                   payload_sha256=sha256(payload.encode()).hexdigest())
+    read_responses = {"/v7-saved-runs.json":{"kind":"V7CanonicalSavedViewList", "execution_authority":False, "views":[entry]},
+                      entry["payload_url"]:{"kind":"V7CanonicalSavedView", "execution_authority":False,
+                                            "binding":binding, "payload_json":payload}}
+    script = browser.cdp("Page.addScriptToEvaluateOnNewDocument", source=f"""
+        const originalFetch = window.fetch, saved = {json.dumps(read_responses)};
+        window.fetch = function(path, ...args) {{
+            if (Object.hasOwn(saved, path)) return Promise.resolve(new Response(JSON.stringify(saved[path])));
+            return originalFetch.call(this, path, ...args);
+        }};
+    """)["identifier"]
+    browser.cdp("Page.reload")
+    row = 'tr[data-wiki-home-origin="archive"]'
+    browser.see(row)
+    assert "Stage 2" in browser.js(f"document.querySelector({json.dumps(row)}).innerText")
+    browser.click(row + " button")
+
+    def verify_archive(stage, lang, tag):
+        wait(lambda: browser.js(f"""!document.querySelector('[data-wiki-home]') &&
+            decodeURIComponent(location.hash).includes('#view:independent?stage={stage}&lang={tag}') &&
+            document.querySelector('[data-language]')?.value === '{lang}' &&
+            document.documentElement.lang === '{tag}' &&
+            document.querySelector('.hs-eyebrow')?.textContent === 'STAGE 0{stage} / 06' &&
+            document.querySelector('.hs-project-name')?.textContent.includes('独审归档')"""))
+
+    def reload_archive(stage, lang, tag):
+        browser.js("window.wikiHomeBeforeReload = true")
+        browser.cdp("Page.reload")
+        wait(lambda: browser.js("!window.wikiHomeBeforeReload && document.readyState === 'complete'"))
+        verify_archive(stage, lang, tag)
+
+    verify_archive(2, "zh", "zh-CN")
+    reload_archive(2, "zh", "zh-CN")
+    browser.click('[data-stage="1"]')
+    browser.js("""const language = document.querySelector('[data-language]');
+        language.value = 'en'; language.dispatchEvent(new Event('change', {bubbles:true}));""")
+    verify_archive(1, "en", "en")
+    reload_archive(1, "en", "en")
+    browser.cdp("Page.removeScriptToEvaluateOnNewDocument", identifier=script)
+    assert len(browser.writes) == initial_writes and not browser.external
+    assert len(browser.errors) == initial_errors, browser.errors[initial_errors:]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chrome", type=Path, required=True)
@@ -242,6 +322,7 @@ def main():
                 browser = Browser(port)
                 try:
                     check(browser, url, args.evidence)
+                    check_review_paths(browser)
                     check_legacy(browser, url, [
                         ("en", "English compatibility project", "Create project"),
                         ("tw", "繁體中文相容性課題", "创建项目"),
@@ -262,6 +343,7 @@ def main():
         comparison.paste(actual, (1440, 0))
         comparison.save(args.evidence / "home-design-left-product-right.png")
     print("PASS HOME: empty, three persisted creates, list, filters, open, reload, resume, back, and zero external browser requests.")
+    print("PASS HOME review probe: repeated 503 retry and recovery; archive Stage 2, stage and locale reload; no writes or JavaScript exceptions.")
     print("PASS old create and reload paths: standalone V7, Wiki English, and Wiki Traditional Chinese.")
 
 if __name__ == "__main__":

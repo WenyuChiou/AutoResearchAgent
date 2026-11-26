@@ -124,7 +124,7 @@ function liveRememberProject(){
 function liveProjectRoute(){
  if(liveWikiHomeActive()||rt.pending||rt.error||!rt.ref||!rt.list.some(p=>p.project_ref===rt.ref))return;
  const base=location.pathname+location.search;
- if(!/^[A-Za-z0-9_-]{1,64}$/.test(rt.ref)){history.replaceState(history.state,'',base);return;}
+ if(!/^[A-Za-z0-9_-]{1,64}$/.test(rt.ref)&&!(typeof wikiHomeArchiveBound==='function'&&wikiHomeArchiveBound(rt.ref))){history.replaceState(history.state,'',base);return;}
  const app=apps[0],separator=location.hash.indexOf('?');let previous;
  try{previous=decodeURIComponent(location.hash.slice(1,separator<0?undefined:separator));}catch(_){}
  const params=new URLSearchParams(previous===rt.ref&&separator>=0?location.hash.slice(separator+1):'');
@@ -296,7 +296,7 @@ document.addEventListener('click',async e=>{
 },true);
 // Load only on this local server. No model, stage or search action runs on read.
 rt.overview=null;rt.atlas=null;livePaint();
-const wikiHomeStartup=typeof wikiHomeProjectOpened==='function'&&apps[0]?.lang==='zh'&&!location.hash;
+const wikiHomeStartup=typeof wikiHomeProjectOpened==='function'&&((apps[0]?.lang==='zh'&&!location.hash)||wikiHomeArchiveFragment());
 Promise.all([liveRequest('/v7-case.json'),wikiHomeStartup
  ?Promise.resolve().then(()=>liveRequest('/api/projects')):liveRequest('/api/projects')]).then(async([meta,list])=>{
  rt.meta=meta;rt.list=Array.isArray(list)?list:list.projects||[];const requested=typeof v93RouteTarget==='function'?v93RouteTarget(rt.list):null;
