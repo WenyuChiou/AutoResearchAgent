@@ -329,3 +329,47 @@ function livePhaseSummary(app,phase){
 }
 function liveModelCase(){const offer=(rt.overview?.model_offers?.offers||[]).find(o=>o.available===true);return `<div class="live-callout"><strong>${rl('仓库问答接口 case','Repository Q&A case')}</strong><p>${rl('使用仓库的合成 provider 测试待答问题、答复和保存输出；不调用真实 Codex，不消耗模型额度。启动后请在 55 秒内答复。','Uses a synthetic repository provider to test questions, replies and saved output. No live Codex or model quota. Reply within 55 seconds.')}</p><button class="hs-button" data-live-action="model-case" ${offer?liveDisabled():'disabled'}>${rl('启动离线问答案例','Start offline Q&A case')}</button></div>`;}
 function liveModelOutputs(){const actions=rt.modelHistory?.actions||[];return `<details class="live-model-history" ${actions.length?'open':''}><summary>${rl('Codex 内容任务记录','Codex content task history')} · ${actions.length}</summary>${actions.map(row=>`<article class="live-detail-block"><strong>${rx(row.status)}</strong><p>${rx(row.output_preview??row.refusal??row.error??'Unknown')}</p><small>${rx(row.key)}</small></article>`).join('')}</details>`;}
+
+// Shared Wiki shell presentation. Reads saved state only; never grants execution.
+function wikiShellState(app){
+ const say=(zh,en,tw=zh)=>translated(app,[zh,en,tw]);
+ const p=rt.overview?.project;
+ const bound=!!(p&&p.project_ref===rt.ref&&Number.isSafeInteger(p.input_version)&&p.input_version>0&&Number.isSafeInteger(p.revision)&&p.revision>0&&typeof p.brief_sha256==='string'&&/^[a-f0-9]{64}$/.test(p.brief_sha256));
+ const run=rt.savedRun,entry=run?.entry,b=run?.binding;
+ const saved=!!(entry&&b&&typeof entry.ref==='string'&&typeof entry.project_id==='string'&&entry.project_id&&entry.project_ref===rt.ref&&rt.ref==='view:'+entry.ref&&entry.ref===b.view_ref&&entry.project_id===b.project_id&&typeof entry.fixture==='boolean'&&entry.fixture===b.fixture);
+ const origin=saved?(entry.fixture?'synthetic':'archive'):'unknown';
+ const provenance=origin==='synthetic'?say('合成样例','Synthetic sample','合成樣例'):origin==='archive'?say('保存归档','Saved archive','儲存歸檔'):say('来历未标注','Provenance not supplied','來歷未標註');
+ let state='unavailable',now=say('尚未读取到本项目记录','Project records have not been read','尚未讀取到本專案紀錄'),next=say('查看原页面的读取提示','Check the existing read status','查看原頁面的讀取提示'),human=say('尚不据此启动任务','This does not start a task','尚不據此啟動任務');
+ if(rt.pending){state='pending';now=say('上次提交结果尚待核对','Previous submission is unconfirmed','上次提交結果尚待核對');next=say('使用原页面的“查询上次结果”','Use the existing Check outcome control','使用原頁面的「查詢上次結果」');human=say('请先核对，勿重复提交','Check the outcome before submitting again','請先核對，勿重複提交');}
+ else if(rt.error){state='error';now=say('读取或操作尚未完成','Read or operation did not complete','讀取或操作尚未完成');next=say('查看下方原因，使用原“刷新检查”','Read the reason below and use Refresh','查看下方原因，使用原「刷新檢查」');human=say('失败记录保留；请先核对原因','Failure is retained; check its reason first','失敗紀錄保留；請先核對原因');}
+ else if(rt.loading){state='loading';now=say('正在读取保存记录','Reading saved records','正在讀取儲存紀錄');next=say('等待本次读取完成','Wait for this read to finish','等待本次讀取完成');human=say('无需重复操作','No repeated action is needed','無需重複操作');}
+ else if(rt.busy){state='busy';now=say('正在处理你提交的操作','Processing your submitted action','正在處理你提交的操作');next=say('等候原操作的保存回执','Wait for the original action receipt','等候原操作的儲存回執');human=say('不要重复提交','Do not submit again','不要重複提交');}
+ else if(!rt.ref&&rt.meta&&!rt.list.length){state='empty';now=say('还没有保存的课题','No saved topic yet','還沒有儲存的課題');next=say('在上方输入标题并保存选题','Enter a title above and save the topic','在上方輸入標題並儲存選題');human=say('需要你提供题目；保存不启动研究','You provide the topic; saving does not start research','需要你提供題目；儲存不啟動研究');}
+ else if(bound||saved){state='saved';now=say('已读取当前项目的保存记录','Current project records are open','已讀取目前專案的儲存紀錄');next=say('查看本阶段的原结果和可用操作','Inspect this stage’s original results and available controls','查看本階段的原結果與可用操作');human=say('阅读不发任务；执行仍按原入口确认','Reading dispatches no work; execution uses the original confirmation','閱讀不發任務；執行仍按原入口確認');
+  const progress=app.stage===1&&bound?rt.overview?.stage1?.progress:null,pb=progress?.binding;
+  const same=pb&&['project_ref','input_version','revision','brief_sha256'].every(k=>pb[k]===p[k]);
+  const names={scope:['确认研究范围','Confirm scope','確認研究範圍'],planning:['查询规划','Query planning','查詢規劃'],query:['查询与来源','Queries and sources','查詢與來源'],screening:['文献筛选','Screening','文獻篩選'],reading:['阅读与证据','Reading and evidence','閱讀與證據'],coverage:['覆盖检查','Coverage check','覆蓋檢查'],delivery:['交付检查','Delivery check','交付檢查']};
+  const name=same?names[progress.next_action?.phase_id]:null;
+  if(name)next=translated(app,name)+say('；使用下方原操作','; use the original controls below','；使用下方原操作');
+ }
+ return {state,bound,saved,origin,provenance,now,next,human,source:saved?say('来自校验后的保存视图','From a validated saved view','來自校驗後的儲存視圖'):bound?say('来自本地 Harness 项目记录','From local Harness project records','來自本機 Harness 專案紀錄'):say('尚无可核对的数据来源','No verified record source yet','尚無可核對的資料來源'),raw:{project_ref:rt.ref??null,input_version:bound?p.input_version:null,revision:bound?p.revision:null,brief_sha256:bound?p.brief_sha256:null,fixture:saved?entry.fixture:null,provenance:origin==='unknown'?null:origin}};
+}
+function wikiShellMarkup(app){
+ if(app.page!=='workspace'||app.stage<1||app.stage>3)return '';
+ const v=wikiShellState(app),say=(zh,en,tw=zh)=>translated(app,[zh,en,tw]);
+ return `<section class="wiki-shell-state" data-wiki-shell data-shell-state="${v.state}" aria-label="${say('当前保存状态','Current saved state','目前儲存狀態')}"><div class="wiki-shell-badges"><span data-shell-origin="${v.origin}">${rx(v.provenance)}</span><span>${rx(v.source)}</span></div><dl><div><dt>${say('现在','Now','現在')}</dt><dd>${rx(v.now)}</dd></div><div><dt>${say('下一步','Next','下一步')}</dt><dd>${rx(v.next)}</dd></div><div><dt>${say('需要你','Your part','需要你')}</dt><dd>${rx(v.human)}</dd></div></dl><details data-shell-details><summary>${say('技术细节：原记录标识','Technical details: original record identity','技術細節：原紀錄識別碼')}</summary><pre>${rx(JSON.stringify(v.raw,null,2))}</pre></details></section>`;
+}
+function wikiShellMount(app){
+ const content=app.el?.querySelector('.hs-content');
+ if(!content?.querySelector||!content.insertAdjacentHTML)return;
+ const markup=wikiShellMarkup(app),previous=content.querySelector('[data-wiki-shell]');
+ if(previous&&previous.wikiShellMarkup===markup)return;
+ previous?.remove();
+ if(!markup)return;
+ const heading=content.querySelector('.hs-heading,.n9-stage-context');
+ if(heading)heading.insertAdjacentHTML('afterend',markup);else content.insertAdjacentHTML('afterbegin',markup);
+ const mounted=content.querySelector('[data-wiki-shell]');if(mounted)mounted.wikiShellMarkup=markup;
+}
+// End shared Wiki shell.
+const wikiShellPreviousAfter=v7AfterRender;
+v7AfterRender=function(app){wikiShellPreviousAfter(app);wikiShellMount(app);};
