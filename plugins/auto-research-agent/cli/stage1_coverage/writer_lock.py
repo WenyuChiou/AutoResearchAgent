@@ -254,6 +254,56 @@ def _owner_exited(record):
         kernel.CloseHandle(handle)
 
 
+def _verify_audit_owner(audit, identity):
+    reject_links(audit)
+    _need(
+        audit.is_dir() and audit.stat().st_dev == identity["volume"],
+        "writer-lock-audit-volume-differs",
+    )
+    marker = safe_path(audit, "owner.json")
+    try:
+        actual = _read_file(marker)
+    except FileNotFoundError:
+        raise LedgerError("writer-lock-audit-owner-differs") from None
+    _need(actual == _audit_owner(identity), "writer-lock-audit-owner-differs")
+
+
+def _audit_owner(identity):
+    return canonical(
+        {
+            "kind": "Stage1CoverageWriterLockAudit",
+            "schema_version": "1.0.0",
+            "run_identity": {
+                field: identity[field]
+                for field in (
+                    "machine_sha256",
+                    "volume",
+                    "directory_file_id",
+                    "physical_path_sha256",
+                )
+            },
+        }
+    )
+
+
+def _ensure_audit(audit, identity):
+    if not audit.exists():
+        # Publish a fully identified directory in one Windows no-replace step.
+        # A conflicting name is never adopted or written into implicitly.
+        with tempfile.TemporaryDirectory(
+            prefix=".writer-lock-audit-", dir=audit.parent
+        ) as staging:
+            with (Path(staging) / "owner.json").open("xb") as stream:
+                stream.write(_audit_owner(identity))
+                stream.flush()
+                os.fsync(stream.fileno())
+            try:
+                os.rename(staging, audit)
+            except FileExistsError:
+                pass
+    _verify_audit_owner(audit, identity)
+
+
 def _publish_proof(path, proof):
     # Fsync before publishing. A crash before publication leaves at most an
     # unused temporary audit file, outside the ledger and distinct from a lock.
@@ -316,6 +366,9 @@ def recover_writer_lock(run, expected_sha256):
         return proof
 
     def archived(status):
+        if not audit.exists():
+            return None
+        _verify_audit_owner(audit, identity)
         try:
             raw = _read_file(retired)
         except FileNotFoundError:
@@ -348,12 +401,7 @@ def recover_writer_lock(run, expected_sha256):
         raise LedgerError("writer-lock-sha256-differs")
     record = _decoded_owner(raw, identity)
     evidence = _owner_exited(record)
-    audit.mkdir(exist_ok=True)
-    reject_links(audit)
-    _need(
-        audit.is_dir() and audit.stat().st_dev == identity["volume"],
-        "writer-lock-audit-volume-differs",
-    )
+    _ensure_audit(audit, identity)
     if not receipt.exists():
         _publish_proof(
             receipt,
