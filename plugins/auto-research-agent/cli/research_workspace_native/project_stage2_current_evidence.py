@@ -148,7 +148,9 @@ def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
     }
 
 
-def current_evidence(delivery, credential, stage1, project, *, check_deadline=None):
+def current_evidence(
+    delivery, credential, stage1, project, *, check_deadline=None, on_received=None
+):
     """Return the current project's verified Stage 2 input or its actual blockers."""
     ref = project["project_ref"]
     ledger_view = stage1.get("ledger") or {}
@@ -223,7 +225,7 @@ def current_evidence(delivery, credential, stage1, project, *, check_deadline=No
                         project["brief"],
                         ledger.manifest["research_run"]["run_id"],
                     )
-                    return _receive(
+                    result = _receive(
                         intake,
                         view,
                         binding,
@@ -232,6 +234,13 @@ def current_evidence(delivery, credential, stage1, project, *, check_deadline=No
                         check_deadline,
                         check_owner,
                     )
+                    if result["status"] == "received" and on_received is not None:
+                        # The trusted connection writer uses its own intake
+                        # transactions. Keep the source owner and ledger locked
+                        # through that handoff; do not verify the package twice.
+                        intake.db.rollback()
+                        return on_received(result, binding, bound)
+                    return result
             finally:
                 intake.db.rollback()
     except SessionApiError as error:
