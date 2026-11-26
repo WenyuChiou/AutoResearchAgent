@@ -103,19 +103,21 @@ async function wikiStage2Load(state, submit) {
 function wikiStage2Panel(state) {
   const label = (zh, en, tw) => rl(zh, en, tw);
   const status = state.result?.status;
+  const reason = state.result?.reason;
+  const technical = state.error || (status === "blocked" && typeof reason === "string" && reason.trim() ? reason : "");
   const descriptions = {
     ready: label("项目已接入。可请求生成候选。", "This project is connected. You can request candidates.", "專案已接入。可請求產生候選。"),
     "request-saved": label("请求已保存。可查看处理状态。", "Request saved. You can check its status.", "請求已儲存。可查看處理狀態。"),
     running: label("正在处理此请求。", "This request is in progress.", "正在處理此請求。"),
     "candidate-ready": label("当前版本的候选已保存。", "Candidates saved for this version.", "目前版本的候選已儲存。"),
     "no-candidate": label("已有控制器回执。候选交付尚未保存。", "A controller receipt is saved. Candidate delivery is pending.", "已有控制器回執。候選交付尚未儲存。"),
-    "execution-unknown": label("已有请求。请由操作者核对原运行记录。", "A request exists. Ask the operator to check the retained run.", "已有請求。請由操作者核對原執行紀錄。"),
-    blocked: label("已保存的请求受阻。请由操作者检查交接。", "The saved request is blocked. Ask the operator to check the handoff.", "已儲存的請求受阻。請由操作者檢查交接。"),
-    "stage2-controller-not-connected": label("当前项目还缺受信操作者的 Stage 2 接入。", "This project is waiting for the operator to connect Stage 2.", "目前專案仍缺受信操作者的 Stage 2 接入。"),
+    "execution-unknown": label("请求已保存，结果还不清楚。请管理员核对原运行记录。", "A request exists. Ask the operator to check the retained run.", "已有請求。請由操作者核對原執行紀錄。"),
+    blocked: label("请求已保存，暂时无法继续。请管理员检查交接。", "The saved request is blocked. Ask the operator to check the handoff.", "已儲存的請求受阻。請由操作者檢查交接。"),
+    "stage2-controller-not-connected": label("这个课题的 Stage 2 还没接通。请联系项目管理员。", "This project is waiting for the operator to connect Stage 2.", "目前專案仍缺受信操作者的 Stage 2 接入。"),
     "stage2-continuation-activation-required": label("请先完成本项目的 Stage 2 启用。", "Complete Stage 2 activation for this project first.", "請先完成本專案的 Stage 2 啟用。"),
-    "stage2-continuation-original-admission-unavailable": label("原运行许可缺失或已过期。请联系操作者。", "The original run admission is missing or expired. Contact the operator.", "原執行許可缺失或已過期。請聯絡操作者。"),
+    "stage2-continuation-original-admission-unavailable": label("原运行许可缺失或已过期。请联系项目管理员。", "The original run admission is missing or expired. Contact the operator.", "原執行許可缺失或已過期。請聯絡操作者。"),
     "stage2-continuation-project-stale": label("当前输入版本和已接入作业不一致。请重新打开项目。", "Reopen the project. The input version has changed.", "目前輸入版本和已接入作業不一致。請重新開啟專案。"),
-    "stage2-continuation-result-not-current": label("保存的候选与当前记录不一致。请联系操作者。", "The saved candidates could not be verified for this version. Contact the operator.", "保存的候選與目前紀錄不一致。請聯絡操作者。"),
+    "stage2-continuation-result-not-current": label("保存的候选与当前记录不一致。请联系项目管理员。", "The saved candidates could not be verified for this version. Contact the operator.", "保存的候選與目前紀錄不一致。請聯絡操作者。"),
     "stage2-continuation-request-exists": label("已有请求。请查看保存状态。", "A request already exists. Check its saved status.", "已有請求。請查看儲存狀態。"),
     "stage2-continuation-worker-busy": label("另一个请求正在处理。请稍后再试。", "Another request is running. Try again shortly.", "另一個請求正在處理。請稍後再試。"),
   };
@@ -137,8 +139,9 @@ function wikiStage2Panel(state) {
       ${status === "ready" ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
       <button type="button" class="hs-button" data-wiki-stage2-action="read" ${state.busy ? "disabled" : ""}>${label("查看保存状态", "Check saved status", "查看儲存狀態")}</button>
     </div>
+    ${technical ? `<details><summary>${label("技术细节", "Technical details", "技術細節")}</summary><code>${rx(technical)}</code></details>` : ""}
     ${state.result?.synthetic_test_only ? `<p>${label("合成工程候选", "Synthetic engineering candidates", "合成工程候選")}</p>` : ""}
-    ${state.result?.human_selection === "pending" ? `<p>${label("等待人工选案", "Human selection pending", "等待人工選案")}</p>` : ""}
+    ${state.result?.human_selection === "pending" ? `<p>${label("等待你选择研究方向", "Human selection pending", "等待人工選案")}</p>` : ""}
     ${state.result?.assessment_status === "missing" ? `<p>${label("独立评估尚未提供", "Independent assessment unavailable", "獨立評估尚未提供")}</p>` : ""}
     ${status === "candidate-ready" && state.result.comparison ? `<p><strong>${state.result.comparison_is_input_baseline
       ? label("接入时的比较基线", "Comparison baseline at intake", "接入時的比較基線")
