@@ -63,7 +63,8 @@ class Stage2ControllerProfileTests(unittest.TestCase):
 
     def test_discovery_isolates_malformed_project_from_healthy_selection(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            # Use the physical directory we just created as the trusted test root.
+            root = Path(temp).resolve()
             intake = ProjectIntakeService(root, authenticate=lambda _: "local-viewer")
             try:
                 good, bad = (
