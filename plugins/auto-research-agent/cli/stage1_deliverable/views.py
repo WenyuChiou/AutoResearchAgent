@@ -522,7 +522,9 @@ def render(records, sources, *, review_format=REVIEW_FORMAT, journal=None):
             ]
         )
     result = {
-        "literature_catalog.xlsx": workbook_bytes(all_tables, empty_headers=empty_headers),
+        "literature_catalog.xlsx": workbook_bytes(
+            all_tables, empty_headers=empty_headers
+        ),
         "literature_review.md": markdown.encode("utf-8"),
         "literature_review.docx": docx_bytes(lines),
         "references.bib": bibtex(records),
