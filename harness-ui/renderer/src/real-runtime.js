@@ -46,8 +46,8 @@ function realLibrary(){
 }
 otherPage = function(app){
  if(!liveReal()||app.page!=='settings')return savedOtherPage(app);
- const m=rt.overview?.models,q=rt.overview?.stage1?.query_execution;
- return `${liveHeader(app)}<section class="hs-panel live-files"><h2>${rl('连接与额度','Connection & limits')}</h2><p>Harness ${rx(rt.meta.harness_head)} · Codex ${rx(rt.meta.model)}</p><p>${rl('模型任务状态','Model status')}: ${rx(m?.status)} · ${rl('已预留调用','Reserved calls')}: ${rx(m?.calls_reserved)}</p><p>${rl('查询状态','Query status')}: ${rx(q?.status)}</p><p>${rl('金额','Monetary cost')}: ${rx(rt.overview?.project?.monetary_cost)}</p><pre class="live-record">${rx(JSON.stringify(rt.overview?.project?.settings?.budgets||null,null,2))}</pre><p>${rl('Stage2 自动执行、持续 Codex 聊天尚未验收；登录或任务已启动不代表研究完成。','Automatic Stage2 and persistent Codex chat are not accepted yet; login or dispatch is not research completion.')}</p></section>`;
+ const diagnostic=connectionDiagnostics({ref:rt.ref,project:rt.overview?.project,models:rt.overview?.models,offers:rt.overview?.model_offers,error:rt.error,writeHeld:!!(rt.pending||rt.controlHeld)},Date.now());
+ return liveHeader(app)+connectionDiagnosticsHtml(diagnostic,app.lang);
 };
 livePost = async function(tail,body,ref=rt.ref){
   if(liveReal() && tail==='confirm') {
