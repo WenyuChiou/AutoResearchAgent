@@ -48,11 +48,21 @@ function wikiS1State(app, index) {
   return {paper, number:i+1, groups:state.groups.filter(group=>group.works.has(paper.work_id)),
    decision:screen.get(key), claims:claims.get(key)||[]};
  });
- if (!state.sources.some(row=>row.paper.work_id===state.selected)) {
-  state.selected = state.sources[0]?.paper.work_id;
-  state.focus = state.selected ? {kind:'paper',key:state.selected} : null;
- }
+ wikiS1SyncSelection(state);
  return state;
+}
+
+function wikiS1VisibleSources(state) {
+ const group = state.groups.find(row=>row.id===state.group);
+ return group ? state.sources.filter(row=>group.works.has(row.paper.work_id)) : state.sources;
+}
+
+function wikiS1SyncSelection(state) {
+ const visible = wikiS1VisibleSources(state);
+ if (state.selected && visible.some(row=>row.paper.work_id===state.selected)) return;
+ state.selected = visible[0]?.paper.work_id;
+ state.focus = state.selected ? {kind:'paper',key:state.selected} : null;
+ state.check = 'all';
 }
 
 function wikiS1Check(claim) {
@@ -83,12 +93,12 @@ function wikiS1PaperMeta(row) {
 
 function wikiS1SourceList(state) {
  const group = state.groups.find(row=>row.id===state.group);
- const sources = group ? state.sources.filter(row=>group.works.has(row.paper.work_id)) : state.sources;
+ const sources = wikiS1VisibleSources(state);
  const counts = Object.entries(wikiS1Decisions).map(([key,label]) =>
   [label,sources.filter(row=>(row.decision?.status || 'missing')===key).length]);
  return `<div class="wiki-s1-chips" role="group" aria-label="按需求分组筛选">
  <button type="button" data-s1-group="" aria-pressed="${!group}">全部 ${state.sources.length}</button>
- ${state.groups.filter(row=>row.works.size).map(row=>`<button type="button" data-s1-group="${esc(row.id)}" title="${esc(row.title)}" aria-pressed="${row===group}"><i style="--s1-color:${row.color}"></i>${esc(row.title)} ${row.works.size}</button>`).join('')}
+ ${state.groups.map(row=>`<button type="button" data-s1-group="${esc(row.id)}" title="${esc(row.title)}" aria-pressed="${row===group}"><i style="--s1-color:${row.color}"></i>${esc(row.title)} ${row.works.size}</button>`).join('')}
  </div><p class="wiki-s1-muted">筛选结果 · ${counts.filter(([label,count])=>label!=='未提供'||count).map(([label,count])=>label+' '+count).join(' · ')}（共 ${sources.length} 篇）</p>
  <div class="wiki-s1-list" ${sources.length>30?'data-s1-long-list':''}>${sources.map(row=>`<button type="button" data-s1-paper="${esc(row.paper.work_id)}" aria-pressed="${row.paper.work_id===state.selected}">
  <span class="wiki-s1-muted">${row.number}</span><span><strong>${esc(row.paper.title)}</strong><small>${wikiS1PaperMeta(row)} ${row.groups.map(g=>`<span><i style="--s1-color:${g.color}"></i>${esc(g.title)}</span>`).join(' ')} · ${row.claims.length} 条证据</small></span>
@@ -96,8 +106,8 @@ function wikiS1SourceList(state) {
 }
 
 function wikiS1Selected(state) {
- const row = state.sources.find(item=>item.paper.work_id===state.selected);
- if (!row) return '<p>请选择一篇文献。</p>';
+ const row = wikiS1VisibleSources(state).find(item=>item.paper.work_id===state.selected);
+ if (!row) return '<p>当前分组没有可查看的来源。</p>';
  return `<article class="wiki-s1-selection"><small>已选中 · 来源 ${row.number}</small><h3>${esc(row.paper.title)}</h3>
  <p>${wikiS1PaperMeta(row)}</p><button type="button" class="hs-button" data-s1-tab="evidence">看这篇的证据</button></article>`;
 }
@@ -121,8 +131,9 @@ function wikiS1Graph(state) {
 }
 
 function wikiS1Evidence(index, state) {
- const row = state.sources.find(item=>item.paper.work_id===state.selected);
- if (!row || !row.claims.length) return '<section class="wiki-s1-card"><h2>证据</h2><p>这篇文献还没有保存的证据。</p></section>';
+ const row = wikiS1VisibleSources(state).find(item=>item.paper.work_id===state.selected);
+ if (!row) return '<section class="wiki-s1-card"><h2>证据</h2><p>当前分组没有可查看的来源。</p></section>';
+ if (!row.claims.length) return '<section class="wiki-s1-card"><h2>证据</h2><p>这篇文献还没有保存的证据。</p></section>';
  const sourceById = new Map((index.sources || []).map(source=>[source.source_id,source]));
  const claims = row.claims.filter(claim=>state.check==='all'||wikiS1Check(claim)===state.check);
  return `<section class="wiki-s1-card"><h2>证据 · ${esc(row.paper.title)}</h2>
@@ -133,7 +144,12 @@ function wikiS1Evidence(index, state) {
   const located = Number.isSafeInteger(claim.start) && Number.isSafeInteger(claim.end) && claim.start < claim.end;
   const savedSource = sourceById.get(claim.source_id);
   let url;
-  try { const parsed = new URL(savedSource?.receipt?.final_url || savedSource?.url || row.paper.url); if (['http:','https:'].includes(parsed.protocol)) url = parsed.href; } catch (_) {}
+  if (located && claim.source_id && savedSource?.work_id===claim.work_id && savedSource.version_id===claim.version_id) {
+   try {
+    const parsed = new URL(savedSource.receipt?.final_url || savedSource.receipt?.source_url || savedSource.source_url);
+    if (['http:','https:'].includes(parsed.protocol)) url = parsed.href;
+   } catch (_) { /* Missing or invalid bound source URL. */ }
+  }
   return `<article class="wiki-s1-claim" data-s1-claim>
    <div><b data-s1-review="${check}">${wikiS1Checks[check]}</b><p class="wiki-s1-muted">${check==='unchecked'?'没有保存的人工核对结论':'记录标明由人工核对'}${verifier?.actor_type==='agent'?' · 有代理记录':''}</p></div>
    <div><strong>${esc(claim.text || '主张未提供')}</strong><blockquote>${esc(claim.quote || '引文原文未提供')}</blockquote>
@@ -253,11 +269,16 @@ function wikiS1SetMode(app,mode,graph=app.v7Spatial) {
 
 function wikiS1Filter(app, id) {
  const state=app.wikiS1, group=state.groups.find(row=>row.id===id);
+ const previous=state.selected;
  state.group=group?.id || '';
- state.focus=group ? {kind:'topic',key:group.title} : state.selected ? {kind:'paper',key:state.selected} : null;
+ wikiS1SyncSelection(state);
+ if (state.selected && state.selected===previous) {
+  state.focus=group ? {kind:'topic',key:group.title} : {kind:'paper',key:state.selected};
+ }
  app.v7Spatial?.setFocus(state.focus);
  const list=app.el.querySelector('[data-s1-list]');
  list.innerHTML=wikiS1SourceList(state);
+ app.el.querySelector('[data-s1-selected]').innerHTML=wikiS1Selected(state);
  [...list.querySelectorAll('[data-s1-group]')].find(button=>button.dataset.s1Group===state.group)?.focus({preventScroll:true});
 }
 

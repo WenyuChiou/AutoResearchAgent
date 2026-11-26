@@ -21,6 +21,7 @@ const ctx = vm.createContext({
 });
 const source = fs.readFileSync(path.join(__dirname,'wiki-stage1.js'),'utf8');
 vm.runInContext(source.slice(0,source.indexOf('const wikiS1CanonicalResults')),ctx);
+vm.runInContext(source.slice(source.indexOf('function wikiS1Select('),source.indexOf('const wikiS1After')),ctx);
 assert.equal(ctx.wikiS1Index(),index);
 rt.atlas.revision--;
 assert.equal(ctx.wikiS1Index(),null,'previous-version result must not be displayed');
@@ -36,4 +37,52 @@ assert.match(evidence,/&lt;q&gt; text/);
 assert.doesNotMatch(evidence,/<q> text/);
 assert.match(ctx.wikiS1Synthesis(state),/当前交付没有跨文献综合记录/);
 assert.match(ctx.wikiS1Synthesis(state),/1 \/ 1/);
-console.log('PASS Stage 1 bound projection, source/version pairing, evidence state, locator, escaping and missing synthesis.');
+
+const list = {innerHTML:'',querySelectorAll:()=>[]};
+const card = {};
+const graph = {setFocus(focus){this.focus=focus;},setMode(mode){this.mode=mode;}};
+const app = {el:{querySelector:selector=>selector==='[data-s1-list]'?list:card,querySelectorAll:()=>[]},v7Spatial:graph};
+const grouped = {
+ papers:['a','b'].map(key=>({work_id:key,version_id:'1',title:'Paper '+key})),
+ coverage:['a','b'].map(key=>({need_id:key,description:'Group '+key,work_ids:[key]})),
+ claims:['a','b'].map(key=>({work_id:key,version_id:'1',text:'Claim '+key}))
+};
+grouped.coverage.push({need_id:'empty',description:'Empty group',work_ids:[]});
+ctx.wikiS1State(app,grouped).check='supports';
+ctx.wikiS1Filter(app,'b');
+assert.deepEqual([...list.innerHTML.matchAll(/data-s1-paper="(.*?)"/g)].map(match=>match[1]),['b']);
+assert.match(list.innerHTML,/data-s1-paper="b" aria-pressed="true"/);
+assert.match(card.innerHTML,/Paper b/);
+assert.equal(graph.focus.key,'b');
+assert.equal(app.wikiS1.check,'all');
+assert.match(ctx.wikiS1Evidence(grouped,app.wikiS1),/Claim b/);
+assert.doesNotMatch(ctx.wikiS1Evidence(grouped,app.wikiS1),/Claim a|Paper a/);
+for (const mode of [2,3]) {
+ ctx.wikiS1SetMode(app,mode);
+ assert.equal(graph.mode,mode);
+ assert.equal(app.wikiS1.group,'b');
+ assert.equal(app.wikiS1.selected,'b');
+ assert.equal(graph.focus.key,'b');
+}
+ctx.wikiS1Filter(app,'empty');
+assert.equal(app.wikiS1.selected,undefined);
+assert.equal(graph.focus,null);
+assert.match(list.innerHTML,/这个分组没有来源/);
+assert.match(card.innerHTML,/当前分组没有可查看的来源/);
+assert.match(ctx.wikiS1Evidence(grouped,ctx.wikiS1State(app,grouped)),/当前分组没有可查看的来源/);
+assert.doesNotMatch(ctx.wikiS1Evidence(grouped,app.wikiS1),/Claim [ab]/);
+ctx.wikiS1Filter(app,'');
+assert.equal(app.wikiS1.selected,'a');
+
+const landing = {work_id:'work-1',version_id:'1',title:'Engineering fixture',url:'https://example.invalid/paper-landing'};
+const metadata = {work_id:'work-1',version_id:'1',source_id:null,locator:null,relation:'pending',text:'Discovery metadata only',quote:null};
+const missing = {papers:[landing],sources:[],claims:[metadata],coverage:[]};
+const renderEvidence = value => ctx.wikiS1Evidence(value,ctx.wikiS1State({},value));
+assert.match(renderEvidence(missing),/原文链接未提供/);
+assert.doesNotMatch(renderEvidence(missing),/<a |paper-landing/);
+const sourceRecord = {source_id:'source-1',work_id:'work-1',version_id:'1',receipt:{source_url:'https://example.invalid/bound-source'}};
+const located = {...metadata,source_id:'source-1',locator:'characters 1:4',start:1,end:4};
+assert.match(renderEvidence({...missing,sources:[sourceRecord],claims:[located]}),/href="https:\/\/example\.invalid\/bound-source"/);
+assert.doesNotMatch(renderEvidence({...missing,sources:[{...sourceRecord,version_id:'2'}],claims:[located]}),/<a /);
+assert.doesNotMatch(renderEvidence({...missing,sources:[sourceRecord],claims:[{...metadata,source_id:'source-1'}]}),/<a /);
+console.log('PASS Stage 1 disjoint/empty groups, dimension retention, and bound evidence URLs.');

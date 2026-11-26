@@ -1,5 +1,6 @@
 """Read Stage 1 in the production Wiki against a same-checkout, zero-call Core fixture."""
 import argparse
+from collections import Counter
 from contextlib import closing
 from hashlib import sha256
 import json
@@ -17,6 +18,25 @@ from check_wiki_home_browser import Browser, REPO, UI, process, wait
 PLUGIN = REPO / "plugins/auto-research-agent"
 sys.path.insert(0, str(PLUGIN / "tests"))
 from current_core_stage12_fixtures import current_core_stage1_case  # noqa: E402
+
+
+class Stage1Browser(Browser):
+    def __init__(self, port):
+        super().__init__(port)
+        self.clicks = []
+        self.readbacks = []
+
+    def click(self, selector):
+        attempt = {"selector":selector, "dispatched":False}
+        self.clicks.append(attempt)
+        super().click(selector)
+        attempt["dispatched"] = True
+
+    def write_trace(self, evidence, error):
+        counts = Counter(click["selector"] for click in self.clicks)
+        trace = {"click_count":len(self.clicks), "by_selector":dict(counts), "clicks":self.clicks,
+                 "readbacks":self.readbacks, "failure":repr(error) if error else None}
+        (evidence / "stage1-click-trace.json").write_text(json.dumps(trace,indent=2,ensure_ascii=False), encoding="utf-8")
 
 
 def state_counts(root):
@@ -48,7 +68,6 @@ def stage1_browser(browser, url, fixture, evidence, design):
     browser.origin = url.rstrip("/")
     ref = fixture["project_ref"]
     browser.open(url + f"#{ref}?stage=1&lang=zh-CN")
-    browser.see("[data-wiki-s1]")
     browser.cdp("Emulation.setDeviceMetricsOverride", width=1440, height=1560, deviceScaleFactor=1, mobile=False)
     browser.cdp("Emulation.setEmulatedMedia", features=[{"name":"prefers-reduced-motion","value":"reduce"}])
     browser.ws.settimeout(90)
@@ -57,9 +76,12 @@ def stage1_browser(browser, url, fixture, evidence, design):
         assert browser.js("!!document.querySelector('[data-s1-paper]')")
     except AssertionError as error:
         status = browser.js("""({hash:location.hash, summary:document.querySelector('[data-shell-details] pre')?.textContent,
-            error:document.querySelector('.live-error')?.textContent, state:document.querySelector('[data-shell-state]')?.dataset.shellState})""")
+            error:document.querySelector('.live-error')?.textContent, state:document.querySelector('[data-shell-state]')?.dataset.shellState,
+            refreshAvailable:!!document.querySelector('.hs-content .live-error [data-live-action="refresh"]:not(:disabled)')})""")
         print(json.dumps({"stage1_not_loaded":status,"browser_errors":browser.errors}, ensure_ascii=False), flush=True)
-        print(json.dumps({"project_count":len(browser.get("/api/projects"))}, ensure_ascii=False), flush=True)
+        requests = browser.js("""performance.getEntriesByType('resource').filter(row=>row.name.includes('/api/'))
+            .map(row=>({path:new URL(row.name).pathname, status:row.responseStatus, ms:Math.round(row.duration)}))""")
+        print(json.dumps({"api_requests":requests}, ensure_ascii=False), flush=True)
         raise error
     meta = browser.get("/v7-case.json")
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
@@ -89,12 +111,15 @@ def stage1_browser(browser, url, fixture, evidence, design):
     status = wait(lambda: browser.js(f"""{diagnostics} || (document.querySelector('[data-s1-fallback]:not([hidden])')?.textContent)"""))
     browser.click("[data-s1-paper]")
     assert browser.js("document.querySelector('[data-s1-paper][aria-pressed=true]').dataset.s1Paper") == key
+    browser.readbacks.append({"after_click":len(browser.clicks), "selected_source":key})
     if not isinstance(status, dict) or status["mode"] != 3:
         mode_error = {"fallback":status, "error":browser.js("document.querySelector('[data-wiki-s1-atlas]')?.dataset.wikiS1GraphError")}
     else:
         assert status["papers"] == len(index["papers"]) and status["depthRange"] > 0
         browser.click("[data-s1-group]:not([data-s1-group=''])")
-        assert browser.js("document.querySelector('[data-s1-group][aria-pressed=true]').dataset.s1Group")
+        group = browser.js("document.querySelector('[data-s1-group][aria-pressed=true]').dataset.s1Group")
+        assert group
+        browser.readbacks.append({"after_click":len(browser.clicks), "group":group})
         browser.click("[data-s1-paper]")
         for mode in (3,2,3):
             browser.click(f"[data-s1-mode='{mode}']")
@@ -103,12 +128,14 @@ def stage1_browser(browser, url, fixture, evidence, design):
             assert current["navigation"]["mode"] == ("pan" if mode == 2 else "rotate")
             assert browser.js("document.querySelector('[data-s1-paper][aria-pressed=true]').dataset.s1Paper") == key
             assert browser.js("document.querySelector('[data-s1-group][aria-pressed=true]').dataset.s1Group")
+            browser.readbacks.append({"after_click":len(browser.clicks), "atlas_mode":mode, "selected_source":key})
             if mode == 2:
                 browser.screenshot(evidence / "stage1-graph-2d.png")
         labels = "[data-wiki-s1-atlas] button[data-node-kind='paper']"
         wait(lambda: browser.js(f"[...document.querySelectorAll({json.dumps(labels)})].some(el => getComputedStyle(el).visibility==='visible')"))
         browser.click(labels)
         assert browser.js(diagnostics)["focus"]["key"] == key
+        browser.readbacks.append({"after_click":len(browser.clicks), "atlas_focus":key})
     browser.screenshot(evidence / "stage1-sources.png")
 
     browser.click("[data-s1-selected] [data-s1-tab=evidence]")
@@ -118,15 +145,22 @@ def stage1_browser(browser, url, fixture, evidence, design):
     located = [claim for claim in claims if claim["locator"]]
     assert located and browser.js("[...document.querySelectorAll('[data-s1-claim]')].some(node=>node.textContent.includes('保存文本第'))")
     assert browser.js("document.querySelectorAll('[data-s1-review=unchecked]').length") == len(claims)
+    evidence_links = browser.js("""[...document.querySelectorAll('[data-s1-claim]')].map(row=>row.querySelector('a')?.href || null)""")
+    assert any(not claim["source_id"] for claim in claims)
+    assert all(link is None for claim,link in zip(claims,evidence_links) if not claim["source_id"] or not claim["locator"])
+    browser.readbacks.append({"after_click":len(browser.clicks), "evidence_rows":len(claims), "located":len(located),
+                             "evidence_links":sum(link is not None for link in evidence_links)})
     assert browser.js("document.documentElement.scrollWidth <= innerWidth")
     browser.screenshot(evidence / "stage1-evidence.png")
     browser.click("[data-s1-check=supports]")
     browser.see("[data-wiki-s1] [role=status]")
+    browser.readbacks.append({"after_click":len(browser.clicks), "supports_filter_empty":True})
     browser.click("#wiki-s1-synthesis")
     browser.see(".wiki-s1-synthesis")
     assert "当前交付没有跨文献综合记录" in browser.js("document.querySelector('.wiki-s1-synthesis').textContent")
     assert browser.js("document.querySelectorAll('.wiki-s1-bar').length") == len(index["coverage"])
     assert browser.js("document.documentElement.scrollWidth <= innerWidth")
+    browser.readbacks.append({"after_click":len(browser.clicks), "synthesis_missing":True, "groups":len(index["coverage"])})
     browser.screenshot(evidence / "stage1-synthesis.png")
     for name in ("sources", "evidence", "synthesis"):
         compare(evidence, design, name)
@@ -211,10 +245,15 @@ raise SystemExit(run_v9.main())
         with process(chrome, root / "chrome.log"):
             port_file = profile / "DevToolsActivePort"
             port = wait(lambda: port_file.read_text().splitlines()[0] if port_file.exists() else None)
-            browser = Browser(port)
+            browser = Stage1Browser(port)
+            failure = None
             try:
                 result = stage1_browser(browser, url, fixture, args.evidence, args.design)
+            except Exception as error:
+                failure = error
+                raise
             finally:
+                browser.write_trace(args.evidence, failure)
                 browser.ws.close()
     after = state_counts(case.intake_root)
     result["server_counts_before"] = before
@@ -227,14 +266,18 @@ raise SystemExit(run_v9.main())
         result["observed_stage2_receipt"] = stage2_receipt(case.intake_root, fixture["project_ref"])
     (args.evidence / "stage1-observations.json").write_text(json.dumps(result,indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False), flush=True)
-    assert case.runner.call_count == 0, result
-    if args.normal_listener:
-        receipt = result["observed_stage2_receipt"]
-        assert receipt["status"] == "saved" and receipt["execution_authorized"] is False, result
-        assert result["server_mutations"] == {"intake_actions":1, "intake_events":2}, result
-    else:
-        assert after == before, result
-    assert result["native_3d_2d_3d"], result["graph_failure"]
+    try:
+        assert case.runner.call_count == 0, result
+        if args.normal_listener:
+            receipt = result["observed_stage2_receipt"]
+            assert receipt["status"] == "saved" and receipt["execution_authorized"] is False, result
+            assert result["server_mutations"] == {"intake_actions":1, "intake_events":2}, result
+        else:
+            assert after == before, result
+        assert result["native_3d_2d_3d"], result["graph_failure"]
+    except AssertionError as error:
+        browser.write_trace(args.evidence, error)
+        raise
     print("PASS built Wiki V1 Stage 1: source, native atlas, evidence, synthesis, and English compatibility.")
 
 
