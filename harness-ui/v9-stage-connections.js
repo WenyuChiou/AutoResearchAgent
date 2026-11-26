@@ -21,6 +21,19 @@ function v9ConnectionCurrent(view) {
     app?.page === 'workspace' && v9ConnectionStages[app.stage] === view.stage &&
     basis && v9ConnectionFields.every(key => basis[key] === view.basis[key]);
 }
+const v9ConnectionPaint = livePaint;
+livePaint = function () {
+  const view = v9ConnectionView, app = apps[0];
+  const selector = '[data-v9-connection-panel] h2';
+  const heading = view?.stage === 'stage2-controller' && v9ConnectionCurrent(view)
+    ? app.el?.querySelector(selector) : null;
+  const restore = heading && document.activeElement === heading;
+  const result = v9ConnectionPaint();
+  // Async readbacks replace the DOM. Restore only the heading the user was still focused on.
+  if (restore && document.activeElement === document.body && v9ConnectionCurrent(view))
+    app.el.querySelector(selector)?.focus({preventScroll:true});
+  return result;
+};
 function v9ConnectionConnected(stage) {
   const view = v9ConnectionView;
   return v9ConnectionCurrent(view) && view.stage === stage && !view.error &&

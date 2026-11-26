@@ -32,6 +32,7 @@ function browserFixture() {
       const tail=path.split('/').slice(4).join('/');
       calls.push({tail, body:body&&structuredClone(body)});
       if(tail==='overview' && changes.missingProject)return {};
+      if(tail==='stage2/continuation' && changes.waitContinuation)await changes.waitContinuation;
       if(tail==='stage2/continuation' && changes.continuationError)throw Object.assign(Error(changes.continuationError),{status:409});
       if(tail==='stage2/selection' && changes.receiveDelta){project.revision+=changes.receiveDelta;delete changes.receiveDelta;}
       if(tail==='stage2/selection')return {...project,kind:'Stage2SelectionView',delivery_manifest_sha256:'1'.repeat(64),snapshot_sha256:'2'.repeat(64),delivery_workflow_head_sha256:'3'.repeat(64),execution_authorized:false,...changes.selectionView};
@@ -289,6 +290,44 @@ async function exerciseUnreadyStage2() {
   check(!errors.length,errors.join(' | '));
 }
 
+async function exerciseStage2ConnectionFocus() {
+  const tick=()=>new Promise(resolve=>setTimeout(resolve,10));
+  const heading=()=>app.el.querySelector('[data-v9-connection-panel] h2');
+  const outside=document.createElement('button');
+  document.body.append(outside);
+  const failures=[];
+  for (const [read,move] of [
+    ['connections',null],['connections','outside'],['connections','stage'],
+    ['continuation',null],['continuation','outside'],['continuation','project'],
+  ]) {
+    let release;
+    const pending=new Promise(resolve=>{release=resolve;});
+    window.changes={continuationError:'stage2-controller-not-connected',status:'unavailable',
+      reason:'stage2-controller-profile-unavailable',row:{profile_sha256:null}};
+    if (read==='connections') changes.wait=pending;
+    calls.length=0;app.stage=2;
+    await liveRefresh();await tick();
+    const next=app.el.querySelector('[data-wiki-stage2-action="connection"]');
+    const requests=calls.length;
+    next.click();
+    if (document.activeElement!==heading() || calls.length!==requests)
+      failures.push('focus the same heading without a request');
+    if (read==='continuation') {
+      changes.waitContinuation=pending;
+      app.el.querySelector('[data-wiki-stage2-action="read"]').click();
+    }
+    if (move==='outside') outside.focus();
+    if (move==='stage') {app.stage=3;livePaint();}
+    if (move==='project') {rt.ref='SYNTHETIC-B';rt.epoch++;livePaint();}
+    release();await tick();
+    const expected=move==='outside'?outside:move?document.body:heading();
+    if (document.activeElement!==expected)
+      failures.push(read+(move?' preserves navigation or new focus ('+move+')':' retains heading after repaint'));
+    if (calls.some(call=>call.body)) failures.push('no POST during discovery');
+  }
+  if (failures.length) throw Error(failures.join(' | '));
+}
+
 async function exerciseStaticPlanningRead() {
   const controller = {status:'unavailable',reason:'stage2-controller-profile-unavailable',
     profile_sha256:null,connection_id:null,receipt_id:null};
@@ -365,5 +404,7 @@ test('SYNTHETIC stage connections through the served renderer functions and real
   ()=>runChromeExercise(exercise));
 test('SYNTHETIC ordinary Stage 2 saved-status control and original not-connected 409',
   ()=>runChromeExercise(exerciseUnreadyStage2));
+test('SYNTHETIC Stage 2 keeps the connection heading focused during discovery repaint',
+  ()=>runChromeExercise(exerciseStage2ConnectionFocus));
 test('SYNTHETIC Stage 3 static saved planning on the Stage 2-only Host contract',
   ()=>runChromeExercise(exerciseStaticPlanningRead));
