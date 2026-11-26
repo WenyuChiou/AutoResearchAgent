@@ -187,9 +187,48 @@
   const ref=()=>el("project").value;
   const current=(project,sequence)=>ref()===project && serial===sequence;
   const requestIdentity=(project,request)=>JSON.stringify([project,request?.key,request?.request_sha256]);
-  const remember=(data,project)=>{view=data;viewProject=project;readAt=new Date().toISOString();};
+  const remember=(data,project)=>{if(data.project_ref!==undefined&&data.project_ref!==project)throw new Error("stage3-project-binding-differs");view=data;viewProject=project;readAt=new Date().toISOString();};
   const node=(parent,tag,text)=>{const n=document.createElement(tag);n.textContent=String(text ?? "Unknown");parent.append(n);return n;};
   const rows=value=>Array.isArray(value)?value:[];
+  const reviewPanel=document.createElement("section");reviewPanel.className="sq-record";reviewPanel.dataset.planReview="";reviewPanel.hidden=true;el("progress").append(reviewPanel);
+  function renderPlanReview(){
+    reviewPanel.replaceChildren();reviewPanel.hidden=!view?.plan;if(!view?.plan)return;
+    const labels={
+      en:{title:"Plan review and decision",project:"Current project / input version",plan:"Plan / version",missing:"A matching review and decision are not available; the plan and its unknowns remain saved.",synthetic:"Synthetic engineering review, not a human review.",review:"Review identifier",identity:"Reviewer kind / identity authenticated",findings:"Recorded finding counts",noReview:"No review is recorded.",noDecision:"No human decision is recorded; research will not start from this read.",decision:"Recorded decision / verification status / identity authenticated",next:"Plan status / next step",reason:"Recorded missing requirement",details:"Bound version, full hashes and saved record"},
+      "zh-CN":{title:"计划评审与决定",project:"当前项目 / 输入版本",plan:"计划 / 版本",missing:"尚未取得与此计划匹配的评审与决定；保留计划和待查事项。",synthetic:"合成工程评审，不是真人评审。",review:"评审标识",identity:"评审者类型 / 身份已核验",findings:"原结论计数",noReview:"评审尚未记录。",noDecision:"尚未记录真人决定；不会据此启动研究。",decision:"原决定 / 核验状态 / 身份已核验",next:"计划状态 / 下一步",reason:"原缺件原因",details:"对应版本、完整摘要与原记录"},
+      "zh-TW":{title:"計畫評審與決定",project:"目前專案 / 輸入版本",plan:"計畫 / 版本",missing:"尚未取得與此計畫匹配的評審與決定；保留計畫及待查事項。",synthetic:"合成工程評審，不是真人評審。",review:"評審識別",identity:"評審者類型 / 身分已核驗",findings:"原結論計數",noReview:"評審尚未記錄。",noDecision:"尚未記錄真人決定；不會據此啟動研究。",decision:"原決定 / 核驗狀態 / 身分已核驗",next:"計畫狀態 / 下一步",reason:"原缺件原因",details:"對應版本、完整摘要與原紀錄"}
+    }[el("language").value] || {};
+    const saved=view.plan_review,plan=view.plan,job=view.job,identity=saved?.identity,planPin=view.feedback?.binding?.parent_plan_sha256;
+    const expected={project_ref:view.project_ref,input_version:view.input_version,revision:view.revision,brief_sha256:view.brief_sha256,
+      selection_request_sha256:view.selection_request_sha256,job_request_sha256:job?.request_sha256,
+      source_manifest_sha256:plan.source_manifest_sha256,plan_manifest_sha256:job?.plan_manifest_sha256,plan_id:plan.plan_id,plan_version:plan.version};
+    const bound=saved?.readback_status==="bound"&&view.project_ref===ref()&&view.selection_status==="recorded"&&job?.outcome==="saved"&&job.project_ref===view.project_ref&&
+      Object.entries(expected).every(([key,value])=>value!==undefined&&value!==null&&identity?.[key]===value)&&
+      /^[a-f0-9]{64}$/.test(identity?.plan_sha256 || "")&&
+      /^[a-f0-9]{64}$/.test(planPin || "")&&identity.plan_sha256===planPin;
+    const value=x=>x===undefined?w().unknownValue:x===null?"null":String(x);
+    const short=x=>{const text=value(x);return text.length>36?text.slice(0,20)+"…"+text.slice(-8):text;};
+    const row=(label,text)=>node(reviewPanel,"p",label+": "+value(text));
+    node(reviewPanel,"h2",labels.title);row(labels.project,short(view.project_ref)+" / "+value(view.input_version));row(labels.plan,short(plan.plan_id)+" / v"+value(plan.version));
+    if(!bound){
+      const reason=saved?.readback_status==="bound"?(!/^[a-f0-9]{64}$/.test(planPin || "")?"stage3-plan-review-plan-pin-unavailable":"stage3-plan-review-binding-differs"):saved?.reason || "stage3-plan-review-not-provided";
+      node(reviewPanel,"p",labels.missing+" ("+value(reason)+")");return;
+    }
+    const review=saved.review,decision=saved.decision;
+    if(review){
+      if(review.reviewer_kind==="synthetic")node(reviewPanel,"p",labels.synthetic);
+      row(labels.review,short(review.sha256));row(labels.identity,value(review.reviewer_kind)+" / "+value(review.identity_authenticated));
+      node(reviewPanel,"h3",labels.findings);const list=node(reviewPanel,"ul","");
+      const findings=Object.entries(review.finding_counts || {});
+      if(!findings.length)node(list,"li",w().unknownValue);
+      for(const [key,count] of findings)node(list,"li",key+": "+value(count));
+    }else node(reviewPanel,"p",labels.noReview);
+    if(decision)row(labels.decision,value(decision.decision)+" / "+value(decision.status)+" / "+value(decision.identity_authenticated));
+    else node(reviewPanel,"p",labels.noDecision);
+    row(labels.next,value(saved.planning_status)+" / "+value(saved.next_action));
+    if(saved.reason)row(labels.reason,saved.reason);
+    const details=node(reviewPanel,"details","");node(details,"summary",labels.details);node(details,"pre",JSON.stringify(saved,null,2));
+  }
   const missing=(parent,id)=>{const p=node(parent,"p",w().missingRef+": "+String(id ?? w().unknownValue));p.className="sq-missing";};
   function fields(parent,record,keys,displayKeys={}){
     const dl=node(parent,"dl","");dl.className="sq-fields";
@@ -267,7 +306,7 @@
     const box=el("evidence-state");box.hidden=!view;box.replaceChildren();if(!view)return;
     node(box,"h2",w().evidenceState);node(box,"p",w().recordStatus+": "+([view.job?.status,view.job?.outcome,view.job?.planning_status].filter(v=>v!==undefined && v!==null).join(" / ") || w().unknownValue));
     if(view.planning_mode==="direction-intent"){node(box,"p",w().directionMode);node(box,"p",w().planningWork);}
-    node(box,"p",w().reviewLimit);node(box,"p",w().evalLimit);
+    if(!view.plan_review)node(box,"p",w().reviewLimit);node(box,"p",w().evalLimit);
     const details=node(box,"details","");node(details,"summary",w().evidenceDetails);
     fields(details,view.plan,["plan_id","version","schema_version","source_manifest_sha256"]);
     fields(details,view,["execution_authorized","evaluation_calls_authorized","formal_execution_enabled","external_claim_ready","usable_for_formal_pairing"]);
@@ -375,11 +414,12 @@
     if(view && readAt && (reading || readFailed))el("status").textContent+=" · "+w().lastVerified+": "+readAt+" · "+w().inputVersionLabel+": "+JSON.stringify(view.input_version ?? null)+" · "+w().revisionLabel+": "+String(view.revision ?? w().unknownValue);
     el("refresh").textContent=readFailed?w().retryRead:w().refresh;
     if(el("status").setAttribute){el("status").setAttribute("role","status");el("status").setAttribute("aria-live","polite");}
-    renderEvidence();el("plan").hidden=!(view?.plan || view?.direction_context);if(view?.planning_mode==="direction-intent")renderDirectionPlan();else renderScientificPlan(view?.plan);
+    renderPlanReview();renderEvidence();el("plan").hidden=!(view?.plan || view?.direction_context);if(view?.planning_mode==="direction-intent")renderDirectionPlan();else renderScientificPlan(view?.plan);
     const diagram=el("plan-diagram");diagram.replaceChildren();
     if(view?.plan && window.STAGE3_RESEARCH_DIAGRAM)window.STAGE3_RESEARCH_DIAGRAM.mount(diagram,view,{language:el("language").value});
     el("plan-json").textContent=view?.plan?JSON.stringify(view.plan,null,2):"";
-    el("receipt").textContent=view?JSON.stringify({...view,plan:undefined,client_read:{read_at_utc:readAt,displaying_last_verified:reading || readFailed}},null,2):"";
+    // Only the matching projection above may expose review details; raw foreign records stay hidden.
+    el("receipt").textContent=view?JSON.stringify({...view,plan:undefined,plan_review:undefined,client_read:{read_at_utc:readAt,displaying_last_verified:reading || readFailed}},null,2):"";
   }
   async function load(){
     const project=ref();if((busy && viewProject===project) || (reading && readingProject===project))return;

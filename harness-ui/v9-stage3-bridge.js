@@ -226,6 +226,40 @@ function v93SavedPlanSummary(view){
  }).join('');
  return `<section class="n9-plan-overview"><h2>${rl('已保存的规划摘要','Saved planning summary','已保存的規劃摘要')}</h2><p class="n9-plan-state">${plan.planning_status==='conditional-draft'?rl('条件式草案','Conditional draft','條件式草案'):rl('规划草案','Planning draft','規劃草案')} · ${rl('尚未执行实验','Experiments have not been run','尚未執行實驗')}</p>${lead?`<p class="n9-plan-lead">${rx(lead)}</p>`:''}${content}</section>`;
 }
+function v93PlanReview(view){
+ if(!view?.plan)return '';
+ const saved=view.plan_review,plan=view.plan,job=view.job,identity=saved?.identity,planPin=view.feedback?.binding?.parent_plan_sha256;
+ const expected={project_ref:view.project_ref,input_version:view.input_version,revision:view.revision,brief_sha256:view.brief_sha256,
+  selection_request_sha256:view.selection_request_sha256,job_request_sha256:job?.request_sha256,
+  source_manifest_sha256:plan.source_manifest_sha256,plan_manifest_sha256:job?.plan_manifest_sha256,plan_id:plan.plan_id,plan_version:plan.version};
+ // The Host owns archive validation. Never attach a different identity to this displayed plan.
+ const bound=saved?.readback_status==='bound'&&view.selection_status==='recorded'&&job?.outcome==='saved'&&job.project_ref===view.project_ref&&
+  Object.entries(expected).every(([key,value])=>value!==undefined&&value!==null&&identity?.[key]===value)&&
+  /^[a-f0-9]{64}$/.test(identity?.plan_sha256||'')&&
+  /^[a-f0-9]{64}$/.test(planPin||'')&&identity.plan_sha256===planPin;
+ const value=x=>x===undefined?rl('Unknown / 未提供','Unknown / not supplied','Unknown / 未提供'):x===null?'null':String(x);
+ const short=x=>{const text=value(x);return text.length>36?text.slice(0,20)+'…'+text.slice(-8):text;};
+ const field=(label,x)=>`<p><strong>${label}:</strong> ${rx(value(x))}</p>`;
+ let content=`<p>${rl('当前项目','Current project','目前專案')}: ${rx(short(view.project_ref))} · ${rl('输入版本','Input version','輸入版本')}: ${rx(value(view.input_version))} · ${rl('计划','Plan','計畫')}: ${rx(short(plan.plan_id))} · v${rx(value(plan.version))}</p>`;
+ if(!bound){
+  const reason=saved?.readback_status==='bound'?(!/^[a-f0-9]{64}$/.test(planPin||'')?'stage3-plan-review-plan-pin-unavailable':'stage3-plan-review-binding-differs'):saved?.reason||'stage3-plan-review-not-provided';
+  content+=`<p role="status">${rl('尚未取得与此计划匹配的评审与决定；保留计划和待查事项。','A matching review and decision are not available; the plan and its unknowns remain saved.','尚未取得與此計畫匹配的評審與決定；保留計畫及待查事項。')} (${rx(value(reason))})</p>`;
+ }else{
+  const review=saved.review,decision=saved.decision;
+  if(review){
+   content+=`<p>${review.reviewer_kind==='synthetic'?rl('合成工程评审，不是真人评审。','Synthetic engineering review, not a human review.','合成工程評審，不是真人評審。'):rl('已保存的评审；身份状态按原记录显示。','Saved review; reviewer identity status is shown as recorded.','已保存的評審；身分狀態按原紀錄顯示。')}</p>`;
+   content+=field(rl('评审标识','Review identifier','評審識別'),short(review.sha256));
+   content+=field(rl('评审者类型 / 身份已核验','Reviewer kind / identity authenticated','評審者類型 / 身分已核驗'),value(review.reviewer_kind)+' / '+value(review.identity_authenticated));
+   content+=`<h3>${rl('原结论计数','Recorded finding counts','原結論計數')}</h3><ul>${Object.entries(review.finding_counts||{}).map(([key,count])=>`<li>${rx(key)}: ${rx(value(count))}</li>`).join('')||`<li>${rx(value(undefined))}</li>`}</ul>`;
+  }else content+=`<p>${rl('评审尚未记录。','No review is recorded.','評審尚未記錄。')}</p>`;
+  content+=decision?field(rl('原决定 / 核验状态 / 身份已核验','Recorded decision / verification status / identity authenticated','原決定 / 核驗狀態 / 身分已核驗'),value(decision.decision)+' / '+value(decision.status)+' / '+value(decision.identity_authenticated)):
+   `<p role="status">${rl('尚未记录真人决定；不会据此启动研究。','No human decision is recorded; research will not start from this read.','尚未記錄真人決定；不會據此啟動研究。')}</p>`;
+  content+=field(rl('计划状态 / 下一步','Plan status / next step','計畫狀態 / 下一步'),value(saved.planning_status)+' / '+value(saved.next_action));
+  if(saved.reason)content+=field(rl('原缺件原因','Recorded missing requirement','原缺件原因'),saved.reason);
+  content+=`<details class="n9f-details"><summary>${rl('对应版本、完整摘要与原记录','Bound version, full hashes and saved record','對應版本、完整摘要與原紀錄')}</summary><pre>${rx(JSON.stringify(saved,null,2))}</pre></details>`;
+ }
+ return `<section class="n9f-panel" data-v93-plan-review><h2>${rl('计划评审与决定','Plan review and decision','計畫評審與決定')}</h2>${content}</section>`;
+}
 function v93PublicArchive(){
  const report='https://wenyuchiou.github.io/AutoResearchAgent/stage-3/';
  return `<section class="hs-panel">
@@ -246,7 +280,7 @@ laterStage=function(app){
  if(!basis)return v93Later(app)+v93PublicArchive();
  const view=v93Matches(v93.basis,basis)?v93.view:null, error=v93Matches(v93.errorBasis,basis)?v93.error:'';
  const href='/project-stage3-planning.html'+v93Fragment(basis.project_ref,app,3);
- return `${canonicalTop()}<section class="hs-panel"><p class="hs-eyebrow">STAGE 03</p><h1>${rl('研究设计与可行性','Research design & feasibility','研究設計與可行性')}</h1><p>${rl('将偏好方向逐题对应到资料、方法、设计与结果判读；草案不代表研究已执行。','Connect the preferred direction to data, methods, study design and interpretation, one question at a time. A draft does not mean research has been run.','將偏好方向逐題對應到資料、方法、設計與結果判讀；草案不代表研究已執行。')}</p><div class="n9-page-actions"><button class="hs-button hs-button-primary" data-v93-read ${v93.busy?'disabled':''}>${rl('查看已保存的规划','View saved plan','檢視已保存的規劃')}</button><a class="hs-button" href="${rx(href)}">${rl('打开规划与收据','Open planning and receipt','開啟規劃與收據')}</a></div><p role="status">${rx(error||(v93.busy?rl('正在读取已保存的规划，不会重新生成。','Reading the saved plan; no generation will be started.','正在讀取已保存的規劃，不會重新生成。'):!view?rl('先读取已保存的规划，查看摘要与待查事项。','Read the saved plan to see its summary and open checks.','先讀取已保存的規劃，查看摘要與待查事項。'):!view.plan?rl('目前没有已保存的规划；图中仅显示可用的问题与待确认事项。','No saved plan is available; the diagram shows only available questions and unknowns.','目前沒有已保存的規劃；圖中僅顯示可用的問題與待確認事項。'):''))}</p>${v93SavedPlanSummary(view)}<details class="n9-plan-graph"${view?.plan?.kind==='Stage3ResearchPlan'?' open':''}><summary>${rl('研究关系图与来源','Research map and sources','研究關係圖與來源')}</summary><div id="v93-diagram"></div></details></section>`+(view?.plan?'':v93PublicArchive());
+ return `${canonicalTop()}<section class="hs-panel"><p class="hs-eyebrow">STAGE 03</p><h1>${rl('研究设计与可行性','Research design & feasibility','研究設計與可行性')}</h1><p>${rl('将偏好方向逐题对应到资料、方法、设计与结果判读；草案不代表研究已执行。','Connect the preferred direction to data, methods, study design and interpretation, one question at a time. A draft does not mean research has been run.','將偏好方向逐題對應到資料、方法、設計與結果判讀；草案不代表研究已執行。')}</p><div class="n9-page-actions"><button class="hs-button hs-button-primary" data-v93-read ${v93.busy?'disabled':''}>${rl('查看已保存的规划','View saved plan','檢視已保存的規劃')}</button><a class="hs-button" href="${rx(href)}">${rl('打开规划与收据','Open planning and receipt','開啟規劃與收據')}</a></div><p role="status">${rx(error||(v93.busy?rl('正在读取已保存的规划，不会重新生成。','Reading the saved plan; no generation will be started.','正在讀取已保存的規劃，不會重新生成。'):!view?rl('先读取已保存的规划，查看摘要与待查事项。','Read the saved plan to see its summary and open checks.','先讀取已保存的規劃，查看摘要與待查事項。'):!view.plan?rl('目前没有已保存的规划；图中仅显示可用的问题与待确认事项。','No saved plan is available; the diagram shows only available questions and unknowns.','目前沒有已保存的規劃；圖中僅顯示可用的問題與待確認事項。'):''))}</p>${v93SavedPlanSummary(view)}${v93PlanReview(view)}<details class="n9-plan-graph"${view?.plan?.kind==='Stage3ResearchPlan'?' open':''}><summary>${rl('研究关系图与来源','Research map and sources','研究關係圖與來源')}</summary><div id="v93-diagram"></div></details></section>`+(view?.plan?'':v93PublicArchive());
 };
 const v93After=v7AfterRender;
 v7AfterRender=function(app){
