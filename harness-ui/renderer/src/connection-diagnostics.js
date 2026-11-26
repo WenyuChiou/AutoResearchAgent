@@ -11,7 +11,16 @@ function connectionDiagnostics(input, now) {
   budgets:{},monetaryCost:null,callsReserved:null,permits:[],recovery:'read-failed'};
  const count=bound?(Object.hasOwn(m,'blocking_unknown_count')?m.blocking_unknown_count:m.unknown_count):null;
  const blocking=Number.isSafeInteger(count)&&count>=0?count:null;
- if(input.error)v.recovery=input.error==='credential-required'?'credential':input.error==='origin-or-host-rejected'?'origin':'read-failed';
+ switch(input.error){
+  case 'credential-required':
+  case 'credential-rejected':
+   v.recovery='credential';
+   break;
+  case 'origin-or-host-rejected':
+  case 'cross-site-rejected':
+   v.recovery='origin';
+   break;
+ }
  const finish=()=>{if(input.writeHeld===true||(bound&&blocking>0)){v.permission='held';v.recovery='unknown-write';v.permits=v.permits.map(row=>row.reason==='confirmable'?{...row,reason:'held'}:row);}return v;};
  if(!current)return finish();
  if(p.settings?.brief_sha256===p.brief_sha256){

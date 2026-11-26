@@ -5,10 +5,38 @@ function input(){return {ref:'p1',project:{project_ref:'p1',input_version:1,revi
 function context(){const c={};vm.createContext(c);const f=path.join(dir,'connection-diagnostics.js');if(fs.existsSync(f))vm.runInContext(fs.readFileSync(f,'utf8'),c);return c;}
 function view(i=input()){return context().connectionDiagnostics(i,now);}
 function offer(i=input()){i.models.connected=true;i.models.authorization_available=true;i.offers.offers=[{offer_ref:'offer-1',operation:'read-paper',input_version:1,brief_sha256:i.project.brief_sha256,available:true,expires_at:'2026-11-26T13:00:00Z',max_calls:2,max_seconds:30}];return i;}
+function settingsHtml(rt,lang='en'){
+ const c=context();
+ Object.assign(c,{rt,liveReal:()=>true,savedOtherPage:()=>'',liveHeader:()=>'',Date});
+ const src=fs.readFileSync(path.join(dir,'real-runtime.js'),'utf8');
+ const start=src.indexOf('otherPage = function(app)');
+ vm.runInContext(src.slice(start,src.indexOf('\nlivePost =',start)),c);
+ return c.otherPage({page:'settings',lang});
+}
 test('ordinary settings explains unknown login and recovery, instead of raw status alone',()=>{
- const c=context(),i=input();Object.assign(c,{rt:{ref:i.ref,overview:{project:i.project,models:i.models,model_offers:i.offers},meta:{harness_head:'base',model:'unconnected'}},liveReal:()=>true,savedOtherPage:()=>'',liveHeader:()=>'',rl:(zh)=>zh,rx:x=>String(x),Date});
- const src=fs.readFileSync(path.join(dir,'real-runtime.js'),'utf8');vm.runInContext(src.slice(src.indexOf('otherPage = function(app)'),src.indexOf('\nlivePost =',src.indexOf('otherPage = function(app)'))),c);
- const html=c.otherPage({page:'settings',lang:'zh-CN'});assert.match(html,/data-connection-diagnostics/);assert.match(html,/无法核实登录状态/);assert.match(html,/恢复/);assert.doesNotMatch(html,/<button|<form/);
+ const i=input();
+ const html=settingsHtml({ref:i.ref,overview:{project:i.project,models:i.models,model_offers:i.offers}},'zh-CN');
+ assert.match(html,/data-connection-diagnostics/);assert.match(html,/无法核实登录状态/);assert.match(html,/恢复/);assert.doesNotMatch(html,/<button|<form/);
+});
+const readRejections=[
+ ['credential-required',/Reopen the same ordinary Wiki homepage/],
+ ['credential-rejected',/Reopen the same ordinary Wiki homepage/],
+ ['origin-or-host-rejected',/Return to the original Wiki address/],
+ ['cross-site-rejected',/Return to the original Wiki address/]
+];
+for(const [error,recovery] of readRejections){
+ test(`ordinary settings shows specific recovery for ${error}`,()=>{
+  const html=settingsHtml({ref:'p1',error});
+  assert.match(html,recovery);
+  assert.match(html,/Login cannot be verified/);
+  assert.doesNotMatch(html,/Current project response is missing|Current content task may be confirmed/);
+ });
+}
+test('ordinary settings keeps unknown read errors generic and private',()=>{
+ const html=settingsHtml({ref:'p1',error:'private C:/secret/token'});
+ assert.match(html,/Current project response is missing or mismatched/);
+ assert.match(html,/Login cannot be verified/);
+ assert.doesNotMatch(html,/C:\/secret|Current content task may be confirmed/);
 });
 test('zero limits stay zero, unknown money/auth remain unknown; pure view does not mutate input',()=>{const i=input(),before=JSON.stringify(i),v=view(i);assert.equal(v.provider,'absent');assert.equal(v.authentication,'unknown');assert.equal(v.permission,'none');assert.equal(v.budgets.model_calls,0);assert.equal(v.monetaryCost,null);assert.equal(JSON.stringify(i),before);});
 test('provider registration does not imply native login or research permission',()=>{const i=offer(),v=view(i);assert.equal(v.provider,'registered');assert.equal(v.authentication,'unknown');assert.equal(v.permission,'confirmable');assert.equal(v.researchAuthorized,false);assert.equal(v.permits[0].maxCalls,2);});
@@ -29,9 +57,15 @@ test('known write barriers survive read errors and suppress every confirmable pe
  const i=input();i.project=null;i.writeHeld=true;assert.equal(view(i).recovery,'unknown-write');
 });
 test('ordinary settings passes pending and control-held without exposing their data',()=>{
- for(const field of ['pending','controlHeld']){const c=context(),i=offer();Object.assign(c,{rt:{ref:i.ref,[field]:{secret:'NEVER_DISPLAY'},overview:{project:i.project,models:i.models,model_offers:i.offers},error:'credential-required'},liveReal:()=>true,savedOtherPage:()=>'',liveHeader:()=>'',Date});
- const src=fs.readFileSync(path.join(dir,'real-runtime.js'),'utf8');vm.runInContext(src.slice(src.indexOf('otherPage = function(app)'),src.indexOf('\nlivePost =',src.indexOf('otherPage = function(app)'))),c);
- const html=c.otherPage({page:'settings',lang:'en'});assert.match(html,/Keep the original operation key/);assert.doesNotMatch(html,/NEVER_DISPLAY|may be confirmed/);}
+ const i=offer(),overview={project:i.project,models:i.models,model_offers:i.offers};
+ for(const [error,recovery] of readRejections){
+  for(const field of ['pending','controlHeld']){
+   const html=settingsHtml({ref:i.ref,[field]:{secret:'NEVER_DISPLAY'},overview,error});
+   assert.match(html,/Keep the original operation key/);
+   assert.doesNotMatch(html,recovery);
+   assert.doesNotMatch(html,/NEVER_DISPLAY|may be confirmed/);
+  }
+ }
 });
 test('cold reads without a project retain specific 401/403 recovery',()=>{
  for(const [error,recovery]of [['credential-required','credential'],['origin-or-host-rejected','origin']]){const i={error};assert.equal(view(i).recovery,recovery);i.writeHeld=true;assert.equal(view(i).recovery,'unknown-write');}
