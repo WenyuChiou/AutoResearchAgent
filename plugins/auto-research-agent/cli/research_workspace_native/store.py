@@ -232,11 +232,14 @@ class ProjectStore:
                 raise
             return token
 
-    def release_owner(self, project_id, owner):
+    def release_owner(self, project_id, owner, *, cleanup=None):
+        """Release an owned lease, transactionally cleaning up if requested."""
         with self._lock:
             with self._edit(
                 project_id, owner, None, "owner-released", {"token": owner}
             ) as state:
+                if cleanup is not None:
+                    cleanup(self.db, state)
                 state["owner"] = None
             self._owners.pop(project_id)[1].close()
 

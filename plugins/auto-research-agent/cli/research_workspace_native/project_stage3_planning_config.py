@@ -5,8 +5,10 @@ it is read-only; the resource owner opens only the existing Journal and jobs.
 """
 
 from copy import deepcopy
+from functools import partial
 import hashlib
 import math
+from os import scandir
 from os.path import samestat
 from pathlib import Path
 import re
@@ -77,9 +79,33 @@ def _reserve_output_paths(db, project_id, paths):
         elif any(_overlaps(path, existing) for path in paths):
             raise Stage3Error("stage3-planning-configuration-output-overlap")
     # Releasing a Host lease does not free previously used directories.
+    added = tuple(path for path in paths if path not in owned)
     db.executemany(
         "INSERT INTO stage3_planning_paths VALUES (?, ?)",
-        [(project_id, str(path)) for path in paths if path not in owned],
+        [(project_id, str(path)) for path in added],
+    )
+    return added
+
+
+def _has_output(path):
+    if path.is_symlink():
+        return True
+    try:
+        with scandir(path) as entries:
+            return next(entries, None) is not None
+    except FileNotFoundError:
+        return False
+    except NotADirectoryError:
+        return True
+
+
+def _discard_unpublished_paths(db, state, paths):
+    # A legacy project may already have used paths that were just recorded.
+    if state["intents"]:
+        return
+    db.executemany(
+        "DELETE FROM stage3_planning_paths WHERE project = ? AND path = ?",
+        [(state["project_id"], str(path)) for path in paths if not _has_output(path)],
     )
 
 
@@ -248,6 +274,7 @@ class Stage3PlanningHostResources:
         self._lock = threading.RLock()
         self._closed, self._close_failure = False, None
         self.journal, self._owners = None, {}
+        self._unpublished_paths = {}
         self._rows, self._dynamic = {}, {}
         self.recovery_pins, self.identities = {}, {}
         rows = () if configuration is None else configuration["bindings"]
@@ -301,6 +328,7 @@ class Stage3PlanningHostResources:
             except BaseException as cleanup:
                 error.add_note(f"Planning resource cleanup failed: {cleanup!r}")
             raise
+        self._unpublished_paths = None
 
     def _retained_paths(self):
         paths = {}
@@ -339,19 +367,26 @@ class Stage3PlanningHostResources:
             if original["index_sha256"] != identity_sha:
                 raise Stage3Error("stage3-planning-saved-journal-project-differs")
         paths = _output_paths(row)
+        added = ()
+
+        def reserve(db):
+            nonlocal added
+            added = _reserve_output_paths(db, project_id, paths)
 
         def bind():
             self.journal.bind_project(
                 project_id,
                 identity_sha,
                 require_existing=require_existing,
-                reserve=lambda db: _reserve_output_paths(db, project_id, paths),
+                reserve=reserve,
             )
 
         owner = self.journal.acquire_owner(
             project_id, "stage3-host-" + secrets.token_hex(16), bind=bind
         )
         self._owners[project_id] = owner
+        if self._unpublished_paths is not None and added:
+            self._unpublished_paths[project_id] = added
         self._rows[ref] = deepcopy(row)
         self.identities[ref] = identity
         binding = {
@@ -442,9 +477,16 @@ class Stage3PlanningHostResources:
                 return
             errors = []
             if self.journal is not None:
+                unpublished = self._unpublished_paths or {}
                 for project_id, owner in reversed(tuple(self._owners.items())):
                     try:
-                        self.journal.release_owner(project_id, owner)
+                        paths = unpublished.get(project_id)
+                        cleanup = (
+                            partial(_discard_unpublished_paths, paths=paths)
+                            if paths
+                            else None
+                        )
+                        self.journal.release_owner(project_id, owner, cleanup=cleanup)
                     except BaseException as error:
                         errors.append(error)
                 try:
