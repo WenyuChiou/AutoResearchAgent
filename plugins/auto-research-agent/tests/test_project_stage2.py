@@ -135,6 +135,78 @@ class ProjectStage2Tests(unittest.TestCase):
         )
         self.offer = self.service.register(self.ref, **self.registration)
 
+    def test_offer_is_unique_across_original_and_connection_writers(self):
+        second_profile = dict(
+            self.registration,
+            policy_ref={
+                "route": "stage2-general-v3/daily_v3",
+                "packet_profile": "scientific-v3",
+            },
+        )
+        browser = dict(
+            connection_key="browser-first", connection_profile_sha256="a" * 64
+        )
+        published = self.service.register(self.ref, **second_profile, **browser)
+        before = self.service.read("own", self.ref, registered_only=True)
+        self.assertIn(published, before["offers"])
+        self.assertEqual(self.service.register(self.ref, **second_profile), published)
+        self.assertEqual(
+            self.service.register(self.ref, **second_profile, **browser), published
+        )
+        with self.assertRaisesRegex(
+            SessionApiError, "activation-offer-already-published"
+        ):
+            self.service.register(
+                self.ref,
+                **self.registration,
+                connection_key="browser-after-trusted",
+                connection_profile_sha256="a" * 64,
+            )
+        self.assertEqual(
+            self.service.read("own", self.ref, registered_only=True), before
+        )
+        self.offer = published
+        self.assertEqual(
+            self.service.activate("own", self.ref, self.body())["status"], "saved"
+        )
+
+    def test_original_writer_cannot_replace_unknown_connection_offer(self):
+        registration = dict(
+            self.registration,
+            policy_ref={
+                "route": "stage2-general-v3/daily_v3",
+                "packet_profile": "scientific-v3",
+            },
+        )
+        calls = []
+
+        def expire_before_commit():
+            calls.append(True)
+            if len(calls) == 3:
+                raise SessionApiError("session-deadline-exceeded", 408)
+
+        browser = dict(
+            connection_key="browser-unknown", connection_profile_sha256="a" * 64
+        )
+        with self.assertRaisesRegex(SessionApiError, "intake-operation-failed"):
+            self.service.register(
+                self.ref, **registration, **browser, check_deadline=expire_before_commit
+            )
+        original = self.service.action("own", self.ref, browser["connection_key"])
+        self.assertEqual(original["status"], "execution-unknown")
+        before = self.service.read("own", self.ref, registered_only=True)
+        for writer in ({}, browser):
+            with self.assertRaisesRegex(
+                SessionApiError, "activation-offer-outcome-unobserved"
+            ):
+                self.service.register(self.ref, **registration, **writer)
+        self.assertEqual(
+            self.service.action("own", self.ref, browser["connection_key"]), original
+        )
+        self.assertEqual(
+            self.service.read("own", self.ref, registered_only=True), before
+        )
+
     def body(self, key="activate"):
         state = self.intake.read("own", self.ref)
         return dict(
