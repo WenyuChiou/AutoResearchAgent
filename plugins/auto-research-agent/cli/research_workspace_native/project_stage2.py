@@ -382,8 +382,10 @@ class ProjectStage2Service:
             principal = row[0]
             state = self.intake._load(principal, project_ref)
             existing = state.get("stage2_offers", {}).get(offer["offer_ref"])
-            if connection_key is not None and existing is not None:
+            if existing is not None:
                 self._require_registered_offer(project_ref, existing, offer_hash)
+                if connection_key is None:
+                    return _public(existing)
                 prior = self.intake.db.execute(
                     "SELECT 1 FROM intake_actions WHERE principal=? AND project=? AND key=?",
                     (principal, project_ref, connection_key),
@@ -444,15 +446,14 @@ class ProjectStage2Service:
                 body,
                 work,
                 check_deadline=check_deadline,
-                reserve=reserve if connection_key is not None else None,
+                reserve=reserve,
             )
-            if connection_key is not None:
-                _check(
-                    receipt["status"] == "saved",
-                    (receipt.get("error") if receipt["status"] == "failed" else None)
-                    or "stage2-controller-activation-offer-outcome-unobserved",
-                )
-            return _public(offer)
+            _check(
+                receipt["status"] == "saved",
+                (receipt.get("error") if receipt["status"] == "failed" else None)
+                or "stage2-controller-activation-offer-outcome-unobserved",
+            )
+            return receipt["offer"]
 
     def import_direct_request_project(self, credential, **trusted_inputs):
         from .project_stage2_direct_import import import_direct_request_project
