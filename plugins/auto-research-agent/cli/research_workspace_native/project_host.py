@@ -569,12 +569,8 @@ class ProjectHost(AtlasHost):
             )
             if stage2 is not None and stage2["revision"] != project["revision"]:
                 project = self.projects.read(credential, ref)
-                # Connection publication only adds its own journal receipt.
-                # Existing Stage1 material is unchanged under this store lock.
                 if stage1 is not None:
-                    stage1["revision"] = project["revision"]
-                    if stage1.get("delivery") is not None:
-                        stage1["delivery"]["revision"] = project["revision"]
+                    stage1 = self.stage1_view(credential, ref, automatic=False)
             result = dict(
                 project=project,
                 models=None

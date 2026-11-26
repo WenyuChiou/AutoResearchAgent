@@ -7,6 +7,7 @@ from stage1_deliverable.common import safe_path, sha
 from stage1_ledger.journal import canonical, decode, write_new
 from stage2_common import canonical_hash
 from .project_stage2 import MAX_OFFERS, _public, _raw
+from .project_intake import MAX_ACTIONS
 from .session_api import SessionApiError, _check
 
 
@@ -103,11 +104,18 @@ class ConnectionStore:
         check_deadline=None,
         offer=None,
         expected_identity=None,
+        expected_revision=None,
     ):
         """Trusted producer only; callers must verify the source before recording."""
         _check(stage in {"stage2-input", "stage2-selection"}, "stage-connection-kind")
         with self.intake._lock:
             identity = self._identity(ref)
+            principal = self.intake._principal(self.credential)
+            state = self.intake._load(principal, ref)
+            _check(
+                expected_revision is None or state["revision"] == expected_revision,
+                "stage-connection-project-stale",
+            )
             _check(
                 expected_identity is None
                 or canonical_hash(identity) == canonical_hash(expected_identity),
@@ -133,6 +141,16 @@ class ConnectionStore:
                     previous["connection_id"] == digest,
                     "stage-connection-source-differs",
                 )
+                if offer is not None:
+                    principal = self.intake._principal(self.credential)
+                    state = self.intake._load(principal, ref)
+                    _check(
+                        canonical_hash(
+                            state.get("stage2_offers", {}).get(offer["offer_ref"])
+                        )
+                        == canonical_hash(offer),
+                        "stage-connection-offer-differs",
+                    )
                 return previous
             principal = self.intake._principal(self.credential)
             state = self.intake._load(principal, ref)
@@ -140,7 +158,7 @@ class ConnectionStore:
             relative = "connection-" + digest[:32] + ".json"
             # A failed local publication with no output can be attempted on a
             # new journal key. Never erase its failure or retry an unknown write.
-            for attempt in range(2):
+            for attempt in range(MAX_ACTIONS + 1):
                 key = "connection-" + digest + ("-" + str(attempt) if attempt else "")
                 old = self.intake.db.execute(
                     "SELECT receipt FROM intake_actions WHERE principal=? AND project=? AND key=?",
@@ -168,7 +186,9 @@ class ConnectionStore:
                 raise SessionApiError("stage-connection-recovery-bound-exceeded", 409)
             body = dict(
                 key=key,
-                revision=state["revision"],
+                revision=state["revision"]
+                if expected_revision is None
+                else expected_revision,
                 input_version=identity["input_version"],
                 brief_sha256=identity["brief_sha256"],
                 connection_sha256=digest,
@@ -218,8 +238,11 @@ class ConnectionStore:
         from .project_stage2_selection_view import ProjectStage2SelectionView
 
         with self.intake._lock:
+            expected_identity = self._identity(ref)
             view = ProjectStage2SelectionView(self.intake, {ref: binding})
-            view._current(self.credential, ref)
+            # The normal service's direction mixin may already own a read
+            # scope. Do not cache a pre-publication project revision there.
+            verified, _ = view._verify_current_context(self.credential, ref)
             if check_deadline is not None:
                 check_deadline()
             return self.record(
@@ -230,6 +253,8 @@ class ConnectionStore:
                     "delivery_manifest_sha256": binding["delivery_manifest_sha256"]
                 },
                 check_deadline=check_deadline,
+                expected_identity=expected_identity,
+                expected_revision=verified[0]["revision"],
             )
 
 
@@ -257,6 +282,11 @@ class BindingTable(Mapping):
             return deepcopy(self.static[ref])
         raise KeyError(ref)
 
+    def __contains__(self, ref):
+        # Wiki membership is a discovery hint, not a verified binding. Only
+        # read() may receive a completed result; direct writes still need a row.
+        return ref in iter(self)
+
     def receive_completed(self, ref, *, check_deadline=None):
         # Finish any local registration before entering the read-only view cache.
         if check_deadline is not None:
@@ -278,6 +308,11 @@ class BindingTable(Mapping):
         with self.store.intake._lock:
             principal = self.store.intake._principal(self.store.credential)
             refs = set(self.static)
+            refs.update(
+                ref
+                for ref, driver in self.controllers.items()
+                if safe_path(driver.records, "result.json").is_file()
+            )
             for row in self.store.intake.db.execute(
                 "SELECT ref FROM intake_projects WHERE principal=?", (principal,)
             ).fetchall():
@@ -334,6 +369,7 @@ def register_current(
                 check_deadline=check_deadline,
                 offer=offer,
                 expected_identity=expected,
+                expected_revision=evidence["revision"],
             )
             revision = intake.read(credential, ref)["revision"]
             return dict(
@@ -365,13 +401,15 @@ def register_current(
 def _current_offer(binding, bound, evidence, root):
     """An already verified native input is visible, but cannot activate research."""
     resources = safe_path(root, "resources.txt")
+    resources_sha256 = sha(binding["settings"]["resource_envelope"].encode("utf-8"))
+    _raw(resources, resources_sha256, maximum=65536)
     inputs = dict(
         deliverable_dir=str(bound["deliverable_dir"]),
         manifest_sha256=bound["manifest_sha256"],
         handoff_path=str(bound["handoff_path"]),
         handoff_sha256=bound["handoff_sha256"],
         resources_path=str(resources),
-        resources_sha256=sha(resources.read_bytes()),
+        resources_sha256=resources_sha256,
     )
     basis = {
         key: binding[key]

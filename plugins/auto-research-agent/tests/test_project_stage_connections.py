@@ -5,10 +5,12 @@
 from contextlib import contextmanager
 from copy import deepcopy
 import json
+import os
 from pathlib import Path
 import sys
 import threading
 from types import SimpleNamespace
+from urllib.request import Request, urlopen
 import unittest
 from unittest.mock import patch
 
@@ -21,6 +23,7 @@ from test_project_stage2_current_evidence import authenticate, request, VIEWER
 from research_workspace_native.project_host import ProjectHost
 from research_workspace_native.project_model import ProjectModelService
 from research_workspace_native.project_stage2 import ProjectStage2Service
+from research_workspace_native.project_stage2_current_evidence import current_evidence
 from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage_connections import (
     ConnectionStore,
@@ -109,7 +112,31 @@ class CurrentConnectionTests(unittest.TestCase):
                 self.assertEqual(result["reason"], "session-deadline-exceeded")
                 self.assertIsNone(result["receipt_id"])
                 self.assertEqual(counts(case.intake), before)
+            legacy = current_evidence(
+                case.delivery,
+                VIEWER,
+                case.stage1.read(VIEWER, ref),
+                case.intake.read(VIEWER, ref),
+            )
+            self.assertEqual(legacy["status"], "received")
+            resources = (
+                case.intake._path(ref, "s2r-" + legacy["source_descriptor_sha256"][:32])
+                / "resources.txt"
+            )
+            original_resources = resources.read_bytes()
             with wiki(case) as origin:
+                try:
+                    resources.write_bytes(original_resources + b"tampered")
+                    rejected = request(origin, route + "/stage2")[1]
+                    self.assertEqual(
+                        rejected["current_evidence"]["reason"],
+                        "stage2-input-bytes-differ",
+                    )
+                    self.assertIsNone(rejected["current_evidence"]["receipt_id"])
+                    self.assertEqual(rejected["offers"], [])
+                    self.assertEqual(counts(case.intake), before)
+                finally:
+                    resources.write_bytes(original_resources)
                 status, overview = request(origin, route + "/overview")
                 self.assertEqual(status, 200, overview)
                 accepted = overview["stage2"]["current_evidence"]
@@ -146,6 +173,10 @@ class CurrentConnectionTests(unittest.TestCase):
                     overview["project"]["revision"],
                 )
                 self.assertEqual(overview["models"]["calls_reserved"], 0)
+                self.assertEqual(
+                    overview["stage1"]["reading_registration"]["revision"],
+                    overview["project"]["revision"],
+                )
                 self.assertEqual(
                     overview["stage1"]["revision"], overview["stage2"]["revision"]
                 )
@@ -213,6 +244,42 @@ class CurrentConnectionTests(unittest.TestCase):
                 finally:
                     connection_path.write_bytes(raw)
                 self.assertEqual(counts(case.intake), stable)
+                state = case.intake._load("local-viewer", ref)
+                raw_state = json.dumps(state)
+                for damaged_offer in (
+                    None,
+                    dict(
+                        state["stage2_offers"][accepted["offer"]["offer_ref"]],
+                        status="ready-for-researcher-activation",
+                    ),
+                ):
+                    try:
+                        changed = json.loads(raw_state)
+                        if damaged_offer is None:
+                            del changed["stage2_offers"][accepted["offer"]["offer_ref"]]
+                        else:
+                            changed["stage2_offers"][accepted["offer"]["offer_ref"]] = (
+                                damaged_offer
+                            )
+                        case.intake.db.execute(
+                            "UPDATE intake_projects SET state=? WHERE ref=?",
+                            (json.dumps(changed), ref),
+                        )
+                        case.intake.db.commit()
+                        rejected = request(origin, route + "/stage2")[1][
+                            "current_evidence"
+                        ]
+                        self.assertEqual(
+                            rejected["reason"], "stage-connection-offer-differs"
+                        )
+                        self.assertIsNone(rejected["connection_id"])
+                    finally:
+                        case.intake.db.execute(
+                            "UPDATE intake_projects SET state=? WHERE ref=?",
+                            (raw_state, ref),
+                        )
+                        case.intake.db.commit()
+
             self.assertEqual(data["ledger"].state_hash(), original_history)
             for p, original in source_files.items():
                 self.assertEqual((p.read_bytes(), p.stat().st_mtime_ns), original)
@@ -311,6 +378,18 @@ class CurrentConnectionTests(unittest.TestCase):
             ),
             wiki(case, {ref: driver}) as origin,
         ):
+            with urlopen(
+                Request(
+                    origin + "/project-bootstrap.js",
+                    headers={"Origin": origin, "Sec-Fetch-Site": "same-origin"},
+                ),
+                timeout=25,
+            ) as response:
+                bootstrap = json.loads(
+                    response.read().decode().split("=", 1)[1].strip().removesuffix(";")
+                )
+            self.assertIn(ref, bootstrap["stage2_selection_projects"])
+            self.assertEqual(counts(case.intake), before)
             status, selected = request(origin, f"/api/projects/{ref}/stage2/selection")
             self.assertEqual(status, 200, selected)
             self.assertEqual(selected["selection_status"], "pending")
@@ -419,19 +498,21 @@ class SelectionConnectionTests(Stage2SelectionFixture):
             if len(checks) == 2:
                 raise SessionApiError("session-deadline-exceeded", 408)
 
-        with self.assertRaises(SessionApiError):
-            store.record(
-                self.ref,
-                "stage2-input",
-                {"authored_storage_probe": 1},
-                derived_from={},
-                check_deadline=expire_before_work,
-            )
+        for _ in range(2):
+            checks.clear()
+            with self.assertRaises(SessionApiError):
+                store.record(
+                    self.ref,
+                    "stage2-input",
+                    {"authored_storage_probe": 1},
+                    derived_from={},
+                    check_deadline=expire_before_work,
+                )
         self.assertIsNone(store.resolve(self.ref, "stage2-input"))
         recovered = store.record(
             self.ref, "stage2-input", {"authored_storage_probe": 1}, derived_from={}
         )
-        self.assertTrue(recovered["receipt_id"].endswith("-1"))
+        self.assertTrue(recovered["receipt_id"].endswith("-2"))
         checks.clear()
 
         def expire_after_file():
@@ -471,9 +552,17 @@ class SelectionConnectionTests(Stage2SelectionFixture):
         self.intake.db.commit()
         with self.assertRaisesRegex(SessionApiError, "receipt-differs"):
             store.resolve(self.ref, "stage2-input")
-        with self.assertRaises((ValueError, SessionApiError)):
-            ProjectIntakeService(
-                self.root / ("long-root-" * 16), authenticate=self.authenticate
+        from research_workspace_native.project_stage1 import ProjectStage1Service
+
+        native = ProjectStage1Service(self.intake)
+        if os.name == "nt":
+            with self.assertRaisesRegex(
+                SessionApiError, "stage1-private-root-too-deep"
+            ):
+                native._output(self.ref, "long-root-" * 16)
+        else:
+            self.assertEqual(
+                native._output(self.ref, "long-root-" * 16).name, "long-root-" * 16
             )
 
     def test_saved_selection_static_dynamic_reopen_and_tampering(self):
