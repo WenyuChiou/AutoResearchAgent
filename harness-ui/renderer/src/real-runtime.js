@@ -44,10 +44,23 @@ function realLibrary(){
  if(!library?.rows?.length)return '';
  return `<section class="hs-panel live-files"><h3>${rl('已保存的检索候选','Saved search candidates')} · ${library.total}</h3><p>${rl('当前查询输出；尚未成为正式交付。来源、阅读与纳入决定仍需分别审阅。','Current query output; not a formal delivery. Source, reading and inclusion remain separate reviews.')}</p><div class="live-table-scroll"><table class="live-table"><thead><tr><th>${rl('论文','Paper')}</th><th>${rl('年份','Year')}</th><th>${rl('来源状态','Source')}</th><th>${rl('筛选状态','Screening')}</th></tr></thead><tbody>${library.rows.map(row=>`<tr><td><button class="hs-button" data-real-paper="${row.index}">${rx(row.title)}</button></td><td>${rx(row.year)}</td><td>${rx(row.source_status)}</td><td>${rx(row.screening_status)}</td></tr>`).join('')}</tbody></table></div>${library.next_offset!==null?realButton('library-next','读取更多候选','Load more candidates'):""}${rt.paperDetail?.project_ref===rt.ref?`<details open><summary>${rl('当前候选记录','Candidate record')}</summary><pre class="live-record">${rx(JSON.stringify(rt.paperDetail.row,null,2))}</pre></details>`:''}</section>`;
 }
+// The Wiki bootstrap identifies the renderer even if its first project read is refused.
+function coldWikiSettingsRefused(){
+ return rt.meta===null&&window.RESEARCH_PROJECTS?.wiki_v9===true&&[
+  'credential-required','credential-rejected','origin-or-host-rejected','cross-site-rejected'
+ ].includes(rt.error);
+}
 otherPage = function(app){
- if(!liveReal()||app.page!=='settings')return savedOtherPage(app);
+ if(app.page!=='settings'||(!liveReal()&&!coldWikiSettingsRefused()))return savedOtherPage(app);
  const diagnostic=connectionDiagnostics({ref:rt.ref,project:rt.overview?.project,models:rt.overview?.models,offers:rt.overview?.model_offers,error:rt.error,writeHeld:!!(rt.pending||rt.controlHeld)},Date.now());
  return liveHeader(app)+connectionDiagnosticsHtml(diagnostic,app.lang);
+};
+const savedSettingsAfter=v7AfterRender;
+v7AfterRender=function(app){
+ savedSettingsAfter(app);
+ if(app.page!=='settings'||!coldWikiSettingsRefused()||!app.el.querySelector('[data-connection-diagnostics]'))return;
+ const sidebar=app.el.querySelector('.hs-sidebar-foot');
+ if(sidebar)sidebar.textContent=rl('项目读取失败','Project read failed','專案讀取失敗');
 };
 livePost = async function(tail,body,ref=rt.ref){
   if(liveReal() && tail==='confirm') {

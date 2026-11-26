@@ -7,7 +7,7 @@ function view(i=input()){return context().connectionDiagnostics(i,now);}
 function offer(i=input()){i.models.connected=true;i.models.authorization_available=true;i.offers.offers=[{offer_ref:'offer-1',operation:'read-paper',input_version:1,brief_sha256:i.project.brief_sha256,available:true,expires_at:'2026-11-26T13:00:00Z',max_calls:2,max_seconds:30}];return i;}
 function settingsHtml(rt,lang='en'){
  const c=context();
- Object.assign(c,{rt,liveReal:()=>true,savedOtherPage:()=>'',liveHeader:()=>'',Date});
+ Object.assign(c,{rt,liveReal:()=>true,savedOtherPage:()=>'',liveHeader:()=>'',v7AfterRender:()=>{},Date});
  const src=fs.readFileSync(path.join(dir,'real-runtime.js'),'utf8');
  const start=src.indexOf('otherPage = function(app)');
  vm.runInContext(src.slice(start,src.indexOf('\nlivePost =',start)),c);
@@ -24,6 +24,89 @@ const readRejections=[
  ['origin-or-host-rejected',/Return to the original Wiki address/],
  ['cross-site-rejected',/Return to the original Wiki address/]
 ];
+async function coldSettings({bootstrap, error='', status=200, pending=null}){
+ const runtime=fs.readFileSync(path.join(dir,'runtime.js'),'utf8');
+ const realRuntime=fs.readFileSync(path.join(dir,'real-runtime.js'),'utf8');
+ const section=(source,start,end)=>{
+  const first=source.indexOf(start),last=source.indexOf(end,first+start.length);
+  assert.ok(first>=0&&last>first,start);
+  return source.slice(first,last);
+ };
+ const sidebar={textContent:''};
+ let renderedHtml='';
+ const app={page:'settings',stage:1,lang:'en',el:{querySelector(selector){
+  if(selector==='.hs-sidebar-foot')return sidebar;
+  if(selector==='[data-connection-diagnostics]'&&renderedHtml.includes('data-connection-diagnostics'))return {};
+  return null;
+ }}};
+ const c=context(),calls=[];
+ Object.assign(c,{
+  window:bootstrap?{RESEARCH_PROJECTS:bootstrap}:{},location:{hash:''},
+  liveHeader:()=>'',liveFeedback:()=>'<p>History</p>',livePaint:()=>{},liveHomeProject:()=>null,
+  liveSavedProject:()=>null,liveSelectProject:async()=>{},v7AfterRender:()=>{},rows:()=>[],
+  rl:(_zh,en)=>en,rx:String,
+  async fetch(route,options){
+   calls.push([route,options.method]);
+   const denied=error&&route==='/api/projects';
+   return {ok:!denied,status:denied?status:200,json:async()=>denied?{error}:
+    route==='/v7-case.json'?{kind:'V7RuntimeConfiguration'}:{projects:[]}};
+  }
+ });
+ vm.runInContext([
+  section(runtime,'const rt = {','\ntry { rt.pending'),
+  section(runtime,'async function liveRequest(','\nasync function liveRefresh'),
+  section(runtime,'otherPage=app=>','\ndocument.addEventListener(\'change\''),
+  section(realRuntime,'const liveReal = ','\nconst savedRuntimeRender'),
+  section(realRuntime,'const savedOtherPage = ','\nconst savedRefresh'),
+  section(realRuntime,'function realLibrary(){','\nlivePost =')
+ ].join('\n'),c);
+ c.app=app;c.pending=pending;c.liveRecover=async()=>{};
+ vm.runInContext('rt.pending=pending;',c);
+ await vm.runInContext(section(runtime,"Promise.all([liveRequest('/v7-case.json'),liveRequest('/api/projects')])",'\nsetInterval('),c);
+ const render=page=>{
+  app.page=page;
+  renderedHtml=c.otherPage(app);
+  c.v7AfterRender(app);
+  return {html:renderedHtml,sidebar:sidebar.textContent};
+ };
+ return {render,calls,live:vm.runInContext('liveReal()',c)};
+}
+test('ordinary Wiki cold reads show the four recoveries and keep other pages on normal navigation',async()=>{
+ const bootstrap={credential:'synthetic',wiki_v9:true};
+ const healthy=await coldSettings({bootstrap});
+ assert.equal(healthy.live,true);
+ assert.match(healthy.render('settings').html,/data-connection-diagnostics/);
+ for(const [error,recovery] of readRejections){
+  const status=error.startsWith('credential-')?401:403;
+  const entry=await coldSettings({bootstrap,error,status});
+  assert.deepEqual(entry.calls,[['/v7-case.json','GET'],['/api/projects','GET']]);
+  assert.equal(entry.live,false);
+  const {html,sidebar}=entry.render('settings');
+  assert.match(html,recovery);
+  assert.match(html,/Login cannot be verified/);
+  assert.doesNotMatch(html,/Local Harness records are connected|may be confirmed/);
+  assert.match(sidebar,/Project read failed/);
+  assert.deepEqual(entry.render('history'),{html:'<p>History</p>',sidebar:'Local service connected · current papers 0'});
+  assert.match(entry.render('settings').html,recovery);
+ }
+});
+test('cold Wiki settings keep local unknown writes ahead of read recovery',async()=>{
+ const entry=await coldSettings({bootstrap:{credential:'synthetic',wiki_v9:true},error:'credential-rejected',status:401,pending:{ref:'p1'}});
+ const {html}=entry.render('settings');
+ assert.match(html,/Keep the original operation key/);
+ assert.doesNotMatch(html,/Reopen the same ordinary Wiki homepage|may be confirmed/);
+});
+test('non-Wiki bootstrap and unknown Wiki refusal keep the existing fallback',async()=>{
+ for(const bootstrap of [undefined,{credential:'synthetic'},{credential:'synthetic',wiki_v9:false}]){
+  const entry=await coldSettings({bootstrap,error:'credential-rejected',status:401});
+  const {html,sidebar}=entry.render('settings');
+  assert.match(html,/Local Harness records are connected/);
+  assert.doesNotMatch(html,/data-connection-diagnostics/);
+  assert.match(sidebar,/Local service connected/);
+ }
+ const unknown=await coldSettings({bootstrap:{credential:'synthetic',wiki_v9:true},error:'private C:/secret/token',status:500});
+ assert.doesNotMatch(unknown.render('settings').html,/data-connection-diagnostics|C:\/secret/);
+});
 for(const [error,recovery] of readRejections){
  test(`ordinary settings shows specific recovery for ${error}`,()=>{
   const html=settingsHtml({ref:'p1',error});
