@@ -12,6 +12,13 @@ const source = name => readFileSync(join(__dirname,name),'utf8');
 
 function browserFixture() {
   window.RESEARCH_PROJECTS = {};
+  const digest=async (kind,body)=>{
+    const keys=Object.keys(body).filter(key=>key!=='revision').sort();
+    const semantic=Object.fromEntries(keys.map(key=>[key,body[key]]));
+    const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({body:semantic,kind})));
+    return Array.from(new Uint8Array(bytes),v=>v.toString(16).padStart(2,'0')).join('');
+  };
+  window.fixtureDigest=digest;
   const app = {el:document.querySelector('main'), page:'workspace', stage:2, lang:'zh'};
   const project = {project_ref:'SYNTHETIC-A', project_id:'SYNTHETIC-ID', input_version:1, revision:2, brief_sha256:'a'.repeat(64)};
   Object.assign(window, {app, apps:[app], project, rt:{ref:project.project_ref,overview:{project},epoch:0},
@@ -20,7 +27,7 @@ function browserFixture() {
     liveHeader:()=>'', rl:zh=>zh, rx:value=>String(value).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;'),
     projectPath:(ref,tail)=>'/api/projects/'+ref+'/'+tail, calls:[], changes:{},
     livePaint(){app.el.innerHTML=app.stage===2?stage2(app):laterStage(app);},
-    async liveRefresh(){rt.epoch++; livePaint();},
+    async liveRefresh(ref=rt.ref){rt.epoch++; rt.ref=ref;rt.overview={project:{...project}};livePaint();},
     async liveRequest(path, body){
       const tail=path.split('/').slice(4).join('/');
       calls.push({tail, body:body&&structuredClone(body)});
@@ -29,20 +36,38 @@ function browserFixture() {
       if(tail==='stage2/selection')return {...project,kind:'Stage2SelectionView',delivery_manifest_sha256:'1'.repeat(64),snapshot_sha256:'2'.repeat(64),delivery_workflow_head_sha256:'3'.repeat(64),execution_authorized:false,...changes.selectionView};
       if (tail==='overview') return {project:{...project,...changes.overview}};
       if (tail==='stage2/continuation') return {...project, status:changes.selection||'no-candidate', execution_authorized:false, delivery_manifest_sha256:'1'.repeat(64),snapshot_sha256:'2'.repeat(64),workflow_head_sha256:'3'.repeat(64), ...changes.continuation};
-      if (tail==='history') return {actions:[]};
+      if (tail==='history') return {project_ref:project.project_ref,revision:project.revision,execution_authorized:false,actions:changes.actions||[]};
+      if(tail==='stage2')return {project_ref:project.project_ref,execution_authorized:false,revision:project.revision,offers:changes.offer?[changes.offer]:[]};
+      if(tail==='stage2/actions' && body){
+        changes.offer=null;changes.status='connectable';changes.reason=null;project.revision++;
+        return {project_ref:project.project_ref,kind:'stage2-activate',key:body.key,status:'saved',execution_authorized:false,
+          request_sha256:await digest('stage2-activate',body),input_version:project.input_version,brief_sha256:project.brief_sha256,
+          offer_ref:body.offer_ref,offer_sha256:body.offer_sha256,stage2_status:'ready-for-explicit-stage2-run'};
+      }
       if (tail==='stage3/planning') return {...project,plan:null};
       if (tail!=='connections') throw Error('unexpected fixture request '+tail);
       if (body) {
+        if(changes.switchInPost){rt.ref='SYNTHETIC-B';rt.overview={project:{...project,project_ref:rt.ref}};rt.epoch++;livePaint();}
         if (changes.postError) throw Object.assign(Error(changes.postError),{status:changes.postHttp});
         project.revision++;
+        changes.savedKey=body.key;
         changes.status=changes.afterPost||'connected'; changes.reason=changes.afterReason||null;
+        if(changes.status==='consent-required'){
+          const hash='d'.repeat(64);
+          changes.offer={offer_ref:'stage2-'+hash.slice(0,32),offer_sha256:hash,input_version:body.input_version,
+            brief_sha256:body.brief_sha256,status:'ready-for-researcher-activation',work_count:3};
+          const kind='stage2-register-offer';
+          changes.actions=[{project_ref:project.project_ref,kind,key:body.key,status:'saved',execution_authorized:false,offer:changes.offer,
+            request_sha256:changes.wrongOfferDigest?'f'.repeat(64):await digest(kind,{input_version:body.input_version,key:body.key,brief_sha256:body.brief_sha256,
+              connection_profile_sha256:body.profile_sha256,offer_sha256:hash})}];
+        }
       } else if (changes.getError) throw Object.assign(Error(changes.getError),{status:changes.http});
       if (!body && changes.wait) {const waiting=changes.wait; delete changes.wait; await waiting;}
       const status=changes.status||'connectable';
       const row={status, reason:changes.reason||null, profile_sha256:'b'.repeat(64),
-        connection_id:status==='connected'?'c'.repeat(64):null, receipt_id:status==='connected'?'SYNTHETIC-receipt':null, ...changes.row};
+        connection_id:status==='connected'?'c'.repeat(64):null, receipt_id:status==='connected'?(changes.savedKey||'SYNTHETIC-receipt'):null, ...(body&&changes.offer?{activation_offer:changes.offer,revision:project.revision}:{}),...changes.row,...(body?changes.postRow:{})};
       return {project_ref:project.project_ref, execution_authorized:false,
-        connections:{'stage2-controller':row, 'stage3-planning':row}, ...changes.response};
+        connections:body?{[body.stage]:row}:{'stage2-controller':row, 'stage3-planning':row}, ...changes.response,...(body?changes.postResponse:{})};
     }});
   // The shared lock name and ifAvailable/exclusive mode are part of the fixture contract.
   Object.defineProperty(navigator,'locks',{configurable:true,value:{
@@ -60,7 +85,7 @@ async function exercise() {
   const posts=()=>calls.filter(call=>call.body);
   const reset=async (config={},stage=2)=>{
     sessionStorage.clear();window.changes=config;calls.length=0;
-    Object.assign(rt,{ref:project.project_ref,overview:{project},busy:false,pending:null,controlHeld:false,loading:false,error:''});
+    Object.assign(rt,{ref:project.project_ref,overview:{project:{...project}},busy:false,pending:null,controlHeld:false,loading:false,error:''});
     app.stage=stage;rt.epoch++;livePaint();await tick();
   };
   // Each counterexample runs on a fresh rendered page, including the previously reachable request button.
@@ -82,6 +107,27 @@ async function exercise() {
   probe(!app.el.querySelector('[data-wiki-stage2-action=request]'),'blocked connection and old ready');
   const stale=document.createElement('button');stale.dataset.wikiStage2Action='request';app.el.append(stale);stale.click();await tick();
   probe(!posts().length,'old request delegated handler blocked');
+  await reset({status:'consent-required',reason:'stage2-continuation-activation-required',afterPost:'consent-required',afterReason:'stage2-continuation-activation-required'});
+  const publish=button('publish');probe(!!publish,'initial consent can publish original offer');
+  if(publish){
+    publish.click();await tick();probe(posts().length===1&&!!button('activate')&&!button('publish')&&status().includes(changes.offer.offer_ref),'original offer verified and retained');
+    button('read').click();await tick();probe(posts().length===1&&!!button('activate'),'offer survives readback without autopost');
+    button('activate')?.click();await tick();probe(posts().length===2&&posts()[1].tail==='stage2/actions'&&posts()[1].body.offer_ref===changes.actions[0].offer.offer_ref,'separate existing activation contract');
+  }
+  await reset({status:'consent-required',reason:'stage2-continuation-activation-required',afterPost:'consent-required',afterReason:'stage2-continuation-activation-required',wrongOfferDigest:true});
+  button('publish').click();await tick();probe(!!rt.pending&&status().includes('Unknown')&&!button('activate'),'offer without original receipt digest stays Unknown');
+  const originalVersion=project.input_version;project.input_version='1';
+  await reset();probe(!button('connect')&&!posts().length,'legacy string input cannot register');project.input_version=originalVersion;
+  for(const wrong of [{postRow:{receipt_id:'wrong-key'}},{postResponse:{execution_authorized:true}},{postResponse:{project_ref:'wrong'}},
+      {postResponse:{connections:{}}},{postRow:{profile_sha256:'f'.repeat(64)}}]){
+    await reset(wrong);button('connect').click();await tick();
+    const saved=sessionStorage.getItem('v7-pending-action');
+    probe(!!saved&&!!rt.pending&&status().includes('Unknown')&&!button('connect'),'unverified 200 remains pending '+JSON.stringify(wrong));
+    button('read')?.click();await tick();
+    probe(saved===sessionStorage.getItem('v7-pending-action')&&posts().length===1,'read cannot settle malformed POST or resend');
+  }
+  await reset({switchInPost:true,postError:'SYNTHETIC-private-denial',postHttp:403});button('connect').click();await tick();
+  probe(rt.ref==='SYNTHETIC-B'&&!rt.error&&!app.el.innerText.includes('SYNTHETIC-private-denial'),'late error does not alter another project');
   check(!problems.length,problems.join(', '));
   await reset(); check(posts().length===0 && button('connect'),'render uses only GET');
   const connect=button('connect');connect.click();connect.click();await tick();
@@ -109,6 +155,9 @@ async function exercise() {
   button('connect').click();await tick();
   const saved=sessionStorage.getItem('v7-pending-action');
   check(saved&&status().includes('Unknown')&&!button('connect'),'unknown keeps pending intent');
+  // Even a generic receipt matching the wrong operation must never settle this native transaction.
+  changes.actions=[{project_ref:rt.ref,kind:'connections',key:rt.pending.body.key,status:'saved',
+    request_sha256:await window.fixtureDigest('connections',rt.pending.body)}];
   await liveRecover();button('read').click();await tick();
   check(sessionStorage.getItem('v7-pending-action')===saved&&posts().length===1,'read and recovery never replay or clear unknown');
   await reset();const staleButton=button('connect');
