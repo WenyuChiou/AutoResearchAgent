@@ -314,6 +314,9 @@ class CurrentConnectionTests(unittest.TestCase):
             status, selected = request(origin, f"/api/projects/{ref}/stage2/selection")
             self.assertEqual(status, 200, selected)
             self.assertEqual(selected["selection_status"], "pending")
+            self.assertEqual(
+                selected["revision"], case.intake.read(VIEWER, ref)["revision"]
+            )
             self.assertFalse(selected["execution_authorized"])
             self.assertTrue(selected["cards"])
             after = counts(case.intake)
@@ -376,6 +379,12 @@ class SelectionConnectionTests(Stage2SelectionFixture):
                 input_version=current["input_version"],
                 brief_sha256=current["brief_sha256"],
                 topic=current["brief"]["original_description"],
+                needs=[
+                    {
+                        "need_id": "consumption",
+                        "question": "Synthetic household question",
+                    }
+                ],
             ),
         )
         for method in ("submit", "compile"):

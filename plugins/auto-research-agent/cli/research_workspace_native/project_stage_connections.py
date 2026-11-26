@@ -1,7 +1,6 @@
 """Host-owned, durable read bindings. A connection is never an execution grant."""
 
 from collections.abc import Mapping
-from contextlib import nullcontext
 from copy import deepcopy
 
 from stage1_deliverable.common import safe_path, sha
@@ -89,14 +88,31 @@ class ConnectionStore:
                     "connection_id": saved["sha256"],
                     "receipt_id": saved["key"],
                 }
+            except SessionApiError:
+                raise
             except (OSError, ValueError, KeyError, TypeError) as error:
                 raise SessionApiError("stage-connection-source-invalid", 409) from error
 
-    def record(self, ref, stage, row, *, derived_from, check_deadline=None, offer=None):
+    def record(
+        self,
+        ref,
+        stage,
+        row,
+        *,
+        derived_from,
+        check_deadline=None,
+        offer=None,
+        expected_identity=None,
+    ):
         """Trusted producer only; callers must verify the source before recording."""
         _check(stage in {"stage2-input", "stage2-selection"}, "stage-connection-kind")
         with self.intake._lock:
             identity = self._identity(ref)
+            _check(
+                expected_identity is None
+                or canonical_hash(identity) == canonical_hash(expected_identity),
+                "stage-connection-project-stale",
+            )
             record = dict(
                 kind="ProjectStageConnection",
                 schema_version="1.0.0",
@@ -176,6 +192,12 @@ class ConnectionStore:
                     offers[offer["offer_ref"]] = deepcopy(offer)
                 return {"connection_id": digest, "execution_authorized": False}
 
+            def reserve(_, __, ___):
+                _check(
+                    canonical_hash(self._identity(ref)) == canonical_hash(identity),
+                    "stage-connection-project-stale",
+                )
+
             receipt = self.intake._perform(
                 principal,
                 ref,
@@ -183,6 +205,7 @@ class ConnectionStore:
                 body,
                 work,
                 check_deadline=check_deadline,
+                reserve=reserve,
             )
             _check(
                 receipt["status"] == "saved",
@@ -190,13 +213,15 @@ class ConnectionStore:
             )
             return self.resolve(ref, stage)
 
-    def record_selection(self, ref, binding):
+    def record_selection(self, ref, binding, *, check_deadline=None):
         """Accept only a verified existing delivery of this activated project."""
         from .project_stage2_selection_view import ProjectStage2SelectionView
 
         with self.intake._lock:
             view = ProjectStage2SelectionView(self.intake, {ref: binding})
             view._current(self.credential, ref)
+            if check_deadline is not None:
+                check_deadline()
             return self.record(
                 ref,
                 "stage2-selection",
@@ -204,6 +229,7 @@ class ConnectionStore:
                 derived_from={
                     "delivery_manifest_sha256": binding["delivery_manifest_sha256"]
                 },
+                check_deadline=check_deadline,
             )
 
 
@@ -229,17 +255,29 @@ class BindingTable(Mapping):
             return deepcopy(dynamic["row"])
         if ref in self.static:
             return deepcopy(self.static[ref])
+        raise KeyError(ref)
+
+    def receive_completed(self, ref, *, check_deadline=None):
+        # Finish any local registration before entering the read-only view cache.
+        if check_deadline is not None:
+            check_deadline()
+        dynamic = self.store.resolve(ref, "stage2-selection")
+        _check(
+            not (ref in self.static and dynamic is not None),
+            "selection-bindings-overlap",
+        )
+        if ref in self.static or dynamic is not None:
+            return
         driver = self.controllers.get(ref)
         if driver is not None:
             binding = _completed_binding(driver, self.store.credential, ref)
             if binding is not None:
-                return self.store.record_selection(ref, binding)["row"]
-        raise KeyError(ref)
+                self.store.record_selection(ref, binding, check_deadline=check_deadline)
 
     def __iter__(self):
         with self.store.intake._lock:
             principal = self.store.intake._principal(self.store.credential)
-            refs = set(self.static) | set(self.controllers)
+            refs = set(self.static)
             for row in self.store.intake.db.execute(
                 "SELECT ref FROM intake_projects WHERE principal=?", (principal,)
             ).fetchall():
@@ -255,93 +293,73 @@ class BindingTable(Mapping):
 def register_current(
     service, ref, *, credential, delivery, stage1=None, check_deadline=None
 ):
-    """Derive a read connection from #524's freshly verified native package."""
+    """Consume #524's verification while its source locks are still held."""
     from .project_stage2_current_evidence import current_evidence
 
     intake = service.intake
     _check(delivery.intake is intake, "stage-connection-store-differs")
     with intake._lock:
-        # Public identity is re-read; callers cannot select a physical package.
         project = intake.read(credential, ref)
         if stage1 is None:
             stage1 = delivery.stage1.read(credential, ref)
-        evidence = current_evidence(
-            delivery, credential, stage1, project, check_deadline=check_deadline
-        )
-        if evidence["status"] != "received":
-            return {**evidence, "connection_id": None, "receipt_id": None}
-        _check(
-            type(evidence["input_version"]) is int,
-            "stage-connection-integer-version-required",
-        )
-        store = ConnectionStore(intake, credential)
-        source = evidence["source"]
-        # Reopen the actual marker; never persist paths or identities from HTTP.
-        root = intake._path(ref, "s2r-" + evidence["source_descriptor_sha256"][:32])
-        marker = decode(
-            _raw(safe_path(root, "receipt.json"), evidence["receipt_sha256"]),
-            "receiver",
-        )
-        _check(
-            canonical_hash(marker["source"]) == canonical_hash(source),
-            "stage-connection-source-differs",
-        )
-        row = {
-            key: evidence[key]
-            for key in ("packet_id", "packet_sha256", "receipt_sha256")
-        }
-        _, _, binding, run, ledger, report = delivery._saved_context(ref)
-        guard = nullcontext(lambda: None)
-        if run.get("query_owned"):
-            owner = getattr(delivery.stage1, "query_service", None)
-            factory = getattr(owner, "saved_records_guard", None)
-            _check(callable(factory), "stage2-current-evidence-owner-unavailable")
-            guard = factory(run, ledger, report)
-        with guard as check_owner, ledger.writing(repair=False):
-            bound = delivery.binding(ref)
+
+        def receive(evidence, binding, bound):
             _check(
-                all(
-                    bound[key] == source[key]
-                    for key in (
-                        "artifact_ref",
-                        "run_ref",
-                        "checkpoint_event_id",
-                        "ledger_state_sha256",
-                        "manifest_sha256",
-                        "handoff_sha256",
-                        "records_sha256",
-                    )
-                ),
-                "stage-connection-source-differs",
+                type(evidence["input_version"]) is int,
+                "stage-connection-integer-version-required",
             )
-            check_owner()
-            if check_deadline is not None:
-                check_deadline()
+            source = evidence["source"]
+            root = intake._path(ref, "s2r-" + evidence["source_descriptor_sha256"][:32])
+            row = {
+                key: evidence[key]
+                for key in ("packet_id", "packet_sha256", "receipt_sha256")
+            }
             offer = _current_offer(binding, bound, evidence, root)
             row["offer_ref"] = offer["offer_ref"]
-            record = store.record(
+            expected = {
+                key: binding[key]
+                for key in (
+                    "project_id",
+                    "input_version",
+                    "brief_sha256",
+                    "plan_manifest_sha256",
+                )
+            }
+            expected["settings_sha256"] = canonical_hash(binding["settings"])
+            record = ConnectionStore(intake, credential).record(
                 ref,
                 "stage2-input",
                 row,
                 derived_from=source,
                 check_deadline=check_deadline,
                 offer=offer,
+                expected_identity=expected,
             )
-        revision = intake.read(credential, ref)["revision"]
-        evidence.update(
-            revision=revision,
-            stage1_atlas_url=(
-                f"/api/projects/{ref}/stage1/atlas/{source['input_version']}/"
-                f"{revision}/{source['artifact_ref']}/{source['manifest_sha256']}"
-            ),
+            revision = intake.read(credential, ref)["revision"]
+            return dict(
+                evidence,
+                revision=revision,
+                stage1_atlas_url=(
+                    f"/api/projects/{ref}/stage1/atlas/{source['input_version']}/"
+                    f"{revision}/{source['artifact_ref']}/{source['manifest_sha256']}"
+                ),
+                connection_id=record["connection_id"],
+                receipt_id=record["receipt_id"],
+                activation_allowed=False,
+                offer=_public(offer),
+            )
+
+        result = current_evidence(
+            delivery,
+            credential,
+            stage1,
+            project,
+            check_deadline=check_deadline,
+            on_received=receive,
         )
-        return {
-            **evidence,
-            "connection_id": record["connection_id"],
-            "receipt_id": record["receipt_id"],
-            "activation_allowed": False,
-            "offer": _public(offer),
-        }
+        if result["status"] != "received":
+            return dict(result, connection_id=None, receipt_id=None)
+        return result
 
 
 def _current_offer(binding, bound, evidence, root):

@@ -200,7 +200,20 @@ class ProjectStage2SelectionView:
         return (project, binding, delivery, workflow, ack, admitted), context
 
     def read(self, credential, project_ref, *, check_deadline=None):
-        with self.intake._lock, verified_selection_read(self.intake):
+        from .project_stage_connections import BindingTable
+
+        with self.intake._lock:
+            self.intake.read(credential, project_ref)
+            if isinstance(self.bindings, BindingTable):
+                self.bindings.receive_completed(
+                    project_ref, check_deadline=check_deadline
+                )
+            return self._read_verified(
+                credential, project_ref, check_deadline=check_deadline
+            )
+
+    def _read_verified(self, credential, project_ref, *, check_deadline=None):
+        with verified_selection_read(self.intake):
             if check_deadline:
                 check_deadline()
             project, binding, delivery, workflow, ack, admitted = self._current(
