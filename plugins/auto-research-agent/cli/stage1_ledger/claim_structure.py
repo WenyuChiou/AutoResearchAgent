@@ -48,6 +48,8 @@ def check_structure(claim, prior):
             )
         ):
             raise LedgerError("interpretation-basis-not-prior-same-work-version-source")
+        # A new interpretation cannot launder a malformed saved declaration.
+        check_structure(source, {})
 
 
 def split_hint(text):

@@ -315,6 +315,27 @@ class ClaimStructureTests(unittest.TestCase):
             str(result["errors"]),
         )
 
+    def test_reopened_malformed_source_declaration_cannot_be_basis(self):
+        basis = self.ledger.claim(
+            **self.request(
+                "Accuracy increased.", claim_type="source_statement", basis_claim_ids=[]
+            )
+        )
+        rewrite_for_tamper_test(
+            self.ledger,
+            lambda rows: rows[-1]["payload"].update(basis_claim_ids=[basis]),
+        )
+        before = self.ledger.events()
+        with self.assertRaisesRegex(LedgerError, "source-statement-cannot-have"):
+            Ledger(self.ledger.root).claim(
+                **self.request(
+                    "Accuracy increased.",
+                    claim_type="project_interpretation",
+                    basis_claim_ids=[basis],
+                )
+            )
+        self.assertEqual(self.ledger.events(), before)
+
     def test_public_cli_accepts_typed_request_and_fresh_process_validates(self):
         request = Path(self.tmp.name) / "claim.json"
         request.write_text(
