@@ -103,6 +103,8 @@ async function wikiStage2Load(state, submit) {
 function wikiStage2Panel(state) {
   const label = (zh, en, tw) => rl(zh, en, tw);
   const status = state.result?.status;
+  const reason = state.result?.reason;
+  const technical = state.error || (status === "blocked" && typeof reason === "string" && reason.trim() ? reason : "");
   const descriptions = {
     ready: label("项目已接入。可请求生成候选。", "This project is connected. You can request candidates.", "專案已接入。可請求產生候選。"),
     "request-saved": label("请求已保存。可查看处理状态。", "Request saved. You can check its status.", "請求已儲存。可查看處理狀態。"),
@@ -137,7 +139,7 @@ function wikiStage2Panel(state) {
       ${status === "ready" ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
       <button type="button" class="hs-button" data-wiki-stage2-action="read" ${state.busy ? "disabled" : ""}>${label("查看保存状态", "Check saved status", "查看儲存狀態")}</button>
     </div>
-    ${state.error ? `<details><summary>${label("技术细节", "Technical details", "技術細節")}</summary><code>${rx(state.error)}</code></details>` : ""}
+    ${technical ? `<details><summary>${label("技术细节", "Technical details", "技術細節")}</summary><code>${rx(technical)}</code></details>` : ""}
     ${state.result?.synthetic_test_only ? `<p>${label("合成工程候选", "Synthetic engineering candidates", "合成工程候選")}</p>` : ""}
     ${state.result?.human_selection === "pending" ? `<p>${label("等待你选择研究方向", "Human selection pending", "等待人工選案")}</p>` : ""}
     ${state.result?.assessment_status === "missing" ? `<p>${label("独立评估尚未提供", "Independent assessment unavailable", "獨立評估尚未提供")}</p>` : ""}

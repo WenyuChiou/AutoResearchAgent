@@ -14,6 +14,7 @@ const n9UiLabels = {
  'OPEN_PER_PUBLISHED_PLAN':['正式确认还没完成','Formal confirmation is pending','正式確認還沒完成'],
  'recommend':['系统建议','System recommendation','系統建議'],
  'park':['系统暂缓','Deferred by the system','系統暫緩'],
+ 'revise':['待修订','Revise','待修訂'],
  'registered':['已登记','Registered','已登記'], 'verified-saved-package':['已核验保存交付','Verified saved delivery','已核驗保存交付'],
  'validated-stage2-packet':['已校验Stage2材料','Validated Stage2 input','已校驗Stage2材料'],
  'prepared':['接续快照已保存','Workflow prepared','接續快照已保存'],
