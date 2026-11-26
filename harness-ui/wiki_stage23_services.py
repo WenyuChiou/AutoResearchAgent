@@ -2,10 +2,11 @@
 
 
 def validate_args(args):
-    if bool(getattr(args, "stage2_controller_profile", None)) != bool(
-        getattr(args, "stage2_controller_profile_sha256", None)
-    ):
-        raise ValueError("stage2_controller_profile requires its external SHA256")
+    for stem in ("stage2_controller_profile", "stage3_planning_profile"):
+        if bool(getattr(args, stem, None)) != bool(
+            getattr(args, stem + "_sha256", None)
+        ):
+            raise ValueError(stem + " requires its external SHA256")
     for stem in (
         "stage2_direct_import",
         "stage2_controller",
@@ -36,6 +37,7 @@ def configure_services(services, args):
         stage2_controller_profile=None,
         stage2_selection=None,
         stage3_planning=None,
+        stage3_planning_profile=None,
         stage3_recovery_pins=None,
         stage2_readings=None,
         planning_resources=None,
@@ -120,17 +122,39 @@ def configure_services(services, args):
         services["stage2_readings"] = Stage2ReadingRegistry(
             args.stage2_reading_config, args.stage2_reading_sha256
         )
-    if getattr(args, "stage3_planning_config", None):
+    if getattr(args, "stage3_planning_profile", None):
+        from research_workspace_native.project_stage3_planning_config import (
+            Stage3PlanningProfile,
+        )
+
+        services["stage3_planning_profile"] = Stage3PlanningProfile(
+            args.stage3_planning_profile, args.stage3_planning_profile_sha256
+        )
+    profile = services["stage3_planning_profile"]
+    if getattr(args, "stage3_planning_config", None) or profile is not None:
         from research_workspace_native.project_stage3_planning_config import (
             Stage3PlanningHostResources,
             load_stage3_planning_configuration,
+            validate_profile_journal,
         )
 
-        config = load_stage3_planning_configuration(
-            projects, token, args.stage3_planning_config, args.stage3_planning_sha256
+        config = (
+            load_stage3_planning_configuration(
+                projects,
+                token,
+                args.stage3_planning_config,
+                args.stage3_planning_sha256,
+            )
+            if getattr(args, "stage3_planning_config", None)
+            else None
         )
+        validate_profile_journal(profile, config)
         resources = Stage3PlanningHostResources(
-            projects, token, services["stage2_selection"], config
+            projects,
+            token,
+            services["stage2_selection"],
+            config,
+            **({"profile": profile} if profile is not None else {}),
         )
         services.update(
             planning_resources=resources,
