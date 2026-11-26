@@ -20,6 +20,7 @@ from stage3_plan.preparation import closed, sha256, text
 from stage3_plan.storage import decode_json, private_output, read_bytes, safe_path
 
 from .journal import Journal
+from .project_stage_connections import PLANNING_STAGE, ConnectionStore
 from .project_stage3_planning import ProjectStage3PlanningService
 
 
@@ -190,60 +191,138 @@ def validate_profile_journal(profile, configuration):
 class Stage3PlanningHostResources:
     """One CLI owner for existing journals; never owns the intake or a runner."""
 
-    def __init__(self, intake, credential, selection_view, configuration):
+    def __init__(
+        self, intake, credential, selection_view, configuration, *, profile=None
+    ):
         if selection_view is None or selection_view.intake is not intake:
             raise Stage3Error("stage3-planning-configuration-selection-required")
-        configuration = _validated(intake, credential, configuration)
+        if configuration is not None:
+            configuration = _validated(intake, credential, configuration)
+        validate_profile_journal(profile, configuration)
+        if configuration is None and profile is None:
+            raise Stage3Error("stage3-planning-configuration-required")
+        self.intake, self.credential, self.profile = intake, credential, profile
+        self.store = ConnectionStore(intake, credential)
         self._lock = threading.RLock()
         self._closed, self._close_failure = False, None
         self.journal, self._owners = None, {}
+        self._rows, self._dynamic = {}, {}
         self.recovery_pins, self.identities = {}, {}
+        rows = () if configuration is None else configuration["bindings"]
+        self.static_refs = frozenset(row["project_ref"] for row in rows)
+        for ref in self.static_refs:
+            if self.store.resolve(ref, PLANNING_STAGE) is not None:
+                raise Stage3Error("stage3-planning-bindings-overlap")
         try:
-            self.journal = Journal(configuration["journal_path"])
-            bindings = {}
-            for row in configuration["bindings"]:
-                ref, project_id = row["project_ref"], row["project_id"]
-                identity = {
-                    "kind": "ProjectHostStage3JournalIdentity",
-                    "schema_version": "1.0.0",
-                    "project_ref": ref,
-                    "project_id": project_id,
-                    "projects_root": str(safe_path(intake.root)),
-                }
-                # An actual Host identity token, never a native ProjectIndex proof.
-                self.identities[ref] = identity
-                self.journal.bind_project(project_id, digest(identity))
-                owner = self.journal.acquire_owner(
-                    project_id, "stage3-host-" + secrets.token_hex(16)
-                )
-                self._owners[project_id] = owner
-                native = row["native"]
-                bindings[ref] = {
-                    "jobs": PlanningJobs(
-                        self.journal,
-                        project_id,
-                        owner,
-                        row["jobs_root"],
-                        project_ref=ref,
-                    ),
-                    "configuration": row["configuration"],
-                    "callback": NativePlanner(**native),
-                }
-                for pin in row["recovery_pins"]:
-                    key = (ref, pin["key"], pin["request_sha256"])
-                    self.recovery_pins[key] = pin["plan_manifest_sha256"]
+            self.journal = Journal(
+                profile.journal_path
+                if configuration is None
+                else configuration["journal_path"]
+            )
+            bindings = {row["project_ref"]: self._open_binding(row) for row in rows}
             self.service = ProjectStage3PlanningService(
                 intake,
                 selection_view,
                 bindings=bindings,
                 saved_read_pins=self.recovery_pins,
             )
+            from .project_stage3_planning_connections import Stage3PlanningConnections
+
+            self.connections = Stage3PlanningConnections(self)
+            if profile is not None:
+                self.service.bindings = self.connections
+                self.service.saved_read_pins = self.recovery_pins
         except BaseException as error:
             try:
                 self.close()
             except BaseException as cleanup:
                 error.add_note(f"Planning resource cleanup failed: {cleanup!r}")
             raise
+
+    def _open_binding(self, row):
+        ref, project_id = row["project_ref"], row["project_id"]
+        identity = {
+            "kind": "ProjectHostStage3JournalIdentity",
+            "schema_version": "1.0.0",
+            "project_ref": ref,
+            "project_id": project_id,
+            "projects_root": str(safe_path(self.intake.root)),
+        }
+        self.journal.bind_project(project_id, digest(identity))
+        owner = self.journal.acquire_owner(
+            project_id, "stage3-host-" + secrets.token_hex(16)
+        )
+        self._owners[project_id] = owner
+        self._rows[ref] = deepcopy(row)
+        self.identities[ref] = identity
+        binding = {
+            "jobs": PlanningJobs(
+                self.journal, project_id, owner, row["jobs_root"], project_ref=ref
+            ),
+            "configuration": row["configuration"],
+            "callback": NativePlanner(**row["native"]),
+        }
+        for pin in row["recovery_pins"]:
+            key = (ref, pin["key"], pin["request_sha256"])
+            self.recovery_pins[key] = pin["plan_manifest_sha256"]
+        return binding
+
+    def add_project(self, row):
+        """Compose one verified runtime row under the existing Journal owner."""
+        with self.intake._lock, self._lock:
+            if self._closed:
+                raise Stage3Error("stage3-planning-resources-closed")
+            closed(row, FIELDS, "Stage3 planning binding")
+            ref, project_id = row["project_ref"], row["project_id"]
+            current = self.intake.read(self.credential, ref)
+            if current["project_id"] != project_id:
+                raise Stage3Error("stage3-planning-configuration-project-differs")
+            if ref in self.static_refs:
+                raise Stage3Error("stage3-planning-bindings-overlap")
+            row_sha = digest(row)
+            if (
+                self.profile is None
+                or digest(self.profile.resolve(ref, project_id)) != row_sha
+            ):
+                raise Stage3Error("stage3-planning-runtime-row-differs")
+            existing = self._dynamic.get(ref)
+            if existing is not None:
+                if existing[0] != row_sha:
+                    raise Stage3Error("stage3-planning-runtime-row-differs")
+                return existing[1], False
+            if ref in self._rows or project_id in self._owners:
+                raise Stage3Error("stage3-planning-owner-already-attached")
+            outputs = [self.journal.path]
+            for old in self._rows.values():
+                _validated_settings(old, outputs)
+            _validated_settings(row, outputs)
+            try:
+                configured = self.service._validate_binding(
+                    ref, self._open_binding(row)
+                )
+            except BaseException as error:
+                try:
+                    self.release_project(ref)
+                except BaseException as cleanup:
+                    error.add_note(f"Planning lease cleanup failed: {cleanup!r}")
+                raise
+            self._dynamic[ref] = (row_sha, configured)
+            return configured, True
+
+    def release_project(self, ref):
+        """Roll back only a local runtime lease after an unsuccessful publication."""
+        with self._lock:
+            if ref not in self._rows or ref in self.static_refs:
+                return
+            project_id = self._rows[ref]["project_id"]
+            self.journal.release_owner(project_id, self._owners[project_id])
+            del self._owners[project_id]
+            del self._rows[ref]
+            del self.identities[ref]
+            self._dynamic.pop(ref, None)
+            for key in tuple(self.recovery_pins):
+                if key[0] == ref:
+                    del self.recovery_pins[key]
 
     def close(self):
         """Close only this owner's resources, once the Host has drained calls."""

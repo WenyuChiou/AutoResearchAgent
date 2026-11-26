@@ -130,19 +130,31 @@ def configure_services(services, args):
         services["stage3_planning_profile"] = Stage3PlanningProfile(
             args.stage3_planning_profile, args.stage3_planning_profile_sha256
         )
-    if getattr(args, "stage3_planning_config", None):
+    profile = services["stage3_planning_profile"]
+    if getattr(args, "stage3_planning_config", None) or profile is not None:
         from research_workspace_native.project_stage3_planning_config import (
             Stage3PlanningHostResources,
             load_stage3_planning_configuration,
             validate_profile_journal,
         )
 
-        config = load_stage3_planning_configuration(
-            projects, token, args.stage3_planning_config, args.stage3_planning_sha256
+        config = (
+            load_stage3_planning_configuration(
+                projects,
+                token,
+                args.stage3_planning_config,
+                args.stage3_planning_sha256,
+            )
+            if getattr(args, "stage3_planning_config", None)
+            else None
         )
-        validate_profile_journal(services["stage3_planning_profile"], config)
+        validate_profile_journal(profile, config)
         resources = Stage3PlanningHostResources(
-            projects, token, services["stage2_selection"], config
+            projects,
+            token,
+            services["stage2_selection"],
+            config,
+            **({"profile": profile} if profile is not None else {}),
         )
         services.update(
             planning_resources=resources,

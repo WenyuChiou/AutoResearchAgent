@@ -15,7 +15,10 @@ from research_workspace_native.project_stage2_controller import (
 from research_workspace_native.project_stage2_controller_connections import (
     Stage2ControllerConnections,
 )
-from research_workspace_native.project_stage_connections import CONTROLLER_STAGE
+from research_workspace_native.project_stage_connections import (
+    CONTROLLER_STAGE,
+    PLANNING_STAGE,
+)
 from research_workspace_native.session_api import SessionApiError, _check, _hash
 from research_workspace_native.transport import _decode
 from stage1_deliverable.common import private_output
@@ -356,8 +359,12 @@ class WikiStage2Continuation:
         )
 
 
-def install_stage2_continuation(host, profile=None):
+def install_stage2_continuation(host, profile=None, *, planning_resources=None):
     service = WikiStage2Continuation(host, profile)
+    planning = None if planning_resources is None else planning_resources.connections
+    if planning_resources is not None and planning_resources.profile is not None:
+        # Transport replay uses the same trusted pins as the planning service.
+        host.project_stage3_http.recovery_pins = planning_resources.recovery_pins
     inherited = host.RequestHandlerClass
 
     class Stage2ContinuationHandler(inherited):
@@ -391,6 +398,12 @@ def install_stage2_continuation(host, profile=None):
                         if connections
                         else service.read(token, ref, self._remaining)
                     )
+                    if connections and planning is not None:
+                        result["connections"].update(
+                            planning.discover(token, ref, self._remaining)[
+                                "connections"
+                            ]
+                        )
                     self._remaining()
                     return self._reply(200, result)
                 _check(
@@ -426,16 +439,21 @@ def install_stage2_continuation(host, profile=None):
                         and body["revision"] >= 0
                         and valid_input_version(body["input_version"])
                         and _hash(body["brief_sha256"])
-                        and body["stage"] == CONTROLLER_STAGE
+                        and body["stage"] in (CONTROLLER_STAGE, PLANNING_STAGE)
                         and _hash(body["profile_sha256"])
                         and body["confirmed"] is True,
                         "stage2-controller-connection-intent-required",
                         400,
                     )
-                    return self._reply(
-                        200,
-                        service.connections.register(token, ref, body, self._remaining),
+                    registry = (
+                        service.connections
+                        if body["stage"] == CONTROLLER_STAGE
+                        else planning
                     )
+                    _check(registry is not None, "stage3-planning-profile-unavailable")
+                    result = registry.register(token, ref, body, self._remaining)
+                    self._remaining()
+                    return self._reply(200, result)
                 start, result = service.submit(
                     token, ref, _decode(raw.decode("utf-8")), self._remaining
                 )

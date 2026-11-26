@@ -12,6 +12,15 @@ from .session_api import SessionApiError, _check
 
 
 CONTROLLER_STAGE = "stage2-controller"
+PLANNING_STAGE = "stage3-planning"
+
+
+def _action_kind(stage):
+    return (
+        "stage3-record-connection"
+        if stage == PLANNING_STAGE
+        else "stage2-record-connection"
+    )
 
 
 class ConnectionStore:
@@ -73,7 +82,7 @@ class ConnectionStore:
                 _check(
                     receipt is not None
                     and receipt["status"] == "saved"
-                    and receipt["kind"] == "stage2-record-connection"
+                    and receipt["kind"] == _action_kind(stage)
                     and receipt["project_ref"] == ref
                     and receipt["key"] == saved["key"]
                     and receipt["request"]["connection_sha256"] == saved["sha256"]
@@ -85,7 +94,7 @@ class ConnectionStore:
                         event[0] == action[0]
                         for event in self.intake.db.execute(
                             "SELECT payload FROM intake_events WHERE project=? AND kind=?",
-                            (ref, "stage2-record-connection-saved"),
+                            (ref, _action_kind(stage) + "-saved"),
                         )
                     ),
                     "stage-connection-saved-event-missing",
@@ -113,13 +122,16 @@ class ConnectionStore:
         expected_revision=None,
         request_key=None,
         maximum_projects=None,
+        reserve_resource=None,
     ):
         """Trusted producer only; callers must verify the source before recording."""
         _check(
-            stage in {"stage2-input", "stage2-selection", CONTROLLER_STAGE},
+            stage
+            in {"stage2-input", "stage2-selection", CONTROLLER_STAGE, PLANNING_STAGE},
             "stage-connection-kind",
         )
         with self.intake._lock:
+            action_kind = _action_kind(stage)
             identity = self._identity(ref)
             principal = self.intake._principal(self.credential)
             state = self.intake._load(principal, ref)
@@ -191,7 +203,7 @@ class ConnectionStore:
                         event[0] == payload
                         for event in self.intake.db.execute(
                             "SELECT payload FROM intake_events WHERE project=? AND kind=?",
-                            (ref, "stage2-record-connection-failed"),
+                            (ref, action_kind + "-failed"),
                         )
                     )
                     and not self.intake._path(ref, relative).exists(),
@@ -231,11 +243,11 @@ class ConnectionStore:
                     """SELECT COUNT(*) FROM intake_projects
                     WHERE principal=? AND ref<>?
                     AND CASE WHEN json_valid(state)
-                        THEN json_type(state, '$.stage_connections."stage2-controller"') IS NOT NULL
+                        THEN json_type(state, ?) IS NOT NULL
                         ELSE 1 END""",
-                    (principal, ref),
+                    (principal, ref, f'$.stage_connections."{stage}"'),
                 ).fetchone()[0]
-                _check(n < maximum_projects, "stage2-controller-profile-limit")
+                _check(n < maximum_projects, f"{stage}-profile-limit")
 
             def work(current, _, __):
                 # _perform commits the intent before this transaction starts.
@@ -276,11 +288,13 @@ class ConnectionStore:
                     ):
                         require_retryable(payload)
                 check_project_limit()
+                if reserve_resource is not None:
+                    reserve_resource()
 
             receipt = self.intake._perform(
                 principal,
                 ref,
-                "stage2-record-connection",
+                action_kind,
                 body,
                 work,
                 check_deadline=check_deadline,

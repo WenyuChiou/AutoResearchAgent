@@ -47,35 +47,7 @@ class ProjectStage3PlanningService:
             bindings is None or type(bindings) is dict, "stage3-bindings-invalid", 400
         )
         for ref, binding in (bindings or {}).items():
-            text(ref, "host project reference")
-            closed(
-                binding, {"jobs", "configuration", "callback"}, "Host planning binding"
-            )
-            jobs, callback = binding["jobs"], binding["callback"]
-            _check(
-                isinstance(jobs, PlanningJobs) and jobs.project_ref == ref,
-                "stage3-job-project-differs",
-            )
-            closed(binding["configuration"], {"model", "reasoning"}, "configuration")
-            for value in binding["configuration"].values():
-                text(value, "configuration value")
-            _check(callable(callback), "stage3-adapter-required", 400)
-            context = deepcopy(getattr(callback, "request_context", None))
-            timeout = context.get("timeout_seconds") if type(context) is dict else None
-            _check(
-                type(timeout) in (int, float)
-                and math.isfinite(timeout)
-                and timeout > 0,
-                "stage3-adapter-deadline-required",
-                400,
-            )
-            digest(context)
-            self.bindings[ref] = dict(
-                jobs=jobs,
-                configuration=deepcopy(binding["configuration"]),
-                callback=callback,
-                adapter_context=context,
-            )
+            self.bindings[ref] = self._validate_binding(ref, binding)
         from .project_stage3_direction_planning import ProjectStage3DirectionPlanning
 
         self.direction = ProjectStage3DirectionPlanning(self)
@@ -94,6 +66,34 @@ class ProjectStage3PlanningService:
             text(key, "saved read key")
             sha256(request)
             sha256(pin)
+
+    @staticmethod
+    def _validate_binding(ref, binding):
+        text(ref, "host project reference")
+        closed(binding, {"jobs", "configuration", "callback"}, "Host planning binding")
+        jobs, callback = binding["jobs"], binding["callback"]
+        _check(
+            isinstance(jobs, PlanningJobs) and jobs.project_ref == ref,
+            "stage3-job-project-differs",
+        )
+        closed(binding["configuration"], {"model", "reasoning"}, "configuration")
+        for value in binding["configuration"].values():
+            text(value, "configuration value")
+        _check(callable(callback), "stage3-adapter-required", 400)
+        context = deepcopy(getattr(callback, "request_context", None))
+        timeout = context.get("timeout_seconds") if type(context) is dict else None
+        _check(
+            type(timeout) in (int, float) and math.isfinite(timeout) and timeout > 0,
+            "stage3-adapter-deadline-required",
+            400,
+        )
+        digest(context)
+        return dict(
+            jobs=jobs,
+            configuration=deepcopy(binding["configuration"]),
+            callback=callback,
+            adapter_context=context,
+        )
 
     def _current(self, credential, project_ref, body=None, check_deadline=None):
         if check_deadline:
