@@ -248,6 +248,22 @@ class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
                 self.assertEqual(
                     request(origin, connections, body=body), (200, offered)
                 )
+                alias = {
+                    **body,
+                    "key": "different-publish-key",
+                    "revision": consent["revision"],
+                }
+                self.assertEqual(
+                    observed(
+                        origin, "already-published-new-key", connections, body=alias
+                    ),
+                    (
+                        409,
+                        {
+                            "error": "stage2-controller-activation-offer-already-published"
+                        },
+                    ),
+                )
                 after_offer = counts(case.intake, ref)
                 self.assertEqual(
                     after_offer,
@@ -275,6 +291,15 @@ class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
                 self.assertEqual(activated["packet_sha256"], evidence["packet_sha256"])
                 _, latest = request(origin, route)
                 self.assertEqual(latest["revision"], consent["revision"] + 2)
+                self.assertEqual(
+                    observed(
+                        origin,
+                        "rejected-key-stays-uncommitted",
+                        connections,
+                        body=alias,
+                    ),
+                    (409, {"error": "stale-revision"}),
+                )
                 self.assertEqual(
                     request(origin, connections, body=body)[1]["connections"][
                         "stage2-controller"

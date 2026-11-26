@@ -388,8 +388,12 @@ class ProjectStage2Service:
                     "SELECT 1 FROM intake_actions WHERE principal=? AND project=? AND key=?",
                     (principal, project_ref, connection_key),
                 ).fetchone()
-                if prior is None:
-                    return _public(existing)
+                # An already published offer is visible in the Stage 2 view.
+                # Its original write key remains responsible for replay.
+                _check(
+                    prior is not None,
+                    "stage2-controller-activation-offer-already-published",
+                )
             body = dict(
                 key=connection_key
                 if connection_key is not None
