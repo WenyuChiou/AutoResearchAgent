@@ -2,6 +2,7 @@
 
 import copy
 import re
+import unicodedata
 
 from .contracts import Stage3Error, digest
 from .validation import check_plan
@@ -31,9 +32,42 @@ ACTIONABLE_RUBRIC = {
         "concrete next action. Otherwise revision is null. For unknown, "
         "missing_information is {needed, owner}: name the missing evidence and "
         "the person or role to ask. Otherwise missing_information is null. "
+        "Empty text and bare placeholders such as Needs work, TODO or Unknown "
+        "are invalid reasons, actions, information needs or owners. "
         "These fields do not authenticate a person or prove scientific adequacy."
     ),
 }
+
+
+def _content_text(value):
+    """Reject bare placeholders, not prose containing a word such as unknown.
+
+    This is a mechanical floor only; useful scientific advice still requires
+    independent review. Do not infer adequacy or authenticate the named role.
+    """
+    if not isinstance(value, str):
+        return False
+    normalized = " ".join(
+        "".join(
+            " " if unicodedata.category(char).startswith("P") else char
+            for char in unicodedata.normalize("NFKC", value).casefold()
+        ).split()
+    )
+    return any(char.isalnum() for char in normalized) and normalized not in {
+        "needs work",
+        "unknown",
+        "todo",
+        "tbd",
+        "n a",
+        "none",
+        "not applicable",
+        "需修改",
+        "待补",
+        "待補",
+        "未知",
+        "不适用",
+        "不適用",
+    }
 
 
 def review_plan(plan, intake, callback):
@@ -80,8 +114,7 @@ def _content_fields(plan, finding):
         if (
             not isinstance(revision, dict)
             or set(revision) != {"location", "action"}
-            or not isinstance(revision["action"], str)
-            or not revision["action"].strip()
+            or not _content_text(revision["action"])
             or revision["location"] not in finding["plan_locations"]
         ):
             raise Stage3Error("semantic revision requires a cited location and action")
@@ -94,7 +127,7 @@ def _content_fields(plan, finding):
         if (
             not isinstance(missing, dict)
             or set(missing) != {"needed", "owner"}
-            or not all(isinstance(v, str) and v.strip() for v in missing.values())
+            or not all(_content_text(v) for v in missing.values())
         ):
             raise Stage3Error("semantic unknown requires missing information and owner")
     elif missing is not None:
@@ -170,6 +203,8 @@ def validate_review(plan, intake, review):
         for location in finding["plan_locations"]:
             _plan_location(plan, location, strict=current)
         if current:
+            if not _content_text(finding["reason"]):
+                raise Stage3Error("semantic finding requires a non-placeholder reason")
             _content_fields(plan, finding)
     if found != expected_pairs:
         raise Stage3Error("semantic review missing question assessments")

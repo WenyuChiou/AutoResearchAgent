@@ -56,6 +56,34 @@ class Stage3ReviewContentTests(unittest.TestCase):
         with self.assertRaises(Stage3Error):
             core.review_plan(self.plan, self.intake, Mock(return_value=value))
 
+    def test_v2_rejects_placeholder_action_with_valid_location(self):
+        for text in ("Needs work.", " needs   work! ", "TODO", "需修改。"):
+            value = actionable_review(self.plan, self.intake, status="needs-revision")
+            value["findings"][0]["revision"]["action"] = text
+            with self.subTest(action=text), self.assertRaises(Stage3Error):
+                core.review_plan(self.plan, self.intake, Mock(return_value=value))
+
+    def test_v2_rejects_placeholder_unknown_content(self):
+        for key in ("needed", "owner"):
+            for text in ("Unknown", " TBD... ", "待补", "未知。"):
+                value = actionable_review(self.plan, self.intake, status="unknown")
+                value["findings"][0]["missing_information"][key] = text
+                with self.subTest(field=key, text=text), self.assertRaises(Stage3Error):
+                    core.review_plan(self.plan, self.intake, Mock(return_value=value))
+
+    def test_placeholder_reason_rejects_but_explanatory_prose_is_allowed(self):
+        value = actionable_review(self.plan, self.intake, status="unknown")
+        value["findings"][0]["reason"] = "Needs work."
+        with self.assertRaises(Stage3Error):
+            core.validate_review(self.plan, self.intake, value)
+        value["findings"][0]["reason"] = (
+            "Unknown sampling dates prevent checking overlap with the held-out rows."
+        )
+        value["findings"][0]["missing_information"]["needed"] = (
+            "Unknown sampling dates in observations.csv; obtain the acquisition log."
+        )
+        self.assertEqual(core.validate_review(self.plan, self.intake, value), value)
+
     def test_current_review_rejects_missing_or_empty_actions(self):
         for action in (None, "", "  "):
             value = actionable_review(self.plan, self.intake, status="needs-revision")
