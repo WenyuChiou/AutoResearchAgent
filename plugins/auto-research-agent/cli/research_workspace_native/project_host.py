@@ -502,7 +502,17 @@ class ProjectHost(AtlasHost):
         self, credential, ref, *, project=None, stage1=None, check_deadline=None
     ):
         with self.projects._lock:
-            result = self.project_stage2.read(credential, ref)
+            receive_current = (
+                getattr(self.project_stage2, "receive_current", False) is True
+            )
+            try:
+                result = self.project_stage2.read(
+                    credential,
+                    ref,
+                    **({"registered_only": True} if receive_current else {}),
+                )
+            except (KeyError, TypeError) as error:
+                raise SessionApiError("stage2-offer-view-invalid", 409) from error
             delivery = getattr(self, "project_stage1_delivery", None)
             if (
                 delivery is not None
@@ -513,13 +523,39 @@ class ProjectHost(AtlasHost):
                     project = self.projects.read(credential, ref)
                 if stage1 is None:
                     stage1 = self.project_stage1.read(credential, ref)
-                result["current_evidence"] = current_evidence(
-                    delivery,
-                    credential,
-                    stage1,
-                    project,
-                    check_deadline=check_deadline,
-                )
+                if receive_current:
+                    try:
+                        evidence = self.project_stage2.register_current(
+                            ref,
+                            credential=credential,
+                            delivery=delivery,
+                            stage1=stage1,
+                            check_deadline=check_deadline,
+                        )
+                    except SessionApiError as error:
+                        evidence = dict(
+                            status="blocked",
+                            reason=error.code,
+                            connection_id=None,
+                            receipt_id=None,
+                            execution_authorized=False,
+                        )
+                    result = self.project_stage2.read(
+                        credential,
+                        ref,
+                        registered_only=True,
+                    )
+                    if evidence.get("status") == "received":
+                        result["offers"].append(evidence["offer"])
+                    result["current_evidence"] = evidence
+                else:
+                    result["current_evidence"] = current_evidence(
+                        delivery,
+                        credential,
+                        stage1,
+                        project,
+                        check_deadline=check_deadline,
+                    )
             return result
 
     def overview(self, credential, ref, *, automatic=False, check_deadline=None):
@@ -536,6 +572,21 @@ class ProjectHost(AtlasHost):
                 if self.project_stage1 is None or direct_receiving
                 else self.stage1_view(credential, ref, automatic=automatic)
             )
+            stage2 = (
+                None
+                if self.project_stage2 is None
+                else self.stage2_view(
+                    credential,
+                    ref,
+                    project=project,
+                    stage1=stage1,
+                    check_deadline=check_deadline,
+                )
+            )
+            if stage2 is not None and stage2["revision"] != project["revision"]:
+                project = self.projects.read(credential, ref)
+                if stage1 is not None:
+                    stage1 = self.stage1_view(credential, ref, automatic=False)
             result = dict(
                 project=project,
                 models=None
@@ -545,15 +596,7 @@ class ProjectHost(AtlasHost):
                 if self.project_models is None
                 else self.project_models.offers(credential, ref),
                 stage1=stage1,
-                stage2=None
-                if self.project_stage2 is None
-                else self.stage2_view(
-                    credential,
-                    ref,
-                    project=project,
-                    stage1=stage1,
-                    check_deadline=check_deadline,
-                ),
+                stage2=stage2,
             )
             if result["stage1"] is not None:
                 result["stage1"]["progress"] = project_progress(result)
