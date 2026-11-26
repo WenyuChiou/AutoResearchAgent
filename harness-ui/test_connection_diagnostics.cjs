@@ -21,3 +21,26 @@ test('server refusal takes precedence over future expiry; unknown writes prevent
 test('a cold renderer derives exactly the same diagnostic without persistent storage',()=>{const i=offer();assert.equal(JSON.stringify(view(i)),JSON.stringify(view(JSON.parse(JSON.stringify(i)))));});
 test('missing data and known HTTP errors give bounded recovery, never raw secrets',()=>{for(const [error,recovery]of [['credential-required','credential'],['origin-or-host-rejected','origin'],['private C:/secret/token','read-failed']]){const i=input();i.error=error;const v=view(i);assert.equal(v.recovery,recovery);assert.equal(v.permission,'unknown');const html=context().connectionDiagnosticsHtml(v,'en');assert.ok(!html.includes('C:/secret'));}});
 test('all user fields are escaped, and diagnostic contains no controls or raw offer errors',()=>{const i=offer();i.project.brief.original_description='<img src=x onerror=alert(1)>';i.offers.offers[0].operation='<script>';i.offers.offers[0].available=false;i.offers.offers[0].blocked_reason='SECRET_TOKEN';for(const locale of ['zh-CN','zh-TW','en']){const html=context().connectionDiagnosticsHtml(view(i),locale);assert.ok(html.includes('&lt;img'));assert.doesNotMatch(html,/<img|<script|<button|<form|SECRET_TOKEN/);}});
+test('known write barriers survive read errors and suppress every confirmable permit',()=>{
+ for(const error of ['', 'credential-required','origin-or-host-rejected'])for(const barrier of ['local','model']){
+  const i=offer();i.error=error;if(barrier==='local')i.writeHeld=true;else i.models.blocking_unknown_count=1;
+  const v=view(i);assert.equal(v.permission,'held');assert.equal(v.recovery,'unknown-write');assert.ok(v.permits.every(p=>p.reason!=='confirmable'));
+ }
+ const i=input();i.project=null;i.writeHeld=true;assert.equal(view(i).recovery,'unknown-write');
+});
+test('ordinary settings passes pending and control-held without exposing their data',()=>{
+ for(const field of ['pending','controlHeld']){const c=context(),i=offer();Object.assign(c,{rt:{ref:i.ref,[field]:{secret:'NEVER_DISPLAY'},overview:{project:i.project,models:i.models,model_offers:i.offers},error:'credential-required'},liveReal:()=>true,savedOtherPage:()=>'',liveHeader:()=>'',Date});
+ const src=fs.readFileSync(path.join(dir,'real-runtime.js'),'utf8');vm.runInContext(src.slice(src.indexOf('otherPage = function(app)'),src.indexOf('\nlivePost =',src.indexOf('otherPage = function(app)'))),c);
+ const html=c.otherPage({page:'settings',lang:'en'});assert.match(html,/Keep the original operation key/);assert.doesNotMatch(html,/NEVER_DISPLAY|may be confirmed/);}
+});
+test('cold reads without a project retain specific 401/403 recovery',()=>{
+ for(const [error,recovery]of [['credential-required','credential'],['origin-or-host-rejected','origin']]){const i={error};assert.equal(view(i).recovery,recovery);i.writeHeld=true;assert.equal(view(i).recovery,'unknown-write');}
+});
+test('unknown-write count uses the existing conservative legacy fallback',()=>{
+ for(const count of [undefined,null,-1,'0',0.5]){const i=offer();i.models.blocking_unknown_count=count;i.models.unknown_count=0;assert.notEqual(view(i).permission,'confirmable');}
+ const i=offer();delete i.models.blocking_unknown_count;i.models.unknown_count=1;assert.equal(view(i).permission,'held');i.models.unknown_count=0;assert.equal(view(i).permission,'confirmable');delete i.models.unknown_count;assert.notEqual(view(i).permission,'confirmable');
+});
+test('malformed offer or impossible calendar date cannot break rendering or look valid',()=>{
+ const i=offer();i.offers.offers=[null];assert.notEqual(view(i).permission,'confirmable');assert.doesNotThrow(()=>context().connectionDiagnosticsHtml(view(i),'en'));
+ for(const expires_at of ['2099-02-31T13:00:00Z','2099-00-01T13:00:00Z','2099-12-00T13:00:00Z']){const j=offer();j.offers.offers[0].expires_at=expires_at;assert.equal(view(j).permits[0].reason,'unknown-expiry');}
+});

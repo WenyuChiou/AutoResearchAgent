@@ -2,28 +2,35 @@
 // No credential, storage, network, login probe, authorization or execution here.
 function connectionDiagnostics(input, now) {
  const p=input.project,m=input.models,o=input.offers;
- const current=!!p&&p.project_ref===input.ref&&Number.isSafeInteger(p.input_version)&&p.input_version>0&&Number.isSafeInteger(p.revision)&&/^[a-f0-9]{64}$/.test(p.brief_sha256||'');
+ const current=!!p&&p.project_ref===input.ref&&Number.isSafeInteger(p.input_version)&&p.input_version>0&&Number.isSafeInteger(p.revision)&&p.revision>=0&&/^[a-f0-9]{64}$/.test(p.brief_sha256||'');
  const bound=current&&!!m&&m.project_ref===p.project_ref&&m.input_version===p.input_version&&m.revision===p.revision&&m.brief_sha256===p.brief_sha256;
  const finite=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0?value:null;
  const v={binding:current?'current':'unavailable',topic:current?p.brief?.original_description??null:null,
   project:current?p.project_ref:null,inputVersion:current?p.input_version:null,
   provider:'unknown',authentication:'unknown',permission:'unknown',researchAuthorized:null,
   budgets:{},monetaryCost:null,callsReserved:null,permits:[],recovery:'read-failed'};
- if(!current)return v;
+ const count=bound?(Object.hasOwn(m,'blocking_unknown_count')?m.blocking_unknown_count:m.unknown_count):null;
+ const blocking=Number.isSafeInteger(count)&&count>=0?count:null;
+ if(input.error)v.recovery=input.error==='credential-required'?'credential':input.error==='origin-or-host-rejected'?'origin':'read-failed';
+ const finish=()=>{if(input.writeHeld===true||(bound&&blocking>0)){v.permission='held';v.recovery='unknown-write';v.permits=v.permits.map(row=>row.reason==='confirmable'?{...row,reason:'held'}:row);}return v;};
+ if(!current)return finish();
  if(p.settings?.brief_sha256===p.brief_sha256){
   for(const key of ['model_calls','rounds','search_calls','seconds','source_reads'])v.budgets[key]=finite(p.settings?.budgets?.[key]);
   v.researchAuthorized=typeof p.settings.execution_authorized==='boolean'?p.settings.execution_authorized:null;
  }
  v.monetaryCost=finite(p.monetary_cost);
- if(input.error){v.recovery=input.error==='credential-required'?'credential':input.error==='origin-or-host-rejected'?'origin':'read-failed';return v;}
- if(!bound)return v;
+ if(input.error)return finish();
+ if(!bound)return finish();
  v.provider=m.connected===true?'registered':m.connected===false?'absent':'unknown';
  v.authentication=m.native_authenticated===true?'verified':m.native_authenticated===false?'not-authenticated':'unknown';
  v.callsReserved=finite(m.calls_reserved);
  v.recovery=v.provider==='absent'?'provider':'permission';
  if(o?.project_ref===p.project_ref&&o.revision===p.revision&&Array.isArray(o.offers)){
-  v.permits=o.offers.map(row=>{
-   const expires=typeof row.expires_at==='string'&&/(Z|[+-]\d\d:\d\d)$/.test(row.expires_at)?Date.parse(row.expires_at):NaN;
+  v.permits=o.offers.map(raw=>{
+   const row=raw&&typeof raw==='object'?raw:{};
+   const parts=typeof row.expires_at==='string'?row.expires_at.match(/^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/):null;
+   const calendar=parts&&Number(parts[2])>=1&&Number(parts[2])<=12&&Number(parts[3])>=1&&Number(parts[3])<=new Date(Date.UTC(Number(parts[1]),Number(parts[2]),0)).getUTCDate();
+   const expires=calendar?Date.parse(row.expires_at):NaN;
    let reason='unknown';
    if(row.input_version!==p.input_version||row.brief_sha256!==p.brief_sha256)reason='stale';
    else if(!Number.isFinite(expires)||!Number.isFinite(now))reason='unknown-expiry';
@@ -33,6 +40,7 @@ function connectionDiagnostics(input, now) {
     'model-owner-unavailable':'provider','model-permit-expired':'expired'
    })[row.blocked_reason]||'refused';
    else if(!Number.isSafeInteger(row.max_calls)||row.max_calls<=0||!Number.isSafeInteger(row.max_seconds)||row.max_seconds<=0)reason='unknown';
+   else if(blocking===null)reason='unknown';
    else if(v.provider!=='registered')reason='provider';
    else reason='confirmable';
    return {operation:reason!=='stale'&&typeof row.operation==='string'?row.operation:'Unknown',reason,
@@ -41,8 +49,7 @@ function connectionDiagnostics(input, now) {
   });
   v.permission=v.permits.some(row=>row.reason==='confirmable')?'confirmable':v.permits.length?'blocked':'none';
  }
- if(m.blocking_unknown_count>0){v.permission='held';v.recovery='unknown-write';}
- return v;
+ return finish();
 }
 
 function connectionDiagnosticsHtml(v, locale) {

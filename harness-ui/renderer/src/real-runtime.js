@@ -46,7 +46,7 @@ function realLibrary(){
 }
 otherPage = function(app){
  if(!liveReal()||app.page!=='settings')return savedOtherPage(app);
- const diagnostic=connectionDiagnostics({ref:rt.ref,project:rt.overview?.project,models:rt.overview?.models,offers:rt.overview?.model_offers,error:rt.error},Date.now());
+ const diagnostic=connectionDiagnostics({ref:rt.ref,project:rt.overview?.project,models:rt.overview?.models,offers:rt.overview?.model_offers,error:rt.error,writeHeld:!!(rt.pending||rt.controlHeld)},Date.now());
  return liveHeader(app)+connectionDiagnosticsHtml(diagnostic,app.lang);
 };
 livePost = async function(tail,body,ref=rt.ref){
