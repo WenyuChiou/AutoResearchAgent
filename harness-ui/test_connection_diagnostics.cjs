@@ -13,6 +13,19 @@ function settingsHtml(rt,lang='en'){
  vm.runInContext(src.slice(start,src.indexOf('\nlivePost =',start)),c);
  return c.otherPage({page:'settings',lang});
 }
+test('the standalone runtime provides cold settings guidance without a shell after-render hook',()=>{
+ const c=context(),noop=()=>'',filename=path.join(dir,'real-runtime.js');
+ Object.assign(c,{
+  rt:{meta:null,error:'credential-required'},
+  window:{RESEARCH_PROJECTS:{wiki_v9:true}},
+  document:{addEventListener(){}},
+  render:noop,liveControls:noop,liveAssistant:noop,liveHeader:noop,livePost:noop,
+  liveResults:noop,liveModelOutputs:noop,otherPage:noop,liveRefresh:noop,liveReason:noop,
+  rl:(_zh,en)=>en,
+ });
+ vm.runInContext(fs.readFileSync(filename,'utf8'),c,{filename});
+ assert.match(c.otherPage({page:'settings',lang:'en'}),/Reopen the same ordinary Wiki homepage/);
+});
 test('ordinary settings explains unknown login and recovery, instead of raw status alone',()=>{
  const i=input();
  const html=settingsHtml({ref:i.ref,overview:{project:i.project,models:i.models,model_offers:i.offers}},'zh-CN');

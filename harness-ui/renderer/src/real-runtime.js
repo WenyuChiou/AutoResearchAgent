@@ -55,13 +55,16 @@ otherPage = function(app){
  const diagnostic=connectionDiagnostics({ref:rt.ref,project:rt.overview?.project,models:rt.overview?.models,offers:rt.overview?.model_offers,error:rt.error,writeHeld:!!(rt.pending||rt.controlHeld)},Date.now());
  return liveHeader(app)+connectionDiagnosticsHtml(diagnostic,app.lang);
 };
-const savedSettingsAfter=v7AfterRender;
-v7AfterRender=function(app){
- savedSettingsAfter(app);
- if(app.page!=='settings'||!coldWikiSettingsRefused()||!app.el.querySelector('[data-connection-diagnostics]'))return;
- const sidebar=app.el.querySelector('.hs-sidebar-foot');
- if(sidebar)sidebar.textContent=rl('项目读取失败','Project read failed','專案讀取失敗');
-};
+// The assembled shell owns this hook. Standalone Stage1 controls can load without it.
+if(typeof v7AfterRender==='function'){
+ const savedSettingsAfter=v7AfterRender;
+ v7AfterRender=function(app){
+  savedSettingsAfter(app);
+  if(app.page!=='settings'||!coldWikiSettingsRefused()||!app.el.querySelector('[data-connection-diagnostics]'))return;
+  const sidebar=app.el.querySelector('.hs-sidebar-foot');
+  if(sidebar)sidebar.textContent=rl('项目读取失败','Project read failed','專案讀取失敗');
+ };
+}
 livePost = async function(tail,body,ref=rt.ref){
   if(liveReal() && tail==='confirm') {
     const limits=rt.meta.run_limits,positive=value=>Number.isSafeInteger(value)&&value>0;
