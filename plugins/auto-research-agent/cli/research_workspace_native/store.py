@@ -137,7 +137,10 @@ class ProjectStore:
                 self.db.rollback()
                 raise
 
-    def bind_project(self, project_id, index_sha256):
+    def bind_project(
+        self, project_id, index_sha256, *, require_existing=False, reserve=None
+    ):
+        """Verify or bind identity and optionally reserve resources in the same write."""
         _require(os.getpid() == self._pid, "journal cannot be shared across processes")
         identifier(project_id)
         _require(
@@ -156,6 +159,7 @@ class ProjectStore:
                     "project index binding differs",
                 )
             else:
+                _require(not require_existing, "unknown project")
                 state = {
                     "project_id": project_id,
                     "index_sha256": index_sha256,
@@ -180,13 +184,17 @@ class ProjectStore:
                         sha(raw),
                     ),
                 )
+            if reserve is not None:
+                reserve(self.db)
         return self.snapshot(project_id)
 
-    def acquire_owner(self, project_id, owner_id):
+    def acquire_owner(self, project_id, owner_id, *, bind=None):
+        """Acquire the process lock before optionally binding a new project."""
         identifier(owner_id)
         with self._lock:
             _require(project_id not in self._owners, "owner already acquired")
-            self._read(project_id)
+            if bind is None:
+                self._read(project_id)
             path = safe_path(
                 self.path.parent,
                 self.path.name + ".owner-" + sha(project_id.encode()) + ".sqlite3",
@@ -202,6 +210,8 @@ class ProjectStore:
             token = uuid.uuid4().hex
             recovered = {"owner_id": owner_id, "token": token, "execution_unknown": []}
             try:
+                if bind is not None:
+                    bind()
                 with self._edit(
                     project_id,
                     None,

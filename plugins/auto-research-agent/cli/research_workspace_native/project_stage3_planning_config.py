@@ -62,6 +62,27 @@ def _output_paths(row):
     )
 
 
+def _reserve_output_paths(db, project_id, paths):
+    """Record ownership within the Journal's project-binding transaction."""
+    db.execute(
+        """CREATE TABLE IF NOT EXISTS stage3_planning_paths (
+            project TEXT NOT NULL, path TEXT NOT NULL, PRIMARY KEY(project, path)
+        )"""
+    )
+    owned = set()
+    for owner, value in db.execute("SELECT project, path FROM stage3_planning_paths"):
+        existing = Path(value)
+        if owner == project_id:
+            owned.add(existing)
+        elif any(_overlaps(path, existing) for path in paths):
+            raise Stage3Error("stage3-planning-configuration-output-overlap")
+    # Releasing a Host lease does not free previously used directories.
+    db.executemany(
+        "INSERT INTO stage3_planning_paths VALUES (?, ?)",
+        [(project_id, str(path)) for path in paths if path not in owned],
+    )
+
+
 def _validated_settings(row, outputs):
     closed(row["configuration"], {"model", "reasoning"}, "configuration")
     for value in row["configuration"].values():
@@ -317,10 +338,18 @@ class Stage3PlanningHostResources:
                 ) from error
             if original["index_sha256"] != identity_sha:
                 raise Stage3Error("stage3-planning-saved-journal-project-differs")
-        else:
-            self.journal.bind_project(project_id, identity_sha)
+        paths = _output_paths(row)
+
+        def bind():
+            self.journal.bind_project(
+                project_id,
+                identity_sha,
+                require_existing=require_existing,
+                reserve=lambda db: _reserve_output_paths(db, project_id, paths),
+            )
+
         owner = self.journal.acquire_owner(
-            project_id, "stage3-host-" + secrets.token_hex(16)
+            project_id, "stage3-host-" + secrets.token_hex(16), bind=bind
         )
         self._owners[project_id] = owner
         self._rows[ref] = deepcopy(row)

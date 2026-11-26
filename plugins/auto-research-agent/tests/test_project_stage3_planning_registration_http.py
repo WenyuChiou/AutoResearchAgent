@@ -26,7 +26,7 @@ from research_workspace_native.project_stage_connections import (
     PLANNING_STAGE,
     ConnectionStore,
 )
-from stage3_plan.contracts import Stage3Error
+from stage3_plan.contracts import Stage3Error, digest
 from stage3_plan.jobs import POLICY
 from test_project_stage2_current_evidence import request, VIEWER
 from test_project_stage1_delivery import _io_root
@@ -170,13 +170,18 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
             "confirmed": True,
         }
 
-    def legacy_args(self, config):
+    def legacy_args(self, config, *, with_profile=True):
         path, pin = write_json(self.root / "legacy.json", config)
-        return SimpleNamespace(
-            **vars(self.connecting),
+        args = SimpleNamespace(
+            selection_config=self.selection_path,
+            selection_sha256=self.selection_pin,
             stage3_planning_config=path,
             stage3_planning_sha256=pin,
         )
+        if with_profile:
+            args.stage3_planning_profile = self.profile_path
+            args.stage3_planning_profile_sha256 = self.profile_pin
+        return args
 
     def check_events(self, journal, project_id, expected):
         state = journal.snapshot(project_id)
@@ -199,6 +204,172 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
             flush=True,
         )
         return state["owner"]
+
+    def static_peer(self):
+        ref = self.intake.create(
+            VIEWER, {"key": "output-peer", "topic": "Separate authored fixture"}
+        )["project_ref"]
+        return ref, settings(self.root, [self.intake.read(VIEWER, ref)])
+
+    def test_static_output_reservation_survives_close_and_refuses_runtime_registration(
+        self,
+    ):
+        other, config = self.static_peer()
+        shared_jobs = Path(self.profile["project_parent"]) / self.ref / "jobs"
+        config["bindings"][0]["jobs_root"] = str(shared_jobs)
+        args = self.legacy_args(config, with_profile=False)
+        with self.wiki() as (origin, runtime):
+            self.assertEqual(
+                request(
+                    origin, self.route + "/stage2/select", body=self.selection_body
+                )[0],
+                200,
+            )
+            body = self.connection_body(origin)
+            with self.wiki(args) as (_, static):
+                owner = self.check_events(
+                    static.journal, other, ["project-bound", "owner-acquired"]
+                )
+                self.assertIsNotNone(owner)
+                self.assertEqual(
+                    self.observed(
+                        origin, "static-owner-conflict", self.connect, body=body
+                    ),
+                    (409, {"error": "stage3-planning-resource-unavailable"}),
+                )
+                self.assertEqual(static.journal.snapshot(other)["owner"], owner)
+            self.assertEqual(
+                self.observed(
+                    origin, "released-static-output-conflict", self.connect, body=body
+                ),
+                (409, {"error": "stage3-planning-resource-unavailable"}),
+            )
+            self.assertIsNone(runtime.store.resolve(self.ref, PLANNING_STAGE))
+            self.assertEqual(runtime.journal.events(self.ref), [])
+            with self.assertRaisesRegex(JournalError, "unknown project"):
+                runtime.journal.snapshot(self.ref)
+        with self.wiki(args) as (_, static):
+            self.assertEqual(static.service.bindings[other]["jobs"].root, shared_jobs)
+            self.assertIsNotNone(
+                self.check_events(
+                    static.journal,
+                    other,
+                    [
+                        "project-bound",
+                        "owner-acquired",
+                        "owner-released",
+                        "owner-acquired",
+                    ],
+                )
+            )
+
+    def test_runtime_output_reservation_refuses_static_ancestor_and_keeps_distinct_peer(
+        self,
+    ):
+        other, config = self.static_peer()
+        overlapping = deepcopy(config)
+        overlapping["bindings"][0]["jobs_root"] = str(
+            Path(self.profile["project_parent"]) / self.ref
+        )
+        with self.wiki() as (origin, runtime):
+            self.assertEqual(
+                request(
+                    origin, self.route + "/stage2/select", body=self.selection_body
+                )[0],
+                200,
+            )
+            body = self.connection_body(origin)
+            code, receipt = self.observed(
+                origin, "runtime-owner-connected", self.connect, body=body
+            )
+            self.assertEqual(code, 200, receipt)
+            owner = self.check_events(
+                runtime.journal, self.ref, ["project-bound", "owner-acquired"]
+            )
+            with self.assertRaisesRegex(Stage3Error, "configuration-output-overlap"):
+                self.configure(self.legacy_args(overlapping, with_profile=False))
+            self.assertEqual(runtime.journal.events(other), [])
+            self.assertEqual(runtime.journal.snapshot(self.ref)["owner"], owner)
+            self.assertEqual(request(origin, self.connect, body=body), (200, receipt))
+            with self.wiki(self.legacy_args(config, with_profile=False)) as (_, static):
+                static_jobs = static.service.bindings[other]["jobs"]
+                self.assertNotEqual(
+                    static_jobs.root, runtime.service.bindings[self.ref]["jobs"].root
+                )
+                self.assertIsNotNone(
+                    self.check_events(
+                        static.journal, other, ["project-bound", "owner-acquired"]
+                    )
+                )
+                replacement = deepcopy(config)
+                unused_root = self.root / "unused-jobs"
+                replacement["bindings"][0]["jobs_root"] = str(unused_root)
+                with self.assertRaisesRegex(
+                    JournalError, "already has an execution owner"
+                ):
+                    self.configure(self.legacy_args(replacement, with_profile=False))
+                self.assertEqual(
+                    static.journal.snapshot(other)["owner"]["token"], static_jobs.owner
+                )
+                third = self.intake.create(
+                    VIEWER,
+                    {"key": "unused-path-peer", "topic": "Separate authored fixture"},
+                )["project_ref"]
+                separate = settings(self.root, [self.intake.read(VIEWER, third)])
+                separate["bindings"][0]["jobs_root"] = str(unused_root)
+                separate["bindings"][0]["native"]["capture_dir"] = str(
+                    self.root / "third-capture"
+                )
+                with self.wiki(self.legacy_args(separate, with_profile=False)) as (
+                    _,
+                    peer,
+                ):
+                    self.assertEqual(
+                        peer.service.bindings[third]["jobs"].root, unused_root
+                    )
+                    self.assertIsNotNone(
+                        self.check_events(
+                            peer.journal, third, ["project-bound", "owner-acquired"]
+                        )
+                    )
+
+    def test_static_configuration_reopens_legacy_journal_with_no_output_reservation(
+        self,
+    ):
+        other, config = self.static_peer()
+        index = digest(
+            {
+                "kind": "ProjectHostStage3JournalIdentity",
+                "schema_version": "1.0.0",
+                "project_ref": other,
+                "project_id": other,
+                "projects_root": str(self.intake.root),
+            }
+        )
+        with closing(Journal(config["journal_path"])) as journal:
+            journal.bind_project(other, index)
+            token = journal.acquire_owner(other, "legacy-static-owner")
+            journal.release_owner(other, token)
+            historical_events = journal.events(other)
+        with self.wiki(self.legacy_args(config, with_profile=False)) as (_, static):
+            self.assertEqual(static.journal.events(other)[:3], historical_events)
+            self.assertEqual(static.journal.snapshot(other)["index_sha256"], index)
+            self.assertEqual(
+                static.service.bindings[other]["jobs"].root,
+                Path(config["bindings"][0]["jobs_root"]),
+            )
+            self.assertIsNotNone(
+                self.check_events(
+                    static.journal,
+                    other,
+                    [
+                        "project-bound",
+                        "owner-acquired",
+                        "owner-released",
+                        "owner-acquired",
+                    ],
+                )
+            )
 
     def test_current_selection_attaches_releases_and_reopens_one_lease(self):
         project = self.intake.read(VIEWER, self.ref)
