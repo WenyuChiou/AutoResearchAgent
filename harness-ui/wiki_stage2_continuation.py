@@ -364,7 +364,7 @@ def install_stage2_continuation(host, profile=None, *, planning_resources=None):
     planning = None if planning_resources is None else planning_resources.connections
     if planning_resources is not None and planning_resources.profile is not None:
         # Transport replay uses the same trusted pins as the planning service.
-        host.project_stage3_http.recovery_pins = planning_resources.recovery_pins
+        host.project_stage3_http.recovery_pins = planning.recovery_pins
     inherited = host.RequestHandlerClass
 
     class Stage2ContinuationHandler(inherited):

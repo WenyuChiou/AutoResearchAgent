@@ -44,6 +44,35 @@ class ConnectionStore:
     def resolve(self, ref, stage):
         return self._resolve(ref, stage, current=True)
 
+    def references(self, stage):
+        with self.intake._lock:
+            principal = self.intake._principal(self.credential)
+            return tuple(
+                row[0]
+                for row in self.intake.db.execute(
+                    """SELECT ref FROM intake_projects WHERE principal=?
+                    AND CASE WHEN json_valid(state)
+                        THEN json_type(state, ?) IS NOT NULL ELSE 0 END
+                    ORDER BY ref""",
+                    (principal, f'$.stage_connections."{stage}"'),
+                )
+            )
+
+    def check_project_limit(self, ref, stage, maximum):
+        if maximum is None:
+            return
+        with self.intake._lock:
+            principal = self.intake._principal(self.credential)
+            count = self.intake.db.execute(
+                """SELECT COUNT(*) FROM intake_projects
+                WHERE principal=? AND ref<>?
+                AND CASE WHEN json_valid(state)
+                    THEN json_type(state, ?) IS NOT NULL
+                    ELSE 1 END""",
+                (principal, ref, f'$.stage_connections."{stage}"'),
+            ).fetchone()[0]
+            _check(count < maximum, f"{stage}-profile-limit")
+
     def _resolve(self, ref, stage, *, current):
         with self.intake._lock:
             principal = self.intake._principal(self.credential)
@@ -237,17 +266,7 @@ class ConnectionStore:
             )
 
             def check_project_limit():
-                if maximum_projects is None:
-                    return
-                n = self.intake.db.execute(
-                    """SELECT COUNT(*) FROM intake_projects
-                    WHERE principal=? AND ref<>?
-                    AND CASE WHEN json_valid(state)
-                        THEN json_type(state, ?) IS NOT NULL
-                        ELSE 1 END""",
-                    (principal, ref, f'$.stage_connections."{stage}"'),
-                ).fetchone()[0]
-                _check(n < maximum_projects, f"{stage}-profile-limit")
+                self.check_project_limit(ref, stage, maximum_projects)
 
             def work(current, _, __):
                 # _perform commits the intent before this transaction starts.

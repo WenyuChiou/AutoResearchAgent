@@ -7,6 +7,7 @@ it is read-only; the resource owner opens only the existing Journal and jobs.
 from copy import deepcopy
 import hashlib
 import math
+from os.path import samestat
 from pathlib import Path
 import re
 import secrets
@@ -19,7 +20,7 @@ from stage3_plan.native import NativePlanner
 from stage3_plan.preparation import closed, sha256, text
 from stage3_plan.storage import decode_json, private_output, read_bytes, safe_path
 
-from .journal import Journal
+from .journal import Journal, JournalError
 from .project_stage_connections import PLANNING_STAGE, ConnectionStore
 from .project_stage3_planning import ProjectStage3PlanningService
 
@@ -52,6 +53,15 @@ def _overlaps(left, right):
     return left == right or left.is_relative_to(right) or right.is_relative_to(left)
 
 
+def _output_paths(row):
+    capture = _path(row["native"]["capture_dir"], private=True)
+    return (
+        _path(row["jobs_root"], private=True),
+        capture,
+        _path(str(capture.with_name(capture.name + "-direction")), private=True),
+    )
+
+
 def _validated_settings(row, outputs):
     closed(row["configuration"], {"model", "reasoning"}, "configuration")
     for value in row["configuration"].values():
@@ -65,12 +75,7 @@ def _validated_settings(row, outputs):
     timeout = native["timeout_seconds"]
     if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
         raise Stage3Error("stage3-planning-configuration-deadline")
-    capture = _path(native["capture_dir"], private=True)
-    for path in (
-        _path(row["jobs_root"], private=True),
-        capture,
-        _path(str(capture.with_name(capture.name + "-direction")), private=True),
-    ):
+    for path in _output_paths(row):
         if any(_overlaps(path, existing) for existing in outputs):
             raise Stage3Error("stage3-planning-configuration-output-overlap")
         outputs.append(path)
@@ -213,12 +218,31 @@ class Stage3PlanningHostResources:
         for ref in self.static_refs:
             if self.store.resolve(ref, PLANNING_STAGE) is not None:
                 raise Stage3Error("stage3-planning-bindings-overlap")
+        journal_path = (
+            profile.journal_path
+            if configuration is None
+            else _path(configuration["journal_path"], private=True)
+        )
+        if (
+            profile is not None
+            and self.store.references(PLANNING_STAGE)
+            and not journal_path.is_file()
+        ):
+            raise Stage3Error("stage3-planning-saved-journal-missing")
+        if rows:
+            reserved = [
+                path for outputs in self._retained_paths().values() for path in outputs
+            ]
+            for row in rows:
+                if any(
+                    _overlaps(path, existing)
+                    for path in _output_paths(row)
+                    for existing in reserved
+                ):
+                    raise Stage3Error("stage3-planning-configuration-output-overlap")
         try:
-            self.journal = Journal(
-                profile.journal_path
-                if configuration is None
-                else configuration["journal_path"]
-            )
+            self.journal = Journal(journal_path)
+            self._journal_file = self.journal.path.stat()
             bindings = {row["project_ref"]: self._open_binding(row) for row in rows}
             self.service = ProjectStage3PlanningService(
                 intake,
@@ -231,7 +255,7 @@ class Stage3PlanningHostResources:
             self.connections = Stage3PlanningConnections(self)
             if profile is not None:
                 self.service.bindings = self.connections
-                self.service.saved_read_pins = self.recovery_pins
+                self.service.saved_read_pins = self.connections.recovery_pins
         except BaseException as error:
             try:
                 self.close()
@@ -239,7 +263,20 @@ class Stage3PlanningHostResources:
                 error.add_note(f"Planning resource cleanup failed: {cleanup!r}")
             raise
 
-    def _open_binding(self, row):
+    def _retained_paths(self):
+        paths = {}
+        for ref in self.store.references(PLANNING_STAGE):
+            try:
+                record = self.store._resolve(ref, PLANNING_STAGE, current=False)
+                if record is not None:
+                    paths[ref] = _output_paths(record["row"])
+            except (OSError, ValueError, KeyError, TypeError, RecursionError):
+                # A bad row still refuses direct use. It cannot reserve paths
+                # for another project's healthy, verified configuration.
+                continue
+        return paths
+
+    def _open_binding(self, row, *, require_existing=False):
         ref, project_id = row["project_ref"], row["project_id"]
         identity = {
             "kind": "ProjectHostStage3JournalIdentity",
@@ -248,7 +285,18 @@ class Stage3PlanningHostResources:
             "project_id": project_id,
             "projects_root": str(safe_path(self.intake.root)),
         }
-        self.journal.bind_project(project_id, digest(identity))
+        identity_sha = digest(identity)
+        if require_existing:
+            try:
+                original = self.journal.snapshot(project_id)
+            except JournalError as error:
+                raise Stage3Error(
+                    "stage3-planning-saved-journal-project-missing"
+                ) from error
+            if original["index_sha256"] != identity_sha:
+                raise Stage3Error("stage3-planning-saved-journal-project-differs")
+        else:
+            self.journal.bind_project(project_id, identity_sha)
         owner = self.journal.acquire_owner(
             project_id, "stage3-host-" + secrets.token_hex(16)
         )
@@ -267,11 +315,13 @@ class Stage3PlanningHostResources:
             self.recovery_pins[key] = pin["plan_manifest_sha256"]
         return binding
 
-    def add_project(self, row):
+    def add_project(self, row, *, require_existing=False):
         """Compose one verified runtime row under the existing Journal owner."""
         with self.intake._lock, self._lock:
             if self._closed:
                 raise Stage3Error("stage3-planning-resources-closed")
+            if not samestat(safe_path(self.journal.path).stat(), self._journal_file):
+                raise Stage3Error("stage3-planning-saved-journal-file-differs")
             closed(row, FIELDS, "Stage3 planning binding")
             ref, project_id = row["project_ref"], row["project_id"]
             current = self.intake.read(self.credential, ref)
@@ -289,16 +339,24 @@ class Stage3PlanningHostResources:
             if existing is not None:
                 if existing[0] != row_sha:
                     raise Stage3Error("stage3-planning-runtime-row-differs")
+                owner = self.journal.snapshot(project_id)["owner"]
+                if owner is None or owner["token"] != existing[1]["jobs"].owner:
+                    raise Stage3Error("stage3-planning-runtime-owner-differs")
                 return existing[1], False
             if ref in self._rows or project_id in self._owners:
                 raise Stage3Error("stage3-planning-owner-already-attached")
+            reserved = self._retained_paths()
+            reserved.update(
+                {key: _output_paths(old) for key, old in self._rows.items()}
+            )
             outputs = [self.journal.path]
-            for old in self._rows.values():
-                _validated_settings(old, outputs)
+            outputs.extend(
+                path for key, paths in reserved.items() if key != ref for path in paths
+            )
             _validated_settings(row, outputs)
             try:
                 configured = self.service._validate_binding(
-                    ref, self._open_binding(row)
+                    ref, self._open_binding(row, require_existing=require_existing)
                 )
             except BaseException as error:
                 try:

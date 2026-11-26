@@ -16,6 +16,7 @@ class Stage3PlanningConnections(Mapping):
         self.store = resources.store
         self.static = resources.service.bindings
         self.selection = resources.service.selection_view
+        self.recovery_pins = _RecoveryPins(self)
 
     def _saved(self, ref):
         saved = self.store.resolve(ref, PLANNING_STAGE)
@@ -69,9 +70,9 @@ class Stage3PlanningConnections(Mapping):
             "stage3-planning-connection-differs",
         )
 
-    def _attach(self, row):
+    def _attach(self, row, *, require_existing=False):
         try:
-            return self.resources.add_project(row)
+            return self.resources.add_project(row, require_existing=require_existing)
         except (OSError, ValueError, RuntimeError, SqliteError) as error:
             raise SessionApiError(
                 "stage3-planning-resource-unavailable", 409
@@ -86,19 +87,12 @@ class Stage3PlanningConnections(Mapping):
                 raise KeyError(ref)
             row, identity, derived = self._verified(self.store.credential, ref, None)
             self._match(saved, row, identity, derived)
-            return self._attach(row)[0]
+            return self._attach(row, require_existing=True)[0]
 
     def __iter__(self):
-        with self.intake._lock:
-            principal = self.intake._principal(self.store.credential)
-            rows = self.intake.db.execute(
-                """SELECT ref FROM intake_projects WHERE principal=?
-                AND CASE WHEN json_valid(state)
-                    THEN json_type(state, ?) IS NOT NULL
-                    ELSE 0 END""",
-                (principal, f'$.stage_connections."{PLANNING_STAGE}"'),
-            ).fetchall()
-            return iter(sorted(self.static.keys() | {row[0] for row in rows}))
+        return iter(
+            sorted(self.static.keys() | set(self.store.references(PLANNING_STAGE)))
+        )
 
     def __len__(self):
         return sum(1 for _ in self)
@@ -112,8 +106,12 @@ class Stage3PlanningConnections(Mapping):
                     return self._public(ref, "connected", static=True)
                 row, identity, derived = self._verified(credential, ref, deadline)
                 if saved is None:
+                    self.store.check_project_limit(
+                        ref, PLANNING_STAGE, self.profile.max_projects
+                    )
                     return self._public(ref, "connectable")
                 self._match(saved, row, identity, derived)
+                self._attach(row, require_existing=True)
                 return self._public(ref, "connected", saved=saved)
             except SessionApiError as error:
                 if error.status != 409:
@@ -168,7 +166,7 @@ class Stage3PlanningConnections(Mapping):
                 raise
             # A saved registration bypasses reservation and may reopen its lease.
             if not acquired:
-                self._attach(row)
+                self._attach(row, require_existing=True)
             return self._public(ref, "connected", saved=saved)
 
     def _public(self, ref, status, *, reason=None, saved=None, static=False):
@@ -187,3 +185,31 @@ class Stage3PlanningConnections(Mapping):
             },
             "execution_authorized": False,
         }
+
+
+class _RecoveryPins:
+    """Resolve the trusted saved row even when recover is the first HTTP call."""
+
+    def __init__(self, connections):
+        self.connections = connections
+
+    def get(self, identity, default=None):
+        ref, key, request = identity
+        connections = self.connections
+        if ref in connections.static:
+            return connections.resources.recovery_pins.get(identity, default)
+        with connections.intake._lock:
+            saved = connections._saved(ref)
+            if saved is None:
+                return default
+            row, expected, derived = connections._verified(
+                connections.store.credential, ref, None
+            )
+            connections._match(saved, row, expected, derived)
+            for pin in row["recovery_pins"]:
+                if pin["key"] == key and pin["request_sha256"] == request:
+                    return pin["plan_manifest_sha256"]
+            return default
+
+    def __contains__(self, identity):
+        return self.get(identity) is not None

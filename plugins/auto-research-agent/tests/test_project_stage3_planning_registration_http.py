@@ -6,6 +6,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import sys
+import tempfile
 import threading
 from unittest.mock import patch
 
@@ -28,6 +29,7 @@ from research_workspace_native.project_stage_connections import (
 from stage3_plan.contracts import Stage3Error
 from stage3_plan.jobs import POLICY
 from test_project_stage2_current_evidence import request, VIEWER
+from test_project_stage1_delivery import _io_root
 from test_project_stage3_planning_config import settings, write_json
 from run_v7 import configure_host_lifecycle
 from wiki_stage2_continuation import install_stage2_continuation
@@ -41,14 +43,25 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
         self.fixture_auth = lambda token: authenticate(
             VIEWER if token == "own" else token
         )
-        with patch.object(
-            activation_fixture,
-            "ProjectIntakeService",
-            side_effect=lambda root, **_: ProjectIntakeService(
-                root, authenticate=self.fixture_auth
+        temporary = tempfile.TemporaryDirectory(prefix="s3-http-")
+        with (
+            patch.object(
+                activation_fixture.tempfile,
+                "TemporaryDirectory",
+                return_value=temporary,
+            ),
+            patch.object(
+                activation_fixture,
+                "ProjectIntakeService",
+                side_effect=lambda root, **_: ProjectIntakeService(
+                    root, authenticate=self.fixture_auth
+                ),
             ),
         ):
             super().setUp()
+        # Keep the production path and its length checks. Only cleanup uses
+        # the same Windows extended path as the native package fixture.
+        temporary.name = str(_io_root(self.root))
         selection, self.selection_body, _ = self.prepare_choice(
             ProjectStage2SelectionService
         )
@@ -67,7 +80,13 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
             "jobs_root": "jobs",
             "configuration": row["configuration"],
             "native": {**row["native"], "capture_dir": "capture"},
-            "recovery_pins": [],
+            "recovery_pins": [
+                {
+                    "key": "cold-recovery-probe",
+                    "request_sha256": "a" * 64,
+                    "plan_manifest_sha256": "b" * 64,
+                }
+            ],
         }
         self.profile_path, self.profile_pin = write_json(
             self.root / "profile.json", self.profile
@@ -267,6 +286,23 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
                     JournalError, "already has an execution owner"
                 ):
                     peer.acquire_owner(project_id, "peer")
+            with self.wiki() as (competitor, _):
+                code, busy = self.observed(competitor, "competing-lease", self.connect)
+                self.assertEqual(code, 200, busy)
+                self.assertEqual(
+                    busy["connections"][PLANNING_STAGE]["status"], "unavailable"
+                )
+                self.assertEqual(
+                    busy["connections"][PLANNING_STAGE]["reason"],
+                    "stage3-planning-resource-unavailable",
+                )
+                self.assertEqual(request(competitor, self.plan)[0], 409)
+            self.assertEqual(
+                self.check_events(
+                    resources.journal, project_id, ["project-bound", "owner-acquired"]
+                ),
+                first,
+            )
             code, ready = self.observed(origin, "configured-planning", self.plan)
             self.assertEqual(code, 200, ready)
             self.assertTrue(ready["planning_configured"])
@@ -292,6 +328,16 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
         )
         with self.wiki() as (origin, resources):
             self.assertIsNone(self.check_events(resources.journal, project_id, events))
+            self.assertEqual(
+                self.observed(
+                    origin,
+                    "cold-recover-reaches-original-input-guard",
+                    self.plan + "/recover",
+                    body={"key": "cold-recovery-probe", "request_sha256": "a" * 64},
+                ),
+                (400, {"error": "intake-fields-invalid"}),
+            )
+            self.assertIsNone(self.check_events(resources.journal, project_id, events))
             code, reopened = self.observed(origin, "reopened-planning", self.plan)
             self.assertEqual((code, reopened), (200, ready))
             self.assertEqual(request(origin, self.connect, body=body), (200, saved))
@@ -314,6 +360,19 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
         )
         with self.assertRaisesRegex(Stage3Error, "bindings-overlap"):
             self.configure(args)
+        other = self.intake.create(
+            VIEWER,
+            {"key": "other-static-project", "topic": "Separate authored fixture"},
+        )["project_ref"]
+        overlapping = settings(self.root, [self.intake.read(VIEWER, other)])
+        overlapping["bindings"][0]["native"]["capture_dir"] = stored["row"]["native"][
+            "capture_dir"
+        ]
+        args.stage3_planning_config, args.stage3_planning_sha256 = write_json(
+            legacy_path, overlapping
+        )
+        with self.assertRaisesRegex(Stage3Error, "output-overlap"):
+            self.configure(args)
         different = deepcopy(self.legacy)
         different["journal_path"] = str(self.root / "different.sqlite")
         args.stage3_planning_config, args.stage3_planning_sha256 = write_json(
@@ -322,3 +381,27 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
         with self.assertRaisesRegex(Stage3Error, "profile-journal-differs"):
             self.configure(args)
         self.assertFalse(Path(different["journal_path"]).exists())
+
+        journal = Path(journal_path)
+        retained = journal.rename(journal.with_name("original-planning.sqlite"))
+        try:
+            with self.assertRaisesRegex(Stage3Error, "saved-journal-missing"):
+                self.configure(self.connecting)
+            self.assertFalse(journal.exists())
+            # A newly provisioned empty file must not recreate the saved project.
+            with closing(Journal(journal)):
+                pass
+            with self.wiki() as (origin, resources):
+                code, unavailable = self.observed(
+                    origin, "empty-replacement-journal", self.connect
+                )
+                self.assertEqual(code, 200, unavailable)
+                self.assertEqual(
+                    unavailable["connections"][PLANNING_STAGE]["status"], "unavailable"
+                )
+                self.assertEqual(request(origin, self.plan)[0], 409)
+                self.assertEqual(resources.journal.events(project_id), [])
+        finally:
+            if journal.exists():
+                journal.unlink()
+            retained.rename(journal)
