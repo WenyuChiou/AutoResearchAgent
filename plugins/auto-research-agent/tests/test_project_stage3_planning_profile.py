@@ -16,7 +16,8 @@ from stage3_plan.contracts import Stage3Error
 class Stage3PlanningProfileTests(unittest.TestCase):
     def test_pinned_profile_resolves_only_server_owned_paths(self):
         with tempfile.TemporaryDirectory(prefix="s3p-") as temp:
-            root = Path(temp)
+            # Pass the physical path of the directory owned by this fixture.
+            root = Path(temp).resolve()
             codex, home = root / "unused-codex", root / "home"
             codex.touch()
             home.mkdir()
