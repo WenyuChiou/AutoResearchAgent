@@ -336,6 +336,53 @@ class ResearchDeliverableTests(unittest.TestCase):
         write_json(path, value)
         return sha(path.read_bytes())
 
+    def test_typed_claim_csv_and_workbook_keep_columns_without_claims(self):
+        typed_columns = [
+            "claim_type",
+            "type_label",
+            "basis_claim_ids",
+            "split_hint",
+            "atomicity_verified",
+        ]
+        records = self.make_records(raw=b"", status=403)
+        self.assertEqual(records["claims"], [])
+        receipt = self.build()
+        self.assertEqual(receipt["status"], "passed", receipt)
+        validation = package.validate(self.output, receipt["manifest_sha256"])
+        self.assertEqual(validation["status"], "passed", validation)
+        manifest = read_json(self.output / "provenance_manifest.json")
+        self.assertEqual(manifest["review_format"], "typed-claims-v3")
+        self.assertEqual(read_json(self.output / "claim_structure.json")["claims"], [])
+
+        with (self.output / "claims_and_evidence.csv").open(
+            encoding="utf-8-sig", newline=""
+        ) as stream:
+            csv_rows = list(csv.reader(stream))
+        self.assertEqual(len(csv_rows), 1)
+        self.assertEqual(csv_rows[0][-len(typed_columns) :], typed_columns)
+        book = load_workbook(self.output / "literature_catalog.xlsx", read_only=True)
+        try:
+            self.assertEqual(list(book["Claims"].values), [tuple(csv_rows[0])])
+        finally:
+            book.close()
+
+    def test_typed_claim_word_heading_keeps_authored_paragraph_text(self):
+        records = self.make_records()
+        records["topic"] = "### Authored topic"
+        receipt = self.build(records)
+        self.assertEqual(receipt["status"], "passed", receipt)
+
+        label = "Unclassified / 未分类"
+        document = Document(self.output / "literature_review.docx")
+        paragraphs = [(item.style.name, item.text) for item in document.paragraphs]
+        self.assertEqual(
+            [(style, text) for style, text in paragraphs if label in text],
+            [("Heading 3", label)],
+        )
+        self.assertIn(("Normal", records["topic"]), paragraphs)
+        markdown = (self.output / "literature_review.md").read_text(encoding="utf-8")
+        self.assertIn("### " + label, markdown.splitlines())
+
     def test_public_html_package_and_portable_semantic_replay(self):
         self.make_records()
         report = self.build()

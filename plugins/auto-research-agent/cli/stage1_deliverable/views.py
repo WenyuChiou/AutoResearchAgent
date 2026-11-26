@@ -22,7 +22,18 @@ from .screening_records import extended as screened
 PREVIOUS_REVIEW_FORMAT = "screening-and-sources-v1"
 SOURCE_REVIEW_FORMAT = "screening-and-sources-v2"
 REVIEW_FORMAT = "typed-claims-v3"
+TYPED_CLAIM_COLUMNS = (
+    "claim_type",
+    "type_label",
+    "basis_claim_ids",
+    "split_hint",
+    "atomicity_verified",
+)
 _MARKDOWN_ESCAPES = str.maketrans({char: "\\" + char for char in "\\`*_[]{}#+-!=|~"})
+
+
+class _ClaimTypeHeading(str):
+    """Generated claim type heading, distinct from authored paragraph text."""
 
 
 def cell(value):
@@ -174,15 +185,15 @@ EMPTY_HEADERS = {
 }
 
 
-def grid(name, rows):
-    headers = list(rows[0]) if rows else EMPTY_HEADERS[name]
+def grid(name, rows, *, empty_headers=EMPTY_HEADERS):
+    headers = list(rows[0]) if rows else empty_headers[name]
     return [headers, *[[cell(row[key]) for key in headers] for row in rows]]
 
 
-def csv_bytes(name, rows):
+def csv_bytes(name, rows, *, empty_headers=EMPTY_HEADERS):
     stream = io.StringIO(newline="")
     writer = csv.writer(stream, lineterminator="\n")
-    for row in grid(name, rows):
+    for row in grid(name, rows, empty_headers=empty_headers):
         writer.writerow(
             [
                 "'" + value
@@ -194,13 +205,13 @@ def csv_bytes(name, rows):
     return stream.getvalue().encode("utf-8-sig")
 
 
-def workbook_bytes(all_tables):
+def workbook_bytes(all_tables, *, empty_headers=EMPTY_HEADERS):
     workbook = Workbook()
     workbook.remove(workbook.active)
     workbook.properties.created = workbook.properties.modified = datetime(2000, 1, 1)
     for name, rows in all_tables.items():
         sheet = workbook.create_sheet(name)
-        for row in grid(name, rows):
+        for row in grid(name, rows, empty_headers=empty_headers):
             if any(len(value.encode("utf-16-le")) // 2 > 32767 for value in row):
                 raise DeliverableError("canonical value exceeds Excel cell limit")
             sheet.append(row)
@@ -294,7 +305,7 @@ def review_lines(records, details=None, *, claim_details=True):
             )
             lines.extend(
                 [
-                    "### " + display["type_label"],
+                    _ClaimTypeHeading("### " + display["type_label"]),
                     "Claim ID: " + claim["claim_id"],
                     "Basis source-statement IDs: " + cell(display["basis_claim_ids"]),
                     "Type and citation links do not establish scientific support.",
@@ -371,6 +382,8 @@ def docx_bytes(lines):
             paragraph = document.add_heading(line[2:], 0)
         elif line.startswith("## "):
             paragraph = document.add_heading(line[3:], 1)
+        elif isinstance(line, _ClaimTypeHeading):
+            paragraph = document.add_heading(line[4:], 3)
         else:
             if isinstance(line, LiteralLine):
                 # python-docx turns CR and LF into separate breaks.
@@ -454,13 +467,18 @@ def render(records, sources, *, review_format=REVIEW_FORMAT, journal=None):
     records = json.loads(canonical(records))
     all_tables = tables(records, sources)
     claim_projection = []
+    empty_headers = EMPTY_HEADERS
     if review_format == REVIEW_FORMAT:
         from stage1_ledger.claim_structure import presentation
 
+        empty_headers = {
+            **EMPTY_HEADERS,
+            "Claims": [*EMPTY_HEADERS["Claims"], *TYPED_CLAIM_COLUMNS],
+        }
         for row in all_tables["Claims"]:
             event = row["core_event"]["payload"] if extended(records) else row
             display = presentation(event)
-            row.update(display)
+            row.update({key: display[key] for key in TYPED_CLAIM_COLUMNS})
             claim_projection.append(
                 {
                     "claim_id": row["claim_id"],
@@ -504,11 +522,13 @@ def render(records, sources, *, review_format=REVIEW_FORMAT, journal=None):
             ]
         )
     result = {
-        "literature_catalog.xlsx": workbook_bytes(all_tables),
+        "literature_catalog.xlsx": workbook_bytes(all_tables, empty_headers=empty_headers),
         "literature_review.md": markdown.encode("utf-8"),
         "literature_review.docx": docx_bytes(lines),
         "references.bib": bibtex(records),
-        "claims_and_evidence.csv": csv_bytes("Claims", all_tables["Claims"]),
+        "claims_and_evidence.csv": csv_bytes(
+            "Claims", all_tables["Claims"], empty_headers=empty_headers
+        ),
         "search_and_screening.csv": csv_bytes("Screening", all_tables["Screening"]),
         "coverage_and_stop.md": ("\n".join(coverage) + "\n").encode("utf-8"),
         "README.md": b"# Stage 1 researcher deliverable\n\nExperimental; quality improvement not yet demonstrated.\n\npapers.jsonl and provenance_manifest.json contain canonical records. Excel, Markdown, DOCX, BibTeX and CSV are editable derived views. Editing a view does not update canonical research records; regeneration and validation are required. Source archives preserve all attempts, including unavailable evidence. Papers contain only selected public full sources. Do not commit this private package to Git.\n\nWord and Markdown show authored findings, claim statements and source locators. Find each exact excerpt by claim_id in the workbook Claims sheet and canonical records. claims_and_evidence.csv protects formula-like values with a leading apostrophe, so its displayed quote may differ. Original quotes, extraction spacing and character offsets remain bound to the source; presentation does not establish claim support.\n\nValidate with: python -m stage1_deliverable validate PACKAGE --expected-sha256 MANIFEST_SHA256\nThe trusted manifest hash must come from the separately retained export receipt. Validation proves bindings and reproducible views, not scientific correctness. DOCX is supported by the declared runtime.\n",
