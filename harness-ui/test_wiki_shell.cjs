@@ -1,0 +1,96 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const source=fs.readFileSync(path.join(__dirname,'renderer/src/runtime.js'),'utf8');
+const bridge=fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8');
+const validProject=bridge.match(/function v93ValidProject\(p\)\{[^\n]+/)[0];
+const start=source.indexOf('// Shared Wiki shell presentation.'),end=source.indexOf('// End shared Wiki shell.',start);
+assert(start>=0&&end>start,'ordinary Wiki needs the shared shell renderer');
+const ref='project-shell-fixture',project={project_ref:ref,input_version:1,revision:4,brief_sha256:'a'.repeat(64)};
+const rt={ref,list:[project],overview:{project},meta:{},loading:false,busy:false,pending:null,error:''};
+const escape=v=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+const app={lang:'zh',stage:1,page:'workspace'};
+const context={rt,translated:(a,v)=>v[{zh:0,en:1,tw:2}[a.lang]],rx:v=>escape(v==null?'Unknown':typeof v==='object'?JSON.stringify(v):v),fetch(){throw Error('presentation must never request or dispatch');}};
+vm.createContext(context);vm.runInContext(validProject,context);vm.runInContext(source.slice(start,end),context);
+const view=()=>context.wikiShellState(app),html=()=>context.wikiShellMarkup(app);
+assert.equal(view().origin,'unknown','a project is not evidence of real execution');
+assert(html().includes('来历未标注'));assert(!html().includes('真实运行'));
+rt.loading=true;assert.equal(view().state,'loading');rt.loading=false;
+rt.error='fixed-503';assert.equal(view().state,'error');assert(html().includes('fixed-503'),'the raw failure remains available in technical details');assert(!view().next.includes('刷新检查'),'no absent refresh control');const canonical=fs.readFileSync(path.join(__dirname,'renderer/src/canonical-runs.js'),'utf8');assert(canonical.includes('重新读取保存结果'));for(const label of ['刷新检查','重新读取保存结果','Reload saved output','刷新进度']){app.el={querySelector:s=>s.includes('refresh')?{textContent:label,closest:()=>({querySelector:()=>({textContent:'Stage1 · 操作与保存状态'})})}:null};assert(view().next.includes(label),'use the actual original control label');assert(view().next.includes('折叠'),'explain the hidden operations entry');}app.el=undefined;rt.error='';
+rt.pending={ref,path:'/api/projects/'+ref+'/compile',body:{key:'original-key'}};
+rt.busy=true;assert.equal(view().state,'busy','a live submission waits rather than directing users to a disabled recovery control');rt.busy=false;
+assert.equal(view().state,'pending');assert.equal(rt.pending.body.key,'original-key');
+rt.pending.ref='project-other';assert.equal(view().state,'foreign-pending','another project keeps its own pending ownership');
+assert.equal(view().raw.pending.project_ref,'project-other');assert.equal(view().raw.project_ref,ref);
+assert(!view().next.includes('查询上次结果'),'do not point another project at the current recovery control');
+rt.pending.ref=null;rt.pending.path='/api/projects';assert.equal(view().state,'create-pending');
+assert(view().now.includes('新课题'),'a global create is not a submission of the currently viewed project');
+rt.pending={ref,body:{key:'original-key'}};assert(!view().next.includes('查询上次结果'),'do not name a recovery button missing from this page');
+const header=source.match(/^function liveHeader\(app\).*$/m)[0];
+const stage2Wrapper=bridge.slice(bridge.indexOf('const v93Stage2=stage2;'),bridge.indexOf('function v93RecoveryControl'));
+const stage2Fixture=vm.createContext({rt,rl:zh=>zh,rx:context.rx,v93ChoiceIdentity:()=>project});
+const renderStage2=vm.runInContext(header+'\nlet stage2=liveHeader;\n'+stage2Wrapper+'\nstage2',stage2Fixture);
+const foldedPending=[];
+for(const [state,owner,path] of [['pending',ref,'/api/projects/'+ref+'/compile'],['create-pending',null,'/api/projects']]){
+ rt.pending={ref:owner,path,body:{key:'original-key'}};rt.error='previous request incomplete';
+ const before=JSON.stringify(rt.pending),markup=renderStage2({stage:2});
+ const [,summary,label]=markup.match(/<details class="hs-panel"><summary>([^<]+)<\/summary>(?:(?!<\/details>)[\s\S])*?data-live-action="recover"\s*>([^<]+)<\/button>/);
+ const closed=Object.freeze({open:false,querySelector:()=>({textContent:summary})});
+ app.el={querySelector:s=>s==='[data-live-action="recover"]:not(:disabled)'?{closest:()=>closed,textContent:label}:null};
+ const result=view();
+ assert.equal(result.state,state);assert.equal(JSON.stringify(rt.pending),before);
+ foldedPending.push({state,showsPanel:result.next.includes(summary),showsButton:result.next.includes(label)});
+}
+assert.deepEqual(foldedPending,['pending','create-pending'].map(state=>({state,showsPanel:true,showsButton:true})));
+app.el={querySelector:()=>({textContent:'核对原回执'})};assert(view().next.includes('核对原回执'),'use the displayed recovery label');
+app.el=undefined;rt.pending=null;rt.error='';
+rt.overview={project:{...project,project_ref:'foreign'}};assert.equal(view().bound,false);assert.equal(view().origin,'unknown');
+rt.overview={project:{...project,input_version:'fresh-1',revision:0}};assert.equal(view().bound,true,'the existing Stage3 string version is a readable identity');assert.equal(view().raw.input_version,'fresh-1');assert.equal(view().raw.revision,0);
+for(const invalid of ['', 'x'.repeat(129),-1,1.5,null,true]){rt.overview.project.input_version=invalid;assert.equal(view().bound,false,'unsupported input versions stay unknown');}
+rt.overview={project};
+const stage3=bridge.slice(bridge.indexOf('return `${canonicalTop()}<section class="hs-panel">'));
+assert(stage3.startsWith('return `${canonicalTop()}<section class="hs-panel">')&&stage3.includes('<h1>'),'test the actual enabled Stage3 title shape');
+let inserted='',position='';const title={closest:()=>null,matches:()=>false,insertAdjacentHTML(where,text){position=where;inserted=text;}};
+const content={querySelectorAll:()=>[title],querySelector(selector){if(selector==='[data-wiki-shell]')return null;if(selector.split(',').includes('h1'))return title;return null;},insertAdjacentHTML(where,text){position=where;inserted=text;}};
+app.el={querySelector:()=>content};context.wikiShellMount(app);assert.equal(position,'afterend','Stage3 state follows the real title, never before project selection');assert(inserted.includes('data-wiki-shell'));
+const hiddenTitle={closest:()=>({}),matches:()=>true,insertAdjacentHTML(){throw Error('closed earlier materials must not own the shared state');}};content.querySelectorAll=()=>[hiddenTitle,title];context.wikiShellMount(app);assert.equal(position,'afterend','formal Stage2 keeps state outside earlier-materials disclosure');app.el=undefined;
+const outer={open:false,querySelector:()=>({textContent:'先前 Wiki 材料与本地草稿'}),parentElement:null};const inner={open:false,querySelector:()=>({textContent:'Stage2 · 操作'}),parentElement:{closest:()=>outer}};
+rt.error='fixed-nested-error';app.el={querySelector:()=>({textContent:'重新读取保存结果',closest:()=>inner})};assert(view().next.indexOf('先前 Wiki')<view().next.indexOf('Stage2 · 操作'),'recovery describes every closed ancestor from outside in');assert(view().next.includes('先前 Wiki'));app.el=undefined;rt.error='';
+const progress={binding:{project_ref:ref,input_version:1,revision:4,brief_sha256:'a'.repeat(64)},next_action:{phase_id:'screening',target:'screening',reason:'screening-required'},phases:[{phase_id:'screening',status:'available',reason:'screening-required'}]};
+rt.overview.stage1={progress};assert(!view().next.includes('使用下方原操作'),'the view must provide the phase control');
+app.el={querySelector:s=>s==='[data-live-phase="screening"]:not(:disabled)'?{textContent:'文献筛选'}:null};
+assert(view().next.includes('文献筛选；使用下方原操作'));
+progress.binding.input_version='1';assert(!view().next.includes('文献筛选'),'typed input versions cannot borrow progress');progress.binding.input_version=1;
+// These three routes follow project_progress for unknown execution, an active model job and disconnected queries.
+const progressControls={'[data-page="history"]:not(:disabled)':'操作历史','[data-live-tab="chat"]:not(:disabled)':'Codex 问答','[data-n9-jump="feedback"]:not(:disabled)':'运行与反馈'};
+app.el={querySelector:s=>progressControls[s]?{textContent:progressControls[s]}:null};
+for(const [phase_id,target,reason,status,expected,phaseReason=reason] of [
+ ['scope','history','uncertain-action','held','操作历史'],['reading','native','active-action','held','Codex 问答'],
+ ['query','query','query-unconnected','unconnected','运行与反馈','query-permission-required'],['scope',undefined,'scope-required','required','待核对'],
+ ['scope','constructor','scope-required','required','待核对'],['scope','scope','uncertain-action','held','待核对'],
+ ['reading','reading','active-action','available','待核对']
+]){
+ progress.next_action={phase_id,target,reason};progress.phases=[{phase_id,status,reason:phaseReason}];
+ const hint=view().next;assert(hint.includes(expected),JSON.stringify({phase_id,target,reason,status,hint,expected}));
+ assert(!hint.includes('使用下方原操作'));
+}
+app.el=undefined;
+progress.next_action={phase_id:'scope',target:'history',reason:'uncertain-action'};
+assert(view().next.includes('待核对'));assert(!view().next.includes('操作历史'),'only name a history control when present');
+rt.savedRun={entry:{project_ref:'view:sample',ref:'sample',project_id:'sample-id',fixture:true},binding:{view_ref:'sample',project_id:'sample-id',fixture:true}};
+assert.equal(view().origin,'unknown','another project cannot lend its provenance');
+rt.ref='view:sample';assert.equal(view().origin,'synthetic');
+rt.savedRun.entry.fixture=false;rt.savedRun.binding.fixture=false;assert.equal(view().origin,'archive','non-fixture saved view is archive, never proof of a live run');
+rt.pending={ref:'project-other',path:'/api/projects/project-other/compile',body:{key:'original-key'}};
+const pendingBytes=JSON.stringify(rt.pending);
+assert.equal(view().state,'foreign-pending');assert(!view().next.includes('查询上次结果'),'archive has no recovery control for another project');
+rt.pending.ref=null;rt.pending.path='/api/projects';assert.equal(view().state,'create-pending');
+assert(!view().next.includes('查询上次结果'),'archive must not advertise an absent create-recovery button');
+rt.pending.ref='project-other';rt.pending.path='/api/projects/project-other/compile';
+assert.equal(JSON.stringify(rt.pending),pendingBytes,'presentation never alters the original pending intent');rt.pending=null;
+rt.savedRun.binding.fixture='false';assert.equal(view().origin,'unknown','typed provenance mismatch fails closed');
+rt.ref=null;rt.savedRun=null;rt.list=[];rt.overview=null;assert.equal(view().state,'empty');app.stage=2;assert(!view().next.includes('上方'),'Stage2 has no topic field');assert(view().next.includes('Stage1'));app.el={querySelector:s=>s==='[data-live-topic]'?{}:null};rt.controlHeld=true;assert(!view().next.includes('上方'),'a disabled create is not offered as a save path');assert(view().next.includes('不能保存'));rt.controlHeld=false;app.el={querySelector:s=>s==='[data-live-topic]'||s.includes('create')?{}:null};assert(view().next.includes('上方'));app.el=undefined;app.stage=1;
+for(const [lang,word] of [['zh','现在'],['en','Now'],['tw','現在']]){app.lang=lang;assert(html().includes(word),'shell uses active locale');}
+app.page='history';assert.equal(html(),'','stage shell must not relabel unrelated pages');
+app.page='workspace';rt.error='<script>';assert(!html().includes('<script>'),'shell markup must not render error HTML');
+assert(!source.slice(start,end).includes('livePost('),'no new business action in shared shell');
+context.v93ValidProject=undefined;assert.equal(html(),'','ordinary V7 must not mount V9-only CSS components');
+console.log('PASS Wiki shell: binding, provenance, typed versions, empty/loading/error/pending, locale, escaping and no dispatch');
