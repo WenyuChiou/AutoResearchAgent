@@ -8,7 +8,7 @@ MAX_CONTEXT_BYTES = 48_000
 def build_prompt(intake, *, plan_id, version, schema_version="1.0.0"):
     plan_schema_path(schema_version)
     context_value = intake
-    if schema_version == "1.1.0":
+    if schema_version in {"1.1.0", "1.2.0"}:
         from .planning_conditions import condition_sources
 
         context_value = {
@@ -52,9 +52,9 @@ def build_prompt(intake, *, plan_id, version, schema_version="1.0.0"):
             "per-axis next_check as planning tasks or explicit unresolved dependencies; "
             "do not silently drop or treat them as resolved. "
         )
-    if schema_version == "1.1.0":
+    if schema_version in {"1.1.0", "1.2.0"}:
         instructions += (
-            "Plan schema_version must be 1.1.0. Cover every planning_condition_sources entry "
+            f"Plan schema_version must be {schema_version}. Cover every planning_condition_sources entry "
             "exactly once in condition_dispositions using its original ref/hash. Interpretations "
             "are design proposals, not authenticated human intent. Retain unresolved source entries "
             "as linked blocking unknowns. Give each unknown its stable ID, affected questions and "
@@ -65,6 +65,21 @@ def build_prompt(intake, *, plan_id, version, schema_version="1.0.0"):
             "upgrade resource availability, human choice, strict admission or execution authority. "
             "A required scope decision remains blocking. No pilot is needed merely to write a "
             "conditional plan; describe future diagnostics and stopping conditions honestly.\n"
+        )
+    if schema_version == "1.2.0":
+        instructions += (
+            "Each milestone must include step with inputs, operation, outputs, success_criteria "
+            "and named_entities. The four cells contain JSON Pointers to actual nonempty text "
+            "in this plan, not summaries or external paths. Inputs locate resources or a direct "
+            "predecessor milestone deliverable; operation locates a design procedure, analysis "
+            "method, question measurement or this milestone description; outputs locate a "
+            "result artifact or this milestone deliverable; success_criteria locate analysis "
+            "criteria or design credibility checks. Keep depends_on as milestone IDs. "
+            "Mark any named file, dataset or metric using {kind, name, location}, with its "
+            "literal name present in one of the four referenced cells. Use an empty list when "
+            "no name is known; do not invent one to silence a notice. Generic steps remain "
+            "drafts with specificity notices. These checks do not establish scientific quality, "
+            "data access, human approval or execution permission.\n"
         )
     return (
         instructions

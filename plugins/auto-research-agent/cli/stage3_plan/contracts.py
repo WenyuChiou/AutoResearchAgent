@@ -13,6 +13,7 @@ SCHEMA_PATH = (
 SCHEMA_PATHS = {
     "1.0.0": SCHEMA_PATH,
     "1.1.0": SCHEMA_PATH.with_name("stage3-research-plan.v1_1.schema.json"),
+    "1.2.0": SCHEMA_PATH.with_name("stage3-research-plan.v1_2.schema.json"),
 }
 
 
