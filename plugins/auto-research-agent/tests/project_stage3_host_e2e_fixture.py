@@ -5,7 +5,7 @@ admission, workflow and job implementations remain real. Nothing runs on import.
 """
 
 # ruff: noqa: E402 -- exercise the CLI with existing authored source builders.
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from copy import deepcopy
 import json
 from pathlib import Path
@@ -29,6 +29,38 @@ from stage1_deliverable import sources
 from stage3_plan.contracts import canonical_bytes, digest
 from stage3_plan.jobs import POLICY, PlanningJobs
 from stage3_plan.storage import private_output, read_json
+
+
+_seed_construction_lock = threading.Lock()
+_native_guard_lock = threading.Lock()
+_native_guard_stack = ExitStack()
+_native_guard_users = 0
+_native_guard = None
+
+
+@contextmanager
+def _deny_native_planning():
+    # Hosts may close out of order. Keep the same guard until the last closes.
+    global _native_guard_users, _native_guard
+    with _native_guard_lock:
+        if _native_guard_users == 0:
+            _native_guard = _native_guard_stack.enter_context(
+                patch(
+                    "stage3_plan.native.NativePlanner.__call__",
+                    side_effect=AssertionError(
+                        "Native model dispatch forbidden in engineering E2E"
+                    ),
+                )
+            )
+        _native_guard_users += 1
+    try:
+        yield _native_guard
+    finally:
+        with _native_guard_lock:
+            _native_guard_users -= 1
+            if _native_guard_users == 0:
+                _native_guard_stack.close()
+                _native_guard = None
 
 
 class EvidenceDirectory:
@@ -86,10 +118,17 @@ class Stage3HostE2ESeed:
     Host, never a second job store or process owner. The caller owns Host cleanup.
     """
 
-    def __init__(self, case, *, evidence_root=None):
+    def __init__(
+        self, case, *, evidence_root=None, evidence_directory=EvidenceDirectory
+    ):
         self.case = case
-        fixture_type = current.ImportedRichControllerChoiceE2ETests
-        with ExitStack() as construction:
+
+        # Each seed owns its imported source and unittest class cleanups.
+        class ImportedSource(current.ImportedRichControllerChoiceE2ETests):
+            pass
+
+        # The imported builders still use process-wide patches during setup.
+        with _seed_construction_lock, ExitStack() as construction:
             if evidence_root is not None:
                 evidence_root = private_output(Path(evidence_root)).resolve()
                 evidence_root.mkdir(parents=True, exist_ok=True)
@@ -97,7 +136,7 @@ class Stage3HostE2ESeed:
                     patch.object(
                         tempfile,
                         "TemporaryDirectory",
-                        side_effect=lambda *a, **k: EvidenceDirectory(
+                        side_effect=lambda *a, **k: evidence_directory(
                             *a, evidence_root=evidence_root, **k
                         ),
                     )
@@ -106,11 +145,11 @@ class Stage3HostE2ESeed:
             construction.enter_context(
                 patch.object(sources, "runtime_binding", return_value=runtime)
             )
-            fixture_type.setUpClass()
-            case.addCleanup(fixture_type.doClassCleanups)
-            self.original = fixture_type()
-            self.original.setUp()
+            case.addCleanup(ImportedSource.doClassCleanups)
+            ImportedSource.setUpClass()
+            self.original = ImportedSource()
             case.addCleanup(self.original.doCleanups)
+            self.original.setUp()
             f = self.original
             driver = ProjectStage2ControllerDriver(
                 f.service,
@@ -172,14 +211,7 @@ class Stage3HostE2ESeed:
                 ),
             },
         )
-        self.native_guard = case.enterContext(
-            patch(
-                "stage3_plan.native.NativePlanner.__call__",
-                side_effect=AssertionError(
-                    "Native model dispatch forbidden in engineering E2E"
-                ),
-            )
-        )
+        self.native_guard = case.enterContext(_deny_native_planning())
         case.addCleanup(self.native_guard.assert_not_called)
 
     def source_body(self, *, key):
