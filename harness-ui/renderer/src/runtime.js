@@ -351,9 +351,19 @@ function wikiShellState(app){
   else if(create){now=say('新课题创建结果尚待核对','New topic creation is unconfirmed','新課題建立結果尚待核對');next=recover?say('用“查询上次结果”核对新课题的创建','Use Check outcome to verify the new topic creation','用「查詢上次結果」核對新課題的建立'):say('返回原提交工作台核对创建结果','Return to the original workspace to check the creation','返回原提交工作台核對建立結果');}
   else{now=typeof rt.pending.ref==='string'?say('另一个项目有未确认提交','Another project has an unconfirmed submission','另一個專案有未確認提交'):say('有待核对提交，项目归属尚未确认','A submission is unconfirmed; its project is not established','有待核對提交，專案歸屬尚未確認');next=say('请切回原提交项目的工作台核对','Return to the original submitting project workspace','請切回原提交專案的工作台核對');}
  }
- else if(rt.error){state='error';now=say('读取或操作尚未完成','Read or operation did not complete','讀取或操作尚未完成');next=app.el?.querySelector?.('[data-live-action="refresh"]:not(:disabled)')?say('查看下方原因，使用原“刷新检查”','Read the reason below and use Refresh','查看下方原因，使用原「刷新檢查」'):say('在左侧打开 Stage1「文献与证据」，核对原读取提示并重试','Open Stage1 Literature and evidence in the sidebar to check the original read status and retry','在左側開啟 Stage1「文獻與證據」，核對原讀取提示並重試');human=say('失败记录保留；请先核对原因','Failure is retained; check its reason first','失敗紀錄保留；請先核對原因');}
+ else if(rt.error){
+  state='error';now=say('读取或操作尚未完成','Read or operation did not complete','讀取或操作尚未完成');
+  const refresh=app.el?.querySelector?.('[data-live-action="refresh"]:not(:disabled)'),label=refresh?.textContent?.trim(),panel=refresh?.closest?.('details')?.querySelector('summary')?.textContent?.trim();
+  next=refresh?say('查看技术细节中的原因；使用本页原读取按钮：','Read the reason in technical details; use the existing read control: ','查看技術細節中的原因；使用本頁原讀取按鈕：')+(label||say('读取','Read','讀取'))+(panel?say('；如已折叠请先展开：','; if collapsed, first expand: ','；如已折疊請先展開：')+panel:''):say('在左侧打开 Stage1「文献与证据」，核对原读取提示并重试','Open Stage1 Literature and evidence in the sidebar to check the original read status and retry','在左側開啟 Stage1「文獻與證據」，核對原讀取提示並重試');
+  human=say('失败记录保留；请先核对原因','Failure is retained; check its reason first','失敗紀錄保留；請先核對原因');
+ }
  else if(rt.loading){state='loading';now=say('正在读取保存记录','Reading saved records','正在讀取儲存紀錄');next=say('等待本次读取完成','Wait for this read to finish','等待本次讀取完成');human=say('无需重复操作','No repeated action is needed','無需重複操作');}
- else if(!rt.ref&&rt.meta&&!rt.list.length){state='empty';now=say('还没有保存的课题','No saved topic yet','還沒有儲存的課題');next=app.el?.querySelector?.('[data-live-topic]')?say('在上方输入标题并保存选题','Enter a title above and save the topic','在上方輸入標題並儲存選題'):say('在左侧打开 Stage1「文献与证据」填写题目','Open Stage1 Literature and evidence in the sidebar to enter a topic','在左側開啟 Stage1「文獻與證據」填寫題目');human=say('需要你提供题目；保存不启动研究','You provide the topic; saving does not start research','需要你提供題目；儲存不啟動研究');}
+ else if(!rt.ref&&rt.meta&&!rt.list.length){
+  state='empty';now=say('还没有保存的课题','No saved topic yet','還沒有儲存的課題');
+  const input=app.el?.querySelector?.('[data-live-topic]'),create=input&&!rt.controlHeld&&app.el?.querySelector?.('[data-live-action="create"]:not(:disabled)');
+  next=create?say('在上方输入标题并保存选题','Enter a title above and save the topic','在上方輸入標題並儲存選題'):input?say('当前不能保存；请查看 Stage1 原操作区的控制状态','Saving is currently unavailable; check the original Stage1 control status','目前不能儲存；請查看 Stage1 原操作區的控制狀態'):say('在左侧打开 Stage1「文献与证据」填写题目','Open Stage1 Literature and evidence in the sidebar to enter a topic','在左側開啟 Stage1「文獻與證據」填寫題目');
+  human=input&&!create?say('先核对原控制状态；请勿重复提交','Check the original control state before submitting','先核對原控制狀態；請勿重複提交'):say('需要你提供题目；保存不启动研究','You provide the topic; saving does not start research','需要你提供題目；儲存不啟動研究');
+ }
  else if(bound||saved){state='saved';now=say('已读取当前项目的保存记录','Current project records are open','已讀取目前專案的儲存紀錄');next=say('查看本阶段的原结果和可用操作','Inspect this stage’s original results and available controls','查看本階段的原結果與可用操作');human=say('阅读不发任务；执行仍按原入口确认','Reading dispatches no work; execution uses the original confirmation','閱讀不發任務；執行仍按原入口確認');
   const progress=app.stage===1&&bound?rt.overview?.stage1?.progress:null,pb=progress?.binding;
   const same=pb&&['project_ref','input_version','revision','brief_sha256'].every(k=>pb[k]===p[k]);
@@ -361,7 +371,7 @@ function wikiShellState(app){
   const name=same?names[progress.next_action?.phase_id]:null;
   if(name)next=translated(app,name)+say('；使用下方原操作','; use the original controls below','；使用下方原操作');
  }
- return {state,bound,saved,origin,provenance,now,next,human,source:saved?say('来自校验后的保存视图','From a validated saved view','來自校驗後的儲存視圖'):bound?say('来自本地 Harness 项目记录','From local Harness project records','來自本機 Harness 專案紀錄'):say('尚无可核对的数据来源','No verified record source yet','尚無可核對的資料來源'),raw:{read_error:rt.error||null,project_ref:rt.ref??null,input_version:bound?p.input_version:null,revision:bound?p.revision:null,brief_sha256:bound?p.brief_sha256:null,fixture:saved?entry.fixture:null,provenance:origin==='unknown'?null:origin,pending:rt.pending?{project_ref:rt.pending.ref??null,scope:state}:null}};
+ return {state,bound,saved,origin,provenance,now,next,human,source:saved?say('来自校验后的保存视图','From a validated saved view','來自校驗後的儲存視圖'):bound?say('来自本地 Harness 项目记录','From local Harness project records','來自本機 Harness 專案紀錄'):say('尚无可核对的数据来源','No verified record source yet','尚無可核對的資料來源'),raw:{read_error:rt.error||null,control_held:rt.controlHeld===true,project_ref:rt.ref??null,input_version:bound?p.input_version:null,revision:bound?p.revision:null,brief_sha256:bound?p.brief_sha256:null,fixture:saved?entry.fixture:null,provenance:origin==='unknown'?null:origin,pending:rt.pending?{project_ref:rt.pending.ref??null,scope:state}:null}};
 }
 function wikiShellMarkup(app){
  if(typeof v93ValidProject!=='function'||app.page!=='workspace'||app.stage<1||app.stage>3)return '';

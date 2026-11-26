@@ -14,7 +14,7 @@ const view=()=>context.wikiShellState(app),html=()=>context.wikiShellMarkup(app)
 assert.equal(view().origin,'unknown','a project is not evidence of real execution');
 assert(html().includes('来历未标注'));assert(!html().includes('真实运行'));
 rt.loading=true;assert.equal(view().state,'loading');rt.loading=false;
-rt.error='fixed-503';assert.equal(view().state,'error');assert(html().includes('fixed-503'),'the raw failure remains available in technical details');assert(!view().next.includes('刷新检查'),'no absent refresh control');app.el={querySelector:s=>s.includes('refresh')?{}:null};assert(view().next.includes('刷新检查'));app.el=undefined;rt.error='';
+rt.error='fixed-503';assert.equal(view().state,'error');assert(html().includes('fixed-503'),'the raw failure remains available in technical details');assert(!view().next.includes('刷新检查'),'no absent refresh control');const canonical=fs.readFileSync(path.join(__dirname,'renderer/src/canonical-runs.js'),'utf8');assert(canonical.includes('重新读取保存结果'));for(const label of ['刷新检查','重新读取保存结果','Reload saved output','刷新进度']){app.el={querySelector:s=>s.includes('refresh')?{textContent:label,closest:()=>({querySelector:()=>({textContent:'Stage1 · 操作与保存状态'})})}:null};assert(view().next.includes(label),'use the actual original control label');assert(view().next.includes('折叠'),'explain the hidden operations entry');}app.el=undefined;rt.error='';
 rt.pending={ref,path:'/api/projects/'+ref+'/compile',body:{key:'original-key'}};
 rt.busy=true;assert.equal(view().state,'busy','a live submission waits rather than directing users to a disabled recovery control');rt.busy=false;
 assert.equal(view().state,'pending');assert.equal(rt.pending.body.key,'original-key');
@@ -49,7 +49,7 @@ assert(!view().next.includes('查询上次结果'),'archive must not advertise a
 rt.pending.ref='project-other';rt.pending.path='/api/projects/project-other/compile';
 assert.equal(JSON.stringify(rt.pending),pendingBytes,'presentation never alters the original pending intent');rt.pending=null;
 rt.savedRun.binding.fixture='false';assert.equal(view().origin,'unknown','typed provenance mismatch fails closed');
-rt.ref=null;rt.savedRun=null;rt.list=[];rt.overview=null;assert.equal(view().state,'empty');app.stage=2;assert(!view().next.includes('上方'),'Stage2 has no topic field');assert(view().next.includes('Stage1'));app.el={querySelector:s=>s==='[data-live-topic]'?{}:null};assert(view().next.includes('上方'));app.el=undefined;app.stage=1;
+rt.ref=null;rt.savedRun=null;rt.list=[];rt.overview=null;assert.equal(view().state,'empty');app.stage=2;assert(!view().next.includes('上方'),'Stage2 has no topic field');assert(view().next.includes('Stage1'));app.el={querySelector:s=>s==='[data-live-topic]'?{}:null};rt.controlHeld=true;assert(!view().next.includes('上方'),'a disabled create is not offered as a save path');assert(view().next.includes('不能保存'));rt.controlHeld=false;app.el={querySelector:s=>s==='[data-live-topic]'||s.includes('create')?{}:null};assert(view().next.includes('上方'));app.el=undefined;app.stage=1;
 for(const [lang,word] of [['zh','现在'],['en','Now'],['tw','現在']]){app.lang=lang;assert(html().includes(word),'shell uses active locale');}
 app.page='history';assert.equal(html(),'','stage shell must not relabel unrelated pages');
 app.page='workspace';rt.error='<script>';assert(!html().includes('<script>'),'shell markup must not render error HTML');
