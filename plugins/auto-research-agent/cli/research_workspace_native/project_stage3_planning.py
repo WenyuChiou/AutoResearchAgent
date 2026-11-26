@@ -34,7 +34,15 @@ class ProjectStage3PlanningService:
     Inspect/recover accept only a saved request; neither can invoke a callback.
     """
 
-    def __init__(self, intake, selection_view, *, bindings=None, saved_read_pins=None):
+    def __init__(
+        self,
+        intake,
+        selection_view,
+        *,
+        bindings=None,
+        saved_read_pins=None,
+        plan_review_reader=None,
+    ):
         _check(
             isinstance(selection_view, ProjectStage2SelectionView)
             and selection_view.intake is intake,
@@ -42,6 +50,12 @@ class ProjectStage3PlanningService:
             400,
         )
         self.intake, self.selection_view = intake, selection_view
+        _check(
+            plan_review_reader is None or callable(plan_review_reader),
+            "stage3-plan-review-reader-invalid",
+            400,
+        )
+        self.plan_review_reader = plan_review_reader
         self.bindings = {}
         _check(
             bindings is None or type(bindings) is dict, "stage3-bindings-invalid", 400

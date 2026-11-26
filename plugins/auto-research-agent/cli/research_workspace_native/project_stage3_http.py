@@ -73,7 +73,53 @@ class ProjectStage3Http:
                     )
                     if fits_response(projected):
                         view = projected
+                return self._with_plan_review(view, check_deadline)
             return view
+
+    def _with_plan_review(self, view, check_deadline):
+        job = view.get("job") or {}
+        strict = (
+            view.get("selection_status") == "recorded" and job.get("outcome") == "saved"
+        )
+        fallback = dict(
+            identity=None,
+            planning_status=job.get("planning_status"),
+            readback_status="unlinked" if strict else "outside-saved-strict-plan",
+            checkpoint_sha256=None,
+            next_action=None,
+            review=None,
+            decision=None,
+            execution_authorized=False,
+            reason="stage3-plan-review-index-unconnected"
+            if strict
+            else "stage3-saved-strict-plan-required",
+        )
+        reader = getattr(self.service, "plan_review_reader", None)
+        if strict and reader is not None:
+            if check_deadline:
+                check_deadline()
+            review = reader(view, check_deadline=check_deadline)
+            if check_deadline:
+                check_deadline()
+            if (
+                type(review) is not dict
+                or review.keys() != fallback.keys()
+                or review["execution_authorized"] is not False
+            ):
+                fallback.update(
+                    readback_status="unavailable",
+                    reason="stage3-plan-review-reader-invalid",
+                )
+            else:
+                projected = dict(view, plan_review=review)
+                if fits_response(projected):
+                    return projected
+                fallback.update(
+                    readback_status="unavailable",
+                    reason="stage3-plan-review-response-limit",
+                )
+        projected = dict(view, plan_review=fallback)
+        return projected if fits_response(projected) else view
 
     def _view(self, credential, ref, *, check_deadline=None):
         view = self.service.read(credential, ref, check_deadline=check_deadline)
