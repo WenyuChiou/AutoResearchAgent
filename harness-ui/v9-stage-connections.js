@@ -4,17 +4,19 @@ const v9ConnectionFields = ['project_ref', 'project_id', 'input_version', 'brief
 let v9ConnectionView = null, v9ConnectionWriting = false;
 const v9ConnectionHash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 
-function v9ConnectionBasis(project = rt.overview?.project) {
+function v9ConnectionBasis(project) {
   if (canonicalReadonly() || !project || project.project_ref !== rt.ref ||
       typeof project.project_ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(project.project_ref) ||
       typeof project.project_id !== 'string' || !project.project_id ||
-      !Number.isSafeInteger(project.input_version) || project.input_version < 1 ||
+      !(Number.isSafeInteger(project.input_version) && project.input_version > 0 ||
+        typeof project.input_version === 'string' && project.input_version.trim() === project.input_version &&
+        project.input_version.length > 0 && project.input_version.length <= 128) ||
       !Number.isSafeInteger(project.revision) || project.revision < 0 ||
       !v9ConnectionHash(project.brief_sha256)) return null;
   return Object.fromEntries(v9ConnectionFields.map(key => [key, project[key]]));
 }
 function v9ConnectionCurrent(view) {
-  const basis = v9ConnectionBasis(), app = apps[0];
+  const basis = v9ConnectionBasis(rt.overview?.project), app = apps[0];
   return !!view && view === v9ConnectionView && !rt.loading && rt.epoch === view.epoch &&
     app?.page === 'workspace' && v9ConnectionStages[app.stage] === view.stage &&
     basis && v9ConnectionFields.every(key => basis[key] === view.basis[key]);
@@ -33,15 +35,31 @@ function v9ConnectionCanWrite() {
       sessionStorage.getItem('v7-pending-action') === null && typeof globalThis.navigator?.locks?.request === 'function';
   } catch { return false; }
 }
+function v9LegacyConnection(stage) {
+  const view=v9ConnectionView;
+  return v9ConnectionCurrent(view) && view.stage===stage && view.legacyMissing && !v9ConnectionPending();
+}
+function v9AllowsCandidateRequest() {
+  return v9ConnectionConnected('stage2-controller') || v9LegacyConnection('stage2-controller');
+}
+function v9ContinuationConflict() {
+  return typeof wikiStage2State!=='undefined' && wikiStage2State?.error==='stage2-continuation-result-not-current' &&
+    JSON.stringify(wikiStage2Basis())===JSON.stringify(wikiStage2State.basis);
+}
 async function v9ReadConnection(view) {
   const {basis, stage} = view;
-  const response = await liveRequest(projectPath(basis.project_ref, 'connections'));
+  let response, missing;
+  try { response = await liveRequest(projectPath(basis.project_ref, 'connections')); }
+  catch (error) { if (error.status !== 404) throw error; missing = error; }
   // The initial overview came from liveRefresh. Bracket discovery with another overview.
   const fresh = v9ConnectionBasis((await liveRequest(projectPath(basis.project_ref, 'overview')))?.project);
-  if (!v9ConnectionCurrent(view) || !fresh || !v9ConnectionFields.every(key => fresh[key] === basis[key]) ||
-      response?.project_ref !== basis.project_ref || response.execution_authorized !== false)
+  if (!v9ConnectionCurrent(view) || !fresh || !v9ConnectionFields.every(key => fresh[key] === basis[key]))
+    throw Error('connection-project-binding-mismatch');
+  if (missing) { view.legacyMissing = true; throw missing; }
+  if (response?.project_ref !== basis.project_ref || response.execution_authorized !== false)
     throw Error('connection-project-binding-mismatch');
   const row = response.connections?.[stage];
+  if (!Number.isSafeInteger(basis.input_version) && row?.profile_sha256 !== null) throw Error('connection-project-binding-mismatch');
   if (!row) throw Error('stage-connection-interface-unavailable');
   if ((row.reason != null && ['connected','connectable'].includes(row.status)) ||
       !['connectable', 'connected', 'consent-required', 'unavailable'].includes(row.status) ||
@@ -58,7 +76,7 @@ async function v9ReadConnection(view) {
 }
 async function v9ConnectionRead(view) {
   if (!v9ConnectionCurrent(view) || view.reading) return;
-  view.reading = true; view.row = null; view.error = ''; livePaint();
+  view.reading = true; view.legacyMissing=false; view.row = null; view.error = ''; livePaint();
   try { view.row = await v9ReadConnection(view); }
   catch (error) { view.error = error.message; view.http = error.status; }
   finally { view.reading = false; if (v9ConnectionCurrent(view)) livePaint(); }
@@ -72,7 +90,7 @@ function v9ConnectionReason(code, http) {
     return rl('还缺本课题当前版本的正式选案和已核验的选案回执。','A verified formal selection and receipt for this version are required.');
   if (/^stage[23]-(controller|planning)-profile-unavailable$/.test(code))
     return rl('这次启动没有提供本阶段的运行配置。请在原项目目录用已核验的配置重开。','This launch lacks the stage configuration. Reopen the original project directory with the verified configuration.');
-  if (/^(?:connection-project-binding-mismatch|(?:stage[23]|stage-connection)-[a-z0-9-]*(?:binding-differs|project-stale|connection-differs|path-mismatch|current-input-differs|native-input-differs|receipt-differs))$/.test(code))
+  if (code === 'stage2-continuation-result-not-current' || /^(?:connection-project-binding-mismatch|(?:stage[23]|stage-connection)-[a-z0-9-]*(?:binding-differs|project-stale|connection-differs|path-mismatch|current-input-differs|native-input-differs|receipt-differs))$/.test(code))
     return rl('本次核对与原记录不一致。若搬过目录，请回原物理目录，用原已核配置重开，先只读核对项目、整数输入版本、原包和回执。原路径无法恢复时保留记录，等待经核验的迁移入口。请勿重新执行、换请求键或手改回执。','The binding differs. If files moved, reopen the original physical directory with the verified configuration. Check the project, integer input version, original packet and receipt using read-only requests. If the path cannot be restored, retain the records for a verified migration. Do not rerun, change keys or edit receipts.');
   if (http === 404 || code === 'stage-connection-interface-unavailable')
     return rl('这次启动没有提供本阶段接通接口，暂时无法核验。','This launch does not expose the stage connection interface.');
@@ -84,7 +102,7 @@ function v9ConnectionReason(code, http) {
 }
 function v9ConnectionPanel(app) {
   if (app !== apps[0] || app.page !== 'workspace' || canonicalReadonly() || !rt.ref) return '';
-  const stage = v9ConnectionStages[app.stage], basis = v9ConnectionBasis();
+  const stage = v9ConnectionStages[app.stage], basis = v9ConnectionBasis(rt.overview?.project);
   if (!stage) return '';
   const heading = 'Stage ' + app.stage + ' · ' + rl('本课题接通状态','Project connection');
   if (!basis || rt.loading) return '<section class="hs-panel"><h2>'+heading+'</h2><p>'+rl('等待核对本课题、整数输入版本和摘要。','Waiting for a verified project, integer input version and brief digest.')+'</p></section>';
@@ -102,7 +120,7 @@ function v9ConnectionPanel(app) {
   else if (row?.status === 'connectable') message = rl('本课题还没有接通。可以登记当前配置，登记不会启动研究。','This project is ready to connect. Registering the current configuration does not start research.');
   const token = rx(JSON.stringify([stage, view.epoch, ...Object.values(basis)]));
   const button = (action, label, disabled) => `<button type="button" class="hs-button" data-v9-connection="${action}" data-connection-basis="${token}" ${disabled?'disabled':''}>${label}</button>`;
-  const controls = !unknown && !view.rejection && !view.error && row?.status === 'connectable'
+  const controls = !unknown && !(stage==='stage2-controller'&&v9ContinuationConflict()) && !view.rejection && !view.error && row?.status === 'connectable'
     ? button('connect', rl('接通本课题','Connect this project'), !v9ConnectionCanWrite() || v9ConnectionWriting) : '';
   const lockHint = controls && typeof globalThis.navigator?.locks?.request !== 'function'
     ? rl('此浏览器缺少跨标签页项目锁，仅可查看。','This browser lacks cross-tab project locks. Readback is available.') : '';
@@ -117,7 +135,7 @@ document.addEventListener('click', async event => {
       view.reading || v9ConnectionWriting) return;
   if (button.dataset.v9Connection === 'read') { view.rejection = ''; return v9ConnectionRead(view); }
   if (button.dataset.v9Connection !== 'connect' || !v9ConnectionCanWrite() ||
-      view.rejection || view.error || view.row?.status !== 'connectable') return;
+      view.stage==='stage2-controller' && v9ContinuationConflict() || view.rejection || view.error || view.row?.status !== 'connectable') return;
   const {basis, stage, row} = view;
   v9ConnectionWriting = true; livePaint();
   try {
@@ -127,7 +145,7 @@ document.addEventListener('click', async event => {
       const fresh = await v9ReadConnection(view);
       if (!v9ConnectionCurrent(view) || !v9ConnectionCanWrite()) return;
       view.row = fresh;
-      if (fresh.status !== 'connectable') return;
+      if (fresh.status !== 'connectable' || stage==='stage2-controller' && v9ContinuationConflict()) return;
       if (fresh.profile_sha256 !== row.profile_sha256) throw Error('stage-connection-profile-differs');
       await livePost('connections', {revision:basis.revision, input_version:basis.input_version,
         brief_sha256:basis.brief_sha256, stage, profile_sha256:fresh.profile_sha256, confirmed:true}, basis.project_ref);

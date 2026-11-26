@@ -24,8 +24,11 @@ function browserFixture() {
     async liveRequest(path, body){
       const tail=path.split('/').slice(4).join('/');
       calls.push({tail, body:body&&structuredClone(body)});
+      if(tail==='overview' && changes.missingProject)return {};
+      if(tail==='stage2/continuation' && changes.continuationError)throw Object.assign(Error(changes.continuationError),{status:409});
+      if(tail==='stage2/selection')return {...project,kind:'Stage2SelectionView',delivery_manifest_sha256:'1'.repeat(64),snapshot_sha256:'2'.repeat(64),delivery_workflow_head_sha256:'3'.repeat(64),execution_authorized:false,...changes.selectionView};
       if (tail==='overview') return {project:{...project,...changes.overview}};
-      if (tail==='stage2/continuation') return {...project, status:changes.selection||'no-candidate', execution_authorized:false, ...changes.continuation};
+      if (tail==='stage2/continuation') return {...project, status:changes.selection||'no-candidate', execution_authorized:false, delivery_manifest_sha256:'1'.repeat(64),snapshot_sha256:'2'.repeat(64),workflow_head_sha256:'3'.repeat(64), ...changes.continuation};
       if (tail==='history') return {actions:[]};
       if (tail==='stage3/planning') return {...project,plan:null};
       if (tail!=='connections') throw Error('unexpected fixture request '+tail);
@@ -60,6 +63,26 @@ async function exercise() {
     Object.assign(rt,{ref:project.project_ref,overview:{project},busy:false,pending:null,controlHeld:false,loading:false,error:''});
     app.stage=stage;rt.epoch++;livePaint();await tick();
   };
+  // Each counterexample runs on a fresh rendered page, including the previously reachable request button.
+  const problems=[];
+  const probe=(ok,name)=>{if(!ok)problems.push(name);};
+  await reset({missingProject:true});probe(!button('connect'),'missing overview project');
+  window.RESEARCH_PROJECTS.stage3_planning_projects=[project.project_ref];
+  await reset({status:'unavailable',reason:'stage3-planning-project-stale'},3);
+  probe(!app.el.querySelector('[data-v93-read]'),'boot list bypasses explicit denial');
+  await reset({getError:'not-found',http:404},3);probe(!!app.el.querySelector('[data-v93-read]'),'legacy read on absent endpoint');
+  window.RESEARCH_PROJECTS.stage3_planning_projects=[];
+  await reset({selection:'candidate-ready',status:'connected'});
+  probe(!!app.el.querySelector('[data-v93-choice]')&&calls.some(c=>c.tail==='stage2/selection'),'candidate-ready requires actual selection evidence');
+  await reset({selection:'candidate-ready',status:'connected',selectionView:{snapshot_sha256:'9'.repeat(64)}});
+  probe(!app.el.querySelector('[data-v93-choice]'),'candidate/selection pins differ');
+  await reset({status:'connected',continuationError:'stage2-continuation-result-not-current'});
+  probe(app.el.innerText.includes('原物理目录')&&!button('connect'),'retained continuation 409 guidance');
+  await reset({getError:'stage2-controller-binding-differs',http:409,selection:'ready'});
+  probe(!app.el.querySelector('[data-wiki-stage2-action=request]'),'blocked connection and old ready');
+  const stale=document.createElement('button');stale.dataset.wikiStage2Action='request';app.el.append(stale);stale.click();await tick();
+  probe(!posts().length,'old request delegated handler blocked');
+  check(!problems.length,problems.join(', '));
   await reset(); check(posts().length===0 && button('connect'),'render uses only GET');
   const connect=button('connect');connect.click();connect.click();await tick();
   check(posts().length===1 && status().includes('本课题已接通'),'one explicit registration and verified readback');

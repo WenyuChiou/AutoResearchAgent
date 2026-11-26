@@ -13,7 +13,10 @@ const v93={view:null,basis:null,errorBasis:null,sequence:0,busy:false,error:''};
 function v93ValidProject(p){return !!p&&((typeof p.input_version==='string'&&p.input_version.length>0&&p.input_version.length<=128)||(Number.isSafeInteger(p.input_version)&&p.input_version>=0))&&Number.isSafeInteger(p.revision)&&p.revision>=0&&typeof p.brief_sha256==='string'&&/^[a-f0-9]{64}$/.test(p.brief_sha256);}
 function v93Identity(){
  const p=rt.overview?.project, configured=window.RESEARCH_PROJECTS?.stage3_planning_projects;
- if(!v93ValidProject(p)||p.project_ref!==rt.ref||canonicalReadonly()||!(Array.isArray(configured)&&configured.includes(rt.ref)||(typeof v9ConnectionConnected==='function'&&v9ConnectionConnected('stage3-planning'))))return null;
+ const listed=Array.isArray(configured)&&configured.includes(rt.ref);
+ const allowed=typeof v9ConnectionConnected==='function'
+   ?v9ConnectionConnected('stage3-planning')||listed&&v9LegacyConnection('stage3-planning'):listed;
+ if(!v93ValidProject(p)||p.project_ref!==rt.ref||canonicalReadonly()||!allowed)return null;
  return {project_ref:p.project_ref,input_version:p.input_version,revision:p.revision,brief_sha256:p.brief_sha256};
 }
 function v93Matches(a,b){return !!a&&!!b&&['project_ref','input_version','revision','brief_sha256'].every(k=>a[k]===b[k]);}
@@ -54,10 +57,10 @@ const v93Choices=new Map();let v93ActiveChoice=null;
 function v93ChoiceIdentity(){
  const p=rt.overview?.project, configured=window.RESEARCH_PROJECTS?.stage2_selection_projects;
  if(typeof wikiStage2OwnsView==='function'&&wikiStage2OwnsView())return null;
- const dynamic=typeof v9ConnectionConnected==='function'&&v9ConnectionConnected('stage2-controller')&&
-   typeof wikiStage2State!=='undefined'&&wikiStage2State?.result?.status==='selection-available'&&
-   wikiStage2State.result.execution_authorized===false&&JSON.stringify(wikiStage2Basis())===JSON.stringify(wikiStage2State.basis);
- if(!v93ValidProject(p)||p.project_ref!==rt.ref||canonicalReadonly()||!(Array.isArray(configured)&&configured.includes(rt.ref)||dynamic))return null;
+ const listed=Array.isArray(configured)&&configured.includes(rt.ref);
+ const allowed=typeof v9ConnectionConnected==='function'
+   ?v9ConnectionConnected('stage2-controller')&&wikiStage2CurrentSelection()||listed&&v9LegacyConnection('stage2-controller'):listed;
+ if(!v93ValidProject(p)||p.project_ref!==rt.ref||canonicalReadonly()||!allowed)return null;
  return {project_ref:p.project_ref,input_version:p.input_version,revision:p.revision,brief_sha256:p.brief_sha256};
 }
 const v93Before=v7BeforeRender;
