@@ -42,7 +42,25 @@ const projectPath = (ref,tail='') => '/api/projects/'+encodeURIComponent(ref)+(t
 const rows = () => rt.atlas?.payload?.index?.papers || [];
 function liveBound(){const p=rt.overview?.project;return p?Object.fromEntries(['revision','input_version','brief_sha256'].map(k=>[k,p[k]])):{};}
 function liveAtlasPath(){const p=rt.overview?.project,a=rt.overview?.stage1?.delivery?.canonical_package;return p&&a?projectPath(rt.ref,`stage1/atlas/${p.input_version}/${p.revision}/${a.artifact_ref}/${a.manifest_sha256}`):null;}
-function livePaint(){const app=apps[0];app.previewProject={id:rt.ref||'loading',get topic(){return rt.overview?.project?.brief?.original_description||(rt.error?rl('项目读取失败','Project read failed','專案讀取失敗'):liveEmptyLibrary()?rl('尚无项目','No project','尚無專案'):rl('正在读取项目','Loading project','正在讀取專案'))},hasResults:!!rt.atlas};render(app);const badge=app.el.querySelector('.hs-preview');if(badge)badge.textContent=rl('V9 · 本地服务联动','V9 · Local service');}
+const liveWikiV1 = typeof wikiHomeProjectOpened==='function';
+function liveWikiBrand(app){
+ const badge=app.el.querySelector('.hs-preview'),brand=app.el.querySelector('.hs-brand strong');
+ if(badge&&badge.textContent!=='Wiki V1')badge.textContent='Wiki V1';
+ if(brand&&brand.textContent!=='Wiki V1')brand.textContent='Wiki V1';
+ const title=app.page==='home'&&app.lang==='zh'?'Wiki V1 · 工作台':'Wiki V1';
+ if(document.title!==title)document.title=title;
+}
+if(liveWikiV1){
+ const wikiBrandRender=render;
+ render=function(app){wikiBrandRender(app);liveWikiBrand(app);};
+ // V9 modules append their after-render hooks later in this same bundle.
+ // Apply the common brand after those hooks and before the frame is painted.
+ queueMicrotask(()=>{
+  const wikiBrandAfter=v7AfterRender;
+  v7AfterRender=function(app){wikiBrandAfter(app);liveWikiBrand(app);};
+ });
+}
+function livePaint(){const app=apps[0];app.previewProject={id:rt.ref||'loading',get topic(){return rt.overview?.project?.brief?.original_description||(rt.error?rl('项目读取失败','Project read failed','專案讀取失敗'):liveEmptyLibrary()?rl('尚无项目','No project','尚無專案'):rl('正在读取项目','Loading project','正在讀取專案'))},hasResults:!!rt.atlas};render(app);if(liveWikiV1){liveWikiBrand(app);return;}const badge=app.el.querySelector('.hs-preview');if(badge)badge.textContent=rl('V9 · 本地服务联动','V9 · Local service');}
 async function liveRequest(path,body){
  const h={Authorization:'Bearer '+window.RESEARCH_PROJECTS.credential};if(body)h['Content-Type']='application/json';
  const response=await fetch(path,{method:body?'POST':'GET',headers:h,body:body?JSON.stringify(body):undefined,cache:'no-store',credentials:'same-origin'});
@@ -261,7 +279,7 @@ stage1=app=>`${liveTop(app)}${liveHeader(app)}${liveControls(app)}${liveResults(
 stage2=app=>`${liveHeader(app)}${liveControls(app)}${liveResults(app)}${liveFeedback(app)}${liveAssistant(app)}`;
 otherPage=app=>`${liveHeader(app)}${app.page==='files'?liveFiles():app.page==='settings'?`<section class="hs-panel live-files"><h2>${rl('连接与额度','Connection & limits')}</h2><p>${rl('Harness 本地记录服务已接通。真实 Codex 与搜索未注册。','Local Harness records are connected. Live Codex and search are not registered.')}</p><p>${rl('金额','Monetary cost')}: ${rx(rt.overview?.project?.monetary_cost)}</p><pre class="live-record">${rx(JSON.stringify(rt.overview?.project?.settings?.budgets||null,null,2))}</pre><p>${rl('额度声明与执行许可分开；这轮验收不进行真实模型调用。','Declared limits and execution permission are separate. This acceptance run uses no live model.')}</p></section>`:liveFeedback(app)}`;
 const previousAfter=v7AfterRender;
-v7AfterRender=function(app){previousAfter(app);const footer=app.el.querySelector('.hs-footer');if(footer)footer.textContent=rl('V9 本地联动 · 原材料、保存输出与未接通操作分别标识','V9 local integration · original inputs, saved outputs and unconnected operations labeled');const foot=app.el.querySelector('.hs-sidebar-foot');if(foot)foot.textContent=rl('本地服务已连接 · 当前文献 ','Local service connected · current papers ')+rows().length;const badge=app.el.querySelector('.hs-preview');if(badge)badge.textContent='V9 · '+rl('本地联动','Local integration');const host=app.el.querySelector('[data-live-spatial]');if(!host)return;
+v7AfterRender=function(app){previousAfter(app);const footer=app.el.querySelector('.hs-footer');if(footer)footer.textContent=(liveWikiV1?'Wiki V1 · '+rl('原材料、保存输出与未接通操作分别标识','Original inputs, saved outputs and unconnected operations labeled','原材料、儲存輸出與未接通操作分別標示'):rl('V9 本地联动 · 原材料、保存输出与未接通操作分别标识','V9 local integration · original inputs, saved outputs and unconnected operations labeled'));const foot=app.el.querySelector('.hs-sidebar-foot');if(foot)foot.textContent=rl('本地服务已连接 · 当前文献 ','Local service connected · current papers ')+rows().length;const badge=app.el.querySelector('.hs-preview');if(liveWikiV1)liveWikiBrand(app);else if(badge)badge.textContent='V9 · '+rl('本地联动','Local integration');const host=app.el.querySelector('[data-live-spatial]');if(!host)return;
  const known=x=>(Array.isArray(x)?x:[x]).filter(value=>typeof value==='string'&&value.trim()&&!/^unknown/i.test(value));
  const source=rows().map(p=>({...p,key:p.work_id,topics:known(p.coverage_topics??p.classification?.topic_cluster),methods:known(p.classification?.method)}));
  try{app.v7SpatialKey=v7Key(app);app.v7Spatial=AtlasSpatial.mount(host,{papers:source,model:AtlasModel,three:window.V7Three,theme:'light',mode:rt.mode,extraLinks:liveSharedNeedLinks(source),topicColors:typeof publicPlanningPalette==='object'?publicPlanningPalette:{},showLabels:rt.graphLabels!==false,focus:rt.focus,language:{zh:'zh-Hans',en:'en',tw:'zh-Hant'}[app.lang],paperAliases:Object.fromEntries(source.map((p,i)=>[p.key,'P'+(i+1)])),onSelect:selection=>{rt.focus={kind:selection.kind,key:selection.key};if(selection.kind==='paper')rt.selected=selection.key;livePaint();}});host.v7Diagnostics=()=>app.v7Spatial?.diagnostics();}catch(e){host.textContent=rl('图形未加载；可使用文献列表。','Graph unavailable; use the library.');host.dataset.error=e.message;}
