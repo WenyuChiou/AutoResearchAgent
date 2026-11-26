@@ -47,6 +47,13 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,lis
   }
   fresh.app.lang='en';fresh.run('livePaint()');
   assert.equal(fresh.app.previewProject.topic,'No project','successful empty read must stop claiming it is loading');
+  fresh.app.lang='zh';fresh.run('livePaint()');
+  const beforeLanguageRequests=fresh.requests.length;
+  for(const [lang,title] of [['en','No project'],['tw','尚無專案']]){
+    fresh.app.lang=lang;fresh.run('render(apps[0])');
+    assert.equal(fresh.app.previewProject.topic,title,'ordinary locale render updates the derived empty project title');
+  }
+  assert.equal(fresh.requests.length,beforeLanguageRequests,'locale repaint is read-free');
   const unavailable=await page({list:[],listError:'project-list-unavailable'});
   assert.equal(unavailable.run('rt.error'),'project-list-unavailable');
   assert.equal(unavailable.run('liveEmptyHome()'),'','a failed list read must not be presented as an empty library');

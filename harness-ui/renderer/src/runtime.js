@@ -41,7 +41,7 @@ const projectPath = (ref,tail='') => '/api/projects/'+encodeURIComponent(ref)+(t
 const rows = () => rt.atlas?.payload?.index?.papers || [];
 function liveBound(){const p=rt.overview?.project;return p?Object.fromEntries(['revision','input_version','brief_sha256'].map(k=>[k,p[k]])):{};}
 function liveAtlasPath(){const p=rt.overview?.project,a=rt.overview?.stage1?.delivery?.canonical_package;return p&&a?projectPath(rt.ref,`stage1/atlas/${p.input_version}/${p.revision}/${a.artifact_ref}/${a.manifest_sha256}`):null;}
-function livePaint(){const app=apps[0];app.previewProject={id:rt.ref||'loading',topic:rt.overview?.project?.brief?.original_description||(rt.error?rl('项目读取失败','Project read failed','專案讀取失敗'):liveEmptyLibrary()?rl('尚无项目','No project','尚無專案'):rl('正在读取项目','Loading project','正在讀取專案')),hasResults:!!rt.atlas};render(app);const badge=app.el.querySelector('.hs-preview');if(badge)badge.textContent=rl('V9 · 本地服务联动','V9 · Local service');}
+function livePaint(){const app=apps[0];app.previewProject={id:rt.ref||'loading',get topic(){return rt.overview?.project?.brief?.original_description||(rt.error?rl('项目读取失败','Project read failed','專案讀取失敗'):liveEmptyLibrary()?rl('尚无项目','No project','尚無專案'):rl('正在读取项目','Loading project','正在讀取專案'))},hasResults:!!rt.atlas};render(app);const badge=app.el.querySelector('.hs-preview');if(badge)badge.textContent=rl('V9 · 本地服务联动','V9 · Local service');}
 async function liveRequest(path,body){
  const h={Authorization:'Bearer '+window.RESEARCH_PROJECTS.credential};if(body)h['Content-Type']='application/json';
  const response=await fetch(path,{method:body?'POST':'GET',headers:h,body:body?JSON.stringify(body):undefined,cache:'no-store',credentials:'same-origin'});
