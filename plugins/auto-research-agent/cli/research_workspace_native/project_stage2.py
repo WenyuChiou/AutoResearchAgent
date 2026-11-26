@@ -265,6 +265,21 @@ class ProjectStage2Service:
 
         return import_stage1_project(self, credential, **trusted_inputs)
 
+    def register_current(
+        self, project_ref, *, credential, delivery, stage1=None, check_deadline=None
+    ):
+        """Register this project's verified native input; never grants execution."""
+        from .project_stage_connections import register_current
+
+        return register_current(
+            self,
+            project_ref,
+            credential=credential,
+            delivery=delivery,
+            stage1=stage1,
+            check_deadline=check_deadline,
+        )
+
     def register(
         self,
         project_ref,
@@ -282,6 +297,10 @@ class ProjectStage2Service:
         trusted_host_replay_sha256=None,
         historical_exporter_root=None,
         replayer_exporter_root=None,
+        expected_revision=None,
+        check_deadline=None,
+        connection_key=None,
+        connection_profile_sha256=None,
     ):
         """Trusted bootstrap only. Browser requests cannot supply these paths."""
         from .project_stage1_import import registration_mode
@@ -362,13 +381,34 @@ class ProjectStage2Service:
             ).fetchone()
             principal = row[0]
             state = self.intake._load(principal, project_ref)
+            existing = state.get("stage2_offers", {}).get(offer["offer_ref"])
+            if existing is not None:
+                self._require_registered_offer(project_ref, existing, offer_hash)
+                if connection_key is None:
+                    return _public(existing)
+                prior = self.intake.db.execute(
+                    "SELECT 1 FROM intake_actions WHERE principal=? AND project=? AND key=?",
+                    (principal, project_ref, connection_key),
+                ).fetchone()
+                # An already published offer is visible in the Stage 2 view.
+                # Its original write key remains responsible for replay.
+                _check(
+                    prior is not None,
+                    "stage2-controller-activation-offer-already-published",
+                )
             body = dict(
-                key="offer-" + offer_hash,
-                revision=state["revision"],
+                key=connection_key
+                if connection_key is not None
+                else "offer-" + offer_hash,
+                revision=state["revision"]
+                if expected_revision is None
+                else expected_revision,
                 input_version=binding["input_version"],
                 brief_sha256=binding["brief_sha256"],
                 offer_sha256=offer_hash,
             )
+            if connection_key is not None:
+                body["connection_profile_sha256"] = connection_profile_sha256
 
             def work(current, _, __):
                 saved = current.setdefault("stage2_offers", {})
@@ -376,17 +416,51 @@ class ProjectStage2Service:
                 saved[offer["offer_ref"]] = deepcopy(offer)
                 return {"offer": _public(offer)}
 
-            self.intake._perform(
-                principal, project_ref, "stage2-register-offer", body, work
+            def reserve(_, __, ___):
+                # The original key owns an unresolved attempt. A new key
+                # cannot publish an offer over its unknown journal state.
+                for row in self.intake.db.execute(
+                    """SELECT receipt FROM intake_actions WHERE principal=? AND project=?
+                    AND json_extract(receipt, '$.request.offer_sha256')=?
+                    AND json_extract(receipt, '$.kind')='stage2-register-offer'""",
+                    (principal, project_ref, offer_hash),
+                ):
+                    previous = decode(row[0].encode(), "stage2 offer attempt")
+                    _check(
+                        previous["status"] == "failed"
+                        and "failure_phase" not in previous
+                        and any(
+                            event[0] == row[0]
+                            for event in self.intake.db.execute(
+                                "SELECT payload FROM intake_events WHERE project=? AND kind=?",
+                                (project_ref, "stage2-register-offer-failed"),
+                            )
+                        ),
+                        "stage2-controller-activation-offer-outcome-unobserved",
+                    )
+
+            receipt = self.intake._perform(
+                principal,
+                project_ref,
+                "stage2-register-offer",
+                body,
+                work,
+                check_deadline=check_deadline,
+                reserve=reserve,
             )
-            return _public(offer)
+            _check(
+                receipt["status"] == "saved",
+                (receipt.get("error") if receipt["status"] == "failed" else None)
+                or "stage2-controller-activation-offer-outcome-unobserved",
+            )
+            return receipt["offer"]
 
     def import_direct_request_project(self, credential, **trusted_inputs):
         from .project_stage2_direct_import import import_direct_request_project
 
         return import_direct_request_project(self, credential, **trusted_inputs)
 
-    def read(self, credential, project_ref):
+    def read(self, credential, project_ref, *, registered_only=False):
         principal = self.intake._principal(credential)
         with self.intake._lock:
             state = self.intake._load(principal, project_ref)
@@ -413,7 +487,16 @@ class ProjectStage2Service:
                         for i in range(3, 7)
                     },
                 )
-            offers = [_public(row) for row in state.get("stage2_offers", {}).values()]
+            offers = []
+            for row in state.get("stage2_offers", {}).values():
+                if registered_only:
+                    try:
+                        self._require_registered_offer(
+                            project_ref, row, row["offer_sha256"]
+                        )
+                    except (SessionApiError, KeyError, TypeError, ValueError):
+                        continue
+                offers.append(_public(row))
             current_plan = current.get("plan")
             for offer in offers:
                 if (
@@ -505,6 +588,7 @@ class ProjectStage2Service:
             offer = state.get("stage2_offers", {}).get(body["offer_ref"])
             if offer is not None and offer["offer_sha256"] == body["offer_sha256"]:
                 _require_research_offer(offer)
+                self._require_registered_offer(project_ref, offer, body["offer_sha256"])
                 _consumer_manifest(
                     offer["inputs"],
                     allow_current_core=offer["policy_ref"].get("packet_profile")
@@ -525,6 +609,7 @@ class ProjectStage2Service:
                 404,
             )
             _require_research_offer(offer)
+            self._require_registered_offer(project_ref, offer, body["offer_sha256"])
             self._matches(binding, offer)
             _check(
                 canonical_hash(binding["settings"]) == offer["settings_sha256"],
@@ -671,29 +756,7 @@ class ProjectStage2Service:
             sequence=0,
         )
 
-    def _activation_context(self, project_ref, state):
-        if "stage2_direct_import" in state:
-            from .project_stage2_direct_import import direct_context
-
-            return direct_context(self, project_ref, state)
-        activation = state.get("stage2_activation")
-        _check(activation is not None, "stage2-not-activated")
-        saved = [
-            row
-            for row in self._journal(project_ref, "stage2-activate-saved")
-            if row.get("artifact_ref") == activation["artifact_ref"]
-        ]
-        _check(
-            len(saved) == 1
-            and {
-                key: value
-                for key, value in saved[0].items()
-                if key not in RECEIPT_FIELDS
-            }
-            == activation,
-            "stage2-activation-journal-differs",
-        )
-        offer = state["stage2_offers"][activation["offer_ref"]]
+    def _require_registered_offer(self, project_ref, offer, expected_sha256):
         registered = [
             row.get("offer")
             for row in self._journal(project_ref, "stage2-register-offer-saved")
@@ -719,11 +782,34 @@ class ProjectStage2Service:
             basis["imported_input_sha256"] = offer["imported_input_sha256"]
         _check(
             registered == [_public(offer)]
-            and sha(canonical(basis))
-            == activation["offer_sha256"]
-            == offer["offer_sha256"],
+            and sha(canonical(basis)) == expected_sha256 == offer["offer_sha256"],
             "stage2-offer-journal-differs",
         )
+
+    def _activation_context(self, project_ref, state):
+        if "stage2_direct_import" in state:
+            from .project_stage2_direct_import import direct_context
+
+            return direct_context(self, project_ref, state)
+        activation = state.get("stage2_activation")
+        _check(activation is not None, "stage2-not-activated")
+        saved = [
+            row
+            for row in self._journal(project_ref, "stage2-activate-saved")
+            if row.get("artifact_ref") == activation["artifact_ref"]
+        ]
+        _check(
+            len(saved) == 1
+            and {
+                key: value
+                for key, value in saved[0].items()
+                if key not in RECEIPT_FIELDS
+            }
+            == activation,
+            "stage2-activation-journal-differs",
+        )
+        offer = state["stage2_offers"][activation["offer_ref"]]
+        self._require_registered_offer(project_ref, offer, activation["offer_sha256"])
         _check(
             offer.get("admission_pins", {}) == _admission_pins(offer["inputs"]),
             "stage2-offer-admission-pins-differ",

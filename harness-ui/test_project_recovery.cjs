@@ -7,7 +7,7 @@ const runtime=fs.readFileSync(path.join(__dirname,'renderer/src/runtime.js'),'ut
 const bridge=fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8');
 const route=bridge.slice(bridge.indexOf('function v93RouteTarget('),bridge.indexOf('// Restore only the currently loaded project'));
 const flush=async()=>{await new Promise(setImmediate);await new Promise(setImmediate);};
-async function page({storage=new Map(),url='http://localhost/',list=projects,denied=null,pending=null,caseRef=refs[0],blockedStorage=false,foreignOverview=false,waitOverview=null,createResponse=null}={}){
+async function page({storage=new Map(),url='http://localhost/',list=projects,listError=null,denied=null,pending=null,caseRef=refs[0],blockedStorage=false,foreignOverview=false,waitOverview=null,createResponse=null}={}){
   const options=projects.map(p=>({value:p.project_ref,textContent:topic}));
   const notices=[],location=new URL(url),events=[],requests=[],app={page:'workspace',stage:1,lang:'en',el:{querySelector(selector){return selector==='.hs-content'?{prepend:note=>notices.push(note)}:selector==='[data-live-project-notice]'?notices.at(-1):null;},querySelectorAll(){return [{options}];}}};
   const session=new Map(pending?[['v7-pending-action',JSON.stringify(pending)]]:[]);
@@ -23,7 +23,7 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,den
       if(options.method!=='GET'){assert(createResponse&&url==='/api/projects'&&options.method==='POST','only this explicit synthetic create may write');return {ok:true,status:200,json:async()=>({project_ref:createResponse})};}
       let value,status=200;
       if(url==='/v7-case.json')value={case_ref:caseRef};
-      else if(url==='/api/projects')value={projects:list};
+      else if(url==='/api/projects'){value=listError?{error:listError}:{projects:list};if(listError)status=503;}
       else{const found=url.match(/^\/api\/projects\/([^/]+)\/(overview|history)$/);assert(found,url);const ref=decodeURIComponent(found[1]);
         if(ref===denied){status=403;value={error:'project-unavailable'};}
         else if(found[2]==='history')value={actions:[]};
@@ -31,10 +31,43 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,den
       return {ok:status===200,status,json:async()=>value};}}
   vm.createContext(context);vm.runInContext(route+'\n'+runtime,context);await flush();
   const run=code=>vm.runInContext(code,context);
-  return {run,storage,requests,location,app,session,options,notices,async navigate(hash){location.hash=hash;for(const entry of events)if(entry.type==='hashchange')await entry.handler();await flush();},async choose(ref){const event={target:{value:ref,matches:s=>s==='[data-live-project]'},stopImmediatePropagation(){}};
+  return {run,storage,requests,location,app,session,options,notices,async recoverList(){listError=null;await run('liveRefresh(undefined,{list:true})');await flush();},async navigate(hash){location.hash=hash;for(const entry of events)if(entry.type==='hashchange')await entry.handler();await flush();},async choose(ref){const event={target:{value:ref,matches:s=>s==='[data-live-project]'},stopImmediatePropagation(){}};
     for(const entry of events)if(entry.type==='change')await entry.handler(event);await flush();}};
 }
 (async()=>{
+  const fresh=await page({list:[],caseRef:null});
+  assert.equal(fresh.run('rt.error'),'','a fresh empty library is not a route/language failure');
+  assert.equal(fresh.run('rt.loading'),false);
+  assert.equal(fresh.requests.filter(q=>q.method!=='GET').length,0,'opening an empty library never writes');
+  assert.equal(fresh.requests.filter(q=>q.url.startsWith('/api/projects/')).length,0,'no project request without a project');
+  for(const lang of ['zh','en','tw']){
+    fresh.app.lang=lang;
+    assert(fresh.run('liveEmptyHome()').includes('data-live-empty-home'),'localized first-topic guidance');
+    assert(!fresh.run('liveTop(apps[0])').includes('data-live-project-identity'),'do not invent an ID for an empty library');
+  }
+  fresh.app.lang='en';fresh.run('livePaint()');
+  assert.equal(fresh.app.previewProject.topic,'No project','successful empty read must stop claiming it is loading');
+  fresh.app.lang='zh';fresh.run('livePaint()');
+  const beforeLanguageRequests=fresh.requests.length;
+  for(const [lang,title] of [['en','No project'],['tw','尚無專案']]){
+    fresh.app.lang=lang;fresh.run('render(apps[0])');
+    assert.equal(fresh.app.previewProject.topic,title,'ordinary locale render updates the derived empty project title');
+  }
+  assert.equal(fresh.requests.length,beforeLanguageRequests,'locale repaint is read-free');
+  const unavailable=await page({list:[],listError:'project-list-unavailable'});
+  assert.equal(unavailable.run('rt.error'),'project-list-unavailable');
+  assert.equal(unavailable.run('liveEmptyHome()'),'','a failed list read must not be presented as an empty library');
+  assert(unavailable.run('liveHeader(apps[0])').includes('role="alert"'),'keep real errors visible');
+  assert(!unavailable.run('liveTop(apps[0])').includes('No project'),'failed read must not label the roster empty');
+  await unavailable.recoverList();
+  assert.equal(unavailable.run('rt.error'),'');
+  assert(unavailable.run('liveEmptyHome()').includes('data-live-empty-home'),'retry recovers startup metadata as well as the empty list');
+  assert.equal(unavailable.app.previewProject.topic,'No project');
+  assert(unavailable.requests.every(q=>q.method==='GET'),'failed-list retry does not create work');
+  fresh.run('rt.loading=true');
+  assert.equal(fresh.run('liveEmptyHome()'),'','a pending list read is not empty');
+  assert(!fresh.run('liveTop(apps[0])').includes('No project'),'loading must not label the roster empty');
+  fresh.run('rt.loading=false');
   const first=await page();const html=first.run('liveTop(apps[0])');
   const labels=[...html.matchAll(/<option[^>]*>([^<]*)<\/option>/g)].map(x=>x[1]);
   assert.equal(new Set(labels).size,3,'same-title project labels must be distinct');
@@ -83,5 +116,5 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,den
   const foreign=await page({storage:new Map(),foreignOverview:true});assert.equal(foreign.storage.size,0,'mismatched overview never becomes a remembered selection');
   const another=await page();assert.equal(another.run('rt.ref'),refs[0],'independent profile does not borrow the other selection');
   for(const env of [first,reopened,explicit,fallback,denied,removed,held,blocked,empty,noFallback,foreign,another,racing,parameters])assert(env.requests.every(r=>r.method==='GET'));
-  console.log('PASS same-title labels, profile reopen, latest public routes, bounded truthful fallback, pending marker/link, versions, synthetic create and stale callbacks; 15 environments; recovery GET only');
+ console.log('PASS same-title labels, profile reopen, latest public routes, bounded truthful fallback, pending marker/link, versions, synthetic create and stale callbacks; fresh empty home in three languages, loading/error distinction; recovery GET only');
 })().catch(e=>{console.error(e);process.exitCode=1;});

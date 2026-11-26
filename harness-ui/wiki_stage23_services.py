@@ -2,6 +2,10 @@
 
 
 def validate_args(args):
+    if bool(getattr(args, "stage2_controller_profile", None)) != bool(
+        getattr(args, "stage2_controller_profile_sha256", None)
+    ):
+        raise ValueError("stage2_controller_profile requires its external SHA256")
     for stem in (
         "stage2_direct_import",
         "stage2_controller",
@@ -29,12 +33,21 @@ def configure_services(services, args):
     )
     services.update(
         stage2_controllers=None,
+        stage2_controller_profile=None,
         stage2_selection=None,
         stage3_planning=None,
         stage3_recovery_pins=None,
         stage2_readings=None,
         planning_resources=None,
     )
+    if getattr(args, "stage2_controller_profile", None):
+        from research_workspace_native.project_stage2_controller_config import (
+            Stage2ControllerProfile,
+        )
+
+        services["stage2_controller_profile"] = Stage2ControllerProfile(
+            args.stage2_controller_profile, args.stage2_controller_profile_sha256
+        )
     if getattr(args, "stage2_controller_config", None):
         from research_workspace_native.project_stage2_controller_config import (
             load_stage2_controllers,
@@ -84,14 +97,21 @@ def configure_services(services, args):
         ):
             raise ValueError("selection bindings overlap or have invalid shape")
         bindings.update(config["bindings"])
-    if getattr(args, "selection_config", None) or getattr(
-        args, "stage2_direct_import_config", None
-    ):
-        from research_workspace_native.project_stage2_selection import (
-            ProjectStage2SelectionService,
-        )
+    from research_workspace_native.project_stage_connections import (
+        ConnectionStore,
+        BindingTable,
+    )
+    from research_workspace_native.project_stage2_selection import (
+        ProjectStage2SelectionService,
+    )
 
-        services["stage2_selection"] = ProjectStage2SelectionService(projects, bindings)
+    services["stage2_selection"] = ProjectStage2SelectionService(
+        projects,
+        BindingTable(
+            bindings, ConnectionStore(projects, token), services["stage2_controllers"]
+        ),
+    )
+    stage2.receive_current = True
     if getattr(args, "stage2_reading_config", None):
         from research_workspace_native.project_stage2_reading import (
             Stage2ReadingRegistry,
