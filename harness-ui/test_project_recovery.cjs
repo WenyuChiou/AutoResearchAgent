@@ -31,7 +31,7 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,lis
       return {ok:status===200,status,json:async()=>value};}}
   vm.createContext(context);vm.runInContext(route+'\n'+runtime,context);await flush();
   const run=code=>vm.runInContext(code,context);
-  return {run,storage,requests,location,app,session,options,notices,async navigate(hash){location.hash=hash;for(const entry of events)if(entry.type==='hashchange')await entry.handler();await flush();},async choose(ref){const event={target:{value:ref,matches:s=>s==='[data-live-project]'},stopImmediatePropagation(){}};
+  return {run,storage,requests,location,app,session,options,notices,async recoverList(){listError=null;await run('liveRefresh(undefined,{list:true})');await flush();},async navigate(hash){location.hash=hash;for(const entry of events)if(entry.type==='hashchange')await entry.handler();await flush();},async choose(ref){const event={target:{value:ref,matches:s=>s==='[data-live-project]'},stopImmediatePropagation(){}};
     for(const entry of events)if(entry.type==='change')await entry.handler(event);await flush();}};
 }
 (async()=>{
@@ -45,12 +45,21 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,lis
     assert(fresh.run('liveEmptyHome()').includes('data-live-empty-home'),'localized first-topic guidance');
     assert(!fresh.run('liveTop(apps[0])').includes('data-live-project-identity'),'do not invent an ID for an empty library');
   }
+  fresh.app.lang='en';fresh.run('livePaint()');
+  assert.equal(fresh.app.previewProject.topic,'No project','successful empty read must stop claiming it is loading');
   const unavailable=await page({list:[],listError:'project-list-unavailable'});
   assert.equal(unavailable.run('rt.error'),'project-list-unavailable');
   assert.equal(unavailable.run('liveEmptyHome()'),'','a failed list read must not be presented as an empty library');
   assert(unavailable.run('liveHeader(apps[0])').includes('role="alert"'),'keep real errors visible');
+  assert(!unavailable.run('liveTop(apps[0])').includes('No project'),'failed read must not label the roster empty');
+  await unavailable.recoverList();
+  assert.equal(unavailable.run('rt.error'),'');
+  assert(unavailable.run('liveEmptyHome()').includes('data-live-empty-home'),'retry recovers startup metadata as well as the empty list');
+  assert.equal(unavailable.app.previewProject.topic,'No project');
+  assert(unavailable.requests.every(q=>q.method==='GET'),'failed-list retry does not create work');
   fresh.run('rt.loading=true');
   assert.equal(fresh.run('liveEmptyHome()'),'','a pending list read is not empty');
+  assert(!fresh.run('liveTop(apps[0])').includes('No project'),'loading must not label the roster empty');
   fresh.run('rt.loading=false');
   const first=await page();const html=first.run('liveTop(apps[0])');
   const labels=[...html.matchAll(/<option[^>]*>([^<]*)<\/option>/g)].map(x=>x[1]);
