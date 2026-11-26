@@ -35,6 +35,7 @@ document.addEventListener('toggle',event=>{
 },true);
 const rx = value => esc(value == null ? 'Unknown' : typeof value === 'object' ? JSON.stringify(value) : String(value));
 const rl = (zh,en,tw=zh) => translated(apps[0],[zh,en,tw]);
+const liveWikiHomeActive = () => typeof wikiHomeProjectOpened==='function' && apps[0]?.lang==='zh' && apps[0].page==='home';
 const phaseNames={scope:['确认范围','Scope'],planning:['查询规划','Planning'],query:['查询与来源','Query & sources'],screening:['文献筛选','Screening'],reading:['阅读与证据','Reading'],coverage:['覆盖检查','Coverage'],delivery:['保存交付','Delivery']};
 const stateNames={recorded:'已记录',partial:'部分完成',available:'可操作',unconnected:'未接通',held:'需处理',unknown:'Unknown',pending:'待处理',planned:'未接通',running:'运行中'};
 const projectPath = (ref,tail='') => '/api/projects/'+encodeURIComponent(ref)+(tail?'/'+tail:'');
@@ -54,6 +55,7 @@ async function liveRefresh(ref=rt.ref,{list=false}={}){
  try{
   const meta=rt.meta||await liveRequest('/v7-case.json');if(epoch!==rt.epoch)return;rt.meta=meta;
   const projects=list?await liveRequest('/api/projects'):rt.list;if(epoch!==rt.epoch)return;rt.list=Array.isArray(projects)?projects:projects.projects||[];
+  if(!ref&&liveWikiHomeActive())return;
   if(!ref){ref=liveHomeProject();rt.ref=ref;}
   if(!ref)return;
   const overview=await liveRequest(projectPath(ref,'overview'));if(epoch!==rt.epoch)return;
@@ -85,6 +87,7 @@ async function liveReceiptBound(p,a){
 }
 async function livePost(tail,body,ref=rt.ref){
  if(rt.busy||rt.loading||rt.pending||rt.controlHeld)return;
+ const homeCreate=!ref&&liveWikiHomeActive();
  const path=ref?projectPath(ref,tail):'/api/projects';const pending={path,ref,body:{...body,key:crypto.randomUUID()}};
  rt.pending=pending;sessionStorage.setItem('v7-pending-action',JSON.stringify(pending));rt.busy=true;rt.error='';livePaint();
  const native=path.includes('/models/native/'),clear=()=>{rt.pending=null;sessionStorage.removeItem('v7-pending-action');};
@@ -92,9 +95,9 @@ async function livePost(tail,body,ref=rt.ref){
  const citationCurrent=()=>rt.pending===pending&&JSON.stringify(pending)===citationBytes&&sessionStorage.getItem('v7-pending-action')===citationBytes;
  const citationSettle=async receipt=>{if(!citationCurrent())return false;const bound=await liveReceiptBound(pending,receipt);if(!citationCurrent()||!bound||!['saved','failed','known-unsent'].includes(receipt.status))return false;clear();return true;};
  const citationUnknown=()=>rl('引文请求结果仍为 Unknown；保留原请求，请查询保存历史，不会自动重发。','Citation request outcome remains Unknown. The original request is retained; check saved history. No automatic resend.','引文請求結果仍為 Unknown；保留原請求，請查詢儲存歷史，不會自動重發。');
- try{const result=await liveRequest(path,pending.body);if(citation){if(!await citationSettle(result))rt.error=citationUnknown();}else if(!native||await liveReceiptBound(pending,result)&&['known-unsent','result-observed'].includes(result.status))clear();else rt.error=rl('停止或答复请求的结果尚未确认；保留原意图，不会自动重发。','Stop or answer outcome remains unconfirmed; the original intent is retained without automatic resend.','停止或答覆請求的結果尚未確認；保留原意圖，不會自動重發。');if(!ref&&result.project_ref){ref=result.project_ref;rt.topicDraft='';}}
+ try{const result=await liveRequest(path,pending.body);if(citation){if(!await citationSettle(result))rt.error=citationUnknown();}else if(!native||await liveReceiptBound(pending,result)&&['known-unsent','result-observed'].includes(result.status))clear();else rt.error=rl('停止或答复请求的结果尚未确认；保留原意图，不会自动重发。','Stop or answer outcome remains unconfirmed; the original intent is retained without automatic resend.','停止或答覆請求的結果尚未確認；保留原意圖，不會自動重發。');if(!ref&&result.project_ref){ref=result.project_ref;rt.topicDraft='';if(homeCreate)rt.homeQuestion='';}}
  catch(error){rt.error=error.message;if(citation){if(!await citationSettle(error.receipt))rt.error=citationUnknown()+' '+error.message;}else if(native){if(await liveReceiptBound(pending,error.receipt)&&['known-unsent','result-observed'].includes(error.receipt.status))clear();}else if(error.status&&error.status<500)clear();}
- finally{rt.busy=false;const message=rt.error;await liveRefresh(ref,{list:true});if(message){rt.error=message;livePaint();}}
+ finally{rt.busy=false;const message=rt.error;await liveRefresh(ref,{list:true});if(message){rt.error=message;livePaint();}else if(homeCreate&&ref&&liveWikiHomeActive())wikiHomeProjectOpened(ref,1);}
 }
 async function liveRecover(){
  if(!rt.pending)return;const p=rt.pending;
@@ -119,9 +122,9 @@ function liveRememberProject(){
  try{localStorage.setItem(liveProjectPreference,rt.ref);}catch(_){/* The explicit project URL still works without optional browser storage. */}
 }
 function liveProjectRoute(){
- if(rt.pending||rt.error||!rt.ref||!rt.list.some(p=>p.project_ref===rt.ref))return;
+ if(liveWikiHomeActive()||rt.pending||rt.error||!rt.ref||!rt.list.some(p=>p.project_ref===rt.ref))return;
  const base=location.pathname+location.search;
- if(!/^[A-Za-z0-9_-]{1,64}$/.test(rt.ref)){history.replaceState(history.state,'',base);return;}
+ if(!/^[A-Za-z0-9_-]{1,64}$/.test(rt.ref)&&!(typeof wikiHomeArchiveBound==='function'&&wikiHomeArchiveBound(rt.ref))){history.replaceState(history.state,'',base);return;}
  const app=apps[0],separator=location.hash.indexOf('?');let previous;
  try{previous=decodeURIComponent(location.hash.slice(1,separator<0?undefined:separator));}catch(_){}
  const params=new URLSearchParams(previous===rt.ref&&separator>=0?location.hash.slice(separator+1):'');
@@ -293,11 +296,13 @@ document.addEventListener('click',async e=>{
 },true);
 // Load only on this local server. No model, stage or search action runs on read.
 rt.overview=null;rt.atlas=null;livePaint();
-Promise.all([liveRequest('/v7-case.json'),liveRequest('/api/projects')]).then(async([meta,list])=>{
+const wikiHomeStartup=typeof wikiHomeProjectOpened==='function'&&((apps[0]?.lang==='zh'&&!location.hash)||wikiHomeArchiveFragment());
+Promise.all([liveRequest('/v7-case.json'),wikiHomeStartup
+ ?Promise.resolve().then(()=>liveRequest('/api/projects')):liveRequest('/api/projects')]).then(async([meta,list])=>{
  rt.meta=meta;rt.list=Array.isArray(list)?list:list.projects||[];const requested=typeof v93RouteTarget==='function'?v93RouteTarget(rt.list):null;
  let linked;try{linked=decodeURIComponent(location.hash.slice(1).split('?')[0]);}catch(_){}
  rt.projectFallback=!!linked&&/^[A-Za-z0-9_-]{1,64}$/.test(linked)&&!rt.list.some(p=>p.project_ref===linked);
- await liveSelectProject(rt.pending?.ref||requested?.ref||liveSavedProject()||liveHomeProject(),rt.pending?null:requested);
+ await liveSelectProject(rt.pending?.ref||requested?.ref||(liveWikiHomeActive()?null:liveSavedProject()||liveHomeProject()),rt.pending?null:requested);
  if(rt.pending)await liveRecover();
 }).catch(e=>{rt.error=e.message;rt.loading=false;livePaint();});
 setInterval(()=>{if(document.hidden||rt.busy||rt.loading||document.activeElement?.matches('textarea,input,select')||document.activeElement?.shadowRoot?.activeElement?.matches('textarea,input,select'))return;const s=rt.overview?.stage1,jobs=[...Object.values(rt.overview?.models?.jobs||{}),...Object.values(s?.query_execution?.jobs||{}),...Object.values(s?.source_execution?.jobs||{})];const running=jobs.some(j=>['reserved','queued','running','dispatching','acquiring','parsing','submitted','in_progress'].includes(j.status)||['running','queued','parsing'].includes(j.followup?.status));if(running||(rt.overview?.models?.active_jobs||[]).length||(typeof realQueryPending==='function'&&realQueryPending()))liveRefresh();},10000);

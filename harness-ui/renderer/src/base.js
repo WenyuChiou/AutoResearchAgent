@@ -399,7 +399,9 @@ import * as V7Three from "./vendor/three.core.js";window.V7Three=V7Three;
   function localStage(app,stage,{historyMode='push'}={}){
     const previousStage=app.stage;
     app.previewStageContexts[app.stage]={selected:app.selected,topicPaperOpen:app.topicPaperOpen,focal:app.focal};app.stage=stage;app.page='workspace';Object.assign(app,app.previewStageContexts[stage]||{selected:{type:'paper',id:'P01'},topicPaperOpen:false,focal:'P01'});app.notice='';app.taskDrawerOpen=false;app.noteOpen=false;app.scopeOpen=false;app.reviewOpen=false;
-    if(historyMode==='push' && typeof rt!=='undefined' && typeof v93Language==='function' && /^[A-Za-z0-9_-]{1,64}$/.test(rt.ref||'') && Number.isInteger(stage) && stage>=1 && stage<=6){
+    if(historyMode==='push' && typeof rt!=='undefined' && typeof v93Language==='function' &&
+       (/^[A-Za-z0-9_-]{1,64}$/.test(rt.ref||'')||(typeof wikiHomeArchiveBound==='function'&&wikiHomeArchiveBound(rt.ref))) &&
+       Number.isInteger(stage) && stage>=1 && stage<=6){
       const separator=location.hash.indexOf('?'),params=new URLSearchParams(separator<0?'':location.hash.slice(separator+1));
       params.set('stage',String(stage));params.set('lang',v93Language(app));
       const route=location.pathname+location.search+'#'+encodeURIComponent(rt.ref)+'?';
