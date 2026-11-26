@@ -76,7 +76,7 @@ function wikiStage2CurrentSelection() {
 function wikiStage2OwnsView() {
   const state = wikiStage2State;
   return !!state && JSON.stringify(wikiStage2Basis()) === JSON.stringify(state.basis)
-    && (state.error === "stage2-continuation-original-admission-unavailable"
+    && (["stage2-continuation-original-admission-unavailable","stage2-continuation-result-not-current"].includes(state.error)
       || (!!state.result && state.result.status !== "selection-available" && !wikiStage2CurrentSelection()));
 }
 
@@ -101,10 +101,21 @@ async function wikiStage2Load(state, submit) {
         const current=await liveRequest(projectPath(ref,'stage2/selection'));
         if (current?.kind!=='Stage2SelectionView' || current.execution_authorized!==false ||
             current.project_ref!==ref || current.input_version!==inputVersion || current.brief_sha256!==brief ||
-            current.revision!==state.basis[4] || !['delivery_manifest_sha256','delivery_workflow_head_sha256','snapshot_sha256'].every(k=>v9ConnectionHash(current[k])) ||
+            !['delivery_manifest_sha256','delivery_workflow_head_sha256','snapshot_sha256'].every(k=>v9ConnectionHash(current[k])) ||
             (result.status==='candidate-ready' && (current.delivery_manifest_sha256!==result.delivery_manifest_sha256 ||
               current.snapshot_sha256!==result.snapshot_sha256 || current.delivery_workflow_head_sha256!==result.workflow_head_sha256))) throw Error('stage2-selection-binding-differs');
-        state.selection=current;
+        if (current.revision!==state.basis[4]) {
+          // A first verified receipt advances the native revision by two events. Remount from
+          // a fresh project overview; never attach the returned selection to the old basis.
+          if (result.status!=='candidate-ready' || !Number.isSafeInteger(current.revision) ||
+              current.revision!==state.basis[4]+2) throw Error('stage2-selection-binding-differs');
+          const fresh=(await liveRequest(projectPath(ref,'overview')))?.project;
+          if (state!==wikiStage2State || JSON.stringify(wikiStage2Basis())!==JSON.stringify(state.basis) ||
+              apps[0]?.page!=='workspace' || apps[0]?.stage!==2) return;
+          if (fresh?.project_ref!==ref || fresh.project_id!==state.basis[3] || fresh.input_version!==inputVersion ||
+              fresh.brief_sha256!==brief || fresh.revision!==current.revision) throw Error('stage2-selection-binding-differs');
+          await liveRefresh(ref);
+        } else state.selection=current;
       } catch (error) { state.selectionError=error.message; }
     }
   } catch (error) {

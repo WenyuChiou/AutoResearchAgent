@@ -104,12 +104,15 @@ async function v9FindActivationOffer(basis, profile) {
     // Native canonical JSON sorts these ASCII keys and omits revision.
     const body={brief_sha256:basis.brief_sha256,connection_profile_sha256:profile,
       input_version:basis.input_version,key:action.key,offer_sha256:offer.offer_sha256};
-    const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({body,kind:action.kind})));
-    const digest=Array.from(new Uint8Array(bytes),byte=>byte.toString(16).padStart(2,'0')).join('');
+    const digest=await v9NativeRequestDigest(action.kind,body);
     if (digest===action.request_sha256) verified.push({offer,key:action.key});
   }
   if (verified.length!==1) throw Error('stage2-activation-record-unverified');
   return verified[0];
+}
+async function v9NativeRequestDigest(kind, sortedBody) {
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({body:sortedBody,kind})));
+  return Array.from(new Uint8Array(bytes),byte=>byte.toString(16).padStart(2,'0')).join('');
 }
 function v9ConnectionAction(view) {
   const row=view.row;
@@ -163,7 +166,7 @@ function v9ConnectionPanel(app) {
   const code = view.error || row?.reason, unknown = v9ConnectionPending();
   let message = rl('正在核对本课题的接通记录。','Checking this project’s saved connection.');
   if (unknown && rt.pending.path===projectPath(rt.ref,'stage2/actions')) message=rl('上次启用结果仍为 Unknown。请保留原请求，查询原启用回执。','Activation remains Unknown. Retain the request and check its original receipt.');
-  else if (unknown) message = rl('上次登记结果仍为 Unknown。保留原请求键和记录，当前接口缺少可核对该请求的回执。这里只能查询。','The last registration remains Unknown. Its key and record are retained. This interface lacks a verifiable request receipt. Only readback is available.');
+  else if (unknown) message = rl('上次登记结果仍为 Unknown。原请求键已保留；请只读核对接通状态及对应的操作回执。','Registration remains Unknown. Its key is retained. Check the saved connection and the matching action receipt.');
   else if (view.error || row?.status === 'consent-required' || row?.status === 'unavailable') message = v9ConnectionReason(code, view.http);
   else if (row?.status === 'connected') message = rl('本课题已接通。已核对接通登记；执行与交付须另查原记录。','This project is connected. Registration was verified. Execution and delivery have separate records.');
   else if (row?.status === 'connectable') message = rl('本课题还没有接通。可以登记当前配置，登记不会启动研究。','This project is ready to connect. Registering the current configuration does not start research.');
@@ -185,7 +188,7 @@ document.addEventListener('click', async event => {
   if (!button || button.disabled || !v9ConnectionCurrent(view) || !apps[0].el.contains(button) ||
       button.dataset.connectionBasis !== JSON.stringify([view.stage, view.epoch, ...Object.values(view.basis)]) ||
       view.reading || v9ConnectionWriting) return;
-  if (button.dataset.v9Connection === 'read') return v9ConnectionRead(view);
+  if (button.dataset.v9Connection === 'read') return v9ConnectionPending()?liveRecover():v9ConnectionRead(view);
   const action=button.dataset.v9Connection, row=view.row, {stage,basis}=view;
   if (action!==v9ConnectionAction(view) || !v9ConnectionCanWrite()) return;
   v9ConnectionWriting=true; livePaint();
@@ -258,14 +261,66 @@ async function v9RegisterStage(view, action) {
   } finally {rt.busy=false;}
 }
 
-// Generic recovery hashes an operation named "connections". Native history records
-// register-offer or stage-connection requests with different derived bodies.
+// Native registration history stores a derived body, not the submitted /connections body.
+// Reconcile only a matching original journal entry; every request in this path is a GET.
 const v9OriginalRecover=liveRecover;
 liveRecover=async function(){
-  const pending=rt.pending;
-  if (!pending?.ref || pending.path!==projectPath(pending.ref,'connections')) return v9OriginalRecover();
-  if (pending.ref!==rt.ref || rt.busy) return;
-  if (v9ConnectionCurrent(v9ConnectionView)) return v9ConnectionRead(v9ConnectionView);
-  // Preserve the original intent on other pages too. A discovery read cannot settle it.
-  try { await liveRequest(projectPath(pending.ref,'connections')); } catch { /* Still unknown. */ }
+  const pending=rt.pending, ref=pending?.ref;
+  const connection=!!ref && pending.path===projectPath(ref,'connections');
+  const activation=!!ref && pending.path===projectPath(ref,'stage2/actions');
+  if (!connection && !activation) return v9OriginalRecover();
+  const basis=v9ConnectionBasis(rt.overview?.project), body=pending.body, epoch=rt.epoch;
+  if (rt.busy||rt.loading||ref!==rt.ref||!basis||!body||!Number.isSafeInteger(body.input_version)||
+      body.input_version!==basis.input_version||body.brief_sha256!==basis.brief_sha256||
+      !Number.isSafeInteger(body.revision)||body.revision<0||body.revision>basis.revision||
+      body.confirmed!==true||typeof body.key!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(body.key)) return;
+  const fields=['revision','input_version','brief_sha256','key','confirmed',...(connection?['stage','profile_sha256']:['offer_ref','offer_sha256'])];
+  if (Object.keys(body).length!==fields.length||!fields.every(key=>Object.hasOwn(body,key))||
+      (connection&&(!Object.values(v9ConnectionStages).includes(body.stage)||!v9ConnectionHash(body.profile_sha256)))||
+      (activation&&(!v9ConnectionHash(body.offer_sha256)||body.offer_ref!=='stage2-'+body.offer_sha256.slice(0,32)))) return;
+  const storage='v7-pending-action', serialized=JSON.stringify(pending);
+  const current=()=>{
+    if(rt.pending!==pending||rt.ref!==ref||rt.epoch!==epoch||rt.busy||rt.loading||
+        !v9ConnectionFields.every(key=>rt.overview?.project?.[key]===basis[key])) return false;
+    try {return JSON.stringify(pending)===serialized&&sessionStorage.getItem(storage)===serialized;}
+    catch {return false;}
+  };
+  try {
+    if (!current()) return;
+    let row;
+    if (connection) {
+      row=v9ConnectionRow(await liveRequest(pending.path),basis,body.stage);
+      if (!current()||row.profile_sha256!==body.profile_sha256||
+          !['connected','consent-required'].includes(row.status)) return;
+    }
+    const history=await liveRequest(projectPath(ref,'history'));
+    if (!current()||history?.project_ref!==ref||history.execution_authorized!==false||!Array.isArray(history.actions)) return;
+    const saved=history.actions.filter(action=>action?.key===body.key);
+    if (saved.length!==1) return;
+    const receipt=saved[0];
+    if (receipt.project_ref!==ref||receipt.execution_authorized!==false||receipt.status!=='saved') return;
+    const fresh=v9ConnectionBasis((await liveRequest(projectPath(ref,'overview')))?.project);
+    if (!current()||!fresh||fresh.revision<basis.revision||fresh.revision!==history.revision||
+        !['project_ref','project_id','input_version','brief_sha256'].every(key=>fresh[key]===basis[key])) return;
+    if (activation) {
+      if (receipt.stage2_status!=='ready-for-explicit-stage2-run'||receipt.offer_ref!==body.offer_ref||
+          receipt.offer_sha256!==body.offer_sha256||receipt.input_version!==body.input_version||
+          receipt.brief_sha256!==body.brief_sha256||!await liveReceiptBound(pending,receipt)) return;
+    } else if (row.status==='connected') {
+      const kind=body.stage==='stage2-controller'?'stage2-record-connection':'stage3-record-connection';
+      if (row.receipt_id!==body.key||!v9ConnectionHash(row.connection_id)||
+          receipt.kind!==kind||receipt.connection_id!==row.connection_id) return;
+      const digest=await v9NativeRequestDigest(kind,{brief_sha256:body.brief_sha256,connection_sha256:row.connection_id,
+        input_version:body.input_version,key:body.key});
+      if (digest!==receipt.request_sha256) return;
+    } else {
+      if (body.stage!=='stage2-controller'||row.reason!=='stage2-continuation-activation-required'||
+          (await v9FindActivationOffer(fresh,body.profile_sha256))?.key!==body.key) return;
+    }
+    if (!current()) return;
+    sessionStorage.removeItem(storage);rt.pending=null;
+    await liveRefresh(ref,{list:true});
+  } catch (error) {
+    if (current()&&v9ConnectionCurrent(v9ConnectionView)) {v9ConnectionView.error=error.message;livePaint();}
+  }
 };

@@ -25,7 +25,7 @@ function browserFixture() {
     stage2:()=>'<p>SYNTHETIC original material</p>', laterStage:()=>'<p>SYNTHETIC original archive</p>',
     v7AfterRender(){}, v7BeforeRender(){}, canonicalReadonly:()=>false, canonicalTop:()=>'',
     liveHeader:()=>'', rl:zh=>zh, rx:value=>String(value).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;'),
-    projectPath:(ref,tail)=>'/api/projects/'+ref+'/'+tail, calls:[], changes:{},
+    projectPath:(ref,tail='')=>'/api/projects/'+encodeURIComponent(ref)+(tail?'/'+tail:''), calls:[], changes:{},
     livePaint(){app.el.innerHTML=app.stage===2?stage2(app):laterStage(app);},
     async liveRefresh(ref=rt.ref){rt.epoch++; rt.ref=ref;rt.overview={project:{...project}};livePaint();},
     async liveRequest(path, body){
@@ -33,9 +33,12 @@ function browserFixture() {
       calls.push({tail, body:body&&structuredClone(body)});
       if(tail==='overview' && changes.missingProject)return {};
       if(tail==='stage2/continuation' && changes.continuationError)throw Object.assign(Error(changes.continuationError),{status:409});
+      if(tail==='stage2/selection' && changes.receiveDelta){project.revision+=changes.receiveDelta;delete changes.receiveDelta;}
       if(tail==='stage2/selection')return {...project,kind:'Stage2SelectionView',delivery_manifest_sha256:'1'.repeat(64),snapshot_sha256:'2'.repeat(64),delivery_workflow_head_sha256:'3'.repeat(64),execution_authorized:false,...changes.selectionView};
       if (tail==='overview') return {project:{...project,...changes.overview}};
       if (tail==='stage2/continuation') return {...project, status:changes.selection||'no-candidate', execution_authorized:false, delivery_manifest_sha256:'1'.repeat(64),snapshot_sha256:'2'.repeat(64),workflow_head_sha256:'3'.repeat(64), ...changes.continuation};
+      if(tail==='history' && changes.waitHistory)await changes.waitHistory;
+      if(tail==='history' && changes.historyError)throw Error(changes.historyError);
       if (tail==='history') return {project_ref:project.project_ref,revision:project.revision,execution_authorized:false,actions:changes.actions||[]};
       if(tail==='stage2')return {project_ref:project.project_ref,execution_authorized:false,revision:project.revision,offers:changes.offer?[changes.offer]:[]};
       if(tail==='stage2/actions' && body){
@@ -60,6 +63,12 @@ function browserFixture() {
           changes.actions=[{project_ref:project.project_ref,kind,key:body.key,status:'saved',execution_authorized:false,offer:changes.offer,
             request_sha256:changes.wrongOfferDigest?'f'.repeat(64):await digest(kind,{input_version:body.input_version,key:body.key,brief_sha256:body.brief_sha256,
               connection_profile_sha256:body.profile_sha256,offer_sha256:hash})}];
+        }
+        if(changes.loseRegistration){
+          const kind=body.stage==='stage2-controller'?'stage2-record-connection':'stage3-record-connection', id='c'.repeat(64);
+          changes.actions=[{kind,project_ref:project.project_ref,status:'saved',key:body.key,connection_id:id,execution_authorized:false,
+            request_sha256:await digest(kind,{key:body.key,brief_sha256:body.brief_sha256,input_version:body.input_version,connection_sha256:id})}];
+          throw Error('SYNTHETIC-response-lost');
         }
       } else if (changes.getError) throw Object.assign(Error(changes.getError),{status:changes.http});
       if (!body && changes.wait) {const waiting=changes.wait; delete changes.wait; await waiting;}
@@ -91,6 +100,44 @@ async function exercise() {
   // Each counterexample runs on a fresh rendered page, including the previously reachable request button.
   const problems=[];
   const probe=(ok,name)=>{if(!ok)problems.push(name);};
+  probe(projectPath('SYNTHETIC-A')==='/api/projects/SYNTHETIC-A','fixture base project path');
+  await reset({status:'connected',selection:'candidate-ready',receiveDelta:2});
+  probe(!!app.el.querySelector('[data-v93-choice]')&&rt.overview.project.revision===project.revision,'first selection receipt advances overview by exactly two');
+  await reset({status:'connected',selection:'candidate-ready',receiveDelta:9});probe(!app.el.querySelector('[data-v93-choice]'),'unexplained revision bump denied');
+  window.RESEARCH_PROJECTS.stage2_selection_projects=[project.project_ref];
+  for(const legacy of [false,true]){
+    await reset({status:'connected',continuationError:'stage2-continuation-result-not-current',...(legacy?{getError:'not-found',http:404}:{})});
+    probe(app.el.innerText.includes('原物理目录')&&!app.el.querySelector('[data-v93-choice]'),'listed project retains original conflict '+legacy);
+  }
+  window.RESEARCH_PROJECTS.stage2_selection_projects=[];
+  for(const stage of [2,3]){
+    await reset({loseRegistration:true},stage);button('connect').click();await tick();
+    const original=rt.pending?.body.key;
+    probe(!!original,'lost response persisted');
+    const action=changes.actions[0], validHash=action.request_sha256;
+    action.request_sha256='0'.repeat(64);await liveRecover();probe(rt.pending?.body.key===original,'wrong native hash retains intent');
+    action.request_sha256=validHash;action.key='other';await liveRecover();probe(rt.pending?.body.key===original,'wrong original key retains intent');
+    action.key=original;button('read').click();await tick();
+    probe(!rt.pending&&!sessionStorage.getItem('v7-pending-action')&&posts().length===1&&status().includes('本课题已接通'),'GET-only confirmation for lost receipt stage '+stage);
+  }
+  const activationMarker=()=>({ref:project.project_ref,path:projectPath(project.project_ref,'stage2/actions'),body:{
+    input_version:project.input_version,revision:project.revision,brief_sha256:project.brief_sha256,
+    key:'SYNTHETIC-activation',confirmed:true,offer_sha256:'d'.repeat(64),offer_ref:'stage2-'+'d'.repeat(32)}});
+  for(const error of [false,true]){
+    await reset();const marker=activationMarker();rt.pending=marker;sessionStorage.setItem('v7-pending-action',JSON.stringify(marker));
+    changes.actions=[{key:marker.body.key,kind:'stage2-activate',project_ref:marker.ref,status:'saved',execution_authorized:false,
+      request_sha256:await fixtureDigest('stage2-activate',marker.body)}];
+    let release;changes.waitHistory=new Promise(resolve=>release=resolve);
+    const recovery=liveRecover();await tick();
+    rt.ref='SYNTHETIC-B';rt.overview={project:{...project,project_ref:rt.ref}};rt.epoch++;livePaint();
+    if(error)changes.historyError='SYNTHETIC-private-activation-error';
+    release();await recovery;
+    probe(rt.ref==='SYNTHETIC-B'&&rt.pending===marker&&!rt.error,'activation recovery confined on project switch '+error);
+  }
+  await reset();const retained=activationMarker();rt.pending=retained;sessionStorage.setItem('v7-pending-action',JSON.stringify(retained));
+  changes.actions=[{...retained.body,kind:'stage2-activate',project_ref:retained.ref,execution_authorized:false,status:'saved',
+    stage2_status:'ready-for-explicit-stage2-run',request_sha256:await fixtureDigest('stage2-activate',retained.body)}];
+  await liveRecover();probe(!rt.pending&&!sessionStorage.getItem('v7-pending-action')&&!posts().length,'activation receipt recovered on original project without another POST');
   await reset({missingProject:true});probe(!button('connect'),'missing overview project');
   window.RESEARCH_PROJECTS.stage3_planning_projects=[project.project_ref];
   await reset({status:'unavailable',reason:'stage3-planning-project-stale'},3);
@@ -112,7 +159,7 @@ async function exercise() {
   if(publish){
     publish.click();await tick();probe(posts().length===1&&!!button('activate')&&!button('publish')&&status().includes(changes.offer.offer_ref),'original offer verified and retained');
     button('read').click();await tick();probe(posts().length===1&&!!button('activate'),'offer survives readback without autopost');
-    button('activate')?.click();await tick();probe(posts().length===2&&posts()[1].tail==='stage2/actions'&&posts()[1].body.offer_ref===changes.actions[0].offer.offer_ref,'separate existing activation contract');
+    button('activate')?.click();await tick();probe(posts().length===2&&posts()[1].tail==='stage2/actions'&&posts()[1].body.offer_ref===changes.actions[0].offer.offer_ref&&!rt.pending&&sessionStorage.getItem('v7-pending-action')===null&&!!button('connect'),'separate existing activation contract');
   }
   await reset({status:'consent-required',reason:'stage2-continuation-activation-required',afterPost:'consent-required',afterReason:'stage2-continuation-activation-required',wrongOfferDigest:true});
   button('publish').click();await tick();probe(!!rt.pending&&status().includes('Unknown')&&!button('activate'),'offer without original receipt digest stays Unknown');
