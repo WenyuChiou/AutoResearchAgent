@@ -29,10 +29,15 @@ class WikiStage23ServicesTests(unittest.TestCase):
                 options(stage3_planning_config="x", stage3_planning_sha256="a" * 64)
             )
 
-    def test_no_config_preserves_unconnected_services(self):
-        services = {"projects": object(), "stage2": object(), "credential": "fixture"}
+    def test_no_config_connects_read_bindings_without_execution_services(self):
+        services = {
+            "projects": object(),
+            "stage2": SimpleNamespace(),
+            "credential": "fixture",
+        }
         configure_services(services, options())
-        self.assertIsNone(services["stage2_selection"])
+        self.assertIsNotNone(services["stage2_selection"])
+        self.assertIs(services["stage2"].receive_current, True)
         self.assertIsNone(services["stage3_planning"])
         self.assertIsNone(services["stage3_recovery_pins"])
         self.assertIsNone(services["stage2_readings"])
@@ -43,7 +48,7 @@ class WikiStage23ServicesTests(unittest.TestCase):
             stage2_direct_import_config="source.json",
             stage2_direct_import_sha256="a" * 64,
         )
-        intake, stage2 = object(), object()
+        intake, stage2 = object(), SimpleNamespace()
         with (
             patch(
                 "research_workspace_native.project_stage2_direct_config.load_direct_request_imports",
@@ -466,12 +471,16 @@ class WikiStage23ServicesTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "receipt differs"):
                 configure_services(
-                    {"projects": object(), "stage2": object(), "credential": "fixture"},
+                    {
+                        "projects": object(),
+                        "stage2": SimpleNamespace(),
+                        "credential": "fixture",
+                    },
                     options(selection_config=path, selection_sha256="0" * 64),
                 )
 
     def test_pinned_configs_reuse_same_intake_selection_and_resources(self):
-        intake, stage2, selection = object(), object(), object()
+        intake, stage2, selection = object(), SimpleNamespace(), object()
         cfg, resources = object(), SimpleNamespace(service=object(), recovery_pins={})
         services = {"projects": intake, "stage2": stage2, "credential": "fixture"}
         args = options(
@@ -483,7 +492,15 @@ class WikiStage23ServicesTests(unittest.TestCase):
         with (
             patch(
                 "research_workspace_native.project_stage2_direct_config.load_direct_request_imports",
-                return_value={"ref": {}},
+                return_value={
+                    "ref": {
+                        "input_version": 1,
+                        "brief_sha256": "c" * 64,
+                        "workflow_root": "w",
+                        "delivery_root": "d",
+                        "delivery_manifest_sha256": "d" * 64,
+                    }
+                },
             ) as imports,
             patch(
                 "research_workspace_native.project_stage2_selection.ProjectStage2SelectionService",
@@ -500,7 +517,8 @@ class WikiStage23ServicesTests(unittest.TestCase):
         ):
             configure_services(services, args)
         imports.assert_called_once_with(stage2, "fixture", "source.json", "a" * 64)
-        select.assert_called_once_with(intake, {"ref": {}})
+        self.assertIs(select.call_args.args[0], intake)
+        self.assertEqual(select.call_args.args[1].static, imports.return_value)
         load.assert_called_once_with(intake, "fixture", "plan.json", "b" * 64)
         factory.assert_called_once_with(intake, "fixture", selection, cfg)
         self.assertIs(services["stage3_planning"], resources.service)
