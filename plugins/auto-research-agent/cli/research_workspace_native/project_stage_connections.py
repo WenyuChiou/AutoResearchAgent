@@ -181,7 +181,11 @@ class ConnectionStore:
                 _check(
                     receipt["status"] == "failed"
                     and "failure_phase" not in receipt
-                    and receipt.get("error") == "session-deadline-exceeded"
+                    and receipt.get("error")
+                    in {
+                        "session-deadline-exceeded",
+                        "absolute request deadline expired",
+                    }
                     and receipt["request"]["connection_sha256"] == digest
                     and any(
                         event[0] == payload

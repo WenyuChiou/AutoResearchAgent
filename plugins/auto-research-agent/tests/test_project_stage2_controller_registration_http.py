@@ -19,6 +19,9 @@ from current_core_stage12_fixtures import current_core_stage1_case
 from research_workspace_native import project_stage2_controller as driver_module
 from research_workspace_native.project_host import ProjectHost
 from research_workspace_native.project_stage2 import ProjectStage2Service
+from research_workspace_native.project_stage2_controller_connections import (
+    Stage2ControllerConnections,
+)
 from research_workspace_native.project_stage_connections import ConnectionStore
 from stage2_common import canonical_hash
 from stage2_live import controller
@@ -417,9 +420,32 @@ class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
                     observed(origin, "candidate-after-reopen-and-expiry", continuation),
                     (200, result),
                 )
-                self.assertEqual(
-                    request(origin, continuation, body=intent), (200, result)
+                verified = []
+                original = Stage2ControllerConnections._verified
+
+                def observe_verification(service, *args, **kwargs):
+                    verified.append(True)
+                    return original(service, *args, **kwargs)
+
+                started = time.monotonic()
+                with patch.object(
+                    Stage2ControllerConnections, "_verified", observe_verification
+                ):
+                    replay = observed(
+                        origin, "candidate-post-replay", continuation, body=intent
+                    )
+                print(
+                    json.dumps(
+                        {
+                            "fixture": "post-replay-verification",
+                            "seconds": time.monotonic() - started,
+                            "original_verifications": len(verified),
+                        }
+                    ),
+                    flush=True,
                 )
+                self.assertEqual(replay, (200, result))
+                self.assertEqual(len(verified), 1)
                 self.assertEqual(request(origin, connections, body=body), (200, saved))
         self.assertEqual(counts(case.intake, ref), after_candidate)
         self.assertEqual(len(calls), 1)
