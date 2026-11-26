@@ -556,6 +556,25 @@ class ProjectHost(AtlasHost):
                 if self.project_stage1 is None or direct_receiving
                 else self.stage1_view(credential, ref, automatic=automatic)
             )
+            stage2 = (
+                None
+                if self.project_stage2 is None
+                else self.stage2_view(
+                    credential,
+                    ref,
+                    project=project,
+                    stage1=stage1,
+                    check_deadline=check_deadline,
+                )
+            )
+            if stage2 is not None and stage2["revision"] != project["revision"]:
+                project = self.projects.read(credential, ref)
+                # Connection publication only adds its own journal receipt.
+                # Existing Stage1 material is unchanged under this store lock.
+                if stage1 is not None:
+                    stage1["revision"] = project["revision"]
+                    if stage1.get("delivery") is not None:
+                        stage1["delivery"]["revision"] = project["revision"]
             result = dict(
                 project=project,
                 models=None
@@ -565,25 +584,8 @@ class ProjectHost(AtlasHost):
                 if self.project_models is None
                 else self.project_models.offers(credential, ref),
                 stage1=stage1,
-                stage2=None
-                if self.project_stage2 is None
-                else self.stage2_view(
-                    credential,
-                    ref,
-                    project=project,
-                    stage1=stage1,
-                    check_deadline=check_deadline,
-                ),
+                stage2=stage2,
             )
-            # A first read may journal one input connection. Return a coherent
-            # revision for subsequent explicit actions, never the pre-receive one.
-            if (
-                result["stage2"] is not None
-                and result["stage2"]["revision"] != project["revision"]
-            ):
-                result["project"] = self.projects.read(credential, ref)
-                if result["stage1"] is not None:
-                    result["stage1"]["revision"] = result["project"]["revision"]
             if result["stage1"] is not None:
                 result["stage1"]["progress"] = project_progress(result)
             return result

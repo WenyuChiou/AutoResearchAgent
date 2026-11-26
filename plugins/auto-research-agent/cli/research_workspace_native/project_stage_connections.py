@@ -7,7 +7,7 @@ from copy import deepcopy
 from stage1_deliverable.common import safe_path, sha
 from stage1_ledger.journal import canonical, decode, write_new
 from stage2_common import canonical_hash
-from .project_stage2 import _raw
+from .project_stage2 import MAX_OFFERS, _public, _raw
 from .session_api import SessionApiError, _check
 
 
@@ -30,6 +30,9 @@ class ConnectionStore:
         }
 
     def resolve(self, ref, stage):
+        return self._resolve(ref, stage, current=True)
+
+    def _resolve(self, ref, stage, *, current):
         with self.intake._lock:
             principal = self.intake._principal(self.credential)
             state = self.intake._load(principal, ref)
@@ -45,9 +48,41 @@ class ConnectionStore:
                     record["project_ref"] == ref
                     and record["stage"] == stage
                     and record["execution_authorized"] is False
-                    and canonical_hash(record["identity"])
-                    == canonical_hash(self._identity(ref)),
+                    and (
+                        not current
+                        or canonical_hash(record["identity"])
+                        == canonical_hash(self._identity(ref))
+                    ),
                     "stage-connection-project-stale",
+                )
+                action = self.intake.db.execute(
+                    "SELECT receipt FROM intake_actions WHERE principal=? AND project=? AND key=?",
+                    (principal, ref, saved["key"]),
+                ).fetchone()
+                receipt = (
+                    None
+                    if action is None
+                    else decode(action[0].encode(), "connection action")
+                )
+                _check(
+                    receipt is not None
+                    and receipt["status"] == "saved"
+                    and receipt["kind"] == "stage2-record-connection"
+                    and receipt["project_ref"] == ref
+                    and receipt["key"] == saved["key"]
+                    and receipt["request"]["connection_sha256"] == saved["sha256"]
+                    and receipt["connection_id"] == saved["sha256"],
+                    "stage-connection-receipt-differs",
+                )
+                _check(
+                    any(
+                        event[0] == action[0]
+                        for event in self.intake.db.execute(
+                            "SELECT payload FROM intake_events WHERE project=? AND kind=?",
+                            (ref, "stage2-record-connection-saved"),
+                        )
+                    ),
+                    "stage-connection-saved-event-missing",
                 )
                 return {
                     **record,
@@ -57,7 +92,7 @@ class ConnectionStore:
             except (OSError, ValueError, KeyError, TypeError) as error:
                 raise SessionApiError("stage-connection-source-invalid", 409) from error
 
-    def record(self, ref, stage, row, *, derived_from, check_deadline=None):
+    def record(self, ref, stage, row, *, derived_from, check_deadline=None, offer=None):
         """Trusted producer only; callers must verify the source before recording."""
         _check(stage in {"stage2-input", "stage2-selection"}, "stage-connection-kind")
         with self.intake._lock:
@@ -74,8 +109,10 @@ class ConnectionStore:
             )
             raw = canonical(record)
             digest = sha(raw)
-            previous = self.resolve(ref, stage)
-            if previous is not None:
+            previous = self._resolve(ref, stage, current=False)
+            if previous is not None and canonical_hash(
+                previous["identity"]
+            ) == canonical_hash(identity):
                 _check(
                     previous["connection_id"] == digest,
                     "stage-connection-source-differs",
@@ -85,6 +122,34 @@ class ConnectionStore:
             state = self.intake._load(principal, ref)
             key = "connection-" + digest
             relative = "connection-" + digest[:32] + ".json"
+            # A failed local publication with no output can be attempted on a
+            # new journal key. Never erase its failure or retry an unknown write.
+            for attempt in range(2):
+                key = "connection-" + digest + ("-" + str(attempt) if attempt else "")
+                old = self.intake.db.execute(
+                    "SELECT receipt FROM intake_actions WHERE principal=? AND project=? AND key=?",
+                    (principal, ref, key),
+                ).fetchone()
+                if old is None:
+                    break
+                receipt = decode(old[0].encode(), "connection attempt")
+                _check(
+                    receipt["status"] == "failed"
+                    and "failure_phase" not in receipt
+                    and receipt.get("error") == "session-deadline-exceeded"
+                    and receipt["request"]["connection_sha256"] == digest
+                    and any(
+                        event[0] == old[0]
+                        for event in self.intake.db.execute(
+                            "SELECT payload FROM intake_events WHERE project=? AND kind=?",
+                            (ref, "stage2-record-connection-failed"),
+                        )
+                    )
+                    and not self.intake._path(ref, relative).exists(),
+                    "stage-connection-write-outcome-unobserved",
+                )
+            else:
+                raise SessionApiError("stage-connection-recovery-bound-exceeded", 409)
             body = dict(
                 key=key,
                 revision=state["revision"],
@@ -104,6 +169,11 @@ class ConnectionStore:
                     "sha256": digest,
                     "key": key,
                 }
+                current.setdefault("stage_connection_history", []).append(digest)
+                if offer is not None:
+                    offers = current.setdefault("stage2_offers", {})
+                    _check(len(offers) < MAX_OFFERS, "stage2-offer-bound-exceeded")
+                    offers[offer["offer_ref"]] = deepcopy(offer)
                 return {"connection_id": digest, "execution_authorized": False}
 
             receipt = self.intake._perform(
@@ -140,11 +210,12 @@ class ConnectionStore:
 class BindingTable(Mapping):
     """Static compatibility plus persisted bindings; overlap is an error."""
 
-    def __init__(self, static, store):
+    def __init__(self, static, store, controllers=None):
         from .project_stage2_selection_view import validate_selection_binding
 
         self.static = deepcopy(static)
         self.store = store
+        self.controllers = dict(controllers or {})
         for ref, binding in self.static.items():
             validate_selection_binding(ref, binding)
 
@@ -158,12 +229,17 @@ class BindingTable(Mapping):
             return deepcopy(dynamic["row"])
         if ref in self.static:
             return deepcopy(self.static[ref])
+        driver = self.controllers.get(ref)
+        if driver is not None:
+            binding = _completed_binding(driver, self.store.credential, ref)
+            if binding is not None:
+                return self.store.record_selection(ref, binding)["row"]
         raise KeyError(ref)
 
     def __iter__(self):
         with self.store.intake._lock:
             principal = self.store.intake._principal(self.store.credential)
-            refs = set(self.static)
+            refs = set(self.static) | set(self.controllers)
             for row in self.store.intake.db.execute(
                 "SELECT ref FROM intake_projects WHERE principal=?", (principal,)
             ).fetchall():
@@ -214,7 +290,7 @@ def register_current(
             key: evidence[key]
             for key in ("packet_id", "packet_sha256", "receipt_sha256")
         }
-        _, _, _, run, ledger, report = delivery._saved_context(ref)
+        _, _, binding, run, ledger, report = delivery._saved_context(ref)
         guard = nullcontext(lambda: None)
         if run.get("query_owned"):
             owner = getattr(delivery.stage1, "query_service", None)
@@ -241,12 +317,15 @@ def register_current(
             check_owner()
             if check_deadline is not None:
                 check_deadline()
+            offer = _current_offer(binding, bound, evidence, root)
+            row["offer_ref"] = offer["offer_ref"]
             record = store.record(
                 ref,
                 "stage2-input",
                 row,
                 derived_from=source,
                 check_deadline=check_deadline,
+                offer=offer,
             )
         revision = intake.read(credential, ref)["revision"]
         evidence.update(
@@ -261,4 +340,70 @@ def register_current(
             "connection_id": record["connection_id"],
             "receipt_id": record["receipt_id"],
             "activation_allowed": False,
+            "offer": _public(offer),
         }
+
+
+def _current_offer(binding, bound, evidence, root):
+    """An already verified native input is visible, but cannot activate research."""
+    resources = safe_path(root, "resources.txt")
+    inputs = dict(
+        deliverable_dir=str(bound["deliverable_dir"]),
+        manifest_sha256=bound["manifest_sha256"],
+        handoff_path=str(bound["handoff_path"]),
+        handoff_sha256=bound["handoff_sha256"],
+        resources_path=str(resources),
+        resources_sha256=sha(resources.read_bytes()),
+    )
+    basis = {
+        key: binding[key]
+        for key in (
+            "project_id",
+            "input_version",
+            "brief_sha256",
+            "plan_manifest_sha256",
+        )
+    }
+    basis.update(
+        stage1_manifest_sha256=bound["manifest_sha256"],
+        stage1_handoff_sha256=bound["handoff_sha256"],
+        resources_sha256=inputs["resources_sha256"],
+        settings_sha256=canonical_hash(binding["settings"]),
+        policy_ref={
+            "route": "stage2-current-project/read-only",
+            "packet_profile": "scientific-v3",
+            "execution_authorized": False,
+        },
+    )
+    digest = canonical_hash(basis)
+    return dict(
+        basis,
+        offer_ref="stage2-" + digest[:32],
+        offer_sha256=digest,
+        inputs=inputs,
+        work_count=evidence["source_count"],
+        status="receiving-only",
+    )
+
+
+def _completed_binding(driver, credential, ref):
+    """Read an existing controller result; never execute or restore a job."""
+    from .project_stage2_controller import _read
+
+    result_path = safe_path(driver.records, "result.json")
+    if not result_path.is_file():
+        return None
+    intent = _read(safe_path(driver.records, "intent.json"))
+    driver._same(intent, credential, ref, intent["key"])
+    verified = driver._verify_result(_read(result_path), intent)
+    delivery = verified["delivery"]
+    if delivery is None:
+        return None
+    current = driver.service.binding(ref)
+    return dict(
+        input_version=current["input_version"],
+        brief_sha256=current["brief_sha256"],
+        workflow_root=str(current["workflow_root"]),
+        delivery_root=str(delivery["root"]),
+        delivery_manifest_sha256=delivery["manifest"]["manifest_sha256"],
+    )

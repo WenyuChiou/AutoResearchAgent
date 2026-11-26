@@ -93,7 +93,10 @@ def configure_services(services, args):
     )
 
     services["stage2_selection"] = ProjectStage2SelectionService(
-        projects, BindingTable(bindings, ConnectionStore(projects, token))
+        projects,
+        BindingTable(
+            bindings, ConnectionStore(projects, token), services["stage2_controllers"]
+        ),
     )
     stage2.receive_current = True
     if getattr(args, "stage2_reading_config", None):

@@ -19,7 +19,9 @@ sys.path[:0] = [
 from current_core_stage12_fixtures import current_core_stage1_case
 from test_project_stage2_current_evidence import authenticate, request, VIEWER
 from research_workspace_native.project_host import ProjectHost
+from research_workspace_native.project_model import ProjectModelService
 from research_workspace_native.project_stage2 import ProjectStage2Service
+from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage_connections import (
     ConnectionStore,
     BindingTable,
@@ -33,17 +35,26 @@ from wiki_stage23_services import configure_services
 
 
 @contextmanager
-def wiki(case):
+def wiki(case, controllers=None):
     services = dict(
         projects=case.intake,
         credential=VIEWER,
         stage2=ProjectStage2Service(case.intake),
     )
-    configure_services(services, SimpleNamespace())
+    with patch(
+        "research_workspace_native.project_stage2_controller_config.load_stage2_controllers",
+        return_value=controllers,
+    ):
+        args = SimpleNamespace(
+            stage2_controller_config="trusted-fixture" if controllers else None,
+            stage2_controller_sha256="a" * 64 if controllers else None,
+        )
+        configure_services(services, args)
     with ProjectHost(
         projects=case.intake,
         credential=VIEWER,
         stage1=case.stage1,
+        models=ProjectModelService(case.intake),
         stage2=services["stage2"],
         stage2_selection=services["stage2_selection"],
         files={},
@@ -110,9 +121,31 @@ class CurrentConnectionTests(unittest.TestCase):
                 )
                 self.assertTrue(accepted["connection_id"])
                 self.assertTrue(accepted["receipt_id"])
+                self.assertEqual(overview["stage2"]["offers"], [accepted["offer"]])
+                self.assertEqual(accepted["offer"]["status"], "receiving-only")
+                offer = accepted["offer"]
+                denied = dict(
+                    key="cannot-activate-read-connection",
+                    revision=overview["project"]["revision"],
+                    input_version=1,
+                    brief_sha256=overview["project"]["brief_sha256"],
+                    offer_ref=offer["offer_ref"],
+                    offer_sha256=offer["offer_sha256"],
+                    confirmed=True,
+                )
+                with self.assertRaisesRegex(SessionApiError, "research-not-authorized"):
+                    service.activate(VIEWER, ref, denied)
                 self.assertEqual(
                     overview["project"]["revision"], overview["stage2"]["revision"]
                 )
+                self.assertEqual(
+                    overview["models"]["revision"], overview["project"]["revision"]
+                )
+                self.assertEqual(
+                    overview["model_offers"]["revision"],
+                    overview["project"]["revision"],
+                )
+                self.assertEqual(overview["models"]["calls_reserved"], 0)
                 self.assertEqual(
                     overview["stage1"]["revision"], overview["stage2"]["revision"]
                 )
@@ -200,8 +233,240 @@ class CurrentConnectionTests(unittest.TestCase):
                 )
             )
 
+            self._completed_delivery(case, data)
+
+    def _completed_delivery(self, case, data):
+        from stage1_deliverable.common import sha
+        from stage2_workflow import inspect_workflow
+        from research_workspace_native.project_stage2_controller import (
+            ProjectStage2ControllerDriver,
+        )
+        from test_stage1_current_core_stage123_e2e import (
+            CurrentCoreSyntheticAdapter,
+            CurrentCorePreparation,
+        )
+        from test_stage2_controller import Stage2ControllerTests
+
+        service, ref = ProjectStage2Service(case.intake), data["project_ref"]
+        resources = data["root"] / "controller-resources.txt"
+        resources.write_text(
+            case.intake.binding(ref)["settings"]["resource_envelope"], encoding="utf-8"
+        )
+        offer = service.register(
+            ref,
+            deliverable_dir=data["deliverable_dir"],
+            expected_manifest_sha256=data["manifest_sha256"],
+            handoff_path=data["handoff_path"],
+            expected_handoff_sha256=data["handoff_sha256"],
+            resources_path=resources,
+            expected_resources_sha256=sha(resources.read_bytes()),
+            policy_ref=dict(
+                route="stage2-general-v3/daily_v3",
+                execution_authorized=False,
+                packet_profile="scientific-v3",
+            ),
+        )
+        project = case.intake.read(VIEWER, ref)
+        service.activate(
+            VIEWER,
+            ref,
+            dict(
+                key="explicit-synthetic-controller-fixture",
+                revision=project["revision"],
+                input_version=1,
+                brief_sha256=project["brief_sha256"],
+                confirmed=True,
+                offer_ref=offer["offer_ref"],
+                offer_sha256=offer["offer_sha256"],
+            ),
+        )
+        binding = service.binding(ref)
+        snapshot = inspect_workflow(binding["workflow_root"])["latest_snapshot"]
+        preparation = SimpleNamespace(
+            root=data["root"],
+            workflow=Path(binding["workflow_root"]),
+            packet=snapshot["packet"],
+            base=snapshot["event"]["payload"]["snapshot_sha256"],
+        )
+        preparation.spec = Stage2ControllerTests._spec(preparation)
+        driver = ProjectStage2ControllerDriver(
+            service,
+            spec=preparation.spec,
+            controller_dir=data["root"] / "controller",
+            delivery_dir=data["root"] / "controller-delivery",
+            prerequisite_handler=CurrentCorePreparation(preparation),
+        )
+        with patch(
+            "stage2_live.controller._ProductionAdapter",
+            return_value=CurrentCoreSyntheticAdapter(),
+        ):
+            completed = driver.run(
+                VIEWER, ref, key="authored-fixed-engineering-controller"
+            )
+        self.assertEqual(completed["status"], "saved", completed)
+        before = counts(case.intake)
+        with (
+            patch.object(
+                driver, "run", side_effect=AssertionError("GET cannot run controller")
+            ),
+            wiki(case, {ref: driver}) as origin,
+        ):
+            status, selected = request(origin, f"/api/projects/{ref}/stage2/selection")
+            self.assertEqual(status, 200, selected)
+            self.assertEqual(selected["selection_status"], "pending")
+            self.assertFalse(selected["execution_authorized"])
+            self.assertTrue(selected["cards"])
+            after = counts(case.intake)
+            self.assertEqual(after["intake_actions"] - before["intake_actions"], 1)
+            self.assertEqual(
+                request(origin, f"/api/projects/{ref}/stage2/selection"),
+                (200, selected),
+            )
+            self.assertEqual(counts(case.intake), after)
+        case.reopen()
+        with wiki(case) as origin:
+            self.assertEqual(
+                request(origin, f"/api/projects/{ref}/stage2/selection"),
+                (200, selected),
+            )
+            self.assertEqual(counts(case.intake), after)
+        print(
+            "SELECTION_EVIDENCE="
+            + json.dumps(
+                dict(
+                    project_ref=ref,
+                    input_version=1,
+                    delivery_manifest_sha256=selected["delivery_manifest_sha256"],
+                    selection_status=selected["selection_status"],
+                    before=before,
+                    after=after,
+                    controller_calls_on_get=0,
+                )
+            )
+        )
+
 
 class SelectionConnectionTests(Stage2SelectionFixture):
+    def test_new_input_version_keeps_original_connection_and_receipt(self):
+        store = ConnectionStore(self.intake, "own")
+        first = store.record(
+            self.ref,
+            "stage2-input",
+            {"authored_storage_probe": 1},
+            derived_from={"fixture": True},
+        )
+        path = self.intake._path(
+            self.ref, "connection-" + first["connection_id"][:32] + ".json"
+        )
+        original = (path.read_bytes(), path.stat().st_mtime_ns)
+        requests = {}
+        for row in self.intake.db.execute(
+            "SELECT receipt FROM intake_actions WHERE project=?", (self.ref,)
+        ):
+            value = json.loads(row[0])
+            if value["kind"] in {"submit", "compile"}:
+                requests[value["kind"]] = value["request"]
+        current = self.intake.read("own", self.ref)
+        self.intake.revise(
+            "own",
+            self.ref,
+            dict(
+                key="revise-same-topic",
+                revision=current["revision"],
+                input_version=current["input_version"],
+                brief_sha256=current["brief_sha256"],
+                topic=current["brief"]["original_description"],
+            ),
+        )
+        for method in ("submit", "compile"):
+            current = self.intake.read("own", self.ref)
+            body = deepcopy(requests[method])
+            body.update(
+                key="next-" + method,
+                revision=current["revision"],
+                input_version=current["input_version"],
+                brief_sha256=current["brief_sha256"],
+            )
+            getattr(self.intake, method)("own", self.ref, body)
+        self.assertEqual(self.intake.binding(self.ref)["input_version"], 2)
+        with self.assertRaises(SessionApiError):
+            store.resolve(self.ref, "stage2-input")
+        second = store.record(
+            self.ref,
+            "stage2-input",
+            {"authored_storage_probe": 2},
+            derived_from={"fixture": True},
+        )
+        self.assertEqual(second["identity"]["input_version"], 2)
+        self.assertNotEqual(second["receipt_id"], first["receipt_id"])
+        self.assertEqual((path.read_bytes(), path.stat().st_mtime_ns), original)
+
+    def test_prework_deadline_recovers_but_unknown_write_does_not_retry(self):
+        store = ConnectionStore(self.intake, "own")
+        checks = []
+
+        def expire_before_work():
+            checks.append(True)
+            if len(checks) == 2:
+                raise SessionApiError("session-deadline-exceeded", 408)
+
+        with self.assertRaises(SessionApiError):
+            store.record(
+                self.ref,
+                "stage2-input",
+                {"authored_storage_probe": 1},
+                derived_from={},
+                check_deadline=expire_before_work,
+            )
+        self.assertIsNone(store.resolve(self.ref, "stage2-input"))
+        recovered = store.record(
+            self.ref, "stage2-input", {"authored_storage_probe": 1}, derived_from={}
+        )
+        self.assertTrue(recovered["receipt_id"].endswith("-1"))
+        checks.clear()
+
+        def expire_after_file():
+            checks.append(True)
+            if len(checks) == 3:
+                raise SessionApiError("session-deadline-exceeded", 408)
+
+        with self.assertRaises(SessionApiError):
+            store.record(
+                self.ref,
+                "stage2-selection",
+                {"authored_storage_probe": 1},
+                derived_from={},
+                check_deadline=expire_after_file,
+            )
+        before = counts(self.intake)
+        with self.assertRaisesRegex(SessionApiError, "write-outcome-unobserved"):
+            store.record(
+                self.ref,
+                "stage2-selection",
+                {"authored_storage_probe": 1},
+                derived_from={},
+            )
+        self.assertEqual(counts(self.intake), before)
+
+    def test_receipt_pointer_damage_and_long_root_are_rejected(self):
+        store = ConnectionStore(self.intake, "own")
+        store.record(
+            self.ref, "stage2-input", {"authored_storage_probe": 1}, derived_from={}
+        )
+        state = self.intake._load("researcher", self.ref)
+        state["stage_connections"]["stage2-input"]["key"] = "never-saved"
+        self.intake.db.execute(
+            "UPDATE intake_projects SET state=? WHERE ref=?",
+            (json.dumps(state), self.ref),
+        )
+        self.intake.db.commit()
+        with self.assertRaisesRegex(SessionApiError, "receipt-differs"):
+            store.resolve(self.ref, "stage2-input")
+        with self.assertRaises((ValueError, SessionApiError)):
+            ProjectIntakeService(
+                self.root / ("long-root-" * 16), authenticate=self.authenticate
+            )
+
     def test_saved_selection_static_dynamic_reopen_and_tampering(self):
         ui, _, _ = self.prepare_choice()
         binding = ui.bindings[self.ref]
@@ -218,6 +483,13 @@ class SelectionConnectionTests(Stage2SelectionFixture):
         self.assertEqual(actual["cards"], original["cards"])
         self.assertEqual(actual["selection_receipt"], original["selection_receipt"])
         self.assertFalse(actual["execution_authorized"])
+        self.intake.close()
+        self.intake = ProjectIntakeService(
+            self.store_root, authenticate=self.authenticate
+        )
+        store = ConnectionStore(self.intake, "own")
+        dynamic = ProjectStage2SelectionView(self.intake, BindingTable({}, store))
+        self.assertEqual(dynamic.read("own", self.ref), actual)
         with self.assertRaisesRegex(SessionApiError, "selection-bindings-overlap"):
             BindingTable({self.ref: binding}, store)[self.ref]
         for field, value in [
