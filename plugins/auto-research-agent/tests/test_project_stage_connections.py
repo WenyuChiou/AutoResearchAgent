@@ -266,13 +266,37 @@ class CurrentConnectionTests(unittest.TestCase):
                             (json.dumps(changed), ref),
                         )
                         case.intake.db.commit()
-                        rejected = request(origin, route + "/stage2")[1][
-                            "current_evidence"
-                        ]
+                        status, rejected = request(origin, route + "/stage2")
+                        self.assertEqual(status, 409)
                         self.assertEqual(
-                            rejected["reason"], "stage-connection-offer-differs"
+                            rejected, {"error": "stage-connection-offer-differs"}
                         )
-                        self.assertIsNone(rejected["connection_id"])
+                        if damaged_offer is not None:
+                            changed["stage2_offers"][accepted["offer"]["offer_ref"]][
+                                "policy_ref"
+                            ] = dict(
+                                route="stage2-general-v3/daily_v3",
+                                packet_profile="scientific-v3",
+                                execution_authorized=False,
+                            )
+                            case.intake.db.execute(
+                                "UPDATE intake_projects SET state=? WHERE ref=?",
+                                (json.dumps(changed), ref),
+                            )
+                            case.intake.db.commit()
+                            action = dict(
+                                denied,
+                                key="forged-read-connection",
+                                revision=changed["revision"],
+                            )
+                            status, response = request(
+                                origin, route + "/stage2/activate", body=action
+                            )
+                            self.assertEqual(status, 409, response)
+                            self.assertEqual(
+                                response, {"error": "stage2-offer-journal-differs"}
+                            )
+                            self.assertEqual(counts(case.intake), stable)
                     finally:
                         case.intake.db.execute(
                             "UPDATE intake_projects SET state=? WHERE ref=?",
@@ -429,6 +453,21 @@ class CurrentConnectionTests(unittest.TestCase):
 
 
 class SelectionConnectionTests(Stage2SelectionFixture):
+    def test_unreadable_controller_discovery_does_not_block_other_projects(self):
+        from research_workspace_native import project_stage_connections as connections
+
+        store = ConnectionStore(self.intake, "own")
+        bad = SimpleNamespace(records=self.root / "unreadable")
+        table = BindingTable({}, store, {self.ref: bad})
+        with patch.object(
+            connections, "safe_path", side_effect=OSError("authored unreadable path")
+        ):
+            self.assertEqual(list(table), [])
+            with self.assertRaisesRegex(
+                SessionApiError, "stage2-selection-source-invalid"
+            ):
+                table.receive_completed(self.ref)
+
     def test_new_input_version_keeps_original_connection_and_receipt(self):
         store = ConnectionStore(self.intake, "own")
         first = store.record(

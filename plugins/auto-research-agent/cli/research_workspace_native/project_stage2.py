@@ -520,6 +520,7 @@ class ProjectStage2Service:
             offer = state.get("stage2_offers", {}).get(body["offer_ref"])
             if offer is not None and offer["offer_sha256"] == body["offer_sha256"]:
                 _require_research_offer(offer)
+                self._require_registered_offer(project_ref, offer, body["offer_sha256"])
                 _consumer_manifest(
                     offer["inputs"],
                     allow_current_core=offer["policy_ref"].get("packet_profile")
@@ -540,6 +541,7 @@ class ProjectStage2Service:
                 404,
             )
             _require_research_offer(offer)
+            self._require_registered_offer(project_ref, offer, body["offer_sha256"])
             self._matches(binding, offer)
             _check(
                 canonical_hash(binding["settings"]) == offer["settings_sha256"],
@@ -686,29 +688,7 @@ class ProjectStage2Service:
             sequence=0,
         )
 
-    def _activation_context(self, project_ref, state):
-        if "stage2_direct_import" in state:
-            from .project_stage2_direct_import import direct_context
-
-            return direct_context(self, project_ref, state)
-        activation = state.get("stage2_activation")
-        _check(activation is not None, "stage2-not-activated")
-        saved = [
-            row
-            for row in self._journal(project_ref, "stage2-activate-saved")
-            if row.get("artifact_ref") == activation["artifact_ref"]
-        ]
-        _check(
-            len(saved) == 1
-            and {
-                key: value
-                for key, value in saved[0].items()
-                if key not in RECEIPT_FIELDS
-            }
-            == activation,
-            "stage2-activation-journal-differs",
-        )
-        offer = state["stage2_offers"][activation["offer_ref"]]
+    def _require_registered_offer(self, project_ref, offer, expected_sha256):
         registered = [
             row.get("offer")
             for row in self._journal(project_ref, "stage2-register-offer-saved")
@@ -734,11 +714,34 @@ class ProjectStage2Service:
             basis["imported_input_sha256"] = offer["imported_input_sha256"]
         _check(
             registered == [_public(offer)]
-            and sha(canonical(basis))
-            == activation["offer_sha256"]
-            == offer["offer_sha256"],
+            and sha(canonical(basis)) == expected_sha256 == offer["offer_sha256"],
             "stage2-offer-journal-differs",
         )
+
+    def _activation_context(self, project_ref, state):
+        if "stage2_direct_import" in state:
+            from .project_stage2_direct_import import direct_context
+
+            return direct_context(self, project_ref, state)
+        activation = state.get("stage2_activation")
+        _check(activation is not None, "stage2-not-activated")
+        saved = [
+            row
+            for row in self._journal(project_ref, "stage2-activate-saved")
+            if row.get("artifact_ref") == activation["artifact_ref"]
+        ]
+        _check(
+            len(saved) == 1
+            and {
+                key: value
+                for key, value in saved[0].items()
+                if key not in RECEIPT_FIELDS
+            }
+            == activation,
+            "stage2-activation-journal-differs",
+        )
+        offer = state["stage2_offers"][activation["offer_ref"]]
+        self._require_registered_offer(project_ref, offer, activation["offer_sha256"])
         _check(
             offer.get("admission_pins", {}) == _admission_pins(offer["inputs"]),
             "stage2-offer-admission-pins-differ",

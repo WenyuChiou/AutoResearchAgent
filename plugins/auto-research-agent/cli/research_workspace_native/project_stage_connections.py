@@ -238,8 +238,15 @@ class ConnectionStore:
         from .project_stage2_selection_view import ProjectStage2SelectionView
 
         with self.intake._lock:
-            expected_identity = self._identity(ref)
             view = ProjectStage2SelectionView(self.intake, {ref: binding})
+            project = self.intake.read(self.credential, ref)
+            _check(
+                type(project["input_version"]) is type(binding["input_version"])
+                and project["input_version"] == binding["input_version"]
+                and project["brief_sha256"] == binding["brief_sha256"],
+                "stage2-selection-project-stale",
+            )
+            expected_identity = self._identity(ref)
             # The normal service's direction mixin may already own a read
             # scope. Do not cache a pre-publication project revision there.
             verified, _ = view._verify_current_context(self.credential, ref)
@@ -300,7 +307,12 @@ class BindingTable(Mapping):
             return
         driver = self.controllers.get(ref)
         if driver is not None:
-            binding = _completed_binding(driver, self.store.credential, ref)
+            try:
+                binding = _completed_binding(driver, self.store.credential, ref)
+            except SessionApiError:
+                raise
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                raise SessionApiError("stage2-selection-source-invalid", 409) from error
             if binding is not None:
                 self.store.record_selection(ref, binding, check_deadline=check_deadline)
 
@@ -308,11 +320,14 @@ class BindingTable(Mapping):
         with self.store.intake._lock:
             principal = self.store.intake._principal(self.store.credential)
             refs = set(self.static)
-            refs.update(
-                ref
-                for ref, driver in self.controllers.items()
-                if safe_path(driver.records, "result.json").is_file()
-            )
+            for ref, driver in self.controllers.items():
+                try:
+                    if safe_path(driver.records, "result.json").is_file():
+                        refs.add(ref)
+                except (OSError, ValueError):
+                    # Discovery cannot vouch for this row. Explicit access
+                    # still performs strict verification and returns its error.
+                    continue
             for row in self.store.intake.db.execute(
                 "SELECT ref FROM intake_projects WHERE principal=?", (principal,)
             ).fetchall():

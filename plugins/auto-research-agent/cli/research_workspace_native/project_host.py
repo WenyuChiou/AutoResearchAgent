@@ -502,7 +502,10 @@ class ProjectHost(AtlasHost):
         self, credential, ref, *, project=None, stage1=None, check_deadline=None
     ):
         with self.projects._lock:
-            result = self.project_stage2.read(credential, ref)
+            try:
+                result = self.project_stage2.read(credential, ref)
+            except (KeyError, TypeError) as error:
+                raise SessionApiError("stage2-offer-view-invalid", 409) from error
             delivery = getattr(self, "project_stage1_delivery", None)
             if (
                 delivery is not None
@@ -530,6 +533,8 @@ class ProjectHost(AtlasHost):
                             receipt_id=None,
                             execution_authorized=False,
                         )
+                    if evidence.get("reason") == "stage-connection-offer-differs":
+                        raise SessionApiError("stage-connection-offer-differs", 409)
                     result = self.project_stage2.read(credential, ref)
                     result["current_evidence"] = evidence
                 else:
