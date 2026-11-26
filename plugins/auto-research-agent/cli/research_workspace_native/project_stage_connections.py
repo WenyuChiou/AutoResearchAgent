@@ -338,7 +338,14 @@ class BindingTable(Mapping):
                     state = self.store.intake._load(principal, row[0])
                     if "stage2-selection" in state.get("stage_connections", {}):
                         refs.add(row[0])
-                except (SessionApiError, OSError, ValueError, KeyError, TypeError):
+                except (
+                    SessionApiError,
+                    OSError,
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    AttributeError,
+                ):
                     continue
             return iter(sorted(refs))
 

@@ -317,10 +317,9 @@ class CurrentConnectionTests(unittest.TestCase):
                             replay_status, replay = request(
                                 origin, route + "/stage2/actions", body=action
                             )
-                            self.assertEqual(replay_status, 409)
-                            self.assertEqual(
-                                replay["receipt"]["status"], "known-unsent"
-                            )
+                            self.assertEqual(replay_status, 200)
+                            self.assertEqual(replay["status"], "known-unsent")
+                            self.assertTrue(replay["replayed"])
                             self.assertEqual(counts(case.intake), refused)
                     finally:
                         case.intake.db.execute(
@@ -483,6 +482,7 @@ class SelectionConnectionTests(Stage2SelectionFixture):
         raw_state = json.dumps(state)
         bad = deepcopy(next(iter(state["stage2_offers"].values())))
         bad["offer_ref"] = "stage2-" + "0" * 32
+        del bad["work_count"]
         state["stage2_offers"][bad["offer_ref"]] = bad
         self.intake.db.execute(
             "UPDATE intake_projects SET state=? WHERE ref=?",
@@ -520,6 +520,22 @@ class SelectionConnectionTests(Stage2SelectionFixture):
                     )
                     self.assertEqual(result["current_evidence"]["reason"], reason)
                     self.assertEqual(counts(self.intake), before)
+            with patch.object(
+                self.service,
+                "register_current",
+                return_value={
+                    "status": "received",
+                    "offer": {"offer_ref": "authored-verified-current-offer"},
+                },
+            ):
+                result = ProjectHost.stage2_view(
+                    host, "own", self.ref, project={}, stage1={}
+                )
+                self.assertEqual(
+                    [row["offer_ref"] for row in result["offers"]],
+                    [self.offer["offer_ref"], "authored-verified-current-offer"],
+                )
+                self.assertEqual(counts(self.intake), before)
         finally:
             self.intake.db.execute(
                 "UPDATE intake_projects SET state=? WHERE ref=?", (raw_state, self.ref)
@@ -542,7 +558,7 @@ class SelectionConnectionTests(Stage2SelectionFixture):
         try:
             bad_state = json.loads(original)
             bad_state["stage_connections"] = None
-            for raw in (json.dumps(bad_state), "{"):
+            for raw in (json.dumps(bad_state), "{", "null", "[]"):
                 with self.subTest(raw=raw):
                     self.intake.db.execute(
                         "UPDATE intake_projects SET state=? WHERE ref=?", (raw, other)

@@ -502,8 +502,15 @@ class ProjectHost(AtlasHost):
         self, credential, ref, *, project=None, stage1=None, check_deadline=None
     ):
         with self.projects._lock:
+            receive_current = (
+                getattr(self.project_stage2, "receive_current", False) is True
+            )
             try:
-                result = self.project_stage2.read(credential, ref)
+                result = self.project_stage2.read(
+                    credential,
+                    ref,
+                    **({"registered_only": True} if receive_current else {}),
+                )
             except (KeyError, TypeError) as error:
                 raise SessionApiError("stage2-offer-view-invalid", 409) from error
             delivery = getattr(self, "project_stage1_delivery", None)
@@ -516,7 +523,7 @@ class ProjectHost(AtlasHost):
                     project = self.projects.read(credential, ref)
                 if stage1 is None:
                     stage1 = self.project_stage1.read(credential, ref)
-                if getattr(self.project_stage2, "receive_current", False) is True:
+                if receive_current:
                     try:
                         evidence = self.project_stage2.register_current(
                             ref,
@@ -536,8 +543,10 @@ class ProjectHost(AtlasHost):
                     result = self.project_stage2.read(
                         credential,
                         ref,
-                        registered_only=evidence.get("status") != "received",
+                        registered_only=True,
                     )
+                    if evidence.get("status") == "received":
+                        result["offers"].append(evidence["offer"])
                     result["current_evidence"] = evidence
                 else:
                     result["current_evidence"] = current_evidence(
