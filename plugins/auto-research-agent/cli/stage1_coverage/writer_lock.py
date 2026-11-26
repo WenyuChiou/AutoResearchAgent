@@ -44,6 +44,18 @@ def _windows():
             + [wintypes.LPWSTR, wintypes.DWORD],
             wintypes.BOOL,
         ),
+        "CreateFileW": (
+            [
+                wintypes.LPCWSTR,
+                wintypes.DWORD,
+                wintypes.DWORD,
+                ctypes.c_void_p,
+                wintypes.DWORD,
+                wintypes.DWORD,
+                wintypes.HANDLE,
+            ],
+            wintypes.HANDLE,
+        ),
         "OpenProcess": (
             [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD],
             wintypes.HANDLE,
@@ -193,6 +205,55 @@ def _read_file(path, limit=MAX_RECORD_BYTES):
     with path.open("rb") as stream:
         contents = stream.read(limit + 1)
     _need(0 < len(contents) <= limit, "writer-lock-record-size-invalid")
+    return contents
+
+
+@contextmanager
+def _open_read_lock(path):
+    import ctypes
+    import msvcrt
+
+    reject_links(path)
+    expected = path.lstat()
+    kernel = _windows()
+    # This maintenance reader must permit the archival rename. The writer
+    # still holds its separate exclusive-delete handle for the entire write.
+    handle = kernel.CreateFileW(
+        str(path),
+        0x80000000,  # GENERIC_READ
+        1 | 2 | 4,  # FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+        None,
+        3,  # OPEN_EXISTING
+        0x00200000,  # FILE_FLAG_OPEN_REPARSE_POINT
+        None,
+    )
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY)
+    except (OSError, ValueError):
+        kernel.CloseHandle(handle)
+        raise
+    try:
+        opened = os.fstat(descriptor)
+        _need(
+            stat.S_ISREG(opened.st_mode)
+            and opened.st_nlink == 1
+            and not (getattr(opened, "st_file_attributes", 0) & 0x400)
+            and opened.st_ino > 0
+            and (opened.st_dev, opened.st_ino) == (expected.st_dev, expected.st_ino),
+            "writer-lock-opened-file-identity-differs",
+        )
+        with open(descriptor, "rb", closefd=False) as stream:
+            yield stream
+    finally:
+        os.close(descriptor)
+
+
+def _read_lock(path):
+    with _open_read_lock(path) as stream:
+        contents = stream.read(MAX_RECORD_BYTES + 1)
+    _need(0 < len(contents) <= MAX_RECORD_BYTES, "writer-lock-record-size-invalid")
     return contents
 
 
@@ -388,12 +449,14 @@ def recover_writer_lock(run, expected_sha256):
     if previous is not None:
         return previous
     try:
-        raw = _read_file(lock)
-    except FileNotFoundError:
+        raw = _read_lock(lock)
+    except (OSError, LedgerError) as error:
         previous = archived("already-recovered")
         if previous is not None:
             return previous
-        raise LedgerError("writer-lock-missing") from None
+        if isinstance(error, FileNotFoundError):
+            raise LedgerError("writer-lock-missing") from None
+        raise
     if digest(raw) != expected_sha256:
         previous = archived("already-recovered")
         if previous is not None:
@@ -417,7 +480,7 @@ def recover_writer_lock(run, expected_sha256):
     # this SHA targets the same archive, so a delayed contender cannot move a
     # subsequent generation even if it inspected the old lock before a winner.
     try:
-        _need(_read_file(lock) == raw, "writer-lock-sha256-differs")
+        _need(_read_lock(lock) == raw, "writer-lock-sha256-differs")
         os.rename(lock, retired)
     except (OSError, LedgerError):
         previous = archived("already-recovered")

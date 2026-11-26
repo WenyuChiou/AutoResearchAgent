@@ -245,6 +245,17 @@ class WindowsWriterLockRecoveryTests(unittest.TestCase):
         self.assertEqual(code, 0, replay)
         self.assertEqual(replay["status"], "already-recovered")
 
+    def test_open_recovery_reader_does_not_block_offline_archive(self):
+        raw = self.interrupt_release()
+        pin = digest(raw)
+        with writer_lock._open_read_lock(self.lock) as reader:
+            code, outcome = self.recover_cli(pin)
+            self.assertEqual(code, 0, outcome)
+            self.assertEqual(outcome["status"], "recovered")
+            self.assertEqual(reader.read(), raw)
+        self.assertFalse(self.lock.exists())
+        self.assertEqual((self.audit / (pin + ".lock")).read_bytes(), raw)
+
     def assert_same_recovery(self, replies, pin):
         statuses = {reply["status"] for _, reply in replies}
         self.assertIn("recovered", statuses, replies)
