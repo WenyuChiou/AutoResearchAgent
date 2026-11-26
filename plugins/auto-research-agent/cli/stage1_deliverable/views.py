@@ -281,6 +281,10 @@ def review_lines(records, details=None, *, claim_details=True):
         if details is not None:
             lines.extend(historical)
     lines.extend(["## Evidence and limitations", ""])
+    history = {
+        row["payload"]["event_id"]: row["payload"]
+        for row in records.get("core_claim_history", [])
+    }
     for claim in records["claims"]:
         if claim_details:
             from stage1_ledger.claim_structure import presentation
@@ -298,10 +302,6 @@ def review_lines(records, details=None, *, claim_details=True):
             )
             if display["split_hint"]:
                 lines.append(display["split_hint"])
-            history = {
-                row["payload"]["event_id"]: row["payload"]
-                for row in records.get("core_claim_history", [])
-            }
             for basis_id in display["basis_claim_ids"]:
                 basis = history[basis_id]
                 lines.extend(

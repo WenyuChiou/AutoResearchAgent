@@ -134,6 +134,7 @@ class ClaimStructureTests(unittest.TestCase):
         for text in (
             COMPOUND,
             "Accuracy increased. Latency decreased. Cost decreased.",
+            "Accuracy rose by 5%. Latency fell by 10%. Cost fell by 3%.",
             "Accuracy increases and cost decreases.",
             "准确率提高；延迟降低；成本减少。",
         ):
@@ -197,6 +198,44 @@ class ClaimStructureTests(unittest.TestCase):
                 with self.assertRaises(LedgerError):
                     self.ledger.claim(**self.request("Accuracy increased.", **extra))
                 self.assertEqual(self.ledger.events(), before)
+
+    def test_missing_or_changed_basis_bytes_rejected_before_append(self):
+        basis = self.ledger.claim(
+            **self.request(
+                "Accuracy increased.", claim_type="source_statement", basis_claim_ids=[]
+            )
+        )
+        source = self.ledger.start_source_import(
+            work_id=self.work,
+            version_id=self.version,
+            source_uri="https://example.invalid/c1-c2-second",
+            actor="fixture-agent",
+            reason="Separate valid fixture source",
+        )
+        second = self.ledger.save_bytes((TEXT + " Extra.").encode(), producer=source)
+        request = self.request(
+            "Accuracy increased.",
+            claim_type="project_interpretation",
+            basis_claim_ids=[basis],
+            source_ref=second,
+        )
+        path = self.ledger.root / self.ref["path"]
+        original = path.read_bytes()
+        for mode in ("missing", "changed"):
+            with self.subTest(mode=mode):
+                before = self.ledger.events()
+                if mode == "missing":
+                    path.unlink()
+                else:
+                    path.write_bytes(b"changed saved basis")
+                try:
+                    with self.assertRaises(LedgerError):
+                        Ledger(self.ledger.root).claim(**request)
+                    self.assertEqual(self.ledger.events(), before)
+                finally:
+                    path.write_bytes(original)
+        self.ledger.claim(**request)
+        self.assertTrue(validate_run(self.ledger.root)["valid"])
 
     def test_other_work_or_version_basis_rejected(self):
         basis = self.ledger.claim(
@@ -320,6 +359,52 @@ class ClaimStructureTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(json.loads(result.stdout)["valid"])
+
+    def test_public_cli_explicit_null_is_not_legacy_omission(self):
+        request = Path(self.tmp.name) / "invalid-claim.json"
+        for extra in (
+            {"claim_type": None},
+            {"basis_claim_ids": None},
+            {"claim_type": None, "basis_claim_ids": None},
+        ):
+            with self.subTest(extra=extra):
+                before = {
+                    p.relative_to(self.ledger.root).as_posix(): p.read_bytes()
+                    for p in self.ledger.root.rglob("*")
+                    if p.is_file()
+                }
+                request.write_text(
+                    json.dumps(self.request("Accuracy increased.", **extra)),
+                    encoding="utf8",
+                )
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "stage1_ledger",
+                        "--run",
+                        str(self.ledger.root),
+                        "claim",
+                        "--request",
+                        str(request),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf8",
+                )
+                self.assertEqual(
+                    completed.returncode, 1, completed.stdout + completed.stderr
+                )
+                self.assertEqual(
+                    json.loads(completed.stdout),
+                    {"error": "claim-type-or-basis-invalid", "operation": "claim"},
+                )
+                after = {
+                    p.relative_to(self.ledger.root).as_posix(): p.read_bytes()
+                    for p in self.ledger.root.rglob("*")
+                    if p.is_file()
+                }
+                self.assertEqual(after, before)
 
     def test_normal_producer_package_word_markdown_and_new_process_validation(self):
         from test_project_stage1_records import saved_stage1_case

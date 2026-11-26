@@ -20,6 +20,8 @@ from .journal import (
 from .semantics import claim_check, completion_count, query_fields
 from .readiness import coverage_text
 
+_UNSET_CLAIM_FIELD = object()
+
 
 class Ledger(Journal):
     def read_ref(self, ref):
@@ -422,8 +424,8 @@ class Ledger(Journal):
         source_ref,
         verifier,
         assessment=None,
-        claim_type=None,
-        basis_claim_ids=None,
+        claim_type=_UNSET_CLAIM_FIELD,
+        basis_claim_ids=_UNSET_CLAIM_FIELD,
     ):
         candidate = self.candidates().get(work_id)
         if not candidate or version_id not in candidate["version_ids"]:
@@ -441,7 +443,10 @@ class Ledger(Journal):
         )
         if assessment is not None:
             value["assessment"] = assessment
-        if claim_type is not None or basis_claim_ids is not None:
+        if (
+            claim_type is not _UNSET_CLAIM_FIELD
+            or basis_claim_ids is not _UNSET_CLAIM_FIELD
+        ):
             value.update(claim_type=claim_type, basis_claim_ids=basis_claim_ids)
         from .claim_structure import check_structure
 
@@ -465,6 +470,14 @@ class Ledger(Journal):
         claim_binding(
             value, self.candidates(), imports | sources.starts, sources.finishes
         )
+        # A saved event alone cannot establish that its original evidence is
+        # still available. Recheck each actual basis before any claim append.
+        for event_id in value.get("basis_claim_ids", []):
+            basis = self.event(event_id)
+            claim_check(basis, self.read_ref)
+            claim_binding(
+                basis, self.candidates(), imports | sources.starts, sources.finishes
+            )
         return self.append(value)["event_id"]
 
     @mutation

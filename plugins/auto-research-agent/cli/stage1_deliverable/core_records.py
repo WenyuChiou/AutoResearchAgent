@@ -43,6 +43,7 @@ def validate_extension(records):
     if type(history) is not list or type(records["core_artifacts"]) is not list:
         raise DeliverableError("Core claim history and artifacts require lists")
     by_id, previous_sequence = {}, 0
+    prior_claims = {}
     references = {}
     for row in history:
         _keys(
@@ -60,7 +61,7 @@ def validate_extension(records):
         check_payload(event)
         from stage1_ledger.claim_structure import check_structure
 
-        check_structure(event, {key: item["payload"] for key, item in by_id.items()})
+        check_structure(event, prior_claims)
         unsigned = {k: v for k, v in row.items() if k != "event_sha256"}
         if (
             row["schema_version"] != "1.0.0"
@@ -74,6 +75,7 @@ def validate_extension(records):
             raise DeliverableError("Core claim history identity or bytes differ")
         previous_sequence = row["sequence"]
         by_id[event["event_id"]] = row
+        prior_claims[event["event_id"]] = event
         references[canonical(event["source_ref"])] = event["source_ref"]
     observed = {}
     for row in records["core_artifacts"]:

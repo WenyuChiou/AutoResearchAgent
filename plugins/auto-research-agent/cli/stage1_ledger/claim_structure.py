@@ -58,7 +58,7 @@ def split_hint(text):
     """
     clauses = [
         x
-        for x in re.split(r"[;；。！？!?]|(?<=[a-zA-Z])\.\s+(?=[A-Z])|\n+", text)
+        for x in re.split(r"[;；。！？!?]|(?<=[\w%])\.\s+(?=[A-Z])|\n+", text)
         if x.strip()
     ]
     coordinated = re.search(
