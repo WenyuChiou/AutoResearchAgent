@@ -290,7 +290,7 @@ class CurrentConnectionTests(unittest.TestCase):
                                 revision=changed["revision"],
                             )
                             status, response = request(
-                                origin, route + "/stage2/activate", body=action
+                                origin, route + "/stage2/actions", body=action
                             )
                             self.assertEqual(status, 409, response)
                             self.assertEqual(
