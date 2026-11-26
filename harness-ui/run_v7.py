@@ -155,6 +155,8 @@ def main(argv=None):
     parser.add_argument('--native-stage1-config-sha256')
     parser.add_argument('--stage2-controller-profile', type=Path)
     parser.add_argument('--stage2-controller-profile-sha256')
+    parser.add_argument('--stage3-planning-profile', type=Path)
+    parser.add_argument('--stage3-planning-profile-sha256')
     for stem in ('stage2-direct-import', 'selection', 'stage3-planning', 'stage2-reading', 'stage2-controller'):
         parser.add_argument('--' + stem + '-config', type=Path)
         parser.add_argument('--' + stem + '-sha256')

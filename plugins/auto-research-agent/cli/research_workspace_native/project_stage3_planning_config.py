@@ -8,9 +8,11 @@ from copy import deepcopy
 import hashlib
 import math
 from pathlib import Path
+import re
 import secrets
 import threading
 
+from stage1_deliverable.common import safe_path as _relative_path
 from stage3_plan.contracts import Stage3Error, digest
 from stage3_plan.jobs import PlanningJobs
 from stage3_plan.native import NativePlanner
@@ -30,6 +32,13 @@ FIELDS = {
     "recovery_pins",
 }
 NATIVE_FIELDS = {"codex", "codex_home", "capture_dir", "timeout_seconds"}
+PROFILE_FIELDS = (FIELDS - {"project_ref", "project_id"}) | {
+    "kind",
+    "schema_version",
+    "journal_path",
+    "project_parent",
+    "max_projects",
+}
 
 
 def _path(value, *, private=False):
@@ -40,6 +49,43 @@ def _path(value, *, private=False):
 
 def _overlaps(left, right):
     return left == right or left.is_relative_to(right) or right.is_relative_to(left)
+
+
+def _validated_settings(row, outputs):
+    closed(row["configuration"], {"model", "reasoning"}, "configuration")
+    for value in row["configuration"].values():
+        text(value, "configuration value")
+    native = row["native"]
+    closed(native, NATIVE_FIELDS, "native planning configuration")
+    codex = _path(native["codex"])
+    home = _path(native["codex_home"])
+    if not codex.is_file() or not home.is_dir():
+        raise Stage3Error("stage3-planning-configuration-native-path-missing")
+    timeout = native["timeout_seconds"]
+    if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
+        raise Stage3Error("stage3-planning-configuration-deadline")
+    capture = _path(native["capture_dir"], private=True)
+    for path in (
+        _path(row["jobs_root"], private=True),
+        capture,
+        _path(str(capture.with_name(capture.name + "-direction")), private=True),
+    ):
+        if any(_overlaps(path, existing) for existing in outputs):
+            raise Stage3Error("stage3-planning-configuration-output-overlap")
+        outputs.append(path)
+    pins = row["recovery_pins"]
+    if type(pins) is not list or len(pins) > 256:
+        raise Stage3Error("stage3-planning-configuration-recovery-count")
+    identities = set()
+    for pin in pins:
+        closed(pin, {"key", "request_sha256", "plan_manifest_sha256"}, "recovery pin")
+        text(pin["key"], "recovery key")
+        sha256(pin["request_sha256"])
+        sha256(pin["plan_manifest_sha256"])
+        identity = (pin["key"], pin["request_sha256"])
+        if identity in identities:
+            raise Stage3Error("stage3-planning-configuration-duplicate-recovery")
+        identities.add(identity)
 
 
 def _validated(intake, credential, configuration):
@@ -70,63 +116,75 @@ def _validated(intake, credential, configuration):
             raise Stage3Error("stage3-planning-configuration-project-differs")
         refs.add(ref)
         ids.add(project_id)
-        closed(row["configuration"], {"model", "reasoning"}, "configuration")
-        for value in row["configuration"].values():
-            text(value, "configuration value")
-        native = row["native"]
-        closed(native, NATIVE_FIELDS, "native planning configuration")
-        codex = _path(native["codex"])
-        home = _path(native["codex_home"])
-        if not codex.is_file() or not home.is_dir():
-            raise Stage3Error("stage3-planning-configuration-native-path-missing")
-        timeout = native["timeout_seconds"]
-        if (
-            type(timeout) not in (int, float)
-            or not math.isfinite(timeout)
-            or timeout <= 0
-        ):
-            raise Stage3Error("stage3-planning-configuration-deadline")
-        for path in (
-            _path(row["jobs_root"], private=True),
-            _path(native["capture_dir"], private=True),
-            _path(
-                str(
-                    Path(native["capture_dir"]).with_name(
-                        Path(native["capture_dir"]).name + "-direction"
-                    )
-                ),
-                private=True,
-            ),
-        ):
-            if any(_overlaps(path, existing) for existing in outputs):
-                raise Stage3Error("stage3-planning-configuration-output-overlap")
-            outputs.append(path)
-        pins = row["recovery_pins"]
-        if type(pins) is not list or len(pins) > 256:
-            raise Stage3Error("stage3-planning-configuration-recovery-count")
-        identities = set()
-        for pin in pins:
-            closed(
-                pin, {"key", "request_sha256", "plan_manifest_sha256"}, "recovery pin"
-            )
-            text(pin["key"], "recovery key")
-            sha256(pin["request_sha256"])
-            sha256(pin["plan_manifest_sha256"])
-            identity = (pin["key"], pin["request_sha256"])
-            if identity in identities:
-                raise Stage3Error("stage3-planning-configuration-duplicate-recovery")
-            identities.add(identity)
+        _validated_settings(row, outputs)
     return deepcopy(configuration)
 
 
-def load_stage3_planning_configuration(intake, credential, path, expected_sha256):
-    """Read and validate all settings before opening any journal or listener."""
+def _pinned(path, expected_sha256):
     path = _path(str(path))
     sha256(expected_sha256)
     raw = read_bytes(path)
     if hashlib.sha256(raw).hexdigest() != expected_sha256:
         raise Stage3Error("stage3-planning-configuration-hash-differs")
-    return _validated(intake, credential, decode_json(raw, label="planning config"))
+    return decode_json(raw, label="planning configuration")
+
+
+def load_stage3_planning_configuration(intake, credential, path, expected_sha256):
+    """Read and validate all settings before opening any journal or listener."""
+    return _validated(intake, credential, _pinned(path, expected_sha256))
+
+
+class Stage3PlanningProfile:
+    """Pin a trusted row template. The Host supplies project identity."""
+
+    def __init__(self, path, expected_sha256):
+        self.path, self.sha256 = path, expected_sha256
+        value, parent = self._profile()
+        self.journal_path = _path(value["journal_path"], private=True)
+        self.max_projects = value["max_projects"]
+        _validated_settings(self._row(value, parent), [self.journal_path])
+
+    def _profile(self):
+        value = _pinned(self.path, self.sha256)
+        closed(value, PROFILE_FIELDS, "Stage3 planning profile")
+        if (
+            value["kind"] != "ProjectStage3PlanningProfile"
+            or value["schema_version"] != "1.0.0"
+            or type(value["max_projects"]) is not int
+            or not 1 <= value["max_projects"] <= 32
+        ):
+            raise Stage3Error("stage3-planning-profile-invalid")
+        return value, _path(value["project_parent"], private=True)
+
+    @staticmethod
+    def _row(value, root):
+        native = deepcopy(value["native"])
+        closed(native, NATIVE_FIELDS, "native planning configuration")
+        native["capture_dir"] = str(_relative_path(root, native["capture_dir"]))
+        return {
+            "jobs_root": str(_relative_path(root, value["jobs_root"])),
+            "configuration": deepcopy(value["configuration"]),
+            "native": native,
+            "recovery_pins": deepcopy(value["recovery_pins"]),
+        }
+
+    def resolve(self, ref, project_id):
+        if type(ref) is not str or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", ref) is None:
+            raise Stage3Error("stage3-planning-profile-project-invalid")
+        text(project_id, "project id")
+        value, parent = self._profile()
+        row = self._row(value, _relative_path(parent, ref))
+        _validated_settings(row, [_path(value["journal_path"], private=True)])
+        return dict(row, project_ref=ref, project_id=project_id)
+
+
+def validate_profile_journal(profile, configuration):
+    if (
+        profile is not None
+        and configuration is not None
+        and profile.journal_path != _path(configuration["journal_path"], private=True)
+    ):
+        raise Stage3Error("stage3-planning-profile-journal-differs")
 
 
 class Stage3PlanningHostResources:
