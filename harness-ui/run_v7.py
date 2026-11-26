@@ -97,7 +97,8 @@ def install_renderer(host, assets, meta, project_handler, atlas_handler):
 
 
 def configure_host_lifecycle(host, services):
-    if services.get('planning_resources') is not None or services.get('stage2_controllers'):
+    if (services.get('planning_resources') is not None or services.get('stage2_controllers')
+            or services.get('stage2_controller_profile') is not None):
         # Match ProjectHost's supported CLI: wait for all request handlers.
         host.daemon_threads = False
         host.block_on_close = True
@@ -152,6 +153,8 @@ def main(argv=None):
                         help="Explicit project resource envelope JSON, not research authorization or acceptance")
     parser.add_argument('--native-stage1-config', type=Path)
     parser.add_argument('--native-stage1-config-sha256')
+    parser.add_argument('--stage2-controller-profile', type=Path)
+    parser.add_argument('--stage2-controller-profile-sha256')
     for stem in ('stage2-direct-import', 'selection', 'stage3-planning', 'stage2-reading', 'stage2-controller'):
         parser.add_argument('--' + stem + '-config', type=Path)
         parser.add_argument('--' + stem + '-sha256')
@@ -188,7 +191,7 @@ def main(argv=None):
     primary_failure = None
     try:
         configure_services(services, args)
-        if services['stage2_controllers']:
+        if services['stage2_controllers'] or services['stage2_controller_profile'] is not None:
             meta['stage2'] = receipt['stage2'] = 'controller configured; explicit Wiki request required'
         if services['stage3_planning'] is not None:
             meta['stages3_to6'] = 'Stage3 planning configured; research execution unconnected'
@@ -214,7 +217,7 @@ def main(argv=None):
                     on_completed=host.v7_native_results.collect)
             install_renderer(host, assets, meta, ProjectHandler, AtlasHandler)
             from wiki_stage2_continuation import install_stage2_continuation
-            install_stage2_continuation(host)
+            install_stage2_continuation(host, services['stage2_controller_profile'])
             receipt["url"] = host.expected_origin + "/"
         receipt["status"] = "prepared-only" if args.prepare_only else "local-V7-Wiki-ready"
         print(json.dumps(receipt, sort_keys=True), flush=True)
