@@ -1,5 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'renderer/src/runtime.js'),'utf8');
+const bridge=fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8');
+const validProject=bridge.match(/function v93ValidProject\(p\)\{[^\n]+/)[0];
 const start=source.indexOf('// Shared Wiki shell presentation.'),end=source.indexOf('// End shared Wiki shell.',start);
 assert(start>=0&&end>start,'ordinary Wiki needs the shared shell renderer');
 const ref='project-shell-fixture',project={project_ref:ref,input_version:1,revision:4,brief_sha256:'a'.repeat(64)};
@@ -7,12 +9,12 @@ const rt={ref,list:[project],overview:{project},meta:{},loading:false,busy:false
 const escape=v=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const app={lang:'zh',stage:1,page:'workspace'};
 const context={rt,translated:(a,v)=>v[{zh:0,en:1,tw:2}[a.lang]],rx:v=>escape(v==null?'Unknown':typeof v==='object'?JSON.stringify(v):v),fetch(){throw Error('presentation must never request or dispatch');}};
-vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+vm.createContext(context);vm.runInContext(validProject,context);vm.runInContext(source.slice(start,end),context);
 const view=()=>context.wikiShellState(app),html=()=>context.wikiShellMarkup(app);
 assert.equal(view().origin,'unknown','a project is not evidence of real execution');
 assert(html().includes('来历未标注'));assert(!html().includes('真实运行'));
 rt.loading=true;assert.equal(view().state,'loading');rt.loading=false;
-rt.error='fixed-503';assert.equal(view().state,'error');assert(!html().includes('fixed-503'),'raw failure codes stay in the original error/details');rt.error='';
+rt.error='fixed-503';assert.equal(view().state,'error');assert(html().includes('fixed-503'),'the raw failure remains available in technical details');assert(!view().next.includes('刷新检查'),'no absent refresh control');app.el={querySelector:s=>s.includes('refresh')?{}:null};assert(view().next.includes('刷新检查'));app.el=undefined;rt.error='';
 rt.pending={ref,path:'/api/projects/'+ref+'/compile',body:{key:'original-key'}};
 rt.busy=true;assert.equal(view().state,'busy','a live submission waits rather than directing users to a disabled recovery control');rt.busy=false;
 assert.equal(view().state,'pending');assert.equal(rt.pending.body.key,'original-key');
@@ -27,7 +29,6 @@ rt.overview={project:{...project,project_ref:'foreign'}};assert.equal(view().bou
 rt.overview={project:{...project,input_version:'fresh-1',revision:0}};assert.equal(view().bound,true,'the existing Stage3 string version is a readable identity');assert.equal(view().raw.input_version,'fresh-1');assert.equal(view().raw.revision,0);
 for(const invalid of ['', 'x'.repeat(129),-1,1.5,null,true]){rt.overview.project.input_version=invalid;assert.equal(view().bound,false,'unsupported input versions stay unknown');}
 rt.overview={project};
-const bridge=fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8');
 const stage3=bridge.slice(bridge.indexOf('return `${canonicalTop()}<section class="hs-panel">'));
 assert(stage3.startsWith('return `${canonicalTop()}<section class="hs-panel">')&&stage3.includes('<h1>'),'test the actual enabled Stage3 title shape');
 let inserted='',position='';const title={insertAdjacentHTML(where,text){position=where;inserted=text;}};
@@ -48,9 +49,10 @@ assert(!view().next.includes('查询上次结果'),'archive must not advertise a
 rt.pending.ref='project-other';rt.pending.path='/api/projects/project-other/compile';
 assert.equal(JSON.stringify(rt.pending),pendingBytes,'presentation never alters the original pending intent');rt.pending=null;
 rt.savedRun.binding.fixture='false';assert.equal(view().origin,'unknown','typed provenance mismatch fails closed');
-rt.ref=null;rt.savedRun=null;rt.list=[];rt.overview=null;assert.equal(view().state,'empty');
+rt.ref=null;rt.savedRun=null;rt.list=[];rt.overview=null;assert.equal(view().state,'empty');app.stage=2;assert(!view().next.includes('上方'),'Stage2 has no topic field');assert(view().next.includes('Stage1'));app.el={querySelector:s=>s==='[data-live-topic]'?{}:null};assert(view().next.includes('上方'));app.el=undefined;app.stage=1;
 for(const [lang,word] of [['zh','现在'],['en','Now'],['tw','現在']]){app.lang=lang;assert(html().includes(word),'shell uses active locale');}
 app.page='history';assert.equal(html(),'','stage shell must not relabel unrelated pages');
 app.page='workspace';rt.error='<script>';assert(!html().includes('<script>'),'shell markup must not render error HTML');
 assert(!source.slice(start,end).includes('livePost('),'no new business action in shared shell');
+context.v93ValidProject=undefined;assert.equal(html(),'','ordinary V7 must not mount V9-only CSS components');
 console.log('PASS Wiki shell: binding, provenance, typed versions, empty/loading/error/pending, locale, escaping and no dispatch');
