@@ -334,7 +334,7 @@ function liveModelOutputs(){const actions=rt.modelHistory?.actions||[];return `<
 function wikiShellState(app){
  const say=(zh,en,tw=zh)=>translated(app,[zh,en,tw]);
  const p=rt.overview?.project;
- const bound=!!(p&&p.project_ref===rt.ref&&Number.isSafeInteger(p.input_version)&&p.input_version>0&&Number.isSafeInteger(p.revision)&&p.revision>0&&typeof p.brief_sha256==='string'&&/^[a-f0-9]{64}$/.test(p.brief_sha256));
+ const bound=!!(p&&p.project_ref===rt.ref&&((typeof p.input_version==='string'&&p.input_version.length>0&&p.input_version.length<=128)||(Number.isSafeInteger(p.input_version)&&p.input_version>=0))&&Number.isSafeInteger(p.revision)&&p.revision>=0&&typeof p.brief_sha256==='string'&&/^[a-f0-9]{64}$/.test(p.brief_sha256));
  const run=rt.savedRun,entry=run?.entry,b=run?.binding;
  const saved=!!(entry&&b&&typeof entry.ref==='string'&&typeof entry.project_id==='string'&&entry.project_id&&entry.project_ref===rt.ref&&rt.ref==='view:'+entry.ref&&entry.ref===b.view_ref&&entry.project_id===b.project_id&&typeof entry.fixture==='boolean'&&entry.fixture===b.fixture);
  const origin=saved?(entry.fixture?'synthetic':'archive'):'unknown';
@@ -375,7 +375,7 @@ function wikiShellMount(app){
  if(previous&&previous.wikiShellMarkup===markup)return;
  previous?.remove();
  if(!markup)return;
- const heading=content.querySelector('.hs-heading,.n9-stage-context');
+ const heading=content.querySelector('.hs-heading,.n9-stage-context,h1');
  if(heading)heading.insertAdjacentHTML('afterend',markup);else content.insertAdjacentHTML('afterbegin',markup);
  const mounted=content.querySelector('[data-wiki-shell]');if(mounted)mounted.wikiShellMarkup=markup;
 }

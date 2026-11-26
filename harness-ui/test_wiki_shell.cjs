@@ -24,7 +24,15 @@ assert(view().now.includes('新课题'),'a global create is not a submission of 
 rt.pending={ref,body:{key:'original-key'}};assert(!view().next.includes('查询上次结果'),'do not name a recovery button missing from this page');
 app.el={querySelector:()=>({disabled:false})};assert(view().next.includes('查询上次结果'),'only name a current-project usable recovery control');app.el=undefined;rt.pending=null;
 rt.overview={project:{...project,project_ref:'foreign'}};assert.equal(view().bound,false);assert.equal(view().origin,'unknown');
+rt.overview={project:{...project,input_version:'fresh-1',revision:0}};assert.equal(view().bound,true,'the existing Stage3 string version is a readable identity');assert.equal(view().raw.input_version,'fresh-1');assert.equal(view().raw.revision,0);
+for(const invalid of ['', 'x'.repeat(129),-1,1.5,null,true]){rt.overview.project.input_version=invalid;assert.equal(view().bound,false,'unsupported input versions stay unknown');}
 rt.overview={project};
+const bridge=fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8');
+const stage3=bridge.slice(bridge.indexOf('return `${canonicalTop()}<section class="hs-panel">'));
+assert(stage3.startsWith('return `${canonicalTop()}<section class="hs-panel">')&&stage3.includes('<h1>'),'test the actual enabled Stage3 title shape');
+let inserted='',position='';const title={insertAdjacentHTML(where,text){position=where;inserted=text;}};
+const content={querySelector(selector){if(selector==='[data-wiki-shell]')return null;if(selector.split(',').includes('h1'))return title;return null;},insertAdjacentHTML(where,text){position=where;inserted=text;}};
+app.el={querySelector:()=>content};context.wikiShellMount(app);assert.equal(position,'afterend','Stage3 state follows the real title, never before project selection');assert(inserted.includes('data-wiki-shell'));app.el=undefined;
 const progress={binding:{project_ref:ref,input_version:1,revision:4,brief_sha256:'a'.repeat(64)},next_action:{phase_id:'screening'}};
 rt.overview.stage1={progress};assert(html().includes('文献筛选'));
 progress.binding.input_version='1';assert(!view().next.includes('文献筛选'),'typed input versions cannot borrow progress');progress.binding.input_version=1;
