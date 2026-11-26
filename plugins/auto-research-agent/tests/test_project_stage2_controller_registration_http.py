@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import threading
 import time
+import traceback
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -22,9 +23,14 @@ from research_workspace_native.project_stage_connections import ConnectionStore
 from stage2_common import canonical_hash
 from stage2_live import controller
 from test_project_stage2_current_evidence import authenticate, request, VIEWER
+from test_stage1_current_core_stage123_e2e import (
+    CurrentCorePreparation,
+    CurrentCoreSyntheticAdapter,
+)
 import test_stage2_controller as synthetic
 from wiki_stage2_continuation import install_stage2_continuation
 from wiki_stage23_services import configure_services
+from run_v7 import configure_host_lifecycle
 
 
 POLICY = {"route": "stage2-general-v3/daily_v3", "packet_profile": "scientific-v3"}
@@ -50,11 +56,12 @@ def wiki(case, path, digest):
         views=[],
         port=0,
     ) as host:
+        configure_host_lifecycle(host, services)
         install_stage2_continuation(host, services["stage2_controller_profile"])
         thread = threading.Thread(target=host.serve_forever)
         thread.start()
         try:
-            yield host.expected_origin, stage2
+            yield host.expected_origin, host
         finally:
             host.shutdown()
             thread.join(5)
@@ -77,41 +84,6 @@ def counts(intake, ref):
             "SELECT COUNT(*) FROM intake_events WHERE project=?", (ref,)
         ).fetchone()[0],
     }
-
-
-class AuthoredCandidate(synthetic.SyntheticAdapter):
-    def extract(self, context):
-        result = super().extract(context)
-        packet = result["next_packet"]["packet"]
-        packet["candidates"] = [
-            {
-                "candidate_id": "candidate-1",
-                "version": 1,
-                "parent_version": None,
-                "question": "Can the authored baseline comparison be repeated?",
-                "research_mode": "method-development",
-                "opportunity": "Check repeatability of the authored fixture.",
-                "value": "An engineering fixture comparison.",
-                "approach": "Repeat the saved synthetic baseline.",
-                "requirements": ["Authored baseline fixture"],
-                "limitations": ["Synthetic engineering fixture only"],
-                "evidence_ids": [packet["evidence"][0]["evidence_id"]],
-            }
-        ]
-        return result
-
-    def review(self, context):
-        result = super().review(context)
-        for check in result["review"]["assessment"]["checks"].values():
-            check["evidence_ids"] = [context["packet"]["evidence"][0]["evidence_id"]]
-        return result
-
-    def resolve(self, context):
-        result = super().resolve(context)
-        result["resolution"]["evidence_ids"] = [
-            context["packet"]["evidence"][0]["evidence_id"]
-        ]
-        return result
 
 
 class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
@@ -141,7 +113,7 @@ class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
             )
         )
         spec["confirmed_brief_sha256"] = None
-        deadline = time.time() + 600
+        deadline = time.time() + 1800
         spec_path, prep_path = root / "spec.json", root / "prep.json"
         prep = {
             "kind": "Stage2NativePrerequisiteConfiguration",
@@ -190,11 +162,23 @@ class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
                     "search_calls": 0,
                 },
             )
-            adapter = AuthoredCandidate()
+            adapter = CurrentCoreSyntheticAdapter()
+            preparation = CurrentCorePreparation(
+                SimpleNamespace(root=root, workflow=workflow, spec=value)
+            )
+            preparation.admission_context = prerequisite_handler.admission_context
             try:
-                return controller._run_controller(
-                    workflow, output, delivery, head, value, adapter
-                )
+                with patch.object(
+                    controller, "_ProductionAdapter", return_value=adapter
+                ):
+                    return controller.run_controller(
+                        workflow,
+                        output,
+                        delivery,
+                        head,
+                        value,
+                        prerequisite_handler=preparation,
+                    )
             finally:
                 calls.append(adapter.calls)
 
@@ -207,7 +191,7 @@ class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
             return status, body
 
         with patch.object(driver_module, "run_controller", side_effect=run):
-            with wiki(case, path, digest) as (origin, _):
+            with wiki(case, path, digest) as (origin, host):
                 code, data = request(origin, route + "/stage2")
                 self.assertEqual(code, 200, data)
                 evidence = data["current_evidence"]
@@ -404,11 +388,21 @@ class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
                     origin, "submit", continuation, body=intent
                 )
                 self.assertEqual(status, 202, submitted)
-                for _ in range(60):
+                wait_until = time.monotonic() + 360
+                while time.monotonic() < wait_until:
                     status, result = request(origin, continuation)
                     if status != 200 or result["status"] != "running":
                         break
-                    time.sleep(0.05)
+                    time.sleep(0.2)
+                if status != 200 or result["status"] != "candidate-ready":
+                    for name in ("failure.json", "wiki-outcome.json"):
+                        failure = root / "ctl/project_stage2_driver" / name
+                        if failure.is_file():
+                            print(name, failure.read_text(encoding="utf-8"), flush=True)
+                    try:
+                        host.project_stage2_controllers[ref]
+                    except (OSError, ValueError):
+                        traceback.print_exc()
                 self.assertEqual(status, 200, result)
                 self.assertEqual(result["status"], "candidate-ready", result)
                 self.assertTrue(result["synthetic_test_only"])
@@ -429,6 +423,7 @@ class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
                 self.assertEqual(request(origin, connections, body=body), (200, saved))
         self.assertEqual(counts(case.intake, ref), after_candidate)
         self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0].count("research"), 1)
         print(
             json.dumps(
                 {
