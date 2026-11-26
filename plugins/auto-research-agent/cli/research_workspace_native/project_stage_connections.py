@@ -174,11 +174,26 @@ class ConnectionStore:
                         "idempotency-payload-differs",
                     )
                 return previous
-            _check(
-                expected_revision is None or state["revision"] == expected_revision,
-                "stage-connection-project-stale",
-            )
             relative = "connection-" + digest[:32] + ".json"
+
+            def require_retryable(payload):
+                receipt = decode(payload.encode(), "connection attempt")
+                _check(
+                    receipt["status"] == "failed"
+                    and "failure_phase" not in receipt
+                    and receipt.get("error") == "session-deadline-exceeded"
+                    and receipt["request"]["connection_sha256"] == digest
+                    and any(
+                        event[0] == payload
+                        for event in self.intake.db.execute(
+                            "SELECT payload FROM intake_events WHERE project=? AND kind=?",
+                            (ref, "stage2-record-connection-failed"),
+                        )
+                    )
+                    and not self.intake._path(ref, relative).exists(),
+                    "stage-connection-write-outcome-unobserved",
+                )
+
             # A failed local publication with no output can be attempted on a
             # new journal key. Never erase its failure or retry an unknown write.
             for attempt in range(MAX_ACTIONS + 1):
@@ -192,22 +207,7 @@ class ConnectionStore:
                 ).fetchone()
                 if old is None:
                     break
-                receipt = decode(old[0].encode(), "connection attempt")
-                _check(
-                    receipt["status"] == "failed"
-                    and "failure_phase" not in receipt
-                    and receipt.get("error") == "session-deadline-exceeded"
-                    and receipt["request"]["connection_sha256"] == digest
-                    and any(
-                        event[0] == old[0]
-                        for event in self.intake.db.execute(
-                            "SELECT payload FROM intake_events WHERE project=? AND kind=?",
-                            (ref, "stage2-record-connection-failed"),
-                        )
-                    )
-                    and not self.intake._path(ref, relative).exists(),
-                    "stage-connection-write-outcome-unobserved",
-                )
+                require_retryable(old[0])
             else:
                 raise SessionApiError("stage-connection-recovery-bound-exceeded", 409)
             body = dict(
@@ -220,7 +220,23 @@ class ConnectionStore:
                 connection_sha256=digest,
             )
 
+            def check_project_limit():
+                if maximum_projects is None:
+                    return
+                n = self.intake.db.execute(
+                    """SELECT COUNT(*) FROM intake_projects
+                    WHERE principal=? AND ref<>?
+                    AND CASE WHEN json_valid(state)
+                        THEN json_type(state, '$.stage_connections."stage2-controller"') IS NOT NULL
+                        ELSE 1 END""",
+                    (principal, ref),
+                ).fetchone()[0]
+                _check(n < maximum_projects, "stage2-controller-profile-limit")
+
             def work(current, _, __):
+                # _perform commits the intent before this transaction starts.
+                # Another Host may have filled the last slot in that gap.
+                check_project_limit()
                 path = self.intake._path(ref, relative)
                 if path.exists():
                     _check(_raw(path, digest) == raw, "stage-connection-bytes-differ")
@@ -243,15 +259,19 @@ class ConnectionStore:
                     canonical_hash(self._identity(ref)) == canonical_hash(identity),
                     "stage-connection-project-stale",
                 )
-                if maximum_projects is not None:
-                    n = self.intake.db.execute(
-                        """SELECT COUNT(*) FROM intake_projects
-                        WHERE principal=? AND ref<>?
-                        AND json_type(state, '$.stage_connections."stage2-controller"')
-                            IS NOT NULL""",
-                        (principal, ref),
-                    ).fetchone()[0]
-                    _check(n < maximum_projects, "stage2-controller-profile-limit")
+                if request_key is not None:
+                    _check(
+                        not self.intake._path(ref, relative).exists(),
+                        "stage-connection-write-outcome-unobserved",
+                    )
+                    for (payload,) in self.intake.db.execute(
+                        """SELECT receipt FROM intake_actions
+                        WHERE principal=? AND project=?
+                        AND json_extract(receipt, '$.request.connection_sha256')=?""",
+                        (principal, ref, digest),
+                    ):
+                        require_retryable(payload)
+                check_project_limit()
 
             receipt = self.intake._perform(
                 principal,

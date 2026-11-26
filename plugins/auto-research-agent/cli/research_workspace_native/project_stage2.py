@@ -410,6 +410,29 @@ class ProjectStage2Service:
                 saved[offer["offer_ref"]] = deepcopy(offer)
                 return {"offer": _public(offer)}
 
+            def reserve(_, __, ___):
+                # The original key owns an unresolved attempt. A new key
+                # cannot publish an offer over its unknown journal state.
+                for row in self.intake.db.execute(
+                    """SELECT receipt FROM intake_actions WHERE principal=? AND project=?
+                    AND json_extract(receipt, '$.request.offer_sha256')=?
+                    AND json_extract(receipt, '$.kind')='stage2-register-offer'""",
+                    (principal, project_ref, offer_hash),
+                ):
+                    previous = decode(row[0].encode(), "stage2 offer attempt")
+                    _check(
+                        previous["status"] == "failed"
+                        and "failure_phase" not in previous
+                        and any(
+                            event[0] == row[0]
+                            for event in self.intake.db.execute(
+                                "SELECT payload FROM intake_events WHERE project=? AND kind=?",
+                                (project_ref, "stage2-register-offer-failed"),
+                            )
+                        ),
+                        "stage2-controller-activation-offer-outcome-unobserved",
+                    )
+
             receipt = self.intake._perform(
                 principal,
                 project_ref,
@@ -417,11 +440,12 @@ class ProjectStage2Service:
                 body,
                 work,
                 check_deadline=check_deadline,
+                reserve=reserve if connection_key is not None else None,
             )
             if connection_key is not None:
                 _check(
                     receipt["status"] == "saved",
-                    receipt.get("error")
+                    (receipt.get("error") if receipt["status"] == "failed" else None)
                     or "stage2-controller-activation-offer-outcome-unobserved",
                 )
             return _public(offer)

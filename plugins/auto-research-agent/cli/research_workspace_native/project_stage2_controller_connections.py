@@ -209,8 +209,9 @@ class Stage2ControllerConnections(Mapping):
             principal = self.store.intake._principal(self.store.credential)
             rows = self.store.intake.db.execute(
                 """SELECT ref FROM intake_projects WHERE principal=?
-                AND json_type(state, '$.stage_connections."stage2-controller"')
-                    IS NOT NULL""",
+                AND CASE WHEN json_valid(state)
+                    THEN json_type(state, '$.stage_connections."stage2-controller"') IS NOT NULL
+                    ELSE 0 END""",
                 (principal,),
             ).fetchall()
             return iter(sorted(self.static.keys() | {row[0] for row in rows}))
