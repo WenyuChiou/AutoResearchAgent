@@ -67,6 +67,17 @@ def refusal_shape(kind, body, key, project_ref):
             | {"ledger_state_sha256", "query_ref", "query_sha256", "confirmed"},
             set(),
         ),
+        "stage1-offline-source": (
+            BOUND_FIELDS
+            | {
+                "confirmed",
+                "ledger_state_sha256",
+                "work_ref",
+                "offer_sha256",
+                "offline_config_sha256",
+            },
+            set(),
+        ),
         "stage1-screen": (
             BOUND_FIELDS
             | {"ledger_state_sha256", "work_ref", "decision", "rationale", "confirmed"},
@@ -178,6 +189,18 @@ def refusal_shape(kind, body, key, project_ref):
         if kind == "create":
             return project_ref is None and type(body["topic"]) is str
         identifier(project_ref)
+        if kind == "stage1-offline-source":
+            identifier(body["work_ref"])
+            if body["confirmed"] is not True or not all(
+                type(body[name]) is str
+                and re.fullmatch("[0-9a-f]{64}", body[name]) is not None
+                for name in (
+                    "ledger_state_sha256",
+                    "offer_sha256",
+                    "offline_config_sha256",
+                )
+            ):
+                return False
         return (
             type(body["revision"]) is int
             and body["revision"] >= 0

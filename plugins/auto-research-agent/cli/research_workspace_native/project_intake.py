@@ -287,17 +287,26 @@ class ProjectIntakeService:
                 receipt.update(
                     status="execution-unknown"
                     if work_completed
-                    or kind
-                    in {
-                        "stage1-coverage",
-                        "stage1-claim",
-                        "stage1-agent-pending",
-                        "stage1-agent-analysis",
-                        "stage1-agent-coverage",
-                        "stage1-checkpoint",
-                        "stage1-deliver",
-                        "stage2-select",
-                    }
+                    or (
+                        kind
+                        in {
+                            "stage1-coverage",
+                            "stage1-execute-query",
+                            "stage1-offline-source",
+                            "stage1-claim",
+                            "stage1-agent-pending",
+                            "stage1-agent-analysis",
+                            "stage1-agent-coverage",
+                            "stage1-checkpoint",
+                            "stage1-deliver",
+                            "stage2-select",
+                        }
+                        and not (
+                            kind == "stage1-execute-query"
+                            and isinstance(error, SessionApiError)
+                            and error.code == "stage1-query-execution-unconnected"
+                        )
+                    )
                     else "failed",
                     error=str(error)[:512],
                 )
@@ -308,8 +317,10 @@ class ProjectIntakeService:
                     )
                 elif kind == "stage1-deliver":
                     receipt["failure_phase"] = "publication-outcome-unobserved"
-                elif kind in {
+                elif receipt["status"] == "execution-unknown" and kind in {
                     "stage1-coverage",
+                    "stage1-execute-query",
+                    "stage1-offline-source",
                     "stage1-claim",
                     "stage1-agent-pending",
                     "stage1-agent-analysis",
