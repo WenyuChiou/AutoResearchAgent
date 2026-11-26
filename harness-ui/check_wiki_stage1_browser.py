@@ -146,8 +146,8 @@ def stage1_browser(browser, url, fixture, evidence, design):
     assert located and browser.js("[...document.querySelectorAll('[data-s1-claim]')].some(node=>node.textContent.includes('保存文本第'))")
     assert browser.js("document.querySelectorAll('[data-s1-review=unchecked]').length") == len(claims)
     evidence_links = browser.js("""[...document.querySelectorAll('[data-s1-claim]')].map(row=>row.querySelector('a')?.href || null)""")
-    assert any(not claim["source_id"] for claim in claims)
-    assert all(link is None for claim,link in zip(claims,evidence_links) if not claim["source_id"] or not claim["locator"])
+    assert any(not claim["locator"] for claim in claims), "Expected at least one claim without a saved locator"
+    assert all(link is None for claim,link in zip(claims,evidence_links) if not claim["locator"] or not claim.get("source_id"))
     browser.readbacks.append({"after_click":len(browser.clicks), "evidence_rows":len(claims), "located":len(located),
                              "evidence_links":sum(link is not None for link in evidence_links)})
     assert browser.js("document.documentElement.scrollWidth <= innerWidth")
