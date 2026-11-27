@@ -76,7 +76,8 @@ test('an HTTP error stays distinct from an absent or saved reason', () => {
 test('the saved reason is text and no foreign project reply reaches the pane', async () => {
   const ctx = stage2();
   const untrusted = '<img src=x onerror=alert(1)>';
-  ctx.input = {result:{status:'blocked',reason:untrusted},basis:['project-fixture',1,'a'.repeat(64)],error:''};
+  // The reader basis also binds project id, revision and epoch (undefined in this fixture).
+  ctx.input = {result:{status:'blocked',reason:untrusted},basis:['project-fixture',1,'a'.repeat(64),undefined,undefined,undefined],error:''};
   const displayed = vm.runInContext('wikiStage2Panel(input)',ctx);
   assert.ok(displayed.includes('<code>&lt;img src=x onerror=alert(1)></code>'));
   assert.doesNotMatch(displayed,/<img /);

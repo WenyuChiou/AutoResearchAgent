@@ -241,6 +241,26 @@ function v9ConnectionPanel(app) {
     ${code || offerRef ? `<details><summary>${rl('技术细节','Technical details')}</summary>${code ? '<code>'+rx(code)+'</code>' : ''}${offerRef ? '<p>'+rl('启用提议编号','Activation offer ID')+' · <code>'+rx(offerRef)+'</code></p>' : ''}</details>` : ''}
     ${request ? '<hr><h3>'+rl('生成候选','Generate candidates')+'</h3>'+request : ''}</section>`;
 }
+// Read-only description of the same connection state for the Wiki V1 page. It uses the
+// panel's discovery path (one GET read) and returns plain values; it renders nothing.
+function v9ConnectionModel(app) {
+  if (app !== apps[0] || app.page !== 'workspace' || canonicalReadonly() || !rt.ref) return null;
+  const stage = v9ConnectionStages[app.stage], basis = v9ConnectionBasis(rt.overview?.project);
+  if (!stage) return null;
+  if (!basis || rt.loading) return {phase: 'waiting', stage, basis: null};
+  if (!v9ConnectionCurrent(v9ConnectionView)) {
+    const next = {epoch: rt.epoch, basis, stage, reading: false, row: null, error: ''};
+    v9ConnectionView = next;
+    queueMicrotask(() => v9ConnectionRead(next));
+  }
+  const view = v9ConnectionView, row = view.row, unknown = v9ConnectionPending();
+  const action = v9ConnectionAction(view), code = view.error || row?.reason;
+  return {phase: 'ready', stage, basis, view, row, code, unknown, action, http: view.http,
+    token: JSON.stringify([stage, view.epoch, ...Object.values(basis)]),
+    reading: !!view.reading, writing: v9ConnectionWriting, canWrite: v9ConnectionCanWrite(),
+    noLocks: typeof globalThis.navigator?.locks?.request !== 'function',
+    connected: v9ConnectionConnected(stage), offerRef: row?.proof?.offer.offer_ref || null};
+}
 document.addEventListener('click', async event => {
   const button = event.target.closest?.('[data-v9-connection]'), view = v9ConnectionView;
   if (!button || button.disabled || !v9ConnectionCurrent(view) || !apps[0].el.contains(button) ||
