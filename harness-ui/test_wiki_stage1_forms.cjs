@@ -60,3 +60,22 @@ test('the retired list covers every selector named in the review', () => {
  for (const name of ['data-v7-reading-review', 'data-v7-coverage-form', 'data-real-plan', 'data-v7-screen', 'data-v7-screen-note', 'data-v7-reading-consent',
   'data-v7-claim-text', 'data-v7-claim-relation', 'data-v7-claim-level', 'data-v7-claim-section']) assert.ok(ctx.names.includes(name), name);
 });
+
+// Re-review P2: removing the call from the after-render hook must fail a test, so run the real hook.
+test('the Stage 1 after-render hook retires the old form copies on every paint', () => {
+ const start = source.indexOf('const wsPrevAfter = v7AfterRender;');
+ const end = source.indexOf('\n};', start) + 3;
+ assert.ok(start >= 0 && end > start);
+ const seen = [];
+ const el = {querySelector: sel => sel === '[data-wiki-s1]' ? {} : null, querySelectorAll: () => []};
+ const ctx = {v7AfterRender: () => {}, wsOpsActive: () => true, wsProgLoad: () => {}, wsHasConsent: () => false,
+  wsRetireOldForms: root => seen.push(root)};
+ vm.createContext(ctx);
+ vm.runInContext(source.slice(start, end) + ';this.after = v7AfterRender;', ctx);
+ ctx.after({el});
+ assert.deepEqual(seen, [el], 'the hook must call wsRetireOldForms(app.el)');
+ seen.length = 0;
+ ctx.wsOpsActive = () => false;
+ ctx.after({el});
+ assert.deepEqual(seen, [], 'pages without the new Stage 1 panel are left alone');
+});
