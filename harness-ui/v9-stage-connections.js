@@ -264,7 +264,8 @@ function v9ConnectionModel(app) {
     token: JSON.stringify([stage, view.epoch, ...Object.values(basis)]),
     reading: !!view.reading, writing: v9ConnectionWriting, canWrite: v9ConnectionCanWrite(),
     noLocks: typeof globalThis.navigator?.locks?.request !== 'function',
-    connected: v9ConnectionConnected(stage), offerRef: row?.proof?.offer.offer_ref || null};
+    connected: v9ConnectionConnected(stage), offerRef: row?.proof?.offer.offer_ref || null,
+    reconnectError: v9ReconnectErrors.get(basis.project_ref) || null};
 }
 document.addEventListener('click', async event => {
   const button = event.target.closest?.('[data-v9-connection]'), view = v9ConnectionView;
@@ -288,14 +289,16 @@ document.addEventListener('click', async event => {
       if (action==='reconnect') await v9ReconnectStage(view); else await v9RegisterStage(view,action);
     });
   } catch (error) {
-    if (v9ConnectionCurrent(view)) {view.row=null;view.error=error.message||'project-lock-failed';view.http=error.status;}
+    // A failed reconnect keeps the row and its button; the reason is kept per project (v9ReconnectErrors) so the
+    // block can say the last attempt failed instead of losing the button (review P2-2).
+    if (v9ConnectionCurrent(view) && !(action==='reconnect' && v9ReconnectErrors.has(basis.project_ref))) {view.row=null;view.error=error.message||'project-lock-failed';view.http=error.status;}
   } finally {v9ConnectionWriting=false;livePaint();}
 });
 
 // Re-attach a saved Stage 3 registration. The service answers with the record it already saved (same
 // connection_id and the original receipt_id) and writes no new action, so nothing is retried automatically and
 // no unknown-outcome marker is kept: a lost answer is settled by reading the state again. Every click uses a new key.
-const v9UsedReconnectKeys=new Set();
+const v9UsedReconnectKeys=new Set(), v9ReconnectErrors=new Map();
 function v9ReconnectKey(){
   let key;
   do key=crypto.randomUUID(); while (v9UsedReconnectKeys.has(key));
@@ -320,7 +323,12 @@ async function v9ReconnectStage(view) {
     if (read.status!=='connected' || read.connection_id!==result.connection_id || read.receipt_id!==result.receipt_id)
       throw Error('stage-connection-receipt-unverified');
     if (!v9ConnectionCurrent(view)) return;
+    v9ReconnectErrors.delete(ref);
     await liveRefresh(ref,{list:true});
+  } catch (error) {
+    if (ref!==rt.ref) throw error; // the topic changed meanwhile; nothing is shown for it
+    v9ReconnectErrors.set(ref,{code:error.message||'stage-connection-receipt-unverified',http:error.status??null});
+    throw error;
   } finally {rt.busy=false;}
 }
 async function v9RegisterStage(view, action) {

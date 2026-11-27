@@ -439,8 +439,8 @@ v1PageStatus.s3 = app => {
  // A saved registration that lost its lease (Host force-stopped) is not "no direction chosen": say so and point
  // to 重新接通 in the connection block below.
  const conn = typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
- if (conn && !conn.unknown && conn.action === 'reconnect') return {tone:'wait', now:['Stage 3 未接通。', '规划登记已保存；如果上次是强行关闭，这次启动后会先显示未接通。'],
-  next:'点下面的「重新接通」恢复，不会重复执行任何步骤，也不会新增记录。', you:{wait:true, text:'重新接通'}};
+ if (conn && !conn.unknown && conn.action === 'reconnect') return {tone:'wait', now:['Stage 3 未接通。', conn.reconnectError ? '上次点「重新接通」没有成功；规划登记仍然保存着。' : '规划登记已保存；如果上次是强行关闭，这次启动后会先显示未接通。'],
+  next:conn.reconnectError ? '可以再点一次下面的「重新接通」；原因代码在接通块的技术细节里。' : '点下面的「重新接通」恢复，不会重复执行任何步骤，也不会新增记录。', you:{wait:true, text:'重新接通'}};
  if (!basis) return {tone:'off', now:['还没有规划。', 'Stage 2 还没有选定方向，Stage 3 不会生成计划。'], next:'先到 Stage 2 选一个方向。', you:null, button:{label:'去 Stage 2', attrs:'data-stage="2"', primary:false}};
  return {tone:'off', now:['还没有规划。', '已经有选定的方向，但还没有保存的计划。'], next:'接通本课题的 Stage 3 后，请求生成计划。', you:null};
 };
