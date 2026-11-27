@@ -68,7 +68,11 @@ class Browser:
             if packet.get("method") == "Network.requestWillBeSent":
                 request = packet["params"]["request"]
                 if self.origin and request["url"].startswith(("http:", "https:")):
-                    if not request["url"].startswith(self.origin):
+                    # Judge a request by the page that sent it: events are read in batches, so a request the
+                    # previous page sent before check_legacy switched to the V7 server was counted as external.
+                    document = packet["params"].get("documentURL") or ""
+                    sender = "/".join(document.split("/")[:3]) if document.startswith(("http:", "https:")) else self.origin
+                    if not request["url"].startswith(sender):
                         self.external.append(request["url"])
                     if request["method"] != "GET":
                         self.writes.append((request["method"], request["url"].removeprefix(self.origin)))
