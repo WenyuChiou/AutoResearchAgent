@@ -69,12 +69,34 @@ def validator(name):
 # results keyed by a digest of the exact value. Every call still reads, parses
 # and hashes its input; an edited value has a different digest and is validated
 # again; a failure is never remembered.
-_VALID_LIMIT = 250_000
+# Sizing: a whole fixture project (1 paper, 12 queries, 11 claims, Stage 2 and 3
+# connected) holds 123 distinct checked values after bootstrap, overview and the
+# Stage 2 / 3 reads. An entry is a short tuple plus a 32-byte digest, roughly
+# 200 bytes, so 100,000 entries is about 20 MB and covers a ledger of tens of
+# thousands of events; past that the oldest entries are simply re-validated.
+_VALID_LIMIT = 100_000
 _valid = OrderedDict()
 _valid_lock = threading.Lock()
 
 
+def _json_native(value):
+    """Only json.loads-shaped values: tuples, sets and non-str keys would hash like
+    their list/str look-alikes but validate differently, so they are never cached."""
+    kind = type(value)
+    if kind in (str, int, float, bool) or value is None:
+        return True
+    if kind is list:
+        return all(_json_native(item) for item in value)
+    if kind is dict:
+        return all(
+            type(key) is str and _json_native(item) for key, item in value.items()
+        )
+    return False
+
+
 def _value_key(value, name):
+    if not _json_native(value):
+        return None
     try:
         raw = json.dumps(
             value,

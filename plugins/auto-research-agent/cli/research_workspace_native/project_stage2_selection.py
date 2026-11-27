@@ -147,6 +147,10 @@ class ProjectStage2SelectionService(
             # source verification budget stays the same, and Core still re-verifies
             # the exact head, manifest and snapshot hashes before any append.
             checked[:] = [preflight()]
+            # The full source verification can outlast the request deadline. Expire
+            # here, before the intent is durable, so a timeout leaves no record.
+            if check_deadline:
+                check_deadline()
             rows = self.intake.db.execute(
                 "SELECT request_hash,receipt FROM intake_actions WHERE principal=? AND project=?",
                 (actor, project_ref),
