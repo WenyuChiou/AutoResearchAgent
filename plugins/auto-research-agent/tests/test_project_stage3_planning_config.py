@@ -1,6 +1,7 @@
 """Trusted CLI configuration and original Journal ownership; zero model calls."""
 
 # ruff: noqa: E402 -- match the existing standalone CLI test imports.
+from contextlib import closing
 from copy import deepcopy
 import hashlib
 import json
@@ -12,7 +13,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 from research_workspace_native.http import token_authenticator
-from research_workspace_native.journal import Journal
+from research_workspace_native.journal import Journal, JournalError
 from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage2_selection import (
     ProjectStage2SelectionService,
@@ -274,12 +275,16 @@ class Stage3PlanningConfigurationTests(unittest.TestCase):
             self.project["project_id"], "after-failed-construction"
         )
         journal.release_owner(self.project["project_id"], token)
+        discard = configuration._discard_unpublished_paths
+
+        def fail_cleanup(db, state, paths):
+            discard(db, state, paths)
+            raise RuntimeError("authored lease cleanup failure")
+
         with (
             patch.object(configuration, "NativePlanner", side_effect=primary),
             patch.object(
-                Journal,
-                "release_owner",
-                side_effect=RuntimeError("authored lease cleanup failure"),
+                configuration, "_discard_unpublished_paths", side_effect=fail_cleanup
             ),
         ):
             with self.assertRaises(RuntimeError) as raised:
@@ -290,6 +295,90 @@ class Stage3PlanningConfigurationTests(unittest.TestCase):
         self.assertTrue(
             any("lease cleanup failure" in note for note in primary.__notes__)
         )
+        self.assertIsNotNone(journal.snapshot(self.project["project_id"])["owner"])
+        self.assertEqual(
+            journal.db.execute("SELECT COUNT(*) FROM stage3_planning_paths").fetchone()[
+                0
+            ],
+            3,
+        )
+
+    def test_failed_batch_discards_only_unused_new_paths(self):
+        def open_host(value):
+            return configuration.Stage3PlanningHostResources(
+                self.intake, TOKEN, self.selection, value
+            )
+
+        first = self.project
+        busy = project(self.intake, TOKEN, "busy")
+        healthy = project(self.intake, TOKEN, "healthy")
+        original = self.value["bindings"][0]
+        with closing(open_host(self.value)):
+            pass
+
+        busy_config = settings(self.root, [busy])
+        busy_row = busy_config["bindings"][0]
+        busy_row["jobs_root"] = str(self.root / "busy-jobs")
+        busy_row["native"]["capture_dir"] = str(self.root / "busy-capture")
+        empty_jobs = self.root / "unused-empty-jobs"
+        empty_jobs.mkdir()
+        retained_capture = self.root / "legacy-capture"
+        retained_capture.mkdir()
+        retained_file = retained_capture / "retained-evidence.txt"
+        retained_file.write_bytes(b"Historical offline fixture bytes")
+        batch = settings(self.root, [first, busy])
+        first_row = deepcopy(original)
+        first_row["jobs_root"] = str(empty_jobs)
+        batch["bindings"] = [first_row, busy_row]
+
+        def paths(journal, project_id):
+            return {
+                row[0]
+                for row in journal.db.execute(
+                    "SELECT path FROM stage3_planning_paths WHERE project = ?",
+                    (project_id,),
+                )
+            }
+
+        with closing(open_host(busy_config)) as running:
+            a_id = first["project_id"]
+            b_id = busy["project_id"]
+            history = running.journal.events(a_id)
+            original_paths = paths(running.journal, a_id)
+            self.assertEqual(len(original_paths), 3)
+            busy_owner = running.journal.snapshot(b_id)["owner"]
+            with self.assertRaisesRegex(JournalError, "already has an execution owner"):
+                open_host(batch)
+            state = running.journal.snapshot(a_id)
+            self.assertIsNone(state["owner"])
+            self.assertEqual(state["intents"], {})
+            self.assertEqual(running.journal.events(a_id)[: len(history)], history)
+            self.assertEqual(paths(running.journal, a_id), original_paths)
+            self.assertEqual(running.journal.snapshot(b_id)["owner"], busy_owner)
+            self.assertEqual(list(empty_jobs.iterdir()), [])
+
+            # Newly recorded paths with historical bytes are kept conservatively.
+            first_row["native"]["capture_dir"] = str(retained_capture)
+            with self.assertRaisesRegex(JournalError, "already has an execution owner"):
+                open_host(batch)
+            self.assertIn(str(retained_capture), paths(running.journal, a_id))
+            self.assertEqual(
+                retained_file.read_bytes(), b"Historical offline fixture bytes"
+            )
+            self.assertEqual(running.journal.snapshot(a_id)["intents"], {})
+            self.assertEqual(running.journal.snapshot(b_id)["owner"], busy_owner)
+
+            healthy_config = settings(self.root, [healthy])
+            healthy_row = healthy_config["bindings"][0]
+            healthy_row["jobs_root"] = original["jobs_root"]
+            healthy_row["native"]["capture_dir"] = str(self.root / "healthy-capture")
+            with self.assertRaisesRegex(Stage3Error, "configuration-output-overlap"):
+                open_host(healthy_config)
+            healthy_row["jobs_root"] = str(empty_jobs)
+            with closing(open_host(healthy_config)) as peer:
+                self.assertEqual(
+                    peer.journal.snapshot(healthy["project_id"])["intents"], {}
+                )
 
 
 if __name__ == "__main__":

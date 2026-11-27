@@ -51,6 +51,7 @@ class Stage2ControllerConnections(Mapping):
             project,
             check_deadline=deadline,
             on_received=lambda result, _, bound: dict(result, source_binding=bound),
+            allow_publish=False,
         )
         _check(
             evidence["status"] == "received"

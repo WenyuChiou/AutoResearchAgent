@@ -127,6 +127,12 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
         ):
             case, ref = data["case"], data["project_ref"]
             route = f"/api/projects/{ref}"
+            received = ProjectStage2Service(case.intake).register_current(
+                ref, credential=VIEWER, delivery=case.delivery
+            )
+            self.assertEqual(received["status"], "received", received)
+            # Flush the explicit fixture registration from the WAL before pinning
+            # the database bytes for the ordinary read and cold-open comparison.
             case.reopen()
             database = case.intake_root / "project-intake.sqlite"
             database_before = sha256(database.read_bytes()).hexdigest()

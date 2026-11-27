@@ -18,7 +18,9 @@ RECEIVER = "stage2-current-project-receiver"
 
 
 def _blocked(view, reason):
-    return {**view, "status": "blocked", "reason": reason}
+    return dict(
+        view, status="blocked", reason=reason, connection_id=None, receipt_id=None
+    )
 
 
 def _reference(view, bound, binding, brief, native_run_id):
@@ -80,7 +82,9 @@ def _packet(root, pin, source):
     return packet
 
 
-def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
+def _receive(
+    intake, view, binding, bound, source, check_deadline, check_owner, *, allow_publish
+):
     digest = canonical_hash(source)
     root = private_output(intake._path(view["project_ref"], "s2r-" + digest[:32]))
     check_deadline()
@@ -92,9 +96,15 @@ def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
         "source": source,
         "source_descriptor_sha256": digest,
     }
-    try:
-        root.mkdir()
-    except FileExistsError:
+    created = False
+    if allow_publish:
+        try:
+            root.mkdir()
+        except FileExistsError:
+            pass
+        else:
+            created = True
+    if not created:
         reject_links(root)
         if not receipt_path.is_file():
             return _blocked(view, "stage2-current-input-publication-unobserved")
@@ -149,7 +159,14 @@ def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
 
 
 def current_evidence(
-    delivery, credential, stage1, project, *, check_deadline=None, on_received=None
+    delivery,
+    credential,
+    stage1,
+    project,
+    *,
+    check_deadline=None,
+    on_received=None,
+    allow_publish=False,
 ):
     """Return the current project's verified Stage 2 input or its actual blockers."""
     ref = project["project_ref"]
@@ -233,14 +250,24 @@ def current_evidence(
                         source,
                         check_deadline,
                         check_owner,
+                        allow_publish=allow_publish,
                     )
-                    if result["status"] == "received" and on_received is not None:
-                        # The trusted connection writer uses its own intake
-                        # transactions. Keep the source owner and ledger locked
-                        # through that handoff; do not verify the package twice.
+                    if result["status"] != "received":
+                        return result
+                    if on_received is None:
+                        from .project_stage_connections import (
+                            ConnectionStore,
+                            verified_current_input,
+                        )
+
+                        return verified_current_input(
+                            ConnectionStore(intake, credential), result, binding, bound
+                        )
+                    if allow_publish:
+                        # A trusted writer uses its own intake transactions.
+                        # Keep the verified source protected through that handoff.
                         intake.db.rollback()
-                        return on_received(result, binding, bound)
-                    return result
+                    return on_received(result, binding, bound)
             finally:
                 intake.db.rollback()
     except SessionApiError as error:
