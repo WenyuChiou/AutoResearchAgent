@@ -310,8 +310,10 @@ async function v9ReconnectStage(view) {
   const body={revision:basis.revision,input_version:basis.input_version,brief_sha256:basis.brief_sha256,
     stage,profile_sha256:row.profile_sha256,confirmed:true,key:v9ReconnectKey()};
   rt.busy=true;livePaint();
+  let answered=false;
   try {
     const response=await liveRequest(projectPath(ref,'connections'),body);
+    answered=true;
     if (!v9ConnectionCurrent(view)) return;
     const result=v9ConnectionRow(response,basis,stage);
     // The saved record carries the original receipt; this click's key coming back means a new registration was
@@ -328,6 +330,8 @@ async function v9ReconnectStage(view) {
   } catch (error) {
     if (ref!==rt.ref) throw error; // the topic changed meanwhile; nothing is shown for it
     v9ReconnectErrors.set(ref,{code:error.message||'stage-connection-receipt-unverified',http:error.status??null});
+    // After the service answered, read the project again so the page shows the real state (review P2-4).
+    if (answered) { try { await liveRefresh(ref,{list:true}); } catch (_) { /* The reason above stays on the page. */ } }
     throw error;
   } finally {rt.busy=false;}
 }
