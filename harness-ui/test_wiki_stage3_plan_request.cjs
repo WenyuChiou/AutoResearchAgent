@@ -271,3 +271,12 @@ test('review P2-5: a timed-out submission_error without request_sha256 is not re
   assert.equal(row.grant, undefined);
  }
 });
+
+test('review P2-5: the re-read after a write is forced, so a read already in flight cannot swallow it', async () => {
+ const {ctx} = load();
+ const calls = [];
+ ctx.v93ReadSaved = async (...args) => { calls.push(args); };
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'prepare');
+ assert.equal(calls.length, 1);
+ assert.equal(calls[0][2], true, 'third argument force=true');
+});

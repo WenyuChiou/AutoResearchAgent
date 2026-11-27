@@ -123,7 +123,7 @@ async function wikiS3PlanAction(app, act) {
   wikiS3Req.busy.delete(ref);
  }
  // Every outcome is followed by a read-only re-read of the saved state.
- if (epoch === rt.epoch && ref === rt.ref) await v93ReadSaved(app, basis);
+ if (epoch === rt.epoch && ref === rt.ref) await v93ReadSaved(app, basis, true); // forced (review P2-5): an in-flight read must not swallow it
 }
 document.addEventListener('click', event => {
  const button = event.target.closest?.('[data-s3-plan]');
