@@ -1,29 +1,12 @@
 """Append coverage actions to the existing ledger; never execute a network request."""
 
-from contextlib import contextmanager
-
 from stage1_ledger.store import Ledger
 from stage1_ledger.journal import decode, mutation, contained
 from .plan import validate_bundle
 from .rounds import CoverageReplay, require
-from .writer_lock import hold_writer_lock, owner_record
 
 
 class CoverageLedger(Ledger):
-    @contextmanager
-    def writing(self, *, repair=True):
-        from stage1_ledger.contracts import check_manifest
-
-        owner = owner_record(self.root, self.clock)
-        if owner is None:
-            with super().writing(repair=repair):
-                yield
-            return
-        check_manifest(self.manifest)
-        with hold_writer_lock(self.root, owner):
-            self.reconcile(repair=repair)
-            yield
-
     def coverage_state(self):
         state = CoverageReplay(self.manifest, self.read_ref)
         for row in self.events():
