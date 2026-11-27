@@ -356,3 +356,13 @@ test('review P2-6: a re-read gap with the same version keeps the confirmation; o
  await t.ctx.wikiS3DecSave(t.ctx.apps[0]);
  assert.equal(t.posts.length, 1, 'same version still saves');
 });
+
+test('review P2-5 (same as plan-request): the re-read after a save is forced past a read already in flight', async () => {
+ const t = load();
+ const calls = [];
+ t.ctx.v93ReadSaved = async (...args) => { calls.push(args); };
+ t.pick('return-to-stage2');
+ await t.save();
+ assert.equal(calls.length, 1);
+ assert.equal(calls[0][2], true, 'third argument force=true');
+});

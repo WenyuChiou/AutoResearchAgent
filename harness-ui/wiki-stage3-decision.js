@@ -248,8 +248,8 @@ async function wikiS3DecSave(app) {
  const rows = [...m.hd.records, ...(m.hd.history || [])];
  const before = {count:m.hd.records.length, seq:rows.reduce((top, row) => Math.max(top, Number(row?.record?.sequence) || 0), 0)};
  if (outcome === 'unknown') wikiS3Dec.unknown = {ref, key, code, pick, before};
- // Every outcome is followed by a read-only re-read; an unknown outcome is then looked up by its key.
- if (epoch === rt.epoch && ref === rt.ref) { await v93ReadSaved(app, basis); if (outcome === 'unknown') wikiS3DecSettle(ref); }
+ // Every outcome is followed by a read-only re-read; an unknown outcome is then looked up by its key. The re-read is forced so a read already in flight cannot swallow it (same as plan-request P2-5).
+ if (epoch === rt.epoch && ref === rt.ref) { await v93ReadSaved(app, basis, true); if (outcome === 'unknown') wikiS3DecSettle(ref); }
  livePaint();
 }
 // Settle an unknown save from the re-read (review P1-1). Only a full decision view can say "not saved" by key; a size
