@@ -87,10 +87,10 @@ function v1Crumb(app, page) {
 function v1SwitchMenu() {
  if (rt.loading && !rt.list.length) return '<div class="v1-menu"><p class="v1-muted">正在读取项目</p></div>';
  if (rt.error && !rt.list.length) return '<div class="v1-menu"><p>项目读取失败</p><button type="button" class="v1-btn sm" data-v1-reload>重新读取</button></div>';
- if (!rt.list.length) return '<div class="v1-menu"><p>还没有项目</p><button type="button" class="v1-link" data-page="workspace">去首页新建</button></div>';
+ if (!rt.list.length) return '<div class="v1-menu"><p>还没有项目</p><button type="button" class="v1-link" data-v1-home>去首页新建</button></div>';
  const locked = rt.busy || rt.loading || !!rt.pending;
  const rows = rt.list.map(wikiHomeRow).slice(-8).reverse();
- return `<div class="v1-menu">${locked ? '<p class="v1-reason">上次提交的结果还没确认，先核对</p>' : ''}<ul>${rows.map(row => `<li><button type="button" data-v1-open="${esc(row.ref)}" ${locked || row.ref === rt.ref ? 'disabled' : ''}><span class="v1-origin ${row.origin}">${v1OriginNames[row.origin]}</span><span>${esc(row.title)}</span><small>${row.stage ? 'Stage ' + row.stage : '未提供'}</small></button></li>`).join('')}</ul><button type="button" class="v1-link" data-page="workspace">全部项目…</button></div>`;
+ return `<div class="v1-menu">${locked ? '<p class="v1-reason">上次提交的结果还没确认，先核对</p>' : ''}<ul>${rows.map(row => `<li><button type="button" data-v1-open="${esc(row.ref)}" ${locked || row.ref === rt.ref ? 'disabled' : ''}><span class="v1-origin ${row.origin}">${v1OriginNames[row.origin]}</span><span>${esc(row.title)}</span><small>${row.stage ? 'Stage ' + row.stage : '未提供'}</small></button></li>`).join('')}</ul><button type="button" class="v1-link" data-v1-home>全部项目…</button></div>`;
 }
 
 function v1ScopePending() {
@@ -124,7 +124,56 @@ render = function(app) {
  const footer = app.el.querySelector('.hs-footer');
  if (footer) footer.hidden = true;
  if (page === 'later') v1LaterPage(app);
+ v1AlertMount(app);
 };
+
+// DESIGN 2.5 / 8.3 alert bar under the page title. One at a time; it belongs to the page it was raised on.
+function v1PlaceKey(app) { return [app.page, app.stage, rt.ref].join('|'); }
+function v1Notice(text, recover) {
+ const app = apps[0];
+ app.v1Alert = {key:v1PlaceKey(app), tone:'warn', title:text, sub:'', buttons:recover ? [['核对上次提交', 'data-v1-recover']] : []};
+ livePaint();
+}
+function v1AlertMount(app) {
+ const content = app.el.querySelector('.hs-content');
+ const a = app.v1Alert;
+ if (!content || !a) return;
+ if (a.key !== v1PlaceKey(app)) { app.v1Alert = null; return; }
+ const html = `<div class="v1-alert ${a.tone}" role="${a.tone === 'err' ? 'alert' : 'status'}" data-v1-alert><div><b>${esc(a.title)}</b>${a.sub ? `<span>${esc(a.sub)}</span>` : ''}</div><div class="v1-alert-actions">${a.buttons.map(([label, attrs], i) => `<button type="button" class="v1-btn sm ${i === 0 && a.primary ? 'primary' : ''}" ${attrs}>${esc(label)}</button>`).join('')}<button type="button" class="v1-link" data-v1-alert-close>关掉提示</button></div></div>`;
+ const heading = content.querySelector(':scope > .hs-heading, :scope > .v1-head, :scope > [data-v1-later-page] > .v1-head, :scope > [data-v1-global] > .v1-head');
+ if (heading) heading.insertAdjacentHTML('afterend', html); else content.insertAdjacentHTML('afterbegin', html);
+}
+
+// Things typed on this page that would be lost by leaving the topic (runtime clears them on a topic change).
+function v1UnsavedDrafts() {
+ const names = [];
+ const p = rt.overview?.project;
+ if (rt.scopeDraft && typeof liveScopeBasis === 'function' && rt.scopeDraft.basis === liveScopeBasis()) {
+  const v = rt.scopeDraft.values || {}, blank = {geography:'', geographyValue:'', target:'30', priority:'20', note:''};
+  if (Object.keys(blank).some(key => String(v[key] ?? blank[key]) !== blank[key])) names.push('研究范围表单');
+ }
+ if (typeof realPlanDraftCurrent === 'function' && realPlanDraftCurrent()) names.push('检索规划修订');
+ if (typeof rt.draft === 'string' && rt.draft.trim()) names.push('审阅意见');
+ if (rt.followupDraft?.ref === rt.ref && p && rt.followupDraft.input_version === p.input_version && String(rt.followupDraft.question || '').trim()) names.push('追问');
+ return names;
+}
+
+// DESIGN 8.1: before switching topic or going home, an unconfirmed submit or unsaved typing is raised first.
+function v1Leave(label, go) {
+ const app = apps[0];
+ if (rt.pending || rt.busy) {
+  app.v1Alert = {key:v1PlaceKey(app), tone:'warn', title:rt.busy ? '正在保存，请稍等。' : '上次提交的结果还没确认，已阻止切换。',
+   sub:rt.busy ? '保存结果回来之前不能切换课题。' : '先核对上次提交；原来的请求还保留着，不会自动重发。', buttons:rt.busy ? [] : [['核对上次提交', 'data-v1-recover']]};
+  livePaint();
+  return;
+ }
+ const drafts = v1UnsavedDrafts();
+ if (!drafts.length) { app.v1Alert = null; go(); return; }
+ app.v1LeaveGo = go;
+ app.v1Alert = {key:v1PlaceKey(app), tone:'warn', primary:false, title:`这一页有还没保存的内容：${drafts.join('、')}。`,
+  sub:`${label}会丢掉这些内容；后台没有草稿存储，留在这里可以先保存或提交。`, buttons:[['留在这里', 'data-v1-leave="stay"'], ['仍然离开', 'data-v1-leave="go"']]};
+ livePaint();
+}
 
 // DESIGN 8.20: Stage 4–6 preview template (static copy, no data).
 const v1LaterNeeds = {
@@ -210,6 +259,10 @@ v7AfterRender = function(app) {
  if (!v1Page(app)) return;
  v1Heading(app);
  v1Mount(app);
+ // Stage modules move their heading up after render; the alert bar sits right under it (2.1 order).
+ const alert = app.el.querySelector('.hs-content > [data-v1-alert]');
+ const head = app.el.querySelector('.hs-content > .hs-heading, .hs-content > [data-v1-head], .hs-content > .v1-head');
+ if (alert && head && head.nextElementSibling !== alert) head.after(alert);
  // The embedded material panel keeps its handlers; its summary uses the design wording (8.12).
  for (const summary of app.el.querySelectorAll('[data-ws-materials-slot] .n9-materials > summary, .wiki-s2-fold .n9-materials > summary')) {
   const count = app.el.querySelectorAll('[data-n9-catalog] > *:not(p)').length;
@@ -221,16 +274,21 @@ v7AfterRender = function(app) {
 document.addEventListener('click', event => {
  const app = apps[0];
  if (!v1On(app) || !app.el.contains(event.target)) return;
- const button = event.target.closest('[data-v1-open],[data-v1-reload],[data-v1-recover]');
+ const button = event.target.closest('[data-v1-open],[data-v1-reload],[data-v1-recover],[data-v1-home],[data-v1-leave],[data-v1-alert-close]');
  if (!button || button.disabled) return;
  event.preventDefault();
  event.stopImmediatePropagation();
  if (button.hasAttribute('data-v1-open')) {
   // Switching re-reads the whole project; nothing from the previous topic is kept.
   const ref = button.dataset.v1Open;
-  app.page = 'home';
-  wikiHomeOpen(ref);
- } else if (button.hasAttribute('data-v1-reload')) liveRefresh(rt.ref, {list:true});
+  v1Leave('切换课题', () => { app.page = 'home'; wikiHomeOpen(ref); });
+ } else if (button.hasAttribute('data-v1-home')) v1Leave('回到首页', () => wikiHomeShow());
+ else if (button.hasAttribute('data-v1-leave')) {
+  const go = app.v1LeaveGo;
+  app.v1LeaveGo = null; app.v1Alert = null;
+  if (button.dataset.v1Leave === 'go' && go) go(); else livePaint();
+ } else if (button.hasAttribute('data-v1-alert-close')) { app.v1Alert = null; app.v1LeaveGo = null; livePaint(); }
+ else if (button.hasAttribute('data-v1-reload')) liveRefresh(rt.ref, {list:true});
  else liveRecover();
 }, true);
 document.addEventListener('toggle', event => {

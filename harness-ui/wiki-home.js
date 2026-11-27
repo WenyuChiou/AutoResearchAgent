@@ -139,6 +139,10 @@ function wikiHomeShow() {
  window.scrollTo(0, 0);
 }
 
+function wikiHomeTopicOpen() {
+ return !!rt.ref && (rt.overview?.project?.project_ref === rt.ref || wikiHomeArchiveBound(rt.ref));
+}
+
 function wikiHomeProjectOpened(ref, stage) {
  const app = apps[0];
  if (app.lang !== 'zh' || app.page !== 'home' || rt.error || rt.ref !== ref ||
@@ -200,7 +204,15 @@ document.addEventListener('click', event => {
  event.preventDefault();
  event.stopImmediatePropagation();
  if (button.dataset.page === 'workspace') {
-  if (app.page !== 'home' && !rt.busy) wikiHomeShow();
+  // DESIGN 8.1: "工作台" is the open topic's stage page. Only without an open topic does it go home;
+  // the home table is reached from the topic menu's "全部项目…". Viewing never clears drafts.
+  if (app.page === 'home') return;
+  if (wikiHomeTopicOpen()) { app.page = 'workspace'; livePaint(); window.scrollTo(0, 0); return; }
+  if (rt.busy || rt.loading || rt.pending) {
+   if (typeof v1Notice === 'function') v1Notice(rt.busy ? '正在保存，请稍等，保存完再回首页。' : rt.loading ? '正在读取保存记录，读完再回首页。' : '上次提交的结果还没确认，先核对，再回首页。', !!rt.pending && !rt.busy);
+   return;
+  }
+  wikiHomeShow();
  } else if (button.dataset.stage) {
   const recent = wikiHomeResume(rt.list.map(wikiHomeRow));
   if (recent) wikiHomeOpen(recent.ref, Number(button.dataset.stage));

@@ -110,10 +110,10 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-v1]) { padding:0; backgrou
 
 /* Only blocks the design lists are visible on V1 pages. Everything else that
    older modules still render stays in the document for their handlers, hidden. */
-#harness-trace-workbench-v6 [data-v1="s1"] .hs-content > :not(.hs-heading,[data-v1-status],.wiki-record,[data-wiki-s1],.v1-keep),
-#harness-trace-workbench-v6 [data-v1="s2"] .hs-content > :not(.hs-heading,[data-v1-head],[data-v1-status],.wiki-record,[data-wiki-s2],.v1-keep),
-#harness-trace-workbench-v6 [data-v1="s3"] .hs-content > :not(.hs-heading,[data-v1-head],[data-v1-status],.wiki-record,[data-wiki-s3],[data-wiki-s3-conn],[data-wiki-s3-record],.v1-keep),
-#harness-trace-workbench-v6 [data-v1="later"] .hs-content > :not([data-v1-later-page]) { display:none !important; }
+#harness-trace-workbench-v6 [data-v1="s1"] .hs-content > :not(.hs-heading,[data-v1-status],.wiki-record,[data-wiki-s1],.v1-keep,.v1-alert),
+#harness-trace-workbench-v6 [data-v1="s2"] .hs-content > :not(.hs-heading,[data-v1-head],[data-v1-status],.wiki-record,[data-wiki-s2],.v1-keep,.v1-alert),
+#harness-trace-workbench-v6 [data-v1="s3"] .hs-content > :not(.hs-heading,[data-v1-head],[data-v1-status],.wiki-record,[data-wiki-s3],[data-wiki-s3-conn],[data-wiki-s3-record],.v1-keep,.v1-alert),
+#harness-trace-workbench-v6 [data-v1="later"] .hs-content > :not([data-v1-later-page],.v1-alert) { display:none !important; }
 #harness-trace-workbench-v6 [data-v1] .hs-footer { display:none !important; }
 #harness-trace-workbench-v6 [data-v1] details.wiki-record > summary { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:14px; align-items:center; min-height:36px; cursor:pointer; list-style:none; }
 #harness-trace-workbench-v6 [data-v1] .wiki-record-counts { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
@@ -152,3 +152,13 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-v1]) { padding:0; backgrou
 #harness-trace-workbench-v6 [data-v1] .wiki-s2-conn:has(> .wiki-s2-conn-row[data-tone="wait"]) { border-left-color:#c9962e; }
 #harness-trace-workbench-v6 [data-v1] .wiki-s2-name { display:block; font-weight:700; margin:4px 0; }
 #harness-trace-workbench-v6 [data-v1] .v1-later-why { color:#9fb3bf; font-size:13px; padding:2px 10px; }
+
+/* Alert bar (2.5 提示条): under the title, above the status bar; not a dialog. */
+#harness-trace-workbench-v6 [data-v1] .v1-alert { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; background:#fff; border:1px solid var(--v1-line2); border-left:6px solid #c9962e; border-radius:8px; padding:12px 16px; }
+#harness-trace-workbench-v6 [data-v1] .v1-alert > div:first-child { display:flex; flex-direction:column; gap:2px; min-width:0; max-width:72ch; }
+#harness-trace-workbench-v6 [data-v1] .v1-alert span { color:var(--v1-sub); font-size:14px; }
+#harness-trace-workbench-v6 [data-v1] .v1-alert.warn { background:var(--v1-amber-soft); border-color:var(--v1-amber-line); border-left-color:#c9962e; }
+#harness-trace-workbench-v6 [data-v1] .v1-alert.run { background:var(--v1-blue-soft); border-left-color:var(--v1-blue); }
+#harness-trace-workbench-v6 [data-v1] .v1-alert.ok { background:var(--v1-teal-soft); border-left-color:var(--v1-teal); }
+#harness-trace-workbench-v6 [data-v1] .v1-alert.err { background:var(--v1-red-soft); border-color:var(--v1-red-line); border-left-color:var(--v1-red); }
+#harness-trace-workbench-v6 [data-v1] .v1-alert-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
