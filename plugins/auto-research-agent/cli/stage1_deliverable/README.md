@@ -117,6 +117,36 @@ A matching quote establishes binding, not the truth of the authored claim.
 
 ## Package and replay
 
+### Typed claims and split hints (C1/C2)
+
+The ordinary `stage1_ledger --run RUN claim --request REQUEST.json` command
+accepts optional `claim_type` and `basis_claim_ids` together. This emits
+ClaimEvidence 1.2; 1.0/1.1 records remain unchanged and display **Unclassified**.
+Use `source_statement` with an empty basis list and a real located source, or
+`project_interpretation` with at least one earlier source-statement event ID.
+Each basis must belong to the same ledger, work and version and retain its
+original source location. This slice does not support cross-work synthesis.
+Untyped records cannot silently become source statements. Interpretations cannot
+cite another interpretation as their source. These checks run on creation,
+ledger replay and canonical package admission. Source identity, evidence
+relation, human review and downstream eligibility retain their existing rules.
+
+Normal canonical production preserves the original typed Core events. New
+`typed-claims-v3` packages display the type, basis IDs/locations and an advisory
+split hint in Word/Markdown and the Claims tables, plus `claim_structure.json`
+for a UI consumer. Older frozen report formats keep their original bytes under
+the existing externally hash-bound HostReplay contract. No new format is silently
+added to an old frozen package. Host/UI submission wiring is a separate owner
+integration; this CLI/export change does not claim browser acceptance.
+
+The split hint recognizes multiple punctuation-delimited clauses and a bounded
+set of coordinated predicates. It never rejects a claim, automatically splits
+text, awards support, or certifies atomicity when no hint appears. Counting
+numbers alone is not a trigger: a date and a value can describe one fact. A
+reviewer still must separate substantive claims and attach each to its own
+exact source sentence. Declaring a source statement or linking an interpretation
+does not establish that the text supports it. Unknown relations remain Unknown.
+
 Outputs include README, six-sheet Excel, Markdown/DOCX reviews, BibTeX,
 canonical papers JSONL, claim/screening CSVs, coverage Markdown, paper/provenance
 manifests and `papers/` selected lawful full sources. `records.original.json`
