@@ -337,7 +337,7 @@ def handle_planning(handler, method):
             body_limit = (
                 MAX_BODY
                 if action == "revise"
-                else 16384
+                else 32768
                 if action == "decide"
                 else 4096
             )

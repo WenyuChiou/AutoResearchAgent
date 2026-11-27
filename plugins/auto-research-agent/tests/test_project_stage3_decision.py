@@ -503,6 +503,20 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
         )
         self.assertEqual(view["plan"], self.view["plan"])
 
+    def test_body_limit_is_32768_bytes_and_fits_the_worst_escaped_reason(self):
+        worst = "" * 4096  # JSON-escapes to six bytes each: 24576 bytes
+        status, reply = self.post(self.decision("worst", "revise-then-review", worst))
+        self.assertEqual(status, 200, reply)
+        before = self.journal_state()
+        body = dict(
+            self.decision("huge", "revise-then-review", ""), padding="x" * 33000
+        )
+        status, reply = self.post(body)
+        self.assertEqual(
+            (status, reply["error"]), (413, "stage3-planning-body-bound-exceeded")
+        )
+        self.assertEqual(self.journal_state(), before)
+
     def test_credentials_and_origin_are_checked(self):
         before = self.journal_state()
         status, _ = self.post(self.decision(), credential="wrong")
