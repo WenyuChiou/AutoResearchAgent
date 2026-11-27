@@ -1,0 +1,86 @@
+/* Wiki V1 Stage 3. Colors follow the existing Wiki V1 pages (see wiki-stage1.css). */
+[data-wiki-s3] { color:#203342; line-height:1.55; overflow-wrap:anywhere; }
+[data-wiki-s3] h2,[data-wiki-s3] h3,[data-wiki-s3] h4,[data-wiki-s3] p { margin:0; }
+[data-wiki-s3] h2 { font-size:20px; line-height:1.35; margin-bottom:12px; }
+[data-wiki-s3] h3 { font-size:16px; margin:14px 0 8px; }
+[data-wiki-s3] h4 { font-size:13px; color:#566772; margin-bottom:4px; }
+#harness-trace-workbench-v6 .hs-main:has([data-wiki-s3]) { background:#f7f6f1; }
+.ws3-block,.ws3-decide { border:1px solid #d7e2de; border-radius:8px; background:white; padding:20px 24px; margin:0 0 20px; }
+.ws3-decide { border:2px solid #2f7a70; }
+.ws3-label { display:inline-block; background:#e4f0ed; color:#235d56; border-radius:4px; padding:1px 8px; font-size:12px; font-weight:700; margin-bottom:6px; }
+.ws3-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.ws3-head h2 { margin-bottom:12px; }
+.ws3-pending,.ws3-by,.ws3-ntag,.ws3-tag { display:inline-block; border:1px solid #c4d1cd; border-radius:4px; padding:1px 6px; font-size:12px; margin-inline-start:6px; }
+.ws3-pending { background:#fdf0d4; border-color:#e2a23b; color:#7a4f06; }
+.ws3-tag { background:#e4f0ed; border-color:#2f7a70; color:#235d56; }
+.ws3-note,.ws3-muted,.ws3-caption,.ws3-why-off { color:#566772; font-size:14px; }
+.ws3-why-off { color:#7a4f06; margin-top:8px; }
+.ws3-run { color:#1d5f95; }
+.ws3-alert { border-inline-start:6px solid #e2a23b; background:#fdf0d4; padding:12px 16px; border-radius:6px; margin:0 0 16px; }
+.ws3-alert.ws3-err { border-color:#c0392b; background:#fbe9e6; }
+.ws3-draft { border-inline-start:6px solid #e2a23b; background:#fdf0d4; padding:10px 16px; border-radius:6px; margin:0 0 16px; font-weight:650; }
+.ws3-summary { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); border:1px solid #d7e2de; border-radius:8px; background:white; margin:0 0 20px; }
+.ws3-summary > div { padding:12px 16px; display:flex; flex-direction:column; gap:2px; min-width:0; }
+.ws3-summary > div + div { border-inline-start:1px solid #dde5e2; }
+.ws3-summary b { font-size:12px; color:#566772; font-weight:650; }
+.ws3-summary strong { font-size:15px; }
+.ws3-summary small { color:#566772; font-size:12px; }
+.ws3-link { background:none; border:0; padding:0; min-height:44px; text-align:left; color:#235d56; text-decoration:underline; cursor:pointer; font:inherit; }
+.ws3-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.ws3-ov { border:1px solid #dde5e2; border-top:3px solid #192f40; border-radius:6px; padding:12px 16px; min-width:0; }
+.ws3-ov h3 { margin-top:0; }
+.ws3-ov p + p { margin-top:6px; }
+.ws3-gap { background:#fdf0d4; color:#7a4f06; padding:4px 8px; border-radius:4px; font-size:14px; }
+.ws3-unknowns { margin-top:12px; }
+.ws3-unknowns summary,.ws3-rel summary,.ws3-tech summary,.ws3-archive summary { min-height:44px; display:flex; align-items:center; cursor:pointer; font-weight:650; }
+.ws3-flash { animation:ws3-flash 1.5s ease-out; }
+@keyframes ws3-flash { from { background:#fff3b0; } to { background:transparent; } }
+.ws3-scroll { overflow-x:auto; }
+.ws3-block table { width:100%; border-collapse:collapse; font-size:14px; }
+.ws3-block th,.ws3-block td { text-align:left; vertical-align:top; padding:8px 10px; border-bottom:1px solid #dde5e2; }
+.ws3-avail { background:#e4f0ed; color:#235d56; border-radius:4px; padding:0 6px; font-size:13px; }
+.ws3-seg { display:flex; flex-wrap:wrap; margin:0 0 16px; }
+.ws3-seg button { min-height:44px; border:1px solid #c4d1cd; background:white; color:#203342; padding:6px 14px; }
+.ws3-seg button:first-child { border-radius:8px 0 0 8px; }
+.ws3-seg button:last-child { border-radius:0 8px 8px 0; }
+.ws3-seg button + button { border-inline-start:0; }
+.ws3-seg button[aria-pressed="true"] { background:#192f40; color:white; }
+.ws3-seg button:disabled { background:#f1f1ed; color:#566772; }
+.ws3-seg small { display:block; font-size:11px; }
+.ws3-guide { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:24px; align-items:start; }
+.ws3-board { display:flex; flex-direction:column; }
+.ws3-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; align-items:start; }
+.ws3-main { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.ws3-side { display:flex; align-items:center; gap:8px; min-height:44px; }
+.ws3-fnode { display:flex; align-items:center; gap:8px; width:100%; min-height:44px; text-align:left; border:2px solid #192f40; border-radius:8px; background:white; color:#203342; padding:6px 10px; cursor:pointer; }
+.ws3-fnode.ws3-sel { border-color:#2f7a70; box-shadow:0 0 0 3px #bfe0d9; background:#e4f0ed; }
+.ws3-fnode.ws3-branch { border:2px dashed #8d7a4e; background:#f5ecd5; }
+.ws3-kind { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border:1px solid #c4d1cd; border-radius:3px; font-size:12px; background:#f7f6f1; flex:none; }
+.ws3-num,.ws3-badge { display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:24px; border-radius:12px; background:#192f40; color:white; font-size:13px; flex:none; }
+.ws3-badge { background:#8d7a4e; margin-inline-end:6px; }
+.ws3-edge { color:#7a4f06; font-size:12px; white-space:nowrap; }
+.ws3-down { color:#566772; }
+.ws3-legend { display:flex; flex-wrap:wrap; gap:6px 14px; list-style:none; padding:0; margin:12px 0; font-size:13px; color:#566772; }
+.ws3-legend span { display:inline-block; width:18px; text-align:center; border:1px solid #c4d1cd; border-radius:3px; margin-inline-end:4px; }
+.ws3-excerpt blockquote { margin:0 0 10px; padding:4px 12px; border-inline-start:3px solid #c4d1cd; }
+.ws3-step { border:1px solid #dde5e2; border-radius:8px; margin-bottom:8px; background:white; }
+.ws3-step.ws3-open { border-color:#2f7a70; }
+.ws3-step-head { display:flex; align-items:center; gap:10px; width:100%; min-height:44px; background:none; border:0; text-align:left; padding:8px 12px; cursor:pointer; color:inherit; }
+.ws3-step-head strong { flex:1; }
+.ws3-toggle { color:#235d56; font-size:13px; }
+.ws3-step-body { padding:0 14px 14px; display:grid; gap:10px; }
+.ws3-io { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.ws3-io > div { border:1px solid #dde5e2; border-radius:6px; padding:8px 10px; }
+.ws3-fallbacks { list-style:none; padding:0; margin:0; }
+.ws3-verdict { white-space:nowrap; font-weight:650; }
+.ws3-v-ok { color:#235d56; } .ws3-v-edit { color:#7a4f06; } .ws3-v-no { color:#a3271b; } .ws3-v-unk { color:#566772; }
+.ws3-total { margin-top:10px; font-weight:650; }
+.ws3-tabs { display:flex; flex-wrap:wrap; border-bottom:1px solid #c4d1cd; margin:0 0 20px; }
+.ws3-tabs button { min-height:44px; border:0; border-bottom:3px solid transparent; padding:8px 18px; background:transparent; color:#566772; font-weight:650; cursor:pointer; }
+.ws3-tabs button[aria-selected="true"] { border-bottom-color:#2f7a70; color:#192f40; }
+.ws3-choice { display:flex; align-items:center; gap:8px; min-height:44px; }
+.ws3-tech dl { display:grid; grid-template-columns:max-content 1fr; gap:4px 16px; font-size:13px; }
+.ws3-tech dd { margin:0; font-family:ui-monospace,Consolas,monospace; word-break:break-all; }
+.ws3-files { padding-inline-start:18px; }
+.ws3-version { margin:0 0 12px; }
+@media (max-width:900px) { .ws3-guide,.ws3-cards,.ws3-summary { grid-template-columns:1fr; } .ws3-summary > div + div { border-inline-start:0; border-top:1px solid #dde5e2; } }

@@ -35,13 +35,32 @@ document.addEventListener('toggle',event=>{
 },true);
 const rx = value => esc(value == null ? 'Unknown' : typeof value === 'object' ? JSON.stringify(value) : String(value));
 const rl = (zh,en,tw=zh) => translated(apps[0],[zh,en,tw]);
+const liveWikiHomeActive = () => typeof wikiHomeProjectOpened==='function' && apps[0]?.lang==='zh' && apps[0].page==='home';
 const phaseNames={scope:['确认范围','Scope'],planning:['查询规划','Planning'],query:['查询与来源','Query & sources'],screening:['文献筛选','Screening'],reading:['阅读与证据','Reading'],coverage:['覆盖检查','Coverage'],delivery:['保存交付','Delivery']};
 const stateNames={recorded:'已记录',partial:'部分完成',available:'可操作',unconnected:'未接通',held:'需处理',unknown:'Unknown',pending:'待处理',planned:'未接通',running:'运行中'};
 const projectPath = (ref,tail='') => '/api/projects/'+encodeURIComponent(ref)+(tail?'/'+tail:'');
 const rows = () => rt.atlas?.payload?.index?.papers || [];
 function liveBound(){const p=rt.overview?.project;return p?Object.fromEntries(['revision','input_version','brief_sha256'].map(k=>[k,p[k]])):{};}
 function liveAtlasPath(){const p=rt.overview?.project,a=rt.overview?.stage1?.delivery?.canonical_package;return p&&a?projectPath(rt.ref,`stage1/atlas/${p.input_version}/${p.revision}/${a.artifact_ref}/${a.manifest_sha256}`):null;}
-function livePaint(){const app=apps[0];app.previewProject={id:rt.ref||'loading',get topic(){return rt.overview?.project?.brief?.original_description||(rt.error?rl('项目读取失败','Project read failed','專案讀取失敗'):liveEmptyLibrary()?rl('尚无项目','No project','尚無專案'):rl('正在读取项目','Loading project','正在讀取專案'))},hasResults:!!rt.atlas};render(app);const badge=app.el.querySelector('.hs-preview');if(badge)badge.textContent=rl('V9 · 本地服务联动','V9 · Local service');}
+const liveWikiV1 = typeof wikiHomeProjectOpened==='function';
+function liveWikiBrand(app){
+ const badge=app.el.querySelector('.hs-preview'),brand=app.el.querySelector('.hs-brand strong');
+ if(badge&&badge.textContent!=='Wiki V1')badge.textContent='Wiki V1';
+ if(brand&&brand.textContent!=='Wiki V1')brand.textContent='Wiki V1';
+ const title=app.page==='home'&&app.lang==='zh'?'Wiki V1 · 工作台':'Wiki V1';
+ if(document.title!==title)document.title=title;
+}
+if(liveWikiV1){
+ const wikiBrandRender=render;
+ render=function(app){wikiBrandRender(app);liveWikiBrand(app);};
+ // V9 modules append their after-render hooks later in this same bundle.
+ // Apply the common brand after those hooks and before the frame is painted.
+ queueMicrotask(()=>{
+  const wikiBrandAfter=v7AfterRender;
+  v7AfterRender=function(app){wikiBrandAfter(app);liveWikiBrand(app);};
+ });
+}
+function livePaint(){const app=apps[0];app.previewProject={id:rt.ref||'loading',get topic(){return rt.overview?.project?.brief?.original_description||(rt.error?rl('项目读取失败','Project read failed','專案讀取失敗'):liveEmptyLibrary()?rl('尚无项目','No project','尚無專案'):rl('正在读取项目','Loading project','正在讀取專案'))},hasResults:!!rt.atlas};render(app);if(liveWikiV1){liveWikiBrand(app);return;}const badge=app.el.querySelector('.hs-preview');if(badge)badge.textContent=rl('V9 · 本地服务联动','V9 · Local service');}
 async function liveRequest(path,body){
  const h={Authorization:'Bearer '+window.RESEARCH_PROJECTS.credential};if(body)h['Content-Type']='application/json';
  const response=await fetch(path,{method:body?'POST':'GET',headers:h,body:body?JSON.stringify(body):undefined,cache:'no-store',credentials:'same-origin'});
@@ -54,6 +73,7 @@ async function liveRefresh(ref=rt.ref,{list=false}={}){
  try{
   const meta=rt.meta||await liveRequest('/v7-case.json');if(epoch!==rt.epoch)return;rt.meta=meta;
   const projects=list?await liveRequest('/api/projects'):rt.list;if(epoch!==rt.epoch)return;rt.list=Array.isArray(projects)?projects:projects.projects||[];
+  if(!ref&&liveWikiHomeActive())return;
   if(!ref){ref=liveHomeProject();rt.ref=ref;}
   if(!ref)return;
   const overview=await liveRequest(projectPath(ref,'overview'));if(epoch!==rt.epoch)return;
@@ -85,6 +105,7 @@ async function liveReceiptBound(p,a){
 }
 async function livePost(tail,body,ref=rt.ref){
  if(rt.busy||rt.loading||rt.pending||rt.controlHeld)return;
+ const homeCreate=!ref&&liveWikiHomeActive();
  const path=ref?projectPath(ref,tail):'/api/projects';const pending={path,ref,body:{...body,key:crypto.randomUUID()}};
  rt.pending=pending;sessionStorage.setItem('v7-pending-action',JSON.stringify(pending));rt.busy=true;rt.error='';livePaint();
  const native=path.includes('/models/native/'),clear=()=>{rt.pending=null;sessionStorage.removeItem('v7-pending-action');};
@@ -92,9 +113,9 @@ async function livePost(tail,body,ref=rt.ref){
  const citationCurrent=()=>rt.pending===pending&&JSON.stringify(pending)===citationBytes&&sessionStorage.getItem('v7-pending-action')===citationBytes;
  const citationSettle=async receipt=>{if(!citationCurrent())return false;const bound=await liveReceiptBound(pending,receipt);if(!citationCurrent()||!bound||!['saved','failed','known-unsent'].includes(receipt.status))return false;clear();return true;};
  const citationUnknown=()=>rl('引文请求结果仍为 Unknown；保留原请求，请查询保存历史，不会自动重发。','Citation request outcome remains Unknown. The original request is retained; check saved history. No automatic resend.','引文請求結果仍為 Unknown；保留原請求，請查詢儲存歷史，不會自動重發。');
- try{const result=await liveRequest(path,pending.body);if(citation){if(!await citationSettle(result))rt.error=citationUnknown();}else if(!native||await liveReceiptBound(pending,result)&&['known-unsent','result-observed'].includes(result.status))clear();else rt.error=rl('停止或答复请求的结果尚未确认；保留原意图，不会自动重发。','Stop or answer outcome remains unconfirmed; the original intent is retained without automatic resend.','停止或答覆請求的結果尚未確認；保留原意圖，不會自動重發。');if(!ref&&result.project_ref){ref=result.project_ref;rt.topicDraft='';}}
+ try{const result=await liveRequest(path,pending.body);if(citation){if(!await citationSettle(result))rt.error=citationUnknown();}else if(!native||await liveReceiptBound(pending,result)&&['known-unsent','result-observed'].includes(result.status))clear();else rt.error=rl('停止或答复请求的结果尚未确认；保留原意图，不会自动重发。','Stop or answer outcome remains unconfirmed; the original intent is retained without automatic resend.','停止或答覆請求的結果尚未確認；保留原意圖，不會自動重發。');if(!ref&&result.project_ref){ref=result.project_ref;rt.topicDraft='';if(homeCreate)rt.homeQuestion='';}}
  catch(error){rt.error=error.message;if(citation){if(!await citationSettle(error.receipt))rt.error=citationUnknown()+' '+error.message;}else if(native){if(await liveReceiptBound(pending,error.receipt)&&['known-unsent','result-observed'].includes(error.receipt.status))clear();}else if(error.status&&error.status<500)clear();}
- finally{rt.busy=false;const message=rt.error;await liveRefresh(ref,{list:true});if(message){rt.error=message;livePaint();}}
+ finally{rt.busy=false;const message=rt.error;await liveRefresh(ref,{list:true});if(message){rt.error=message;livePaint();}else if(homeCreate&&ref&&liveWikiHomeActive())wikiHomeProjectOpened(ref,1);}
 }
 async function liveRecover(){
  if(!rt.pending)return;const p=rt.pending;
@@ -119,9 +140,9 @@ function liveRememberProject(){
  try{localStorage.setItem(liveProjectPreference,rt.ref);}catch(_){/* The explicit project URL still works without optional browser storage. */}
 }
 function liveProjectRoute(){
- if(rt.pending||rt.error||!rt.ref||!rt.list.some(p=>p.project_ref===rt.ref))return;
+ if(liveWikiHomeActive()||rt.pending||rt.error||!rt.ref||!rt.list.some(p=>p.project_ref===rt.ref))return;
  const base=location.pathname+location.search;
- if(!/^[A-Za-z0-9_-]{1,64}$/.test(rt.ref)){history.replaceState(history.state,'',base);return;}
+ if(!/^[A-Za-z0-9_-]{1,64}$/.test(rt.ref)&&!(typeof wikiHomeArchiveBound==='function'&&wikiHomeArchiveBound(rt.ref))){history.replaceState(history.state,'',base);return;}
  const app=apps[0],separator=location.hash.indexOf('?');let previous;
  try{previous=decodeURIComponent(location.hash.slice(1,separator<0?undefined:separator));}catch(_){}
  const params=new URLSearchParams(previous===rt.ref&&separator>=0?location.hash.slice(separator+1):'');
@@ -211,7 +232,7 @@ function liveSharedNeedLinks(source){
 }
 function liveLibrary(){if(typeof canonicalReadonly==='function'&&canonicalReadonly())return `<section class="hs-panel"><div class="hs-panel-head"><h2>${rl('文献列表','Library','文獻列表')} · ${rows().length}</h2></div><div class="hs-list">${rows().map((p,i)=>`<button type="button" class="hs-paper-row cursor-interaction" data-live-paper="${rx(p.work_id)}" aria-pressed="${p.work_id===rt.selected}"><div><strong>${rx(p.title)}</strong><small>P${i+1} · ${rx(p.work_id)} · ${rx(p.year)} · ${rx(Array.isArray(p.classification?.topic_cluster)?p.classification.topic_cluster.join(' / '):p.classification?.topic_cluster)}</small><small>${rx(p.authors?.join(' · '))} · ${rx(p.venue)} · ${rx(p.version_id)} · ${rx(p.evidence_level)}</small></div><span class="hs-status">${rl('阅读状态','Reading status','閱讀狀態')}: ${rx(p.reading_status)}</span></button>`).join('')}</div></section>`;return `<section class="hs-panel"><div class="hs-panel-head"><h2>${rl('文献列表','Library')} · ${rows().length}</h2></div><div class="live-paper-list">${rows().map((p,i)=>`<button class="hs-button" data-live-paper="${rx(p.work_id)}" aria-pressed="${p.work_id===rt.selected}"><small>P${i+1} · ${rx(p.year)}</small><strong>${rx(p.title)}</strong></button>`).join('')}</div></section>`;}
 function liveFiles(){return `<details class="hs-panel live-files"><summary>${rl('已保存输出与版本','Saved outputs & versions')} · ${rt.atlas?.files?.length||0}</summary><p><small>SHA256 · ${rx(rt.atlas?.manifest_sha256)}</small></p><div class="live-file-list">${(rt.atlas?.files||[]).map((f,i)=>`<button class="hs-button" data-live-file="${i}">${rx(f.path)}</button>`).join('')}</div>${rt.file?`<h3>${rx(rt.file.filename)}</h3><pre>${rx(rt.file.content)}</pre>`:''}</details>`;}
-function liveResults(app){return `<details class="lp-results" data-local-results="${app.stage}" ${app.previewResultsOpen[app.stage]!==false?'open':''}><summary><strong>Stage${app.stage} · ${rl('结果','Results')}</strong><span>${rt.atlas?rl(app.stage===1?'已保存 · 待审阅':'Stage1 输入已保存','Saved · review required'):rl('尚未生成','Not generated')} ⌄</span></summary><div class="lp-result-body">${!rt.atlas?liveEmpty(app.stage):app.stage===1?`<section class="hs-panel"><div class="hs-panel-head"><h2>${rl('文献知识网络','Literature knowledge network')}</h2><span class="hs-status">${rows().length} ${rl('篇文献','papers')}</span></div><div class="hs-atlas-grid">${liveGraph()}${liveDetails()}</div></section>${liveLibrary()}${liveFiles()}`:liveStage2Results()}</div></details>`;}
+function liveResults(app){if(typeof wikiS1LiveResults==='function'&&wikiS1Active(app))return wikiS1LiveResults(app);return `<details class="lp-results" data-local-results="${app.stage}" ${app.previewResultsOpen[app.stage]!==false?'open':''}><summary><strong>Stage${app.stage} · ${rl('结果','Results')}</strong><span>${rt.atlas?rl(app.stage===1?'已保存 · 待审阅':'Stage1 输入已保存','Saved · review required'):rl('尚未生成','Not generated')} ⌄</span></summary><div class="lp-result-body">${!rt.atlas?liveEmpty(app.stage):app.stage===1?`<section class="hs-panel"><div class="hs-panel-head"><h2>${rl('文献知识网络','Literature knowledge network')}</h2><span class="hs-status">${rows().length} ${rl('篇文献','papers')}</span></div><div class="hs-atlas-grid">${liveGraph()}${liveDetails()}</div></section>${liveLibrary()}${liveFiles()}`:liveStage2Results()}</div></details>`;}
 function liveStage2Results(){
  const context=rt.atlas.stage2_input||{},unknown=rl('未知（Unknown）','Unknown','未知（Unknown）');
  const statuses={include:['纳入','Included','納入'],exclude:['排除','Excluded','排除'],pending:['待定','Pending','待定'],'not-screened':['未筛选','Not screened','未篩選'],'human-reviewed':['人工审阅已登记','Human review registered','人工審閱已登記'],'discovery-only':['仅发现 · 未读','Discovery only · unread','僅發現 · 未讀']};
@@ -258,7 +279,7 @@ stage1=app=>`${liveTop(app)}${liveHeader(app)}${liveControls(app)}${liveResults(
 stage2=app=>`${liveHeader(app)}${liveControls(app)}${liveResults(app)}${liveFeedback(app)}${liveAssistant(app)}`;
 otherPage=app=>`${liveHeader(app)}${app.page==='files'?liveFiles():app.page==='settings'?`<section class="hs-panel live-files"><h2>${rl('连接与额度','Connection & limits')}</h2><p>${rl('Harness 本地记录服务已接通。真实 Codex 与搜索未注册。','Local Harness records are connected. Live Codex and search are not registered.')}</p><p>${rl('金额','Monetary cost')}: ${rx(rt.overview?.project?.monetary_cost)}</p><pre class="live-record">${rx(JSON.stringify(rt.overview?.project?.settings?.budgets||null,null,2))}</pre><p>${rl('额度声明与执行许可分开；这轮验收不进行真实模型调用。','Declared limits and execution permission are separate. This acceptance run uses no live model.')}</p></section>`:liveFeedback(app)}`;
 const previousAfter=v7AfterRender;
-v7AfterRender=function(app){previousAfter(app);const footer=app.el.querySelector('.hs-footer');if(footer)footer.textContent=rl('V9 本地联动 · 原材料、保存输出与未接通操作分别标识','V9 local integration · original inputs, saved outputs and unconnected operations labeled');const foot=app.el.querySelector('.hs-sidebar-foot');if(foot)foot.textContent=rl('本地服务已连接 · 当前文献 ','Local service connected · current papers ')+rows().length;const badge=app.el.querySelector('.hs-preview');if(badge)badge.textContent='V9 · '+rl('本地联动','Local integration');const host=app.el.querySelector('[data-live-spatial]');if(!host)return;
+v7AfterRender=function(app){previousAfter(app);const footer=app.el.querySelector('.hs-footer');if(footer)footer.textContent=((typeof wikiHomeProjectOpened==='function')?'Wiki V1 · '+rl('原材料、保存输出与未接通操作分别标识','Original inputs, saved outputs and unconnected operations labeled','原材料、儲存輸出與未接通操作分別標示'):rl('V9 本地联动 · 原材料、保存输出与未接通操作分别标识','V9 local integration · original inputs, saved outputs and unconnected operations labeled'));const foot=app.el.querySelector('.hs-sidebar-foot');if(foot)foot.textContent=rl('本地服务已连接 · 当前文献 ','Local service connected · current papers ')+rows().length;const badge=app.el.querySelector('.hs-preview');if((typeof wikiHomeProjectOpened==='function'))liveWikiBrand(app);else if(badge)badge.textContent='V9 · '+rl('本地联动','Local integration');const host=app.el.querySelector('[data-live-spatial]');if(!host)return;
  const known=x=>(Array.isArray(x)?x:[x]).filter(value=>typeof value==='string'&&value.trim()&&!/^unknown/i.test(value));
  const source=rows().map(p=>({...p,key:p.work_id,topics:known(p.coverage_topics??p.classification?.topic_cluster),methods:known(p.classification?.method)}));
  try{app.v7SpatialKey=v7Key(app);app.v7Spatial=AtlasSpatial.mount(host,{papers:source,model:AtlasModel,three:window.V7Three,theme:'light',mode:rt.mode,extraLinks:liveSharedNeedLinks(source),topicColors:typeof publicPlanningPalette==='object'?publicPlanningPalette:{},showLabels:rt.graphLabels!==false,focus:rt.focus,language:{zh:'zh-Hans',en:'en',tw:'zh-Hant'}[app.lang],paperAliases:Object.fromEntries(source.map((p,i)=>[p.key,'P'+(i+1)])),onSelect:selection=>{rt.focus={kind:selection.kind,key:selection.key};if(selection.kind==='paper')rt.selected=selection.key;livePaint();}});host.v7Diagnostics=()=>app.v7Spatial?.diagnostics();}catch(e){host.textContent=rl('图形未加载；可使用文献列表。','Graph unavailable; use the library.');host.dataset.error=e.message;}
@@ -292,12 +313,17 @@ document.addEventListener('click',async e=>{
  if(action==='review'){if(!rt.draft.trim())return;const c=rt.atlas.stage2_input;return livePost('stage1/review-stage2-input',{...liveBound(),artifact_ref:c.artifact_ref,manifest_sha256:c.manifest_sha256,context_sha256:c.context_sha256,decision:document.querySelector('[data-live-decision]').value,user_input:rt.draft,confirmed:true});}
 },true);
 // Load only on this local server. No model, stage or search action runs on read.
-rt.overview=null;rt.atlas=null;livePaint();
+// The first roster read counts as loading: until it returns, "create" and other writes stay disabled.
+// Otherwise a create sent meanwhile was overtaken by the startup project selection, whose newer read
+// left the page on the previous project after the create succeeded.
+rt.overview=null;rt.atlas=null;rt.loading=true;livePaint();
 Promise.all([liveRequest('/v7-case.json'),liveRequest('/api/projects')]).then(async([meta,list])=>{
+ // Wiki HOME and archive links need the roster as wrapped by later modules (saved views): read it once more.
+ if(typeof wikiHomeProjectOpened==='function'&&((apps[0]?.lang==='zh'&&!location.hash)||wikiHomeArchiveFragment()))list=await liveRequest('/api/projects');
  rt.meta=meta;rt.list=Array.isArray(list)?list:list.projects||[];const requested=typeof v93RouteTarget==='function'?v93RouteTarget(rt.list):null;
  let linked;try{linked=decodeURIComponent(location.hash.slice(1).split('?')[0]);}catch(_){}
  rt.projectFallback=!!linked&&/^[A-Za-z0-9_-]{1,64}$/.test(linked)&&!rt.list.some(p=>p.project_ref===linked);
- await liveSelectProject(rt.pending?.ref||requested?.ref||liveSavedProject()||liveHomeProject(),rt.pending?null:requested);
+ await liveSelectProject(rt.pending?.ref||requested?.ref||(typeof wikiHomeProjectOpened==='function'&&liveWikiHomeActive()?null:liveSavedProject()||liveHomeProject()),rt.pending?null:requested);
  if(rt.pending)await liveRecover();
 }).catch(e=>{rt.error=e.message;rt.loading=false;livePaint();});
 setInterval(()=>{if(document.hidden||rt.busy||rt.loading||document.activeElement?.matches('textarea,input,select')||document.activeElement?.shadowRoot?.activeElement?.matches('textarea,input,select'))return;const s=rt.overview?.stage1,jobs=[...Object.values(rt.overview?.models?.jobs||{}),...Object.values(s?.query_execution?.jobs||{}),...Object.values(s?.source_execution?.jobs||{})];const running=jobs.some(j=>['reserved','queued','running','dispatching','acquiring','parsing','submitted','in_progress'].includes(j.status)||['running','queued','parsing'].includes(j.followup?.status));if(running||(rt.overview?.models?.active_jobs||[]).length||(typeof realQueryPending==='function'&&realQueryPending()))liveRefresh();},10000);
