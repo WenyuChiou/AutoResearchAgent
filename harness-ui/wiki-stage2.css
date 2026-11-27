@@ -1,0 +1,85 @@
+/* Wiki V1 Stage 2. Same palette and sizes as wiki-stage1.css; every control is at least 44px high. */
+body:has(#harness-trace-workbench-v6 [data-wiki-s2]) { padding:0; }
+#harness-trace-workbench-v6 .hs-product:has([data-wiki-s2]) { border:0; border-radius:0; box-shadow:none; }
+#harness-trace-workbench-v6 .hs-main:has([data-wiki-s2]) { background:#f7f6f1; }
+#harness-trace-workbench-v6 .hs-content:has([data-wiki-s2]) > .wiki-shell-state { margin:20px 0 24px; }
+#harness-trace-workbench-v6 [data-wiki-s2] + .wiki-s2-project { margin:24px 0 12px; }
+#harness-trace-workbench-v6 .wiki-s2-project > summary { min-height:44px; padding-block:10px; }
+[data-wiki-s2] { color:#203342; line-height:1.55; overflow-wrap:anywhere; }
+[data-wiki-s2] h2,[data-wiki-s2] h3,[data-wiki-s2] h4,[data-wiki-s2] p { margin:0; }
+[data-wiki-s2] h2 { font-size:20px; line-height:1.35; margin-bottom:12px; }
+[data-wiki-s2] button:focus-visible,[data-wiki-s2] summary:focus-visible,[data-wiki-s2] input:focus-visible,[data-wiki-s2] textarea:focus-visible,[data-wiki-s2] [tabindex]:focus-visible { outline:3px solid #7fb4e8; outline-offset:2px; }
+[data-wiki-s2] button { min-height:44px; }
+.wiki-s2-muted { color:#566772; font-size:14px; }
+.wiki-s2-missing { color:#8a5a00; font-weight:650; }
+.wiki-s2-missing + small,.wiki-s2-avail + small { display:block; color:#566772; font-size:13px; }
+.wiki-s2-card,.wiki-s2-empty,.wiki-s2-conn,.wiki-s2-reviewcard { border:1px solid #d7e2de; border-radius:8px; background:white; padding:20px 24px; margin-bottom:16px; min-width:0; }
+.wiki-s2-conn { border-inline-start:6px solid #2f7a70; }
+.wiki-s2-conn hr { border:0; border-top:1px solid #dde5e2; margin:12px 0; }
+.wiki-s2-conn-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; }
+.wiki-s2-conn-row[data-tone="warn"] .wiki-s2-st { background:#fbefd5; color:#7a4e00; }
+.wiki-s2-st { display:inline-block; border-radius:4px; padding:2px 8px; font-size:13px; font-weight:650; background:#e4f0ed; color:#235d56; }
+.wiki-s2-st[data-tone="run"] { background:#e3eefa; color:#1d4f86; }
+.wiki-s2-st[data-tone="wait"],.wiki-s2-st[data-tone="warn"] { background:#fbefd5; color:#7a4e00; }
+.wiki-s2-st[data-tone="idle"],.wiki-s2-st[data-tone="plain"] { background:#eceeed; color:#4a5a63; }
+.wiki-s2-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; margin-top:8px; }
+.wiki-s2-actions > span { display:flex; flex-direction:column; gap:2px; }
+.wiki-s2-reason { color:#7a4e00; font-size:13px; max-width:34ch; }
+.wiki-s2-tag { display:inline-block; margin-inline-start:8px; border-radius:4px; padding:0 6px; font-size:12px; background:#e4f0ed; color:#235d56; }
+.wiki-s2-tabs { display:flex; flex-wrap:wrap; border-bottom:1px solid #c4d1cd; margin:22px 0 24px; }
+.wiki-s2-tabs button { border:none; border-bottom:3px solid transparent; padding:8px 18px; background:transparent; color:#566772; font-weight:650; }
+.wiki-s2-tabs button[aria-selected="true"] { border-bottom-color:#2f7a70; color:#192f40; }
+.wiki-s2-line { margin:0 0 12px; font-size:14px; color:#566772; }
+.wiki-s2-unbound { margin:8px 0 12px; font-size:14px; color:#7a4e00; }
+.wiki-s2-advice { background:#e8f1fb; border-radius:8px; padding:14px 18px; margin-bottom:16px; }
+.wiki-s2-advice b { color:#1d4f86; }
+.wiki-s2-advice ul { margin:8px 0 0; padding-inline-start:20px; font-size:14px; }
+.wiki-s2-scroll { overflow-x:auto; border:1px solid #dde5e2; border-radius:8px; background:white; }
+.wiki-s2-compare { border-collapse:separate; border-spacing:0; width:100%; min-width:640px; font-size:14px; }
+.wiki-s2-compare th,.wiki-s2-compare td { vertical-align:top; text-align:left; padding:12px 14px; border-bottom:1px solid #e6ece9; min-width:200px; max-width:340px; }
+.wiki-s2-compare thead th { background:#f1f5f3; }
+.wiki-s2-compare th[scope="row"],.wiki-s2-compare thead th:first-child { position:sticky; inset-inline-start:0; min-width:130px; max-width:160px; background:#f1f5f3; z-index:1; }
+.wiki-s2-compare .picked { background:#e4f0ed; }
+.wiki-s2-compare thead th.picked { box-shadow:inset 0 3px 0 #2f7a70; }
+.wiki-s2-letter { display:inline-block; font-size:22px; margin-inline-end:8px; }
+.wiki-s2-opinion { display:inline-block; border-radius:4px; padding:0 6px; font-size:12px; margin-inline-end:4px; background:#eceeed; color:#4a5a63; }
+.wiki-s2-opinion[data-tone="rec"] { background:#e3eefa; color:#1d4f86; }
+.wiki-s2-opinion[data-tone="rev"],.wiki-s2-opinion[data-tone="synth"] { background:#fbefd5; color:#7a4e00; }
+.wiki-s2-opinion[data-tone="draft"] { background:#e4f0ed; color:#235d56; }
+.wiki-s2-flag { display:block; margin-top:6px; border:1px solid #c4d1cd; background:white; border-radius:8px; padding:4px 10px; font-size:13px; }
+.wiki-s2-flag[aria-pressed="true"] { background:#192f40; color:white; }
+.wiki-s2-checks { list-style:none; margin:0; padding:0; }
+.wiki-s2-checks li { display:flex; justify-content:space-between; gap:8px; }
+.wiki-s2-checks b { font-size:12px; border-radius:4px; padding:0 6px; background:#eceeed; }
+.wiki-s2-checks b[data-tone="block"] { background:#fbefd5; color:#7a4e00; }
+.wiki-s2-checks b[data-tone="free"] { background:#e4f0ed; color:#235d56; }
+.wiki-s2-avail { display:inline-block; border:1px dashed #c4a35a; border-radius:4px; padding:0 6px; font-size:13px; color:#7a4e00; }
+.wiki-s2-pager { display:flex; gap:12px; align-items:center; margin:12px 0; }
+.wiki-s2-fold { border:1px solid #d7e2de; border-radius:8px; background:white; padding:0 18px; margin:16px 0; }
+.wiki-s2-fold > summary { min-height:44px; display:flex; align-items:center; font-weight:650; cursor:pointer; }
+.wiki-s2-fold pre { white-space:pre-wrap; max-height:360px; overflow:auto; font-size:13px; }
+.wiki-s2-reviewcard h3 { font-size:17px; margin-bottom:8px; }
+.wiki-s2-reviewcard ul { margin:0 0 8px; padding-inline-start:18px; font-size:14px; }
+.wiki-s2-decide { border:2px solid #2f7a70; border-radius:8px; background:white; padding:20px 24px; margin:20px 0; }
+.wiki-s2-label { display:inline-block; background:#2f7a70; color:white; border-radius:4px; padding:0 8px; font-size:13px; margin-bottom:8px; }
+.wiki-s2-choices { border:0; margin:12px 0; padding:0; }
+.wiki-s2-choice { display:flex; gap:8px; align-items:center; min-height:44px; }
+.wiki-s2-reasonbox { display:block; margin:8px 0; font-size:14px; }
+.wiki-s2-reasonbox textarea { display:block; width:100%; box-sizing:border-box; margin-top:4px; }
+.wiki-s2-warnline { color:#7a4e00; font-size:14px; margin:8px 0; }
+.wiki-s2-tentative { margin-top:14px; }
+.wiki-s2-tentative > summary { min-height:44px; display:flex; align-items:center; color:#1d4f86; cursor:pointer; }
+.wiki-s2-receipt { display:flex; gap:14px; background:#e4f0ed; border-radius:8px; padding:18px 22px; margin:16px 0; }
+.wiki-s2-tick { font-size:26px; color:#2f7a70; }
+.wiki-s2-receipt dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 24px; margin:8px 0 12px; }
+.wiki-s2-receipt dt { font-size:13px; color:#566772; }
+.wiki-s2-receipt dd { margin:0; }
+.wiki-s2-chips { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.wiki-s2-chip { border:1px solid #c4d1cd; background:white; border-radius:20px; padding:6px 12px; font-size:14px; max-width:100%; }
+.wiki-s2-chip[aria-pressed="true"] { background:#192f40; color:white; }
+.wiki-s2-hide { display:inline-flex; gap:6px; align-items:center; min-height:44px; font-size:14px; }
+.wiki-s2-dashed { border:1px dashed #9db1ab; border-radius:8px; padding:24px; text-align:center; color:#566772; }
+.wiki-s2-dot { border:0; background:transparent; color:#2f7a70; font-size:20px; min-width:44px; }
+.wiki-s2-package { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-bottom:12px; }
+.wiki-s2-tech code { word-break:break-all; }
+@media (max-width:900px) { .wiki-s2-conn-row { grid-template-columns:1fr; } .wiki-s2-receipt dl { grid-template-columns:1fr; } }

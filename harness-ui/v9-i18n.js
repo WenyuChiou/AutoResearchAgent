@@ -6,6 +6,15 @@ const n9UiLabels = {
  '用途':['用途','Role','用途'], '原卡说明与限制':['原卡说明与限制','Source-card notes and limits','原卡說明與限制'],
  '方法与样本':['方法与样本','Method and sample','方法與樣本'], '作者':['作者','Authors','作者'],
  'Unknown':['未提供','Unknown','未提供'], 'unknown':['未知','Unknown','未知'],
+ 'unverified':['未核对','Unverified','未核對'],
+ 'NOT_VERIFIED':['未核实','Not verified','未核實'],
+ 'planned / unconnected':['还没接通','Planned / unconnected','還沒接通'],
+ 'saved_reference_sources':['已保存（只读）','Saved (read only)','已儲存（唯讀）'],
+ 'NOT_PRESENT_IN_EXAMINED_PACKAGE':['归档里没有真人选择记录','No human choice is recorded in the archive','歸檔裡沒有真人選擇紀錄'],
+ 'OPEN_PER_PUBLISHED_PLAN':['正式确认还没完成','Formal confirmation is pending','正式確認還沒完成'],
+ 'recommend':['系统建议','System recommendation','系統建議'],
+ 'park':['系统暂缓','Deferred by the system','系統暫緩'],
+ 'revise':['待修订','Revise','待修訂'],
  'registered':['已登记','Registered','已登記'], 'verified-saved-package':['已核验保存交付','Verified saved delivery','已核驗保存交付'],
  'validated-stage2-packet':['已校验Stage2材料','Validated Stage2 input','已校驗Stage2材料'],
  'prepared':['接续快照已保存','Workflow prepared','接續快照已保存'],
@@ -18,6 +27,6 @@ const n9UiLabels = {
  'abstract-only':['仅摘要','Abstract only','僅摘要'],
  'metadata-only':['仅书目','Metadata only','僅書目']
 };
-function n9UiLabel(value){return n9UiLabels[value]?rl(...n9UiLabels[value]):value;}
+function n9UiLabel(value){return Object.hasOwn(n9UiLabels,value)?rl(...n9UiLabels[value]):value;}
 function n9Message(value){return typeof value==='function'?value():value;}
 function n9OriginalNotice(){return '';}

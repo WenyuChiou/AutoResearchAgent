@@ -25,7 +25,8 @@ function v93Language(app){return {zh:'zh-CN',tw:'zh-TW',en:'en'}[app.lang]||'en'
 function v93Fragment(ref,app,stage){return '#'+encodeURIComponent(ref)+'?stage='+stage+'&lang='+encodeURIComponent(v93Language(app));}
 function v93SyncLanguageRoute(app,updateRoute=false){
  const project=rt.overview?.project,route=v93RouteTarget(Array.isArray(rt.list)?rt.list:[]);
- if(app!==apps[0]||!v93ValidProject(project)||project.project_ref!==rt.ref||
+ const saved=typeof wikiHomeArchiveBound==='function'&&wikiHomeArchiveBound(rt.ref);
+ if(app!==apps[0]||(!saved&&(!v93ValidProject(project)||project.project_ref!==rt.ref))||
     !route||route.ref!==rt.ref||route.stage!==app.stage||!['zh','tw','en'].includes(app.lang))return;
  // Initial renders must not overwrite a route that bootstrap has not restored.
  if(!updateRoute&&route.lang!==app.lang)return;
@@ -42,13 +43,15 @@ function v93RouteTarget(list){
  const raw=location.hash.slice(1),i=raw.indexOf('?');if(i<0)return null;
  let ref;try{ref=decodeURIComponent(raw.slice(0,i));}catch(_){return null;}
  const params=new URLSearchParams(raw.slice(i+1)),stage=Number(params.get('stage')),lang=params.get('lang');
-  if(!/^[A-Za-z0-9_-]{1,64}$/.test(ref)||!Number.isInteger(stage)||stage<1||stage>6||!['en','zh-TW','zh-CN'].includes(lang)||!list.some(p=>p.project_ref===ref))return null;
+ const saved=typeof wikiHomeArchiveRef==='function'&&wikiHomeArchiveRef(ref)&&canonicalEntry(ref);
+ if((!saved&&!/^[A-Za-z0-9_-]{1,64}$/.test(ref))||!Number.isInteger(stage)||stage<1||stage>6||!['en','zh-TW','zh-CN'].includes(lang)||!list.some(p=>p.project_ref===ref))return null;
  return {ref,stage,lang:{en:'en','zh-TW':'tw','zh-CN':'zh'}[lang]};
 }
 // Restore only the currently loaded project; navigation never submits or refreshes it.
 function v93RestoreStageRoute(){
  const route=v93RouteTarget(rt.list),app=apps[0];
- if(!route||!app||route.ref!==rt.ref||rt.overview?.project?.project_ref!==route.ref)return;
+ const saved=typeof wikiHomeArchiveBound==='function'&&wikiHomeArchiveBound(rt.ref);
+ if(!route||!app||route.ref!==rt.ref||(!saved&&rt.overview?.project?.project_ref!==route.ref))return;
  if(app.page==='workspace'&&app.stage===route.stage&&app.lang===route.lang)return;
  app.lang=route.lang;localStage(app,route.stage,{historyMode:'restore'});livePaint();
 }
@@ -271,9 +274,9 @@ document.addEventListener('change',event=>{
  const path=event.composedPath(),app=apps.find(item=>path.includes(item.el));
  if(app)v93SyncLanguageRoute(app,true);
 });
-document.addEventListener('click',async event=>{
- const button=event.target.closest('[data-v93-read]');if(!button||v93.busy)return;
- const app=apps.find(a=>a.el.contains(button)),basis=v93Identity();if(!app||app.stage!==3||!basis)return;
+// Reading is GET-only (projectPath .../stage3/planning, no body). It never starts planning.
+async function v93ReadSaved(app,basis){
+ if(v93.busy||!app||app.stage!==3||!basis)return;
  const epoch=rt.epoch,sequence=++v93.sequence;v93.busy=true;v93.error='';v93.errorBasis=null;v93.view=null;v93.basis=null;livePaint();
  try{
   const view=await liveRequest(projectPath(basis.project_ref,'stage3/planning'));
@@ -282,4 +285,8 @@ document.addEventListener('click',async event=>{
   v93.view=view;v93.basis=basis;
  }catch(error){if(sequence===v93.sequence&&epoch===rt.epoch&&v93Matches(basis,v93Identity())){v93.error=String(error.message||error);v93.errorBasis=basis;}}
  finally{if(sequence===v93.sequence){v93.busy=false;livePaint();}}
+}
+document.addEventListener('click',event=>{
+ const button=event.target.closest('[data-v93-read]');if(!button||v93.busy)return;
+ const app=apps.find(a=>a.el.contains(button));return v93ReadSaved(app,v93Identity());
 });

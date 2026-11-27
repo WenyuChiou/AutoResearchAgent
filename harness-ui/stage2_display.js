@@ -133,32 +133,37 @@ async function wikiStage2Load(state, submit) {
 }
 
 function wikiStage2RequestRow(state) {
+  if (state && JSON.stringify(wikiStage2Basis()) !== JSON.stringify(state.basis)) return '';
+  return wikiStage2RequestBody(state);
+}
+
+// The panel is only rendered for a state created on the current basis, so it skips the guard.
+function wikiStage2RequestBody(state) {
   const label = (zh, en, tw) => rl(zh, en, tw);
   const status = state?.result?.status;
-  if (state && JSON.stringify(wikiStage2Basis()) !== JSON.stringify(state.basis)) return '';
   const descriptions = {
-    ready: label("文献包已接收，可以请求生成候选。", "The literature packet was received. You can request candidates.", "文獻包已接收，可以請求產生候選。"),
-    "request-saved": label("请求已保存。可查看处理状态。", "Request saved. You can check its status.", "請求已儲存。可查看處理狀態。"),
-    running: label("正在处理此请求。", "This request is in progress.", "正在處理此請求。"),
-    "candidate-ready": label("当前版本的候选已保存。", "Candidates saved for this version.", "目前版本的候選已儲存。"),
+    ready: label("文献包已接收，可以请求生成候选", "The literature packet was received. You can request candidates.", "文獻包已接收，可以請求產生候選。"),
+    "request-saved": label("请求已保存，可以查看处理状态", "Request saved. You can check its status.", "請求已儲存。可查看處理狀態。"),
+    running: label("正在处理这个请求。不需要你操作", "This request is in progress.", "正在處理此請求。"),
+    "candidate-ready": label("当前版本的候选已保存", "Candidates saved for this version.", "目前版本的候選已儲存。"),
     "selection-available": label("当前版本的候选已保存，可以查看选案。", "Candidates are saved for this version. The selection view is available.", "目前版本的候選已儲存，可以查看選案。"),
     "no-candidate": label("后台已经回执，候选交付还没有保存。", "The service acknowledged the request. Candidate delivery is pending.", "背景服務已回執，候選交付還沒有儲存。"),
-    "execution-unknown": label("已有请求。请由操作者核对原运行记录。", "A request exists. Ask the operator to check the retained run.", "已有請求。請由操作者核對原執行紀錄。"),
-    blocked: label("已保存的请求受阻。请由操作者检查交接。", "The saved request is blocked. Ask the operator to check the handoff.", "已儲存的請求受阻。請由操作者檢查交接。"),
-    "stage2-controller-not-connected": label("本课题还没有接通 Stage 2。", "Stage 2 is not connected for this project.", "本課題還沒有接通 Stage 2。"),
+    "execution-unknown": label("请求已保存，结果还不清楚，请由管理员核对原运行记录", "A request exists. Ask the operator to check the retained run.", "已有請求。請由操作者核對原執行紀錄。"),
+    blocked: label("已保存的请求受阻，暂时无法继续，请由管理员检查交接", "The saved request is blocked. Ask the operator to check the handoff.", "已儲存的請求受阻。請由操作者檢查交接。"),
+    "stage2-controller-not-connected": label("这个课题的 Stage 2 还没接通。请联系项目管理员。", "Stage 2 is not connected for this project.", "本課題還沒有接通 Stage 2。"),
     "stage2-continuation-activation-required": label("请先完成本项目的 Stage 2 启用。", "Complete Stage 2 activation for this project first.", "請先完成本專案的 Stage 2 啟用。"),
-    "stage2-continuation-original-admission-unavailable": label("原运行许可缺失或已过期。请联系操作者。", "The original run admission is missing or expired. Contact the operator.", "原執行許可缺失或已過期。請聯絡操作者。"),
-    "stage2-continuation-project-stale": label("当前输入版本和已接入作业不一致。请重新打开项目。", "Reopen the project. The input version has changed.", "目前輸入版本和已接入作業不一致。請重新開啟專案。"),
-    "stage2-continuation-result-not-current": label("保存的候选与当前记录不一致。请联系操作者。", "The saved candidates could not be verified for this version. Contact the operator.", "保存的候選與目前紀錄不一致。請聯絡操作者。"),
-    "stage2-continuation-request-exists": label("已有请求。请查看保存状态。", "A request already exists. Check its saved status.", "已有請求。請查看儲存狀態。"),
-    "stage2-continuation-worker-busy": label("另一个请求正在处理。请稍后再试。", "Another request is running. Try again shortly.", "另一個請求正在處理。請稍後再試。"),
+    "stage2-continuation-original-admission-unavailable": label("原运行许可缺失或已过期，请联系项目管理员", "The original run admission is missing or expired. Contact the operator.", "原執行許可缺失或已過期。請聯絡操作者。"),
+    "stage2-continuation-project-stale": label("课题的输入版本和已接入的作业不一致，请重新打开课题", "Reopen the project. The input version has changed.", "目前輸入版本和已接入作業不一致。請重新開啟專案。"),
+    "stage2-continuation-result-not-current": label("保存的候选和当前记录不一致，请联系项目管理员。不会用示例内容补上", "The saved candidates could not be verified for this version. Contact the operator.", "保存的候選與目前紀錄不一致。請聯絡操作者。"),
+    "stage2-continuation-request-exists": label("已有请求，请查看保存状态", "A request already exists. Check its saved status.", "已有請求。請查看儲存狀態。"),
+    "stage2-continuation-worker-busy": label("另一个请求正在处理，请稍后再试", "Another request is running. Try again shortly.", "另一個請求正在處理。請稍後再試。"),
   };
   const pathConflict=state?.error==="stage2-continuation-result-not-current" && typeof v9ConnectionReason==='function';
   const mayRequest=typeof v9AllowsCandidateRequest!=='function'||v9AllowsCandidateRequest();
   const message = pathConflict ? v9ConnectionReason(state.error,409) : !state || state.busy
     ? label("正在读取请求状态。", "Checking request status.", "正在讀取請求狀態。")
     : descriptions[state.error || status] || (state.error
-      ? label("暂时无法读取回执。请再查一次保存状态。", "The receipt could not be read. Check its saved status again.", "暫時無法讀取回執。請再查一次儲存狀態。")
+      ? label("暂时无法读取回执，请再查一次保存状态", "The receipt could not be read. Check its saved status again.", "暫時無法讀取回執。請再查一次儲存狀態。")
       : label("候选请求状态待核对，原记录仍保留。", "The candidate request status needs checking. Original records are retained.", "候選請求狀態待核對，原紀錄仍保留。"));
   return `<div data-wiki-stage2-request-row><p role="status">${rx(message)}</p><div class="n9-page-actions">
       ${status === "ready" && mayRequest ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
@@ -169,9 +174,9 @@ function wikiStage2RequestRow(state) {
 function wikiStage2Panel(state) {
   const label = (zh, en, tw) => rl(zh, en, tw);
   const status = state.result?.status;
-  const pathConflict = state.error === "stage2-continuation-result-not-current";
-  const needsConnection = wikiStage2NeedsConnection(state);
   const standaloneRequest = typeof v9ConnectionPanel !== 'function' || v9LegacyConnection('stage2-controller');
+  const reason = state.result?.reason;
+  const technical = state.error || (status === "blocked" && typeof reason === "string" && reason.trim() ? reason : "") || state.selectionError || "";
   const cards = state.result?.cards || [];
   const heading = label("候选方向", "Candidate directions", "候選方向");
   const prompts = [
@@ -181,11 +186,11 @@ function wikiStage2Panel(state) {
   ];
   return `<section class="hs-panel" data-wiki-stage2-continuation><h2>${heading}</h2>
     <small>${rx(rt.overview.project.brief?.original_description || state.basis[0])} · ${label("输入版本", "Input version", "輸入版本")} ${rx(state.basis[1])}</small>
-    ${standaloneRequest ? wikiStage2RequestRow(state) : ''}
-    ${pathConflict||needsConnection||state.selectionError ? '<details><summary>'+label('技术详情','Technical details','技術詳情')+'</summary><code>'+rx(pathConflict||needsConnection?state.error:state.selectionError)+'</code></details>' : ''}
-    ${state.result?.synthetic_test_only ? `<p>${label("合成工程候选", "Synthetic engineering candidates", "合成工程候選")}</p>` : ""}
-    ${state.result?.human_selection === "pending" ? `<p>${label("等待人工选案", "Human selection pending", "等待人工選案")}</p>` : ""}
-    ${state.result?.assessment_status === "missing" ? `<p>${label("独立评估尚未提供", "Independent assessment unavailable", "獨立評估尚未提供")}</p>` : ""}
+    ${standaloneRequest ? wikiStage2RequestBody(state) : ''}
+    ${technical ? '<details><summary>'+label('技术细节','Technical details','技術細節')+'</summary><code>'+rx(technical)+'</code></details>' : ''}
+    ${state.result?.synthetic_test_only ? `<p>${label("合成样例候选", "Synthetic engineering candidates", "合成樣例候選")}</p>` : ""}
+    ${state.result?.human_selection === "pending" ? `<p>${label("等待你选择研究方向", "Human selection pending", "等待人工選案")}</p>` : ""}
+    ${state.result?.assessment_status === "missing" ? `<p>${label("这份归档没有保存独立评估", "Independent assessment unavailable", "獨立評估尚未提供")}</p>` : ""}
     ${status === "candidate-ready" && state.result.comparison ? `<p><strong>${state.result.comparison_is_input_baseline
       ? label("接入时的比较基线", "Comparison baseline at intake", "接入時的比較基線")
       : label("交付中记录的比较", "Comparison recorded in the delivery", "交付中記錄的比較")}</strong> ${rx(state.result.comparison)}</p>` : ""}
