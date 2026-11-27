@@ -220,3 +220,28 @@ test('review P2-10: an unknown run outcome is kept per topic; another topic unkn
  assert.equal(row.tag, '结果未知', 'back on the first topic its unknown outcome is still there');
  assert.equal(row.grant, undefined);
 });
+
+test('review P2-9: a timed-out submission that the read-only check finds never dispatched goes back to the grant', async () => {
+ const sha = 'c'.repeat(64), timeout = {key:request.key, request_sha256:sha, code:'stage3-planning-deadline-or-io-failed', automatic_retry:false};
+ const {ctx, posts} = load({view:{submission_error:timeout, job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ let row = line(ctx);
+ assert.equal(row.tag, '结果未知');
+ assert.equal(row.grant, undefined);
+ // The read-only check answers: still intent-recorded (the Host keeps submission_error until the next run).
+ ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'intent-recorded'});
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
+ row = line(ctx);
+ assert.equal(row.tag, '等你授权', 'not stuck in 结果未知');
+ assert.match(row.text, /上次在调用模型之前就停了，没有执行/);
+ assert.equal(row.grant.gate, '请先勾选确认', 'the tick must be given again');
+ vm.runInContext(`wikiS3Req.check = '${sha}'`, ctx);
+ ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningSubmission', job:{project_ref:'project-p', key:body.key, request_sha256:sha, status:'dispatching'}});
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
+ assert.equal(posts.filter(p => p.p.endsWith('/run')).length, 1, 'a new run can be requested explicitly');
+ // If the check had found it dispatched or unknown, nothing changes.
+ const other = load({view:{submission_error:timeout, job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ other.ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'execution-unknown'});
+ await other.ctx.wikiS3PlanAction(other.ctx.apps[0], 'inspect');
+ assert.equal(line(other.ctx).tag, '结果未知');
+ assert.equal(line(other.ctx).grant, undefined);
+});
