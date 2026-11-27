@@ -1,5 +1,5 @@
 /* Wiki V1 global pages (DESIGN 8.1, 8.2; prototype ops.css .kv/.files/.history/.checks/.quota/.chips). [data-v1="other"] only. */
-#harness-trace-workbench-v6 [data-v1="other"] .hs-content > :not([data-v1-global],.v1-alert) { display:none !important; }
+#harness-trace-workbench-v6 [data-v1="other"] .hs-content > :not([data-v1-global],.v1-alert,[data-v1-env]) { display:none !important; }
 #harness-trace-workbench-v6 [data-v1] .v1-page[data-v1-global] { gap:24px; }
 #harness-trace-workbench-v6 [data-v1] .v1-hint { font-size:14px; color:var(--v1-sub); max-width:80ch; margin:0; }
 #harness-trace-workbench-v6 [data-v1] .v1-note { margin:0; font-size:14px; color:var(--v1-text); background:var(--v1-blue-soft); border-left:6px solid var(--v1-blue); border-radius:8px; padding:10px 14px; }
@@ -72,3 +72,4 @@
 @media (min-width:1100px) {
  #harness-trace-workbench-v6 [data-v1] .v1-files-wrap:has(.v1-preview) { grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); align-items:start; }
 }
+#harness-trace-workbench-v6 [data-v1] .v1-env-raw summary { min-height:36px; display:flex; align-items:center; cursor:pointer; font-size:13px; color:var(--v1-sub); }

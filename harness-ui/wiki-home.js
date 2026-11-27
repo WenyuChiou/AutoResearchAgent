@@ -93,7 +93,7 @@ function wikiHomeProjectTable(rows, ready, locked) {
  <div class="wiki-home-table"><table><thead><tr>
   <th scope="col">项目</th><th scope="col">来历</th><th scope="col">到了哪一段</th><th scope="col">现在的状态</th><th scope="col">Harness 记录</th><th scope="col"><span class="wiki-home-visually-hidden">操作</span></th>
  </tr></thead><tbody>${tableRows || `<tr><td colspan="6" class="wiki-home-empty" role="status">${ready ? '还没有保存的课题。输入标题开始第一个课题。' : rt.error ? '暂时读不到项目列表。' : '正在读取项目列表…'}</td></tr>`}</tbody></table></div>
- <p class="wiki-home-note">「Harness 记录」显示项目已有的检查记录和拦截次数。历史归档可供查阅，合成样例只用于演示。</p></section>
+ <p class="wiki-home-note">「Harness 记录」显示项目已有的检查记录和拦截次数。历史归档可供查阅，合成样例只用于演示。${rows.some(row => row.origin === 'synthetic') ? '合成样例是自带的只读样例，不连 Codex 也能看。' : ''}</p></section>
  ${wikiHomeCases()}`;
 }
 

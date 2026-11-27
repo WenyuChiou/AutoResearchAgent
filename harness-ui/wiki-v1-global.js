@@ -287,3 +287,31 @@ document.addEventListener('click', event => {
  if (!event.target.closest?.('[data-wiki-home-codex]')) return;
  setTimeout(() => apps[0].el.querySelector('#v1-connect-codex')?.scrollIntoView({block:'start'}), 120);
 }, true);
+
+// ---------------- 环境提示条 (8.22) ----------------
+// Only what the page itself can tell: it was not opened from the Wiki service (no service bootstrap, or the
+// service refused this address as another origin, alias or port). Missing vendor files stop the service before
+// any page loads, and port changes, a second running copy and the Codex version are known only to the launcher.
+function v1gEnvAlerts() {
+ const boot = window.RESEARCH_PROJECTS;
+ const refused = ['origin-or-host-rejected', 'cross-site-rejected'].includes(rt.error);
+ if (location.protocol === 'file:' || !boot || typeof boot.credential !== 'string' || refused) {
+  return [{tone:'warn', title:'这个页面不是从 Wiki 服务打开的。', sub:'请运行启动脚本，用它打印的地址打开；不要直接双击 HTML 文件，也不要换别名或端口。', raw:refused ? rt.error : !boot ? 'no-service-bootstrap' : 'file-or-missing-credential'}];
+ }
+ return [];
+}
+const v1gPrevRender = render;
+render = function (app) {
+ v1gPrevRender(app);
+ if (!app.el.dataset.v1) return;
+ const content = app.el.querySelector('.hs-content');
+ const alerts = v1gEnvAlerts();
+ if (!content || !alerts.length) return;
+ content.insertAdjacentHTML('afterbegin', alerts.map(a => `<div class="v1-alert v1-env ${a.tone}" role="alert" data-v1-env><div><b>${esc(a.title)}</b><span>${esc(a.sub)}</span></div><details class="v1-env-raw"><summary>技术细节</summary><code>${esc(a.raw)}</code></details></div>`).join(''));
+};
+const v1gPrevAfter = v7AfterRender;
+v7AfterRender = function (app) {
+ v1gPrevAfter(app);
+ const content = app.el.querySelector('.hs-content'), env = content?.querySelector(':scope > [data-v1-env]');
+ if (env && content.firstElementChild !== env) content.prepend(env);
+};
