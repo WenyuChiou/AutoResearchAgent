@@ -175,8 +175,9 @@ class LocalLauncherTests(unittest.TestCase):
             with patch.object(Path, "lstat", counted):
                 source.inventory(root)
             self.assertEqual(calls.count(root), 2)  # checked once, rechecked once
-            # walk's own link check, first ancestor check, end-of-pass recheck
-            self.assertEqual(calls.count(root / "sub"), 3)
+            # walk's own link check (is_symlink + lstat), first ancestor check,
+            # end-of-pass recheck
+            self.assertEqual(calls.count(root / "sub"), 4)
             for name in ("a.txt", "b.txt", "sub/c.txt", "sub/d.txt"):
                 self.assertEqual(calls.count(root / name), 1)
 
