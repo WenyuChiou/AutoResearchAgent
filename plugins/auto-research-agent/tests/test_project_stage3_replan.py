@@ -329,6 +329,74 @@ class ReplanHostTests(ReplanFixture, unittest.TestCase):
         self.assertEqual(read["status"], "intent-recorded")
 
 
+class ReplanLatestDecisionTests(ReplanFixture, unittest.TestCase):
+    """Only the latest decision (by server sequence) on the displayed revision counts."""
+
+    def accept(self, key):
+        from unittest.mock import patch
+
+        # The authored fixture plan is needs-information, so the real accept gate
+        # would refuse; only that readiness gate is substituted, the record is real.
+        with patch(
+            "research_workspace_native.project_stage3_decision.accept_condition",
+            return_value=(True, "fixture-accept", None),
+        ):
+            return self.decide(key, "accept")
+
+    def test_later_accept_or_return_supersedes_revise_before_prepare(self):
+        _, revision, decision = self.revised_and_decided()
+        body = self.replan_body(decision, revision)
+        for key, later in (("d-accept", self.accept), ("d-return", None)):
+            with self.subTest(later=key):
+                if later is None:
+                    self.decide(key, "return-to-stage2")
+                else:
+                    later(key)
+                self.assert_refused(
+                    lambda: self.http.replan.prepare("own", self.ref, body),
+                    "stage3-replan-decision-superseded",
+                    409,
+                )
+                replan = self.view()["replan"]
+                self.assertEqual(
+                    (replan["available"], replan["reason"]),
+                    (False, "stage3-replan-decision-superseded"),
+                )
+                self.assertIsNone(replan["from_decision_receipt_sha256"])
+        # choosing revise-then-review again makes it possible, with the new receipt
+        again = self.decide("d-again")
+        replan = self.view()["replan"]
+        self.assertTrue(replan["available"])
+        self.assertEqual(replan["request"], self.replan_body(again, revision))
+        prepared = self.http.replan.prepare("own", self.ref, replan["request"])
+        self.assertEqual(prepared["status"], "intent-recorded")
+        self.assertEqual(self.callback.call_count, 1)
+
+    def test_accept_after_prepare_blocks_run_without_a_call_until_revise_again(self):
+        _, revision, decision = self.revised_and_decided()
+        body = self.replan_body(decision, revision)
+        prepared = self.http.replan.prepare("own", self.ref, body)
+        self.accept("d-accept")
+        self.respond(body["key"])
+        run_body = dict(body, request_sha256=prepared["request_sha256"], confirmed=True)
+        self.assert_refused(
+            lambda: self.http.replan.run("own", self.ref, run_body),
+            "stage3-replan-decision-superseded",
+            409,
+        )
+        self.assert_refused(
+            lambda: self.http.admit_run("own", self.ref, run_body, None),
+            "stage3-replan-decision-superseded",
+            409,
+        )
+        self.assertEqual(self.item_for(body["key"])["status"], "intent-recorded")
+        self.assertEqual(self.callback.call_count, 1)
+        self.decide("d-again")  # latest is revise-then-review again
+        result = self.http.replan.run("own", self.ref, run_body)
+        self.assertEqual(result["outcome"], "saved", result)
+        self.assertEqual(self.callback.call_count, 2)
+
+
 class ReplanViewTests(ReplanFixture, unittest.TestCase):
     def run_replan(self):
         comment, revision, decision = self.revised_and_decided()

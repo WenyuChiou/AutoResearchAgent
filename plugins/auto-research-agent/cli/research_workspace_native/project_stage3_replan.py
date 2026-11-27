@@ -45,6 +45,16 @@ def _source(body, extra=()):
     }
 
 
+def _latest(rows, binding):
+    """The last decision on this exact displayed revision, by server sequence.
+
+    Only the latest decision counts: a later accept or return-to-stage2 on the
+    same revision supersedes an earlier revise-then-review.
+    """
+    current = [row for row in rows if row["record"]["binding"] == binding]
+    return max(current, key=lambda row: row["record"]["sequence"], default=None)
+
+
 def _saved(item):
     return (
         item["status"] == "completed"
@@ -174,10 +184,11 @@ class ProjectStage3Replan:
             "stage3-replan-revision-changed",
             409,
         )
+        rows = _decision_rows(jobs, base)
         decision = next(
             (
                 row
-                for row in _decision_rows(jobs, base)
+                for row in rows
                 if row["receipt_sha256"] == body["decision_receipt_sha256"]
             ),
             None,
@@ -190,6 +201,11 @@ class ProjectStage3Replan:
         _check(
             decision["record"]["binding"] == binding,
             "stage3-replan-decision-differs",
+            409,
+        )
+        _check(
+            _latest(rows, binding)["record"]["decision"] == DECISION,
+            "stage3-replan-decision-superseded",
             409,
         )
         feedback = _feedback_rows(jobs, base)
@@ -274,13 +290,14 @@ class ProjectStage3Replan:
         )
 
     def check_current(self, credential, ref, payload, check_deadline=None):
-        """Before a dispatch: the displayed revision must still be the frozen one."""
+        """Before a dispatch: the displayed revision must still be the frozen one,
+        and the latest decision on it must still be revise-then-review."""
         frozen = payload["revision_input"]
         with self.service.intake._lock:
             view = self.transport._view(credential, ref, check_deadline=check_deadline)
             jobs = self.service.bindings.get(ref)["jobs"]
             try:
-                _, binding, _, ambiguous = _binding(jobs, ref, view)
+                base, binding, _, ambiguous = _binding(jobs, ref, view)
             except SessionApiError:
                 binding, ambiguous = None, True
             _check(
@@ -288,6 +305,12 @@ class ProjectStage3Replan:
                 and binding["plan_request_sha256"] == frozen["parent_request_sha256"]
                 and binding[REVISION] == frozen["plan_revision_receipt_sha256"],
                 "stage3-replan-revision-changed",
+                409,
+            )
+            latest = _latest(_decision_rows(jobs, base), binding)
+            _check(
+                latest is not None and latest["record"]["decision"] == DECISION,
+                "stage3-replan-decision-superseded",
                 409,
             )
 
@@ -342,12 +365,12 @@ class ProjectStage3Replan:
         receipt = binding[REVISION]
         if receipt is None and not ambiguous and "previous_plans" not in view:
             return None
-        decisions = [
-            row["receipt_sha256"]
-            for row in rows
-            if row["record"]["binding"] == binding
-            and row["record"]["decision"] == DECISION
-        ]
+        latest = None if ambiguous else _latest(rows, binding)
+        decisions = (
+            [latest["receipt_sha256"]]
+            if latest is not None and latest["record"]["decision"] == DECISION
+            else []
+        )
         out = {
             "available": False,
             "reason": None,
@@ -365,8 +388,10 @@ class ProjectStage3Replan:
             out["reason"] = "stage3-decision-revision-ambiguous"
         elif receipt is None:
             out["reason"] = "stage3-replan-revision-required"
-        elif not decisions:
+        elif latest is None:
             out["reason"] = "stage3-replan-decision-required"
+        elif not decisions:
+            out["reason"] = "stage3-replan-decision-superseded"
         else:
             default = view["default_request"]
             request = dict(
