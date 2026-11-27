@@ -56,6 +56,9 @@ function wikiHomeProgress(row) {
 // read when the topic was opened (same wording as the Stage 1 page), otherwise what the roster status says.
 const wikiHomeRanStatuses = /^(query-|offline-ledger-active|owner-reopen-required|imported-verified-delivery)/;
 function wikiHomeRecordCell(row) {
+ // Backend counts already read in this tab take priority; the home table never starts a read of its own.
+ const backend = typeof wikiRecHome === 'function' ? wikiRecHome(row.ref) : null;
+ if (backend) return `<span class="wiki-home-record">${esc(backend.text)}</span><small>后台记录 · 已读 Stage ${backend.stages.join('、')}</small>`;
  if (row.origin === 'synthetic') return '演示数据，不计';
  let seen = null;
  try { seen = JSON.parse(sessionStorage.getItem('wiki-v1-record:' + row.ref) || 'null'); } catch (_) { seen = null; }

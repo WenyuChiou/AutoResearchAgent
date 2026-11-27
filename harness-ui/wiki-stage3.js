@@ -449,7 +449,7 @@ function wikiS3Page(app, base) {
   ${feedback ? `<section class="ws3-block" data-s3-feedback>${wikiS3FeedbackLead(feedback, feedbackState, revision)}${panelHtml}</section>` : ''}
   ${wikiS3Decision()}${typeof v93PublicArchive === 'function' ? `<details class="ws3-archive"><summary>已发布的研究设计案例</summary>${v93PublicArchive()}</details>` : ''}${wikiS3TechDetails(view)}`;
  }
- return `${wikiS3Heading()}${panel}<div data-wiki-s3-record>${typeof wikiHarnessRecord === 'function' ? wikiHarnessRecord() : ''}</div>
+ return `${wikiS3Heading()}${panel}<div data-wiki-s3-record>${typeof wikiRecordBlock === 'function' ? wikiRecordBlock(3) : typeof wikiHarnessRecord === 'function' ? wikiHarnessRecord() : ''}</div>
  <section data-wiki-s3 aria-label="研究计划与评审">${tabs}<div role="tabpanel" aria-labelledby="ws3-tab-${state.tab}">${body}</div></section>`;
 }
 

@@ -114,3 +114,11 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-wiki-home-shell="true"]) {
 .wiki-home-link { border:0; background:none; color:#235d56; font:inherit; font-size:14px; text-decoration:underline; cursor:pointer; padding:6px 0; min-height:36px; }
 @media (max-width:900px) { .wiki-home-guide ol { grid-template-columns:1fr; } }
 .wiki-home-table [data-wiki-home-open] { white-space:nowrap; }
+.wiki-record-state { border-left:4px solid #6b8fb5; }
+.wiki-record-state.timeout { border-left-color:#b9822b; }
+.wiki-record-state.failed { border-left-color:#b44a43; }
+.wiki-record-tag { font-size:13px; font-weight:700; padding:2px 8px; border-radius:4px; background:#e8f0f8; color:#1f4e7a; }
+.wiki-record-tag.timeout { background:#fbf1de; color:#8a5a00; }
+.wiki-record-tag.failed { background:#fbe9e7; color:#9a2f28; }
+.wiki-record-gap { color:#8a5a00; }
+.wiki-record-state small { color:#566772; }
