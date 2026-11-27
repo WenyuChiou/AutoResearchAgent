@@ -488,7 +488,7 @@ function wikiS2Page(app) {
  const panel = state.tab === 'literature' ? wikiS2LiteratureTab(model, state) : state.tab === 'materials' ? wikiS2MaterialsTab(app) : wikiS2CompareTab(app, model, state);
  const unbound = model && !model.blocked && model.routes.length && model.bound !== true && model.origin !== 'native'
   ? '<p class="wiki-s2-unbound" data-s2-unbound><span class="wiki-s2-unbound-tag">! 没有绑定</span> 这份候选和某个课题的 Stage 1 文献包之间没有正式的绑定记录。系统的建议不会自动批准进入 Stage 3。</p>' : '';
- return `<section data-wiki-s2 aria-label="选方向">${wikiS2ConnBlock(app)}${unbound}${wikiHarnessRecord()}${wikiS2Receipt(model)}${wikiS2Banner(app, model)}${tabs}
+ return `<section data-wiki-s2 aria-label="选方向">${wikiS2ConnBlock(app)}${unbound}${typeof wikiRecordBlock === 'function' ? wikiRecordBlock(2) : wikiHarnessRecord()}${wikiS2Receipt(model)}${wikiS2Banner(app, model)}${tabs}
   <div role="tabpanel" id="wiki-s2-panel" aria-labelledby="wiki-s2-${state.tab}">${panel}</div>${wikiS2TechDetails(model)}</section>`;
 }
 

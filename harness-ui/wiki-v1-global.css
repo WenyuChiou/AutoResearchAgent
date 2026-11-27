@@ -73,7 +73,3 @@
  #harness-trace-workbench-v6 [data-v1] .v1-files-wrap:has(.v1-preview) { grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); align-items:start; }
 }
 #harness-trace-workbench-v6 [data-v1] .v1-env-raw summary { min-height:36px; display:flex; align-items:center; cursor:pointer; font-size:13px; color:var(--v1-sub); }
-/* 2.1 / 8.4: Codex drawer tab placeholder on stage pages (no drawer in V1). */
-#harness-trace-workbench-v6 [data-v1] .v1-drawer-tab { position:fixed; right:0; top:132px; z-index:20; writing-mode:vertical-rl; display:flex; align-items:center; gap:8px; padding:14px 10px; background:var(--v1-navy); color:#fff; border-radius:8px 0 0 8px; font-size:14px; font-weight:700; letter-spacing:.06em; cursor:default; user-select:none; }
-#harness-trace-workbench-v6 [data-v1] .v1-drawer-tab small { font-size:12px; font-weight:400; color:#c9d6de; }
-#harness-trace-workbench-v6 [data-v1] .v1-drawer-tab .v1-dot { background:#8a99a2; }

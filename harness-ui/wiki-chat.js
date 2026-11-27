@@ -36,6 +36,16 @@ function wikiChatPendingCard(state) {
  return wikiChatTurns(state).find(t => t.status === 'waiting' && t.pending && (t.pending.answer === null || t.pending.answer === undefined)) || null;
 }
 
+// Polling rule (design addendum, not in DESIGN.md): an open drawer re-reads while a turn is working. A collapsed drawer
+// keeps reading only while a turn is working or its result is unknown (to keep the tab's status dot true); in every
+// other state collapsing stops it. Leaving a stage page, switching project or stage, or switching language always stops it.
+function wikiChatShouldPoll(app, ctl, state) {
+ if (!state || !ctl.root?.isConnected) return false;
+ if (typeof v1Page === 'function' && !['s1', 's2', 's3', 'later'].includes(v1Page(app))) return false;
+ if (wikiChatWorkingTurn(state)) return true;
+ return !ctl.open && wikiChatTurns(state).some(t => t.status === 'unknown');
+}
+
 // One pure function decides everything the panel shows. c: {stage, archive, phase, state, busy}.
 function wikiChatPanel(c) {
  const st = c.state || null;
@@ -262,9 +272,9 @@ async function wikiChatLoad(app, force) {
  clearTimeout(ctl.pollTimer);
  // A running turn is re-read every 2 s; while it waits for a person, every 10 s, so a backend timeout still shows up.
  // Polling stops as soon as the drawer is not on a stage page (node removed) or the project/stage changed.
- if (state && wikiChatWorkingTurn(state) && ctl.root?.isConnected) {
-  const wait = wikiChatPendingCard(state) ? wikiChatAskPollMs : 2000;
-  ctl.pollTimer = setTimeout(() => { if (ctl.root?.isConnected && key === ctl.key) wikiChatLoad(app); }, wait);
+ if (wikiChatShouldPoll(app, ctl, state)) {
+  const wait = wikiChatPendingCard(state) || !wikiChatWorkingTurn(state) ? wikiChatAskPollMs : 2000;
+  ctl.pollTimer = setTimeout(() => { if (key === ctl.key && wikiChatShouldPoll(app, ctl, ctl.state)) wikiChatLoad(app); }, wait);
  }
 }
 
@@ -472,7 +482,11 @@ function wikiChatOpen(app, open) {
  ctl.root.v1Markup = '';
  wikiChatPaint(app);
  if (open) { ctl.root.querySelector('[data-wc-close]')?.focus({preventScroll:true}); wikiChatLoad(app, 'visible'); }
- else { ctl.focus = false; ctl.root.querySelector('[data-wc-open]')?.focus({preventScroll:true}); }
+ else {
+  ctl.focus = false; ctl.root.querySelector('[data-wc-open]')?.focus({preventScroll:true});
+  // Collapsing stops polling unless a turn is working or unknown (it keeps the tab's status dot true).
+  if (!wikiChatShouldPoll(app, ctl, ctl.state)) clearTimeout(ctl.pollTimer);
+ }
 }
 
 document.addEventListener('click', event => {
