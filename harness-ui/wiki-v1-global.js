@@ -304,6 +304,11 @@ const v1gPrevRender = render;
 render = function (app) {
  v1gPrevRender(app);
  if (!app.el.dataset.v1) return;
+ // DESIGN 2.1 / 8.4: the Codex chat drawer is not built in V1. Stage pages keep its place on the right edge as a
+ // plain label (not a button), grey dot = not connected, saying it is not open yet.
+ if (['s1', 's2', 's3', 'later'].includes(app.el.dataset.v1) && !app.el.querySelector('[data-v1-drawer-tab]')) {
+  app.el.querySelector('.hs-main')?.insertAdjacentHTML('beforeend', '<div class="v1-drawer-tab" data-v1-drawer-tab role="note" aria-label="Codex 对话：还没有开放"><i class="v1-dot" aria-hidden="true"></i><span>Codex 对话</span><small>还没有开放</small></div>');
+ }
  const content = app.el.querySelector('.hs-content');
  const alerts = v1gEnvAlerts();
  if (!content || !alerts.length) return;
