@@ -341,3 +341,18 @@ test('review P2-3: 「接受」 is judged on the shown revision, not the parent 
  t.ctx.v94fState = () => ({records:[{receipt_sha256:H('9'), record:{kind:'revision', revision_number:2, plan:incomplete}}]});
  assert.match(t.html(), /value="accept" data-s3-dec-pick  disabled/, 'an incomplete shown revision is still grayed');
 });
+
+test('review P2-6: a re-read gap with the same version keeps the confirmation; only a new version voids it', async () => {
+ const t = load();
+ t.pick('return-to-stage2');
+ t.click('confirm');
+ const view = t.ctx.v93.view;
+ // A re-read in flight: no view for a moment, then the same plan version is back.
+ t.ctx.v93.view = null;
+ t.html();
+ assert.doesNotMatch(t.text(), /计划已经变了/, 'a missing view is not a changed plan');
+ t.ctx.v93.view = view;
+ assert.match(t.html(), /data-s3-dec-confirm/, 'same version: the confirmation is still there');
+ await t.ctx.wikiS3DecSave(t.ctx.apps[0]);
+ assert.equal(t.posts.length, 1, 'same version still saves');
+});
