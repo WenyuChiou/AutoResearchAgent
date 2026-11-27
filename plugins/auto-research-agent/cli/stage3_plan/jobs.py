@@ -11,6 +11,7 @@ from .contracts import Stage3Error, digest, plan_schema_path
 from .intake import admit_intake
 from .planner import draft_plan, inspect_saved_plan
 from .preparation import closed, file_binding, sha256, text
+from .prompts import build_prompt, check_revision_input
 from .storage import (
     MAX_ARTIFACT_BYTES,
     decode_json,
@@ -101,6 +102,7 @@ class PlanningJobs:
         schema_version,
         *,
         inspect_checkpoint=inspect_workflow,
+        revision_input=None,
     ):
         closed(checkpoint, {"path", "sha256"}, "current workflow checkpoint")
         saved = inspect_checkpoint(
@@ -157,7 +159,28 @@ class PlanningJobs:
             "output": str(self.root / digest([self.project_id, self.method, key])),
             "policy": dict(POLICY),
         }
+        if revision_input is not None:
+            # Only a replan from a researcher revision changes the payload shape;
+            # every other job keeps its original 1.0.0 bytes.
+            check_revision_input(revision_input)
+            build_prompt(  # refuse an oversized draft before anything is recorded
+                intake,
+                plan_id=plan_id,
+                version=version,
+                schema_version=schema_version,
+                revision_input=revision_input,
+            )
+            value["schema_version"] = "1.1.0"
+            value["revision_input"] = revision_input
         return _bounded_job_payload(value)
+
+    @staticmethod
+    def _revision(payload):
+        return (
+            {"revision_input": payload["revision_input"]}
+            if "revision_input" in payload
+            else {}
+        )
 
     def prepare(
         self,
@@ -170,6 +193,7 @@ class PlanningJobs:
         expected_revision,
         version=1,
         schema_version="1.0.0",
+        revision_input=None,
     ):
         """Record a source-bound intent without initializing a model or process."""
         payload = self._payload(
@@ -180,6 +204,8 @@ class PlanningJobs:
             plan_id,
             version,
             schema_version,
+            # Subclasses (direction/evaluation jobs) keep their own _payload.
+            **({} if revision_input is None else {"revision_input": revision_input}),
         )
         self.journal.record_intent(
             self.project_id,
@@ -215,6 +241,7 @@ class PlanningJobs:
             payload["plan"]["plan_id"],
             payload["plan"]["version"],
             payload["plan"]["schema_version"],
+            **self._revision(payload),
         )
         if digest(payload) != digest(expected):
             raise Stage3Error(
@@ -242,6 +269,7 @@ class PlanningJobs:
             version=payload["plan"]["version"],
             schema_version=payload["plan"]["schema_version"],
             resume_manifest_sha256=manifest_sha256,
+            **self._revision(payload),
         )
         return self._verified_saved(payload, manifest_sha256, saved, attach=attach)
 
@@ -340,6 +368,7 @@ class PlanningJobs:
             payload["plan"]["version"],
             payload["plan"]["schema_version"],
             inspect_checkpoint=inspect_completed_workflow,
+            **self._revision(payload),
         )
         environment = {"runtime", "producer_sha256"}
         if set(payload) != set(expected) or digest(
@@ -494,6 +523,7 @@ class PlanningJobs:
             plan_id=payload["plan"]["plan_id"],
             version=payload["plan"]["version"],
             schema_version=payload["plan"]["schema_version"],
+            **self._revision(payload),
         )
         return self._saved(payload, saved["manifest"]["manifest_sha256"], attach=True)
 

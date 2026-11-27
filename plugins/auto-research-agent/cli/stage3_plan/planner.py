@@ -42,6 +42,7 @@ def _planning_request(
     version,
     schema_version,
     admission_scope,
+    revision_input=None,
 ):
     if set(configuration) != {"model", "reasoning"} or any(
         not isinstance(value, str) or not value.strip()
@@ -57,7 +58,11 @@ def _planning_request(
         raise Stage3Error("plan identity/version invalid")
     schema_path = plan_schema_path(schema_version)
     prompt = build_prompt(
-        intake, plan_id=plan_id, version=version, schema_version=schema_version
+        intake,
+        plan_id=plan_id,
+        version=version,
+        schema_version=schema_version,
+        revision_input=revision_input,
     )
     schema = read_bytes(schema_path)
     request = {
@@ -82,6 +87,9 @@ def _planning_request(
             "execution_authorized": False,
         },
     }
+    if revision_input is not None:
+        # The researcher draft is a planning input: replay must recompute it.
+        request["revision_input"] = revision_input
     return request, prompt, schema_path, schema
 
 
@@ -96,6 +104,7 @@ def _draft_from_intake(
     resume_manifest_sha256=None,
     admission_scope,
     schema_version="1.0.0",
+    revision_input=None,
 ):
     """The callback is a trusted host seam, not proof of a native or human call."""
     if not callable(callback):
@@ -108,6 +117,7 @@ def _draft_from_intake(
         version,
         schema_version,
         admission_scope,
+        revision_input,
     )
     request_sha = digest(request)
     output = private_output(output_dir)
@@ -204,6 +214,7 @@ def draft_plan(
     expected_mapping_manifest_sha256=None,
     verify_mapping_choice=None,
     schema_version="1.0.0",
+    revision_input=None,
 ):
     """Public selected planning always replays strict external-hash admission."""
     from .intake import admit_intake
@@ -226,6 +237,7 @@ def draft_plan(
         resume_manifest_sha256=resume_manifest_sha256,
         admission_scope="strict-selected",
         schema_version=schema_version,
+        revision_input=revision_input,
     )
 
 
@@ -239,6 +251,7 @@ def draft_synthetic_plan(
     version=1,
     resume_manifest_sha256=None,
     schema_version="1.0.0",
+    revision_input=None,
 ):
     """Explicit test seam: projected dictionaries cannot become confirmed plans."""
     return _draft_from_intake(
@@ -251,6 +264,7 @@ def draft_synthetic_plan(
         resume_manifest_sha256=resume_manifest_sha256,
         admission_scope="synthetic-test",
         schema_version=schema_version,
+        revision_input=revision_input,
     )
 
 
@@ -277,6 +291,7 @@ def inspect_saved_plan(payload, manifest_sha256):
         identity["version"],
         identity["schema_version"],
         "strict-selected",
+        payload.get("revision_input"),
     )
     # These describe the pinned original producer, not this reader's environment.
     sha256(request.get("producer_sha256"))
