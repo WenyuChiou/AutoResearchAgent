@@ -106,6 +106,29 @@ class LocalLauncherTests(unittest.TestCase):
             with self.assertRaisesRegex(source.LauncherError, "pinned bytes"):
                 source.pinned(path, before["tracked.py"])
 
+    def test_inventory_hashes_files_concurrently_with_identical_result(self):
+        # Windows file opens are slow under real-time scanning; one serial pass
+        # over the plugin tree used up the 30 s handshake step before the first
+        # initialize frame was written. Reads must overlap, bytes must not change.
+        import threading
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            expected = {}
+            for index in range(8):
+                raw = b"file %d" % index
+                (root / ("f%d.py" % index)).write_bytes(raw)
+                expected["f%d.py" % index] = source.digest(raw)
+            gate = threading.Barrier(2, timeout=5)
+            real = source.read
+
+            def overlapping(*args, **kwargs):
+                gate.wait()  # A serial walk can never satisfy two parties.
+                return real(*args, **kwargs)
+
+            with patch.object(source, "read", overlapping):
+                self.assertEqual(source.inventory(root), expected)
+
     def test_each_ancestor_link_and_reparse_is_refused_before_open(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder).resolve()
