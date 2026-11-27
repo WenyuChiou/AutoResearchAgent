@@ -141,6 +141,22 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
             [r["receipt_sha256"] for r in view["history"]], [first["receipt_sha256"]]
         )
 
+    def test_two_parallel_revisions_make_the_binding_ambiguous_and_refuse(self):
+        first = self.comment("c1", "one")
+        self.revision(first, key="rev-a")
+        second = self.comment("c2", "two")
+        self.revision(second, key="rev-b")  # also v2: both written from the original
+        view = self.transport.view("own", "authored-ref")["host_decision"]
+        self.assertTrue(view["revision_ambiguous"])
+        self.assertTrue(view["has_manual_revision"])
+        self.assertEqual((view["records"], view["latest"]), ([], None))
+        before = self.journal_state()
+        status, reply = self.post(self.decision("amb"))
+        self.assertEqual(
+            (status, reply["error"]), (409, "stage3-decision-revision-ambiguous")
+        )
+        self.assertEqual(self.journal_state(), before)
+
     def test_replay_returns_the_stored_record_and_changes_nothing(self):
         first = self.post(self.decision())[1]
         before = self.journal_state()

@@ -59,29 +59,32 @@ def _context(ref, view):
 
 
 def _current_revision(jobs, base):
-    """Receipt and plan of the newest manual revision of this saved plan, if any.
+    """Receipt, plan and ambiguity of the newest manual revision of this saved plan.
 
     A manual revision (comment/revise) leaves the saved plan untouched, so it must
     be part of what a decision is bound to; otherwise a decision made before the
-    revision would still look current. The newest is the highest revision_number
-    (ties broken by receipt hash, deterministic).
+    revision would still look current. The newest is the highest revision_number.
+    Two drafts can share that number (both written from the same parent) and the
+    journal has no write order for them, so a tie is reported as ambiguous rather
+    than resolved by an arbitrary rule: no decision can be made until one draft is
+    revised further (its child has the higher number).
     """
     revisions = [
         row for row in _feedback_rows(jobs, base) if row["record"]["kind"] == "revision"
     ]
     if not revisions:
-        return None, None
-    newest = max(
-        revisions,
-        key=lambda row: (row["record"]["revision_number"], row["receipt_sha256"]),
-    )
-    return newest["receipt_sha256"], newest["record"]["plan"]
+        return None, None, False
+    top = max(row["record"]["revision_number"] for row in revisions)
+    newest = [row for row in revisions if row["record"]["revision_number"] == top]
+    if len(newest) > 1:
+        return None, None, True
+    return newest[0]["receipt_sha256"], newest[0]["record"]["plan"], False
 
 
 def _binding(jobs, ref, view):
     base = _context(ref, view)
-    receipt, plan = _current_revision(jobs, base)
-    return base, {**base, REVISION: receipt}, plan
+    receipt, plan, ambiguous = _current_revision(jobs, base)
+    return base, {**base, REVISION: receipt}, plan, ambiguous
 
 
 def _key(binding, key):
@@ -133,21 +136,26 @@ def _rows(jobs, base):
 
 def read_decisions(jobs, ref, view):
     """Decisions for the displayed plan version only; older ones go to history."""
-    base, binding, _ = _binding(jobs, ref, view)
+    base, binding, _, ambiguous = _binding(jobs, ref, view)
     rows = _rows(jobs, base)
-    current = [
-        r for r in rows if r["record"]["binding"].get(REVISION) == binding[REVISION]
-    ]
+    current = (
+        []
+        if ambiguous
+        else [
+            r for r in rows if r["record"]["binding"].get(REVISION) == binding[REVISION]
+        ]
+    )
     history = [
         dict(r, superseded_by_manual_revision=True)
         for r in rows
-        if r["record"]["binding"].get(REVISION) != binding[REVISION]
+        if ambiguous or r["record"]["binding"].get(REVISION) != binding[REVISION]
     ]
     return {
         "kind": "ProjectStage3PlanDecisionView",
         "schema_version": 1,
         "binding": binding,
-        "has_manual_revision": binding[REVISION] is not None,
+        "has_manual_revision": binding[REVISION] is not None or ambiguous,
+        "revision_ambiguous": ambiguous,
         "records": current,
         "latest": deepcopy(current[-1]) if current else None,
         "history": history,
@@ -231,7 +239,8 @@ def check_shape(body):
 def record_decision(jobs, ref, view, body, check_deadline=None):
     """Append once; replay returns the stored record and never dispatches."""
     check_shape(body)
-    base, binding, revised = _binding(jobs, ref, view)
+    base, binding, revised, ambiguous = _binding(jobs, ref, view)
+    _check(not ambiguous, "stage3-decision-revision-ambiguous", 409)
     _check(
         all(
             type(body[name]) is type(binding[name]) and body[name] == binding[name]
