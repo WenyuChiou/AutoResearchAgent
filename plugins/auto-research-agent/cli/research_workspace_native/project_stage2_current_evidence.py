@@ -1,9 +1,18 @@
 """Receive a project's own published Stage 1 input without starting Stage 2."""
 
 from contextlib import nullcontext
+from pathlib import Path
 import sqlite3
+import stat
+from tempfile import TemporaryDirectory
 
-from stage1_deliverable.common import private_output, reject_links, safe_path, sha
+from stage1_deliverable.common import (
+    inventory,
+    private_output,
+    reject_links,
+    safe_path,
+    sha,
+)
 from stage1_ledger.journal import LedgerError, canonical, decode, write_new
 from stage2_common import canonical_hash, validate_packet
 from stage2_workflow import build_stage2_seed
@@ -18,7 +27,9 @@ RECEIVER = "stage2-current-project-receiver"
 
 
 def _blocked(view, reason):
-    return {**view, "status": "blocked", "reason": reason}
+    return dict(
+        view, status="blocked", reason=reason, connection_id=None, receipt_id=None
+    )
 
 
 def _reference(view, bound, binding, brief, native_run_id):
@@ -80,7 +91,65 @@ def _packet(root, pin, source):
     return packet
 
 
-def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
+def _build_seed(root, binding, bound):
+    resources = safe_path(root, "resources.txt")
+    write_new(resources, binding["settings"]["resource_envelope"].encode("utf-8"))
+    return build_stage2_seed(
+        bound["deliverable_dir"],
+        bound["manifest_sha256"],
+        bound["handoff_path"],
+        bound["handoff_sha256"],
+        binding["brief_path"],
+        resources,
+        safe_path(root, "seed"),
+        allow_current_core=True,
+    )["packet_sha256"]
+
+
+def _check_interrupted_seed(root, binding, bound):
+    """Prove the interrupted bytes against the original producer without rewriting them."""
+    reason = "stage2-current-input-interrupted-seed-differs"
+    _check(
+        {child.name for child in root.iterdir()} == {"resources.txt", "seed"}, reason
+    )
+    names = set()
+    for candidate in root.rglob("*"):
+        relative = candidate.relative_to(root).as_posix()
+        path = safe_path(root, relative)
+        info = path.lstat()
+        _check(
+            stat.S_ISDIR(info.st_mode)
+            or (stat.S_ISREG(info.st_mode) and info.st_nlink == 1),
+            reason,
+        )
+        names.add(relative)
+
+    # The initial seed is deterministic for the pinned, still-current delivery.
+    # Compare the entire original tree, not a digest read from mutable seed bytes.
+    with TemporaryDirectory(dir=root.parent, prefix=".s2r-check-") as directory:
+        expected = Path(directory)
+        pin = _build_seed(expected, binding, bound)
+        _check(
+            names
+            == {path.relative_to(expected).as_posix() for path in expected.rglob("*")}
+            and inventory(root) == inventory(expected),
+            reason,
+        )
+    return pin
+
+
+def _receive(
+    intake,
+    view,
+    binding,
+    bound,
+    source,
+    check_deadline,
+    check_owner,
+    *,
+    allow_publish,
+    recover_interrupted,
+):
     digest = canonical_hash(source)
     root = private_output(intake._path(view["project_ref"], "s2r-" + digest[:32]))
     check_deadline()
@@ -92,12 +161,16 @@ def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
         "source": source,
         "source_descriptor_sha256": digest,
     }
-    try:
-        root.mkdir()
-    except FileExistsError:
-        reject_links(root)
-        if not receipt_path.is_file():
-            return _blocked(view, "stage2-current-input-publication-unobserved")
+    created = False
+    if allow_publish:
+        try:
+            root.mkdir()
+        except FileExistsError:
+            pass
+        else:
+            created = True
+    reject_links(root)
+    if not created and receipt_path.is_file():
         with receipt_path.open("rb") as stream:
             raw = stream.read(8193)
         _check(len(raw) <= 8192, "stage2-current-input-receipt-invalid")
@@ -108,24 +181,18 @@ def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
         )
         packet = _packet(root, receipt["packet_sha256"], source)
     else:
-        resources = safe_path(root, "resources.txt")
-        write_new(resources, binding["settings"]["resource_envelope"].encode("utf-8"))
-        imported = build_stage2_seed(
-            bound["deliverable_dir"],
-            bound["manifest_sha256"],
-            bound["handoff_path"],
-            bound["handoff_sha256"],
-            binding["brief_path"],
-            resources,
-            safe_path(root, "seed"),
-            allow_current_core=True,
-        )
-        packet = _packet(root, imported["packet_sha256"], source)
-        receipt = {**identity, "packet_sha256": imported["packet_sha256"]}
+        if created:
+            pin = _build_seed(root, binding, bound)
+        elif allow_publish and recover_interrupted and root.is_dir():
+            pin = _check_interrupted_seed(root, binding, bound)
+        else:
+            return _blocked(view, "stage2-current-input-publication-unobserved")
+        packet = _packet(root, pin, source)
+        receipt = {**identity, "packet_sha256": pin}
         raw = canonical(receipt)
         check_owner()
         check_deadline()
-        publish_new(receipt_path, raw)
+        publish_new(safe_path(root, "receipt.json"), raw)
     check_owner()
     check_deadline()
     return {
@@ -149,7 +216,15 @@ def _receive(intake, view, binding, bound, source, check_deadline, check_owner):
 
 
 def current_evidence(
-    delivery, credential, stage1, project, *, check_deadline=None, on_received=None
+    delivery,
+    credential,
+    stage1,
+    project,
+    *,
+    check_deadline=None,
+    on_received=None,
+    allow_publish=False,
+    expected_artifact_ref=None,
 ):
     """Return the current project's verified Stage 2 input or its actual blockers."""
     ref = project["project_ref"]
@@ -209,6 +284,15 @@ def current_evidence(
                     bound = delivery.binding(ref)
                     bound_version = bound["binding"]["input_version"]
                     _check(
+                        expected_artifact_ref is None
+                        or bound["artifact_ref"] == expected_artifact_ref,
+                        "stage2-current-delivery-artifact-differs",
+                    )
+                    _check(
+                        not allow_publish or type(view["input_version"]) is int,
+                        "stage-connection-integer-version-required",
+                    )
+                    _check(
                         bound["project_ref"] == bound["binding"]["project_id"] == ref
                         and type(bound_version) is type(view["input_version"])
                         and bound_version == view["input_version"]
@@ -233,14 +317,25 @@ def current_evidence(
                         source,
                         check_deadline,
                         check_owner,
+                        allow_publish=allow_publish,
+                        recover_interrupted=expected_artifact_ref is not None,
                     )
-                    if result["status"] == "received" and on_received is not None:
-                        # The trusted connection writer uses its own intake
-                        # transactions. Keep the source owner and ledger locked
-                        # through that handoff; do not verify the package twice.
+                    if result["status"] != "received":
+                        return result
+                    if on_received is None:
+                        from .project_stage_connections import (
+                            ConnectionStore,
+                            verified_current_input,
+                        )
+
+                        return verified_current_input(
+                            ConnectionStore(intake, credential), result, binding, bound
+                        )
+                    if allow_publish:
+                        # A trusted writer uses its own intake transactions.
+                        # Keep the verified source protected through that handoff.
                         intake.db.rollback()
-                        return on_received(result, binding, bound)
-                    return result
+                    return on_received(result, binding, bound)
             finally:
                 intake.db.rollback()
     except SessionApiError as error:

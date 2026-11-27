@@ -11,7 +11,18 @@ from .project_intake import MAX_ACTIONS
 from .session_api import SessionApiError, _check
 
 
+INPUT_STAGE = "stage2-input"
 CONTROLLER_STAGE = "stage2-controller"
+SELECTION_STAGE = "stage2-selection"
+PLANNING_STAGE = "stage3-planning"
+
+
+def _action_kind(stage):
+    return (
+        "stage3-record-connection"
+        if stage == PLANNING_STAGE
+        else "stage2-record-connection"
+    )
 
 
 class ConnectionStore:
@@ -34,6 +45,35 @@ class ConnectionStore:
 
     def resolve(self, ref, stage):
         return self._resolve(ref, stage, current=True)
+
+    def references(self, stage):
+        with self.intake._lock:
+            principal = self.intake._principal(self.credential)
+            return tuple(
+                row[0]
+                for row in self.intake.db.execute(
+                    """SELECT ref FROM intake_projects WHERE principal=?
+                    AND CASE WHEN json_valid(state)
+                        THEN json_type(state, ?) IS NOT NULL ELSE 0 END
+                    ORDER BY ref""",
+                    (principal, f'$.stage_connections."{stage}"'),
+                )
+            )
+
+    def check_project_limit(self, ref, stage, maximum):
+        if maximum is None:
+            return
+        with self.intake._lock:
+            principal = self.intake._principal(self.credential)
+            count = self.intake.db.execute(
+                """SELECT COUNT(*) FROM intake_projects
+                WHERE principal=? AND ref<>?
+                AND CASE WHEN json_valid(state)
+                    THEN json_type(state, ?) IS NOT NULL
+                    ELSE 1 END""",
+                (principal, ref, f'$.stage_connections."{stage}"'),
+            ).fetchone()[0]
+            _check(count < maximum, f"{stage}-profile-limit")
 
     def _resolve(self, ref, stage, *, current):
         with self.intake._lock:
@@ -73,7 +113,7 @@ class ConnectionStore:
                 _check(
                     receipt is not None
                     and receipt["status"] == "saved"
-                    and receipt["kind"] == "stage2-record-connection"
+                    and receipt["kind"] == _action_kind(stage)
                     and receipt["project_ref"] == ref
                     and receipt["key"] == saved["key"]
                     and receipt["request"]["connection_sha256"] == saved["sha256"]
@@ -85,7 +125,7 @@ class ConnectionStore:
                         event[0] == action[0]
                         for event in self.intake.db.execute(
                             "SELECT payload FROM intake_events WHERE project=? AND kind=?",
-                            (ref, "stage2-record-connection-saved"),
+                            (ref, _action_kind(stage) + "-saved"),
                         )
                     ),
                     "stage-connection-saved-event-missing",
@@ -113,13 +153,15 @@ class ConnectionStore:
         expected_revision=None,
         request_key=None,
         maximum_projects=None,
+        reserve_resource=None,
     ):
         """Trusted producer only; callers must verify the source before recording."""
         _check(
-            stage in {"stage2-input", "stage2-selection", CONTROLLER_STAGE},
+            stage in {INPUT_STAGE, SELECTION_STAGE, CONTROLLER_STAGE, PLANNING_STAGE},
             "stage-connection-kind",
         )
         with self.intake._lock:
+            action_kind = _action_kind(stage)
             identity = self._identity(ref)
             principal = self.intake._principal(self.credential)
             state = self.intake._load(principal, ref)
@@ -191,7 +233,7 @@ class ConnectionStore:
                         event[0] == payload
                         for event in self.intake.db.execute(
                             "SELECT payload FROM intake_events WHERE project=? AND kind=?",
-                            (ref, "stage2-record-connection-failed"),
+                            (ref, action_kind + "-failed"),
                         )
                     )
                     and not self.intake._path(ref, relative).exists(),
@@ -225,17 +267,7 @@ class ConnectionStore:
             )
 
             def check_project_limit():
-                if maximum_projects is None:
-                    return
-                n = self.intake.db.execute(
-                    """SELECT COUNT(*) FROM intake_projects
-                    WHERE principal=? AND ref<>?
-                    AND CASE WHEN json_valid(state)
-                        THEN json_type(state, '$.stage_connections."stage2-controller"') IS NOT NULL
-                        ELSE 1 END""",
-                    (principal, ref),
-                ).fetchone()[0]
-                _check(n < maximum_projects, "stage2-controller-profile-limit")
+                self.check_project_limit(ref, stage, maximum_projects)
 
             def work(current, _, __):
                 # _perform commits the intent before this transaction starts.
@@ -276,11 +308,13 @@ class ConnectionStore:
                     ):
                         require_retryable(payload)
                 check_project_limit()
+                if reserve_resource is not None:
+                    reserve_resource()
 
             receipt = self.intake._perform(
                 principal,
                 ref,
-                "stage2-record-connection",
+                action_kind,
                 body,
                 work,
                 check_deadline=check_deadline,
@@ -292,7 +326,15 @@ class ConnectionStore:
             )
             return self.resolve(ref, stage)
 
-    def record_selection(self, ref, binding, *, check_deadline=None):
+    def record_selection(
+        self,
+        ref,
+        binding,
+        *,
+        check_deadline=None,
+        request_key=None,
+        expected_revision=None,
+    ):
         """Accept only a verified existing delivery of this activated project."""
         from .project_stage2_selection_view import ProjectStage2SelectionView
 
@@ -313,14 +355,19 @@ class ConnectionStore:
                 check_deadline()
             return self.record(
                 ref,
-                "stage2-selection",
+                SELECTION_STAGE,
                 binding,
                 derived_from={
                     "delivery_manifest_sha256": binding["delivery_manifest_sha256"]
                 },
                 check_deadline=check_deadline,
                 expected_identity=expected_identity,
-                expected_revision=verified[0]["revision"],
+                expected_revision=(
+                    verified[0]["revision"]
+                    if expected_revision is None
+                    else expected_revision
+                ),
+                request_key=request_key,
             )
 
 
@@ -337,7 +384,7 @@ class BindingTable(Mapping):
             validate_selection_binding(ref, binding)
 
     def __getitem__(self, ref):
-        dynamic = self.store.resolve(ref, "stage2-selection")
+        dynamic = self.store.resolve(ref, SELECTION_STAGE)
         _check(
             not (ref in self.static and dynamic is not None),
             "selection-bindings-overlap",
@@ -349,31 +396,48 @@ class BindingTable(Mapping):
         raise KeyError(ref)
 
     def __contains__(self, ref):
-        # Wiki membership is a discovery hint, not a verified binding. Only
-        # read() may receive a completed result; direct writes still need a row.
+        # Wiki membership is a discovery hint. A completed result can be read
+        # without a binding, while mutation still requires a registered row.
         return ref in iter(self)
 
-    def receive_completed(self, ref, *, check_deadline=None):
-        # Finish any local registration before entering the read-only view cache.
-        if check_deadline is not None:
+    @staticmethod
+    def _completed(driver, credential, ref):
+        if driver is None:
+            return None
+        try:
+            return _completed_binding(driver, credential, ref)
+        except SessionApiError:
+            raise
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise SessionApiError("stage2-selection-source-invalid", 409) from error
+
+    def read_unregistered(self, credential, ref):
+        if self.get(ref) is not None:
+            return None
+        return self._completed(self.controllers.get(ref), credential, ref)
+
+    def receive_completed(self, credential, ref, body, check_deadline, *, driver_for):
+        with self.store.intake._lock:
+            project = self.store.intake.read(credential, ref)
+            _check(
+                type(project["input_version"]) is int
+                and type(body["input_version"]) is int
+                and project["input_version"] == body["input_version"]
+                and project["brief_sha256"] == body["brief_sha256"],
+                "stage2-selection-project-stale",
+            )
+            _check(ref not in self.static, "selection-bindings-overlap")
             check_deadline()
-        dynamic = self.store.resolve(ref, "stage2-selection")
-        _check(
-            not (ref in self.static and dynamic is not None),
-            "selection-bindings-overlap",
-        )
-        if ref in self.static or dynamic is not None:
-            return
-        driver = self.controllers.get(ref)
-        if driver is not None:
-            try:
-                binding = _completed_binding(driver, self.store.credential, ref)
-            except SessionApiError:
-                raise
-            except (OSError, ValueError, KeyError, TypeError) as error:
-                raise SessionApiError("stage2-selection-source-invalid", 409) from error
-            if binding is not None:
-                self.store.record_selection(ref, binding, check_deadline=check_deadline)
+            driver = driver_for(credential, ref, check_deadline)
+            binding = self._completed(driver, credential, ref)
+            _check(binding is not None, "stage2-selection-completed-source-required")
+            return self.store.record_selection(
+                ref,
+                binding,
+                check_deadline=check_deadline,
+                expected_revision=body["revision"],
+                request_key=body["key"],
+            )
 
     def __iter__(self):
         with self.store.intake._lock:
@@ -393,7 +457,7 @@ class BindingTable(Mapping):
             ).fetchall():
                 try:
                     state = self.store.intake._load(principal, row[0])
-                    if "stage2-selection" in state.get("stage_connections", {}):
+                    if SELECTION_STAGE in state.get("stage_connections", {}):
                         refs.add(row[0])
                 except (
                     SessionApiError,
@@ -410,77 +474,151 @@ class BindingTable(Mapping):
         return sum(1 for _ in self)
 
 
-def register_current(
-    service, ref, *, credential, delivery, stage1=None, check_deadline=None
+def current_input(
+    service,
+    ref,
+    *,
+    credential,
+    delivery,
+    stage1,
+    check_deadline,
+    intent=None,
+    expected_artifact_ref=None,
 ):
-    """Consume #524's verification while its source locks are still held."""
+    """Register the verified current input or replay an explicit saved request."""
     from .project_stage2_current_evidence import current_evidence
 
     intake = service.intake
     _check(delivery.intake is intake, "stage-connection-store-differs")
     with intake._lock:
         project = intake.read(credential, ref)
+        store = ConnectionStore(intake, credential)
+        principal = intake._principal(credential)
+        request_key = None
+        register = True
+        if intent is not None:
+            _check(
+                intent["confirmed"] is True
+                and type(project["input_version"]) is int
+                and type(intent["input_version"]) is int
+                and project["input_version"] == intent["input_version"]
+                and project["brief_sha256"] == intent["brief_sha256"],
+                "stage2-input-project-stale",
+            )
+            request_key = intent["key"]
+            previous = intake.db.execute(
+                "SELECT 1 FROM intake_actions WHERE principal=? AND project=? AND key=?",
+                (principal, ref, request_key),
+            ).fetchone()
+            if previous is None:
+                _check(project["revision"] == intent["revision"], "stale-revision")
+            else:
+                saved = store.resolve(ref, INPUT_STAGE)
+                _check(
+                    saved is not None and saved["receipt_id"] == request_key,
+                    "idempotency-payload-differs",
+                )
+                # A recognized retry may read the original outcome only.
+                register = False
         if stage1 is None:
             stage1 = delivery.stage1.read(credential, ref)
 
         def receive(evidence, binding, bound):
-            _check(
-                type(evidence["input_version"]) is int,
-                "stage-connection-integer-version-required",
-            )
-            source = evidence["source"]
-            root = intake._path(ref, "s2r-" + evidence["source_descriptor_sha256"][:32])
-            row = {
-                key: evidence[key]
-                for key in ("packet_id", "packet_sha256", "receipt_sha256")
-            }
-            offer = _current_offer(binding, bound, evidence, root)
-            row["offer_ref"] = offer["offer_ref"]
-            expected = {
-                key: binding[key]
-                for key in (
-                    "project_id",
-                    "input_version",
-                    "brief_sha256",
-                    "plan_manifest_sha256",
-                )
-            }
-            expected["settings_sha256"] = canonical_hash(binding["settings"])
-            record = ConnectionStore(intake, credential).record(
-                ref,
-                "stage2-input",
-                row,
-                derived_from=source,
-                check_deadline=check_deadline,
-                offer=offer,
-                expected_identity=expected,
-                expected_revision=evidence["revision"],
-            )
-            revision = intake.read(credential, ref)["revision"]
-            return dict(
+            return verified_current_input(
+                store,
                 evidence,
-                revision=revision,
-                stage1_atlas_url=(
-                    f"/api/projects/{ref}/stage1/atlas/{source['input_version']}/"
-                    f"{revision}/{source['artifact_ref']}/{source['manifest_sha256']}"
-                ),
-                connection_id=record["connection_id"],
-                receipt_id=record["receipt_id"],
-                activation_allowed=False,
-                offer=_public(offer),
+                binding,
+                bound,
+                register=register,
+                check_deadline=check_deadline,
+                request_key=request_key,
             )
 
-        result = current_evidence(
+        return current_evidence(
             delivery,
             credential,
             stage1,
             project,
             check_deadline=check_deadline,
             on_received=receive,
+            allow_publish=register,
+            expected_artifact_ref=expected_artifact_ref,
         )
-        if result["status"] != "received":
-            return dict(result, connection_id=None, receipt_id=None)
-        return result
+
+
+def verified_current_input(
+    store,
+    evidence,
+    binding,
+    bound,
+    *,
+    register=False,
+    check_deadline=None,
+    request_key=None,
+):
+    """Bind the verified packet and offer to the original receiving-only connection."""
+    intake = store.intake
+    ref = evidence["project_ref"]
+    _check(
+        type(evidence["input_version"]) is int,
+        "stage-connection-integer-version-required",
+    )
+    source = evidence["source"]
+    root = intake._path(ref, "s2r-" + evidence["source_descriptor_sha256"][:32])
+    row = {
+        key: evidence[key] for key in ("packet_id", "packet_sha256", "receipt_sha256")
+    }
+    offer = _current_offer(binding, bound, evidence, root)
+    row["offer_ref"] = offer["offer_ref"]
+    if register:
+        expected = {
+            key: binding[key]
+            for key in (
+                "project_id",
+                "input_version",
+                "brief_sha256",
+                "plan_manifest_sha256",
+            )
+        }
+        expected["settings_sha256"] = canonical_hash(binding["settings"])
+        record = store.record(
+            ref,
+            INPUT_STAGE,
+            row,
+            derived_from=source,
+            check_deadline=check_deadline,
+            offer=offer,
+            expected_identity=expected,
+            expected_revision=evidence["revision"],
+            request_key=request_key,
+        )
+    else:
+        record = store.resolve(ref, INPUT_STAGE)
+        _check(record is not None, "stage2-current-input-registration-required")
+        state = intake._load(intake._principal(store.credential), ref)
+        _check(
+            canonical_hash(record["row"]) == canonical_hash(row)
+            and canonical_hash(record["derived_from"]) == canonical_hash(source),
+            "stage2-current-input-binding-differs",
+        )
+        _check(
+            canonical_hash(state.get("stage2_offers", {}).get(offer["offer_ref"]))
+            == canonical_hash(offer),
+            "stage-connection-offer-differs",
+        )
+    revision = intake.read(store.credential, ref)["revision"]
+    return dict(
+        evidence,
+        revision=revision,
+        stage1_atlas_url=(
+            f"/api/projects/{ref}/stage1/atlas/{source['input_version']}/"
+            f"{revision}/{source['artifact_ref']}/{source['manifest_sha256']}"
+        ),
+        connection_id=record["connection_id"],
+        receipt_id=record["receipt_id"],
+        activation_allowed=False,
+        offer=_public(offer),
+    )
 
 
 def _current_offer(binding, bound, evidence, root):

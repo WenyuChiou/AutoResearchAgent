@@ -66,14 +66,22 @@ function wikiStage2Basis() {
   const project = rt.overview?.project;
   if (!project || project.project_ref !== rt.ref || canonicalReadonly()
       || rt.overview?.stage2?.receiving_only) return null;
-  return [project.project_ref, project.input_version, project.brief_sha256];
+  return [project.project_ref, project.input_version, project.brief_sha256, project.project_id, project.revision, rt.epoch];
 }
 
+function wikiStage2CurrentSelection() {
+  const state=wikiStage2State;
+  return !!state?.selection && JSON.stringify(wikiStage2Basis())===JSON.stringify(state.basis);
+}
+function wikiStage2NeedsConnection(state) {
+  return ["stage2-controller-not-connected", "stage2-continuation-activation-required"].includes(state?.error);
+}
 function wikiStage2OwnsView() {
   const state = wikiStage2State;
   return !!state && JSON.stringify(wikiStage2Basis()) === JSON.stringify(state.basis)
-    && (state.error === "stage2-continuation-original-admission-unavailable"
-      || (!!state.result && state.result.status !== "selection-available"));
+    && (wikiStage2NeedsConnection(state)
+      || ["stage2-continuation-original-admission-unavailable","stage2-continuation-result-not-current"].includes(state.error)
+      || (!!state.result && state.result.status !== "selection-available" && !wikiStage2CurrentSelection()));
 }
 
 async function wikiStage2Load(state, submit) {
@@ -81,15 +89,39 @@ async function wikiStage2Load(state, submit) {
   const [ref, inputVersion, brief] = state.basis;
   if (JSON.stringify(wikiStage2Basis()) !== JSON.stringify(state.basis)) return;
   state.busy = true;
+  state.selection = null; state.selectionError = "";
   try {
     if (submit && !state.key) state.key = crypto.randomUUID();
     const result = await liveRequest(projectPath(ref, "stage2/continuation"), submit ? {
       key: state.key, input_version: inputVersion, brief_sha256: brief, confirmed: true,
     } : undefined);
-    if (result.project_ref !== ref || result.input_version !== inputVersion
+    if (result.project_ref !== ref || (state.basis[3] !== undefined && result.project_id !== state.basis[3]) || result.input_version !== inputVersion
         || result.brief_sha256 !== brief) throw Error("project-binding-mismatch");
     state.result = result;
     state.error = "";
+    if (!submit && typeof v9ConnectionConnected==='function' && result.execution_authorized===false &&
+        ['candidate-ready','selection-available'].includes(result.status)) {
+      try {
+        const current=await liveRequest(projectPath(ref,'stage2/selection'));
+        if (current?.kind!=='Stage2SelectionView' || current.execution_authorized!==false ||
+            current.project_ref!==ref || current.input_version!==inputVersion || current.brief_sha256!==brief ||
+            !['delivery_manifest_sha256','delivery_workflow_head_sha256','snapshot_sha256'].every(k=>v9ConnectionHash(current[k])) ||
+            (result.status==='candidate-ready' && (current.delivery_manifest_sha256!==result.delivery_manifest_sha256 ||
+              current.snapshot_sha256!==result.snapshot_sha256 || current.delivery_workflow_head_sha256!==result.workflow_head_sha256))) throw Error('stage2-selection-binding-differs');
+        if (current.revision!==state.basis[4]) {
+          // A first verified receipt advances the native revision by two events. Remount from
+          // a fresh project overview; never attach the returned selection to the old basis.
+          if (result.status!=='candidate-ready' || !Number.isSafeInteger(current.revision) ||
+              current.revision!==state.basis[4]+2) throw Error('stage2-selection-binding-differs');
+          const fresh=(await liveRequest(projectPath(ref,'overview')))?.project;
+          if (state!==wikiStage2State || JSON.stringify(wikiStage2Basis())!==JSON.stringify(state.basis) ||
+              apps[0]?.page!=='workspace' || apps[0]?.stage!==2) return;
+          if (fresh?.project_ref!==ref || fresh.project_id!==state.basis[3] || fresh.input_version!==inputVersion ||
+              fresh.brief_sha256!==brief || fresh.revision!==current.revision) throw Error('stage2-selection-binding-differs');
+          await liveRefresh(ref);
+        } else state.selection=current;
+      } catch (error) { state.selectionError=error.message; }
+    }
   } catch (error) {
     if (error.message !== "stage2-continuation-worker-busy") state.result = null;
     state.error = error.message;
@@ -100,18 +132,20 @@ async function wikiStage2Load(state, submit) {
   }
 }
 
-function wikiStage2Panel(state) {
+function wikiStage2RequestRow(state) {
   const label = (zh, en, tw) => rl(zh, en, tw);
-  const status = state.result?.status;
+  const status = state?.result?.status;
+  if (state && JSON.stringify(wikiStage2Basis()) !== JSON.stringify(state.basis)) return '';
   const descriptions = {
-    ready: label("项目已接入。可请求生成候选。", "This project is connected. You can request candidates.", "專案已接入。可請求產生候選。"),
+    ready: label("文献包已接收，可以请求生成候选。", "The literature packet was received. You can request candidates.", "文獻包已接收，可以請求產生候選。"),
     "request-saved": label("请求已保存。可查看处理状态。", "Request saved. You can check its status.", "請求已儲存。可查看處理狀態。"),
     running: label("正在处理此请求。", "This request is in progress.", "正在處理此請求。"),
     "candidate-ready": label("当前版本的候选已保存。", "Candidates saved for this version.", "目前版本的候選已儲存。"),
-    "no-candidate": label("已有控制器回执。候选交付尚未保存。", "A controller receipt is saved. Candidate delivery is pending.", "已有控制器回執。候選交付尚未儲存。"),
+    "selection-available": label("当前版本的候选已保存，可以查看选案。", "Candidates are saved for this version. The selection view is available.", "目前版本的候選已儲存，可以查看選案。"),
+    "no-candidate": label("后台已经回执，候选交付还没有保存。", "The service acknowledged the request. Candidate delivery is pending.", "背景服務已回執，候選交付還沒有儲存。"),
     "execution-unknown": label("已有请求。请由操作者核对原运行记录。", "A request exists. Ask the operator to check the retained run.", "已有請求。請由操作者核對原執行紀錄。"),
     blocked: label("已保存的请求受阻。请由操作者检查交接。", "The saved request is blocked. Ask the operator to check the handoff.", "已儲存的請求受阻。請由操作者檢查交接。"),
-    "stage2-controller-not-connected": label("当前项目还缺受信操作者的 Stage 2 接入。", "This project is waiting for the operator to connect Stage 2.", "目前專案仍缺受信操作者的 Stage 2 接入。"),
+    "stage2-controller-not-connected": label("本课题还没有接通 Stage 2。", "Stage 2 is not connected for this project.", "本課題還沒有接通 Stage 2。"),
     "stage2-continuation-activation-required": label("请先完成本项目的 Stage 2 启用。", "Complete Stage 2 activation for this project first.", "請先完成本專案的 Stage 2 啟用。"),
     "stage2-continuation-original-admission-unavailable": label("原运行许可缺失或已过期。请联系操作者。", "The original run admission is missing or expired. Contact the operator.", "原執行許可缺失或已過期。請聯絡操作者。"),
     "stage2-continuation-project-stale": label("当前输入版本和已接入作业不一致。请重新打开项目。", "Reopen the project. The input version has changed.", "目前輸入版本和已接入作業不一致。請重新開啟專案。"),
@@ -119,11 +153,25 @@ function wikiStage2Panel(state) {
     "stage2-continuation-request-exists": label("已有请求。请查看保存状态。", "A request already exists. Check its saved status.", "已有請求。請查看儲存狀態。"),
     "stage2-continuation-worker-busy": label("另一个请求正在处理。请稍后再试。", "Another request is running. Try again shortly.", "另一個請求正在處理。請稍後再試。"),
   };
-  const message = state.busy
+  const pathConflict=state?.error==="stage2-continuation-result-not-current" && typeof v9ConnectionReason==='function';
+  const mayRequest=typeof v9AllowsCandidateRequest!=='function'||v9AllowsCandidateRequest();
+  const message = pathConflict ? v9ConnectionReason(state.error,409) : !state || state.busy
     ? label("正在读取请求状态。", "Checking request status.", "正在讀取請求狀態。")
     : descriptions[state.error || status] || (state.error
       ? label("暂时无法读取回执。请再查一次保存状态。", "The receipt could not be read. Check its saved status again.", "暫時無法讀取回執。請再查一次儲存狀態。")
-      : "");
+      : label("候选请求状态待核对，原记录仍保留。", "The candidate request status needs checking. Original records are retained.", "候選請求狀態待核對，原紀錄仍保留。"));
+  return `<div data-wiki-stage2-request-row><p role="status">${rx(message)}</p><div class="n9-page-actions">
+      ${status === "ready" && mayRequest ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
+      ${state && !pathConflict ? `<button type="button" class="hs-button" data-wiki-stage2-action="read" ${state.busy ? "disabled" : ""}>${label("查看保存状态", "Check saved status", "查看儲存狀態")}</button>` : ""}
+    </div></div>`;
+}
+
+function wikiStage2Panel(state) {
+  const label = (zh, en, tw) => rl(zh, en, tw);
+  const status = state.result?.status;
+  const pathConflict = state.error === "stage2-continuation-result-not-current";
+  const needsConnection = wikiStage2NeedsConnection(state);
+  const standaloneRequest = typeof v9ConnectionPanel !== 'function' || v9LegacyConnection('stage2-controller');
   const cards = state.result?.cards || [];
   const heading = label("候选方向", "Candidate directions", "候選方向");
   const prompts = [
@@ -133,10 +181,8 @@ function wikiStage2Panel(state) {
   ];
   return `<section class="hs-panel" data-wiki-stage2-continuation><h2>${heading}</h2>
     <small>${rx(rt.overview.project.brief?.original_description || state.basis[0])} · ${label("输入版本", "Input version", "輸入版本")} ${rx(state.basis[1])}</small>
-    <p role="status">${rx(message)}</p><div class="n9-page-actions">
-      ${status === "ready" ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
-      <button type="button" class="hs-button" data-wiki-stage2-action="read" ${state.busy ? "disabled" : ""}>${label("查看保存状态", "Check saved status", "查看儲存狀態")}</button>
-    </div>
+    ${standaloneRequest ? wikiStage2RequestRow(state) : ''}
+    ${pathConflict||needsConnection||state.selectionError ? '<details><summary>'+label('技术详情','Technical details','技術詳情')+'</summary><code>'+rx(pathConflict||needsConnection?state.error:state.selectionError)+'</code></details>' : ''}
     ${state.result?.synthetic_test_only ? `<p>${label("合成工程候选", "Synthetic engineering candidates", "合成工程候選")}</p>` : ""}
     ${state.result?.human_selection === "pending" ? `<p>${label("等待人工选案", "Human selection pending", "等待人工選案")}</p>` : ""}
     ${state.result?.assessment_status === "missing" ? `<p>${label("独立评估尚未提供", "Independent assessment unavailable", "獨立評估尚未提供")}</p>` : ""}
@@ -169,8 +215,9 @@ stage2 = function (app) {
 document.addEventListener("click", event => {
   const button = event.target.closest?.("[data-wiki-stage2-action]");
   if (!button || !wikiStage2State || button.disabled) return;
+  if (!["read", "request"].includes(button.dataset.wikiStage2Action)) return;
   const submit = button.dataset.wikiStage2Action === "request";
-  if (submit && wikiStage2State.result?.status !== "ready") return;
+  if (submit && ((typeof v9AllowsCandidateRequest==="function" && !v9AllowsCandidateRequest()) || wikiStage2State.result?.status !== "ready" || rt.busy || rt.loading || rt.pending || rt.controlHeld)) return;
   wikiStage2Load(wikiStage2State, submit);
   livePaint();
 });
