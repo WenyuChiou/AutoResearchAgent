@@ -19,6 +19,7 @@ from research_workspace_native.project_stage1_run_grant import (
 from research_workspace_native.project_stage1_run_lease import RunLease
 from research_workspace_native.session_api import SessionApiError, _check, _hash
 from research_workspace_native.transport import _decode
+from stage1_deliverable.common import identifier
 from stage1_ledger.journal import decode
 
 from wiki_project_progression_http import run_grant_issuer
@@ -85,6 +86,14 @@ def _launch_limits(limits):
     return dict(limits)
 
 
+def _key_ok(key):
+    try:
+        identifier(key)
+    except ValueError:
+        return False
+    return True
+
+
 def _reason(code):
     return REASONS.get(code, "被现有安全检查拒绝：" + code)
 
@@ -124,6 +133,7 @@ class Stage1RunGrantApi:
             and body["max_seconds"] > 0
             and type(body["max_actions"]) is int
             and body["max_actions"] > 0
+            and _key_ok(body["key"])
             and type(body["operations"]) is list
             and all(type(x) is str for x in body["operations"]),
             "stage1-run-grant-fields-invalid",

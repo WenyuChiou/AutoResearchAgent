@@ -339,6 +339,11 @@ class RunGrantHttpTests(Fixture, unittest.TestCase):
         # A reload that changes the project does not turn a saved replay into a new grant.
         self.assertEqual(self.create()[1]["grant_ref"], first["grant_ref"])
 
+    def test_an_unsafe_request_key_is_a_field_error_not_a_record_error(self):
+        self.build()
+        for key in ("../x", "", "a b", 5, None, "x" * 121):
+            self.refuse(400, "stage1-run-grant-fields-invalid", key=key)
+
     def test_progression_needs_the_grant_then_reaches_the_submit_branch(self):
         self.build()
         project = self.intake.read(TOKEN, self.ref)
