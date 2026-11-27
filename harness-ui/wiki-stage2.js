@@ -241,7 +241,7 @@ function wikiS2CompareTable(app, model, state) {
   const [opinion, tone] = route.opinion ? wikiS2Opinion[route.opinion] : ['系统意见未提供', 'none'];
   const flagged = state.flags.has(route.key);
   return `<th scope="col" ${route.key === picked ? 'class="picked"' : ''}><b class="wiki-s2-letter">${esc(route.letter)}</b>
-   <span class="wiki-s2-opinion" data-tone="${tone}">${opinion}</span>${route.key === tentative ? '<span class="wiki-s2-opinion" data-tone="draft">暂定</span>' : ''}
+   ${route.title ? `<span class="wiki-s2-name">${esc(route.title)}</span>` : ''}<span class="wiki-s2-opinion" data-tone="${tone}">${opinion}</span>${route.key === tentative ? '<span class="wiki-s2-opinion" data-tone="draft">暂定</span>' : ''}
 
    <button type="button" class="wiki-s2-flag" data-s2-flag="${esc(route.key)}" aria-pressed="${flagged}">${flagged ? '已标记待审' : '标记待审'}</button>
    <small>仅本机草稿，未提交 Harness</small></th>`;
@@ -485,7 +485,7 @@ function wikiS2Page(app) {
  const panel = state.tab === 'literature' ? wikiS2LiteratureTab(model, state) : state.tab === 'materials' ? wikiS2MaterialsTab(app) : wikiS2CompareTab(app, model, state);
  const unbound = model && !model.blocked && model.routes.length && model.bound !== true && model.origin !== 'native'
   ? '<p class="wiki-s2-unbound" data-s2-unbound><span class="wiki-s2-unbound-tag">! 没有绑定</span> 这份候选和某个课题的 Stage 1 文献包之间没有正式的绑定记录。系统的建议不会自动批准进入 Stage 3。</p>' : '';
- return `<section data-wiki-s2 aria-label="选方向">${wikiS2ConnBlock(app)}${wikiHarnessRecord()}${unbound}${wikiS2Receipt(model)}${wikiS2Banner(app, model)}${tabs}
+ return `<section data-wiki-s2 aria-label="选方向">${wikiS2ConnBlock(app)}${unbound}${wikiHarnessRecord()}${wikiS2Receipt(model)}${wikiS2Banner(app, model)}${tabs}
   <div role="tabpanel" id="wiki-s2-panel" aria-labelledby="wiki-s2-${state.tab}">${panel}</div>${wikiS2TechDetails(model)}</section>`;
 }
 

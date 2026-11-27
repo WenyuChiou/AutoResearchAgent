@@ -150,3 +150,4 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-v1]) { padding:0; backgrou
 #harness-trace-workbench-v6 [data-v1] input[data-n9-upload]::file-selector-button { min-height:40px; padding:0 16px; margin-right:12px; border-radius:8px; border:1px solid var(--v1-teal); background:var(--v1-teal); color:#fff; font:inherit; font-weight:600; cursor:pointer; }
 #harness-trace-workbench-v6 [data-v1] .wiki-record-gap { color:var(--v1-amber); }
 #harness-trace-workbench-v6 [data-v1] .wiki-s2-conn:has(> .wiki-s2-conn-row[data-tone="wait"]) { border-left-color:#c9962e; }
+#harness-trace-workbench-v6 [data-v1] .wiki-s2-name { display:block; font-weight:700; margin:4px 0; }
