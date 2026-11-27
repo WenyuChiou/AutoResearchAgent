@@ -445,6 +445,11 @@ v1PageStatus.s3 = app => {
   if (conn.code && conn.code !== 'stage3-current-selection-required') return {tone:'off', now:['还没有规划。', 'Stage 3 现在接不上，原因写在下面的接通块里。'], next:'按接通块里的说法处理。', you:null};
  }
  if (!basis) return {tone:'off', now:['还没有规划。', 'Stage 2 还没有选定方向，Stage 3 不会生成计划。'], next:'先到 Stage 2 选一个方向。', you:null, button:{label:'去 Stage 2', attrs:'data-stage="2"', primary:false}};
+ const request = typeof wikiS3RequestLine === 'function' ? wikiS3RequestLine(view || (v93.basis && v93Matches(v93.basis, basis) ? v93.view : null)) : null;
+ const requestGate = request?.tag === '还没请求' ? request.buttons[0]?.gate : request?.tag === '等你授权' && request.grant?.gate !== '请先勾选确认' ? request.grant?.gate : '';
+ if (request && requestGate) return {tone:'off', now:['还没有规划。', `已经接通，但现在不能生成计划：${requestGate}。`], next:'条件满足后在下面「本课题的 Stage 3」里请求生成计划。', you:null};
+ if (request && ['还没请求', '等你授权'].includes(request.tag)) return {tone:'wait', now:['还没有规划。', '已经接通，还没有保存的计划。'], next:'在下面「本课题的 Stage 3」里请求生成计划；生成前会先请你授权。', you:{wait:true, text:'请求生成计划'}};
+ if (request) return {tone:request.tone === 'err' ? 'err' : request.tone === 'run' ? 'run' : 'off', now:['还没有规划。', /[。]$/.test(request.text) ? request.text : request.text + '。'], next:'看下面「本课题的 Stage 3」里请求一行的说明。', you:null};
  return {tone:'off', now:['还没有规划。', '已经有选定的方向，但还没有保存的计划。'], next:'接通本课题的 Stage 3 后，请求生成计划。', you:null};
 };
 document.addEventListener('click', event => {
