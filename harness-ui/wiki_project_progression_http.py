@@ -147,6 +147,8 @@ def install_project_progression(
     service = WikiProjectProgression(
         host, read_consent=read_consent, steps={"stage1": step}
     )
+    # Read-only summaries (consent coverage) use this same checked service.
+    host.wiki_project_progression = service
     inherited = host.RequestHandlerClass
 
     class ProgressionHandler(inherited):

@@ -1,18 +1,25 @@
-"""Wiki route to create a Stage 1 run grant on the ordinary loopback Host.
+"""Wiki routes to create and read a Stage 1 run grant on the ordinary loopback Host.
 
 Creating wraps ProjectStage1RunGrantService.authorize; no grant logic lives here.
 The route only adds gates: the researcher's own words and an explicit confirmation,
 the launch --run-limits as a ceiling, and exact project / version / scope / plan
-binding.
+binding. Reading never writes (the service's inspect() updates a lease file, so it
+is deliberately not used for reading).
 """
 
+from contextlib import closing
 import re
+import sqlite3
 
+from research_workspace_native.project_resource_budget import resource_view
 from research_workspace_native.project_stage1_run_grant import (
     SCOPE,
+    STORE,
 )
+from research_workspace_native.project_stage1_run_lease import RunLease
 from research_workspace_native.session_api import SessionApiError, _check, _hash
 from research_workspace_native.transport import _decode
+from stage1_ledger.journal import decode
 
 from wiki_project_progression_http import run_grant_issuer
 
@@ -57,6 +64,7 @@ REASONS = {
     "project-unavailable": "找不到这个课题。",
     "cross-site-rejected": "只接受本页面同源的请求。",
     "credential-rejected": "凭据不对。",
+    "stage1-run-grant-unavailable": "没有可用的运行许可。",
 }
 
 
@@ -79,6 +87,7 @@ class Stage1RunGrantApi:
         self.intake = host.projects
         self.limits = _launch_limits(limits)
         self.issuer, self.trusted = run_grant_issuer(host, runtime_sha256)
+        self._host = host
 
     @property
     def zero_limits(self):
@@ -211,12 +220,166 @@ class Stage1RunGrantApi:
             "resets_resources": False,
         }
 
+    def _lease(self, ref, document, pin):
+        """Open the lease read-only; the service's own check() would write to it."""
+        try:
+            path = RunLease(self.intake, ref, document, pin).path
+            with closing(
+                sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=1)
+            ) as db:
+                row = db.execute("SELECT body FROM lease WHERE id=1").fetchone()
+            body = decode(row[0].encode(), "Stage1 run lease")
+            return {"state": body["blocked"] or "open"}
+        except (OSError, sqlite3.Error, ValueError, TypeError, KeyError):
+            return {"state": "unreadable"}
+
+    def _grant_summary(self, principal, ref, state):
+        grants = state.get(STORE, {})
+        if type(grants) is not dict or not grants:
+            return {"status": "none"}
+        binding = self.issuer._binding(state)
+        matches = []
+        for grant_ref, row in grants.items():
+            try:
+                _, document = self.issuer._document(
+                    principal, ref, grant_ref, row.get("sha256")
+                )
+            except SessionApiError as error:
+                if error.code == "stage1-run-grant-revoked":
+                    return {"status": "revoked", "grant_ref": grant_ref}
+                return {"status": "invalid", "reason": error.code}
+            if document["binding"] == binding:
+                matches.append((grant_ref, row["sha256"], document))
+        if not matches:
+            return {"status": "stale", "stale_count": len(grants)}
+        if len(matches) != 1:
+            return {"status": "invalid", "reason": "stage1-run-grant-ambiguous"}
+        grant_ref, pin, document = matches[0]
+        now = self.issuer._now()
+        lease = self._lease(ref, document, pin)
+        remaining = max(0, document["expires_at"] - now)
+        status = "active"
+        if lease["state"] in ("expired", "revoked", "clock-regressed"):
+            status = lease["state"]
+        elif lease["state"] == "unreadable":
+            status = "invalid"
+        elif remaining <= 0:
+            status = "expired"
+        used = 0
+        for (receipt,) in self.intake.db.execute(
+            "SELECT receipt FROM intake_actions WHERE principal=? AND project=?",
+            (principal, ref),
+        ).fetchall():
+            action = decode(receipt.encode(), "run action")
+            if (
+                action["kind"] == "stage1-run-derive"
+                and action["request"].get("grant_ref") == grant_ref
+            ):
+                used += 1
+        try:
+            view = resource_view(self.intake, state, principal)
+            resources = {
+                "status": "available",
+                "declared": view["declared"],
+                "reserved": view["reserved"],
+                "remaining": view["remaining"],
+                "usage_status": view["usage_status"],
+                "automatic_refund": view["automatic_refund"],
+            }
+        except SessionApiError as error:
+            resources = {"status": "unavailable", "reason": error.code}
+        return {
+            "status": status,
+            "grant_ref": grant_ref,
+            "grant_sha256": pin,
+            "scope": document["scope"],
+            "user_input": document["user_input"],
+            "operations": document["operations"],
+            "limits": {name: document["budgets"][name] for name in LIMIT_KEYS},
+            "max_actions": document["max_actions"],
+            "actions_used": used,
+            "issued_at": document["issued_at"],
+            "expires_at": document["expires_at"],
+            "remaining_seconds": remaining,
+            "binding": {
+                key: document["binding"][key]
+                for key in ("input_version", "brief_sha256", "plan_manifest_sha256")
+            },
+            "lease": lease,
+            "resources": resources,
+        }
+
+    def summary(self, credential, ref):
+        project = self.intake.read(credential, ref)
+        principal = self.intake._principal(credential)
+        progression = getattr(self._host, "wiki_project_progression", None)
+        ready = (
+            type(project.get("input_version")) is int
+            and project.get("settings") is not None
+            and project.get("stage1_intake_ready") is True
+        )
+        creation = "available"
+        if self.zero_limits:
+            creation = "stage1-run-grant-zero-limits"
+        elif not self.trusted:
+            creation = "stage1-run-grant-not-enabled"
+        elif not ready:
+            creation = "stage1-run-grant-scope-not-ready"
+        out = {
+            "project_ref": ref,
+            "input_version": project.get("input_version"),
+            "execution_authorized": False,
+            "launch_limits": dict(self.limits),
+            "grant_creation": {
+                "available": creation == "available",
+                "reason": None if creation == "available" else creation,
+                "max_seconds": min(
+                    self.issuer.max_seconds,
+                    self.limits["seconds"],
+                    project["settings"]["budgets"]["seconds"]
+                    if ready
+                    else self.limits["seconds"],
+                ),
+            },
+            "consent": (
+                progression.consent_summary(credential, ref)
+                if progression is not None
+                else {
+                    "present": False,
+                    "valid": False,
+                    "reason": "consent-not-provided",
+                    "expires_at": None,
+                    "expired": None,
+                    "consent_sha256": None,
+                    "stages": {
+                        stage: {
+                            "covered": False,
+                            "max_dispatches": None,
+                            "reason": "consent-not-provided",
+                        }
+                        for stage in ("stage1", "stage2", "stage3")
+                    },
+                }
+            ),
+            "run_grant": {"status": "none"},
+        }
+        if not ready:
+            return out
+        with self.intake._lock:
+            state = self.intake._load(principal, ref)
+            out["run_grant"] = self._grant_summary(principal, ref, state)
+        return out
+
 
 def install_stage1_run_grant(host, *, limits, runtime_sha256):
     api = Stage1RunGrantApi(host, limits=limits, runtime_sha256=runtime_sha256)
     inherited = host.RequestHandlerClass
 
     class RunGrantHandler(inherited):
+        def do_GET(self):
+            match = ROUTE.fullmatch(self.path)
+            return self._run_grant("GET", match[1]) if match else super().do_GET()
+
         def do_POST(self):
             match = ROUTE.fullmatch(self.path)
             return self._run_grant("POST", match[1]) if match else super().do_POST()
@@ -248,7 +411,11 @@ def install_stage1_run_grant(host, *, limits, runtime_sha256):
                     "credential-rejected",
                     401,
                 )
-                status, result = api.create(credential, ref, self._body(length))
+                if method == "GET":
+                    _check(not length, "invalid-project-read", 400)
+                    status, result = 200, api.summary(credential, ref)
+                else:
+                    status, result = api.create(credential, ref, self._body(length))
                 self._remaining()
                 return self._reply(status, result)
             except SessionApiError as error:

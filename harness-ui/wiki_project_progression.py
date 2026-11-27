@@ -268,6 +268,67 @@ class WikiProjectProgression:
             )
         return dict(output, status="saved")
 
+    def consent_summary(self, credential, ref):
+        """Pure readback of the launch consent; never advances and never writes."""
+        project = self.intake.read(credential, ref)
+        out = {
+            "present": False,
+            "valid": False,
+            "reason": "consent-not-provided",
+            "expires_at": None,
+            "expired": None,
+            "consent_sha256": None,
+            "stages": {
+                stage: {
+                    "covered": False,
+                    "max_dispatches": None,
+                    "reason": "stage-not-connected",
+                }
+                for stage in STAGES
+            },
+        }
+        try:
+            source = self._read_consent(credential, ref)
+        except (SessionApiError, OSError, ValueError):
+            return dict(out, reason="consent-unreadable")
+        if source is None:
+            return out
+        raw, pin = source
+        out.update(present=True, reason="stage-progression-consent-invalid")
+        if type(raw) is not bytes or not _hash(pin) or sha(raw) != pin:
+            return dict(out, reason="stage-progression-consent-digest-differs")
+        out["consent_sha256"] = pin
+        try:
+            consent = decode(raw, "saved stage progression consent")
+            expires = datetime.fromisoformat(consent["expires_at"])
+            limits = consent["stages"]
+        except (LedgerError, KeyError, TypeError, ValueError):
+            return out
+        if expires.utcoffset() is None or type(limits) is not dict:
+            return out
+        out.update(expires_at=expires.isoformat(), expired=self._clock() >= expires)
+        if (
+            type(project.get("input_version")) is not int
+            or project.get("settings") is None
+        ):
+            return dict(out, reason="waiting-for-project-scope")
+        binding = self._binding(project)
+        for stage in self._stages:
+            try:
+                self._consent(
+                    credential, binding, stage, self._steps[stage].profile_sha256
+                )
+            except SessionApiError as error:
+                out["stages"][stage]["reason"] = error.code
+            else:
+                out["stages"][stage] = {
+                    "covered": True,
+                    "max_dispatches": limits[stage]["max_dispatches"],
+                    "reason": None,
+                }
+        covered = out["stages"]["stage1"]
+        return dict(out, valid=covered["covered"], reason=covered["reason"])
+
     def read(self, credential, ref):
         """Pure readback of current verified artifacts and any pending attempt."""
         return self._progress(credential, ref, advance=False)
