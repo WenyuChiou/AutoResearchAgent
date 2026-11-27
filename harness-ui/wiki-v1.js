@@ -436,6 +436,12 @@ v1PageStatus.s3 = app => {
   return {tone:'wait', now:['计划写好了。', review?.findings?.length ? `评审给了 ${review.findings.length} 条意见。` : '还没有评审意见（后台读取不返回评审）。'],
    next:'看完计划和评审后做决定。', you:{wait:true, text:'对计划做决定'}, button:{label:'去做决定', attrs:'data-v1-goto="s3-decide"', primary:false}};
  }
+ // Without a connected Stage 3 the saved-selection read (v93Identity) is unavailable; go by what /connections says.
+ const conn = !basis && typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
+ if (conn?.phase === 'ready' && !conn.unknown) {
+  if (conn.action === 'connect') return {tone:'wait', now:['还没有规划。', 'Stage 3 还没有接通；接通只是登记，不会启动研究。'], next:'在下面的接通块点「接通本课题」。', you:{wait:true, text:'接通本课题'}};
+  if (conn.code && conn.code !== 'stage3-current-selection-required') return {tone:'off', now:['还没有规划。', 'Stage 3 现在接不上，原因写在下面的接通块里。'], next:'按接通块里的说法处理。', you:null};
+ }
  if (!basis) return {tone:'off', now:['还没有规划。', 'Stage 2 还没有选定方向，Stage 3 不会生成计划。'], next:'先到 Stage 2 选一个方向。', you:null, button:{label:'去 Stage 2', attrs:'data-stage="2"', primary:false}};
  return {tone:'off', now:['还没有规划。', '已经有选定的方向，但还没有保存的计划。'], next:'接通本课题的 Stage 3 后，请求生成计划。', you:null};
 };
