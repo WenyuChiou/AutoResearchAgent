@@ -14,10 +14,10 @@ function setup() {
  const side = { open: false, toggleAttribute(k, on) { this.open = !!on; }, querySelector: s => s === '[data-v1-menu]' ? button : null, contains: n => n === button || n === side };
  const app = { el: { querySelector: s => s === '.v1-side' ? side : null }, v1MenuOpen: false };
  const target = hit => ({ closest: s => s.split(',').some(sel => hit.includes(sel.trim())) ? {} : null });
- const context = { apps: [app], v1On: () => true, window: { addEventListener: (type, fn) => { handlers[type] = fn; } }, document: { activeElement: button } };
+ const media = {}; const context = { apps: [app], v1On: () => true, window: { addEventListener: (type, fn) => { handlers[type] = fn; }, matchMedia: q => { media.query = q; return { addEventListener: (type, fn) => { media[type] = fn; } }; } }, document: { activeElement: button } };
  vm.createContext(context);
  vm.runInContext(source.slice(start, end), context);
- return { app, side, button, handlers, target };
+ return { app, side, button, handlers, target, media };
 }
 
 test('menu button toggles aria-expanded and the open state', () => {
@@ -57,4 +57,13 @@ test('markup and CSS contract: button is hidden on desktop and shown only in the
  assert(media.includes('.v1-menu-btn { display:inline-flex;') && media.includes('grid-template-columns') === true);
  assert(!css.slice(0, css.indexOf('@media (max-width:900px)')).includes('.v1-menu-btn { display:inline-flex'));
  assert(/min-height:44px; min-width:44px/.test(media), 'menu button keeps a 44px target');
+});
+
+test('crossing the 900px breakpoint closes the menu and resets aria-expanded', () => {
+ const { app, side, button, handlers, target, media } = setup();
+ assert.equal(media.query, '(max-width: 900px)');
+ handlers.click({ target: target(['[data-v1-menu]']) });
+ assert.equal(button.attrs['aria-expanded'], 'true');
+ media.change();
+ assert.equal(app.v1MenuOpen, false); assert.equal(side.open, false); assert.equal(button.attrs['aria-expanded'], 'false'); assert.equal(button.focused, 0);
 });

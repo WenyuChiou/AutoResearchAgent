@@ -315,6 +315,8 @@ window.addEventListener('keydown', event => {
  if (event.key === 'Escape' && app?.v1MenuOpen) v1MenuSet(app, false, app.el.querySelector('.v1-side')?.contains(document.activeElement));
 }, true);
 
+// Crossing the 900px breakpoint either way (a window dragged wide and back) must not leave the menu open or aria-expanded stale.
+window.matchMedia?.('(max-width: 900px)')?.addEventListener?.('change', () => v1MenuSet(apps[0], false));
 document.addEventListener('toggle', event => {
  if (event.target.matches?.('[data-v1-later]') && event.target.isConnected) apps[0].v1LaterOpen = event.target.open;
  // A background repaint (a read finishing) re-renders the top bar; keep the topic menu open if the user opened it.
