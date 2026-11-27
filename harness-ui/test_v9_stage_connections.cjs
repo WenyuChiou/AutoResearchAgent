@@ -409,10 +409,22 @@ function findChrome() {
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p=>p&&existsSync(p));
 }
 
+// Chrome starts helper processes (zygote, renderers, GPU) that keep writing into the profile directory.
+// On POSIX the browser is its own process group (detached) and the whole group is killed, even when the
+// main process has already exited; on Windows taskkill /T takes the tree.
 function killTree(child) {
-  if (!child || child.exitCode !== null || child.pid === undefined) return;
-  if (process.platform === 'win32') spawnSync('taskkill',['/PID',String(child.pid),'/T','/F'],{stdio:'ignore',timeout:15000});
-  else { try { child.kill('SIGKILL'); } catch {} }
+  if (!child || child.pid === undefined) return;
+  if (process.platform === 'win32') {
+    if (child.exitCode === null) spawnSync('taskkill',['/PID',String(child.pid),'/T','/F'],{stdio:'ignore',timeout:15000});
+  } else {
+    try { process.kill(-child.pid,'SIGKILL'); } catch {}
+    try { child.kill('SIGKILL'); } catch {}
+  }
+}
+
+function processGroupGone(child) {
+  if (process.platform === 'win32' || child.pid === undefined) return true;
+  try { process.kill(-child.pid,0); return false; } catch (error) { return error.code==='ESRCH'; }
 }
 
 function launchBrowser() {
@@ -421,7 +433,7 @@ function launchBrowser() {
   const temp=mkdtempSync(join(tmpdir(),'pr4-connections-'));
   const started=Date.now();
   const child=spawn(chrome,['--headless','--disable-gpu','--disable-background-networking','--no-first-run',
-    '--remote-debugging-port=0','--user-data-dir='+join(temp,'profile'),'about:blank'],{stdio:['ignore','ignore','pipe'],windowsHide:true});
+    '--remote-debugging-port=0','--user-data-dir='+join(temp,'profile'),'about:blank'],{stdio:['ignore','ignore','pipe'],windowsHide:true,detached:process.platform!=='win32'});
   let stderr='';
   child.stderr.on('data',chunk=>{stderr=(stderr+chunk).slice(-4000);});
   const state={chrome,temp,child,ws:null,nextId:1,pending:new Map(),startupMs:0,stderr:()=>stderr,exited:false};
@@ -489,8 +501,10 @@ async function closeBrowser() {
   try { state=await promise; } catch { return; }
   try { state.ws.close(); } catch {}
   killTree(state.child);
-  if (!state.exited) await new Promise(resolve=>{const timer=setTimeout(resolve,5000);state.child.once('exit',()=>{clearTimeout(timer);resolve();});});
-  rmSync(state.temp,{recursive:true,force:true,maxRetries:8,retryDelay:100});
+  if (!state.exited) await new Promise(resolve=>{const timer=setTimeout(resolve,10000);state.child.once('exit',()=>{clearTimeout(timer);resolve();});});
+  // Wait until no process of the browser's group is left, then delete; the retries are only a backstop.
+  for (let waited=0; !processGroupGone(state.child) && waited<10000; waited+=50) await new Promise(resolve=>setTimeout(resolve,50));
+  rmSync(state.temp,{recursive:true,force:true,maxRetries:30,retryDelay:200});
 }
 
 async function runChromeExercise(exercise, runtimeHooks='') {
