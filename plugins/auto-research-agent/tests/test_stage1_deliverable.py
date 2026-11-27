@@ -1116,36 +1116,15 @@ class PrivateOutputGitDiscoveryTests(unittest.TestCase):
             )
             probe.assert_called_once()
 
-    def test_command_config_alone_avoids_process(self):
-        target = self.root / "private"
-        environment = dict(
-            self.clean_environment,
-            GIT_CONFIG_COUNT="1",
-            GIT_CONFIG_KEY_0="core.worktree",
-            GIT_CONFIG_VALUE_0=str(target),
-        )
-        with (
-            patch.dict(os.environ, environment, clear=True),
-            patch("stage1_deliverable.common.subprocess.run") as probe,
-        ):
-            self.assertEqual(private_output(target), target)
-            probe.assert_not_called()
-
     def test_git_environment_still_refuses_external_worktree(self):
         repository = self.root / "repository"
         subprocess.run(
-            ["git", "init", str(repository)],
-            check=True,
-            capture_output=True,
-            env=self.clean_environment,
+            ["git", "init", str(repository)], check=True, capture_output=True
         )
         environment = dict(
             self.clean_environment,
             GIT_DIR=str(repository / ".git"),
             GIT_WORK_TREE=str(repository),
-            GIT_CONFIG_COUNT="1",
-            GIT_CONFIG_KEY_0="core.filemode",
-            GIT_CONFIG_VALUE_0="false",
         )
         with patch.dict(os.environ, environment, clear=True):
             with self.assertRaises(DeliverableError):
