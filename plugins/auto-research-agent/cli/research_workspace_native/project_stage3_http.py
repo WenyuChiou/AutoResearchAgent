@@ -171,7 +171,8 @@ class ProjectStage3Http:
     def feedback(self, credential, ref, body, action, *, check_deadline=None):
         with self.service.intake._lock:
             view = self._view(credential, ref, check_deadline=check_deadline)
-            configured = self.service.bindings.get(ref)
+            bindings = self.service.bindings
+            configured = getattr(bindings, "for_write", bindings.get)(ref)
             if configured is None:
                 raise SessionApiError("stage3-planning-unconnected", 409)
             return record_feedback(

@@ -347,25 +347,45 @@ class Stage3PlanningHostResources:
                         continue
         return paths
 
-    def _open_binding(self, row, *, require_existing=False):
-        ref, project_id = row["project_ref"], row["project_id"]
-        identity = {
+    def _journal_identity(self, row):
+        return {
             "kind": "ProjectHostStage3JournalIdentity",
             "schema_version": "1.0.0",
-            "project_ref": ref,
-            "project_id": project_id,
+            "project_ref": row["project_ref"],
+            "project_id": row["project_id"],
             "projects_root": str(safe_path(self.intake.root)),
         }
+
+    def _saved_journal_project(self, project_id, identity_sha):
+        try:
+            original = self.journal.snapshot(project_id)
+        except JournalError as error:
+            raise Stage3Error(
+                "stage3-planning-saved-journal-project-missing"
+            ) from error
+        if original["index_sha256"] != identity_sha:
+            raise Stage3Error("stage3-planning-saved-journal-project-differs")
+        return original
+
+    def _binding(self, row, owner):
+        return {
+            "jobs": PlanningJobs(
+                self.journal,
+                row["project_id"],
+                owner,
+                row["jobs_root"],
+                project_ref=row["project_ref"],
+            ),
+            "configuration": row["configuration"],
+            "callback": NativePlanner(**row["native"]),
+        }
+
+    def _open_binding(self, row, *, require_existing=False):
+        ref, project_id = row["project_ref"], row["project_id"]
+        identity = self._journal_identity(row)
         identity_sha = digest(identity)
         if require_existing:
-            try:
-                original = self.journal.snapshot(project_id)
-            except JournalError as error:
-                raise Stage3Error(
-                    "stage3-planning-saved-journal-project-missing"
-                ) from error
-            if original["index_sha256"] != identity_sha:
-                raise Stage3Error("stage3-planning-saved-journal-project-differs")
+            self._saved_journal_project(project_id, identity_sha)
         paths = _output_paths(row)
         added = ()
 
@@ -389,17 +409,47 @@ class Stage3PlanningHostResources:
             self._unpublished_paths[project_id] = added
         self._rows[ref] = deepcopy(row)
         self.identities[ref] = identity
-        binding = {
-            "jobs": PlanningJobs(
-                self.journal, project_id, owner, row["jobs_root"], project_ref=ref
-            ),
-            "configuration": row["configuration"],
-            "callback": NativePlanner(**row["native"]),
-        }
         for pin in row["recovery_pins"]:
             key = (ref, pin["key"], pin["request_sha256"])
             self.recovery_pins[key] = pin["plan_manifest_sha256"]
-        return binding
+        return self._binding(row, owner)
+
+    def read_project(self, row):
+        """Verify a registered runtime without binding or acquiring a Journal owner."""
+        with self.intake._lock, self._lock, self.journal._lock:
+            if self._closed:
+                raise Stage3Error("stage3-planning-resources-closed")
+            if not samestat(safe_path(self.journal.path).stat(), self._journal_file):
+                raise Stage3Error("stage3-planning-saved-journal-file-differs")
+            ref, project_id = row["project_ref"], row["project_id"]
+            original = self._saved_journal_project(
+                project_id, digest(self._journal_identity(row))
+            )
+            existing = self._dynamic.get(ref)
+            owner = original["owner"]
+            if existing is not None:
+                if (
+                    existing[0] != digest(row)
+                    or owner is None
+                    or owner["token"] != existing[1]["jobs"].owner
+                ):
+                    raise Stage3Error("stage3-planning-runtime-owner-differs")
+                return existing[1]
+            if owner is not None:
+                raise Stage3Error("stage3-planning-runtime-owner-differs")
+            paths = _output_paths(row)
+            saved_paths = set()
+            for project, value in self.journal.db.execute(
+                "SELECT project, path FROM stage3_planning_paths"
+            ):
+                path = Path(value)
+                if project == project_id:
+                    saved_paths.add(path)
+                elif any(_overlaps(output, path) for output in paths):
+                    raise Stage3Error("stage3-planning-configuration-output-overlap")
+            if not set(paths) <= saved_paths:
+                raise Stage3Error("stage3-planning-saved-output-paths-differ")
+            return self.service._validate_binding(ref, self._binding(row, None))
 
     def add_project(self, row, *, require_existing=False):
         """Compose one verified runtime row under the existing Journal owner."""

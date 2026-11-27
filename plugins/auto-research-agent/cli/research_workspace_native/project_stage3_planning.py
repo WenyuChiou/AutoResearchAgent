@@ -95,7 +95,14 @@ class ProjectStage3PlanningService:
             adapter_context=context,
         )
 
-    def _current(self, credential, project_ref, body=None, check_deadline=None):
+    def _configured(self, project_ref, *, write=False):
+        if write and hasattr(self.bindings, "for_write"):
+            return self.bindings.for_write(project_ref)
+        return self.bindings.get(project_ref)
+
+    def _current(
+        self, credential, project_ref, body=None, check_deadline=None, *, write=False
+    ):
         if check_deadline:
             check_deadline()
         verified, _ = self.selection_view._current_context(credential, project_ref)
@@ -114,7 +121,7 @@ class ProjectStage3PlanningService:
                 and body["selection_request_sha256"] == ack["request_sha256"],
                 "stage3-current-selection-required",
             )
-        configured = self.bindings.get(project_ref)
+        configured = self._configured(project_ref, write=write)
         if configured:
             _check(
                 configured["jobs"].project_id == project["project_id"],
@@ -242,7 +249,9 @@ class ProjectStage3PlanningService:
             )
         _fields(body, SOURCE_FIELDS)
         with self.intake._lock:
-            current = self._current(credential, project_ref, body, check_deadline)
+            current = self._current(
+                credential, project_ref, body, check_deadline, write=True
+            )
             configured, source, item = self._job(current, body["key"])
             jobs = configured["jobs"]
             if item is None:
@@ -283,8 +292,10 @@ class ProjectStage3PlanningService:
                 )
             return self._public(project_ref, result)
 
-    def _saved(self, credential, project_ref, body, check_deadline):
-        current = self._current(credential, project_ref, body, check_deadline)
+    def _saved(self, credential, project_ref, body, check_deadline, *, write=False):
+        current = self._current(
+            credential, project_ref, body, check_deadline, write=write
+        )
         configured, _, item = self._job(current, body["key"])
         _check(item is not None, "stage3-job-not-prepared")
         sha256(body["request_sha256"])
@@ -319,7 +330,7 @@ class ProjectStage3PlanningService:
         _check(body["confirmed"] is True, "explicit-stage3-planning-required", 400)
         with self.intake._lock:
             configured, checkpoint = self._saved(
-                credential, project_ref, body, check_deadline
+                credential, project_ref, body, check_deadline, write=True
             )
 
         # Acquire publication protection only after the actual adapter finishes.
@@ -367,7 +378,7 @@ class ProjectStage3PlanningService:
         _fields(body, SOURCE_FIELDS | {"request_sha256"})
         with self.intake._lock:
             configured, checkpoint = self._saved(
-                credential, project_ref, body, check_deadline
+                credential, project_ref, body, check_deadline, write=True
             )
             result = configured["jobs"].recover(
                 body["key"],

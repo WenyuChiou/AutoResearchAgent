@@ -78,7 +78,24 @@ class Stage3PlanningConnections(Mapping):
                 "stage3-planning-resource-unavailable", 409
             ) from error
 
+    def _read_existing(self, row):
+        try:
+            return self.resources.read_project(row)
+        except (OSError, ValueError, RuntimeError, SqliteError) as error:
+            raise SessionApiError(
+                "stage3-planning-resource-unavailable", 409
+            ) from error
+
     def __getitem__(self, ref):
+        return self._binding(ref, write=False)
+
+    def for_write(self, ref):
+        try:
+            return self._binding(ref, write=True)
+        except KeyError:
+            return None
+
+    def _binding(self, ref, *, write):
         with self.intake._lock:
             saved = self._saved(ref)
             if ref in self.static:
@@ -87,7 +104,9 @@ class Stage3PlanningConnections(Mapping):
                 raise KeyError(ref)
             row, identity, derived = self._verified(self.store.credential, ref, None)
             self._match(saved, row, identity, derived)
-            return self._attach(row, require_existing=True)[0]
+            if write:
+                return self._attach(row, require_existing=True)[0]
+            return self._read_existing(row)
 
     def __iter__(self):
         return iter(
@@ -111,7 +130,7 @@ class Stage3PlanningConnections(Mapping):
                     )
                     return self._public(ref, "connectable")
                 self._match(saved, row, identity, derived)
-                self._attach(row, require_existing=True)
+                self._read_existing(row)
                 return self._public(ref, "connected", saved=saved)
             except SessionApiError as error:
                 if error.status != 409:

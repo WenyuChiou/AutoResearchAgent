@@ -529,8 +529,67 @@ class Stage3RuntimeHttpTests(Stage2SelectionFixture):
                 (400, {"error": "intake-fields-invalid"}),
             )
             self.assertIsNone(self.check_events(resources.journal, project_id, events))
-            code, reopened = self.observed(origin, "reopened-planning", self.plan)
-            self.assertEqual((code, reopened), (200, ready))
+
+            def intake_event_count():
+                return self.intake.db.execute(
+                    "SELECT COUNT(*) FROM intake_events WHERE project=?", (self.ref,)
+                ).fetchone()[0]
+
+            def output_reservations():
+                return tuple(
+                    resources.journal.db.execute(
+                        "SELECT project, path FROM stage3_planning_paths ORDER BY project, path"
+                    )
+                )
+
+            before_intake = self.intake.history(VIEWER, self.ref)
+            before_intake_events = intake_event_count()
+            before_events = resources.journal.events(project_id)
+            before_paths = output_reservations()
+            for repeat in ("first-cold-read", "refresh"):
+                with self.subTest(read=repeat):
+                    code, connections = self.observed(origin, repeat, self.connect)
+                    self.assertEqual(code, 200)
+                    self.assertEqual(connections["project_ref"], saved["project_ref"])
+                    self.assertIs(connections["execution_authorized"], False)
+                    self.assertEqual(
+                        connections["connections"][PLANNING_STAGE],
+                        saved["connections"][PLANNING_STAGE],
+                    )
+                    code, reopened = self.observed(
+                        origin, "reopened-planning", self.plan
+                    )
+                    self.assertEqual((code, reopened), (200, ready))
+                    self.assertEqual(
+                        self.intake.history(VIEWER, self.ref), before_intake
+                    )
+                    self.assertEqual(intake_event_count(), before_intake_events)
+                    self.assertEqual(
+                        resources.journal.events(project_id), before_events
+                    )
+                    self.assertIsNone(resources.journal.snapshot(project_id)["owner"])
+                    self.assertEqual(output_reservations(), before_paths)
+                    self.assertEqual(self.native.call_count, 0)
+            print(
+                json.dumps(
+                    {
+                        "fixture": "cold-read-zero-writes",
+                        "intake_actions": [
+                            len(before_intake["actions"]),
+                            len(self.intake.history(VIEWER, self.ref)["actions"]),
+                        ],
+                        "intake_events": [before_intake_events, intake_event_count()],
+                        "planning_journal_events": [
+                            len(before_events),
+                            len(resources.journal.events(project_id)),
+                        ],
+                        "owner_held": resources.journal.snapshot(project_id)["owner"]
+                        is not None,
+                        "native_calls": self.native.call_count,
+                    }
+                ),
+                flush=True,
+            )
             self.assertEqual(request(origin, self.connect, body=body), (200, saved))
             events.append("owner-acquired")
             second = self.check_events(resources.journal, project_id, events)
