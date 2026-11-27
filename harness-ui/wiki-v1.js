@@ -262,13 +262,24 @@ v1PageStatus.s1 = app => {
  }
  return null;
 };
+// Status-bar buttons sit outside the Stage 1 panel, so the panel's own tab handler ignores them (review P1-1).
+document.addEventListener('click', event => {
+ const button = event.target.closest?.('[data-v1-status] [data-s1-tab]');
+ const app = apps[0];
+ if (!button || button.disabled || !app.wikiS1 || typeof wikiS1ChangeTab !== 'function') return;
+ event.preventDefault();
+ event.stopImmediatePropagation();
+ wikiS1ChangeTab(app, button.dataset.s1Tab, false);
+ app.el.querySelector('.wiki-s1-tabs')?.scrollIntoView({behavior:'smooth', block:'start'});
+ app.el.querySelector('#wiki-s1-' + button.dataset.s1Tab)?.focus({preventScroll:true});
+}, true);
 document.addEventListener('click', event => {
  const button = event.target.closest?.('[data-v1-goto="scope"]');
  if (!button) return;
  event.preventDefault();
  const target = apps[0].el.querySelector('[data-wiki-ops="scope"], .live-scope');
  target?.scrollIntoView({behavior:'smooth', block:'start'});
- target?.querySelector('select, input, textarea')?.focus({preventScroll:true});
+ target?.querySelector(':is(select, input, textarea):not([readonly]):not([disabled])')?.focus({preventScroll:true}); // first field to fill, not the read-only title (review P2-8)
 }, true);
 
 // Harness record for Stage 1, built only from counts in the saved delivery (3.0).
