@@ -70,9 +70,10 @@ function v1gFiles() {
   <div class="v1-table-wrap"><table class="v1-table v1-files"><thead><tr><th scope="col">文件</th><th scope="col">属于哪一段</th><th scope="col">版本</th><th scope="col">来历</th><th scope="col">保存时间</th><th scope="col"><span class="v1-vh">操作</span></th></tr></thead><tbody>
   ${rows.map(row => {
    const bad = row.file && apps[0].v1gBad?.[row.file.sha256];
+   const failed = row.file ? v1gFileFailure(row.file) : null;
    const downloadWhy = bad ? '保存的文件和记录不一致，不能下载' : !row.file ? (archive ? '归档没有随附这份原件，只能在页面里看' : '后台还没有这份文件的原件下载接口') : '';
    return `<tr class="${open === row.id ? 'sel' : ''}"><th scope="row"><b>${esc(row.name)}</b>${row.count ? `<small>${esc(row.count)}</small>` : ''}${archive ? '<small>只读</small>' : ''}</th><td>Stage ${row.stage}</td><td class="n">${esc(version)}</td><td>${originTag}</td><td class="n">未提供</td>
-    <td class="acts"><button type="button" class="v1-btn sm" data-v1g-open="${esc(row.id)}" ${row.file ? `data-v1g-file="${row.index}"` : ''}>打开</button><button type="button" class="v1-btn sm" ${row.file ? `data-v1g-download="${row.index}"` : ''} ${downloadWhy ? 'disabled' : ''}>下载</button>${downloadWhy ? `<small class="v1-reason">${downloadWhy}</small>` : ''}</td></tr>`;
+    <td class="acts"><button type="button" class="v1-btn sm" data-v1g-open="${esc(row.id)}" ${row.file ? `data-v1g-file="${row.index}"` : ''}>打开</button><button type="button" class="v1-btn sm" ${row.file ? `data-v1g-download="${row.index}"` : ''} ${downloadWhy ? 'disabled' : ''}>下载</button>${downloadWhy ? `<small class="v1-reason">${downloadWhy}</small>` : ''}${failed ? `<small class="v1-reason" role="status">${failed.download ? '这次没有下载成功' : '这次没有读出来'}，可以再试一次</small><details class="v1-env-raw"><summary>技术细节</summary><code>${esc(failed.code)}</code></details>` : ''}</td></tr>`;
   }).join('')}</tbody></table></div>${open ? v1gPreview(rows.find(row => row.id === open)) : ''}</div>`);
  const tech = [['项目标识', rt.ref], ['输入版本', p?.input_version], ['保存次数（revision）', p?.revision], ['文献包清单校验值', rt.atlas?.manifest_sha256 || rt.savedRun?.binding?.manifest_sha256],
   ...rows.filter(row => row.file).map(row => [row.file.path, row.file.sha256])];
@@ -86,7 +87,8 @@ function v1gPreview(row) {
  const index = rt.savedRun?.payload?.index || rt.atlas?.payload?.index || {};
  if (row.file) {
   const file = rt.file?.file_ref === row.file.file_ref ? rt.file : null;
-  text = file ? file.content : apps[0].v1gLoading === row.file.file_ref ? '正在读取这份文件…' : '这份文件还没有读出来。';
+  const failed = v1gFileFailure(row.file);
+  text = file ? file.content : apps[0].v1gLoading === row.file.file_ref ? '正在读取这份文件…' : failed ? '这份文件这次没有读出来；保存的文件没有变，可以再点一次「打开」。' : '这份文件还没有读出来。';
   meta = `${row.file.path} · ${row.file.mime === 'application/x-bibtex' ? 'BibTeX' : 'Markdown'} 文本`;
  } else if (row.preview === 'papers') {
   text = (index.papers || []).map((paper, i) => `${i + 1}. ${paper.title || '标题未提供'}${paper.year ? '（' + paper.year + '）' : ''}`).join('\n');
@@ -100,6 +102,10 @@ function v1gPreview(row) {
   text = row.preview === 'notes' ? `${row.count}的笔记位置已保存；笔记正文在 Stage 1 页每篇论文的小卡里看。` : '候选包的内容在 Stage 2 页看。';
  }
  return `<aside class="v1-preview" data-v1g-preview aria-label="文件预览"><div class="v1-preview-head"><b>${esc(row.name)}</b><button type="button" class="v1-link" data-v1g-close>关闭预览</button></div><small>${esc(meta)} · 只读</small><pre>${esc(String(text).slice(0, 200000))}</pre></aside>`;
+}
+function v1gFileFailure(file) {
+ const e = apps[0].v1gFileError;
+ return e && e.ref === rt.ref && file && e.file === file.file_ref ? e : null;
 }
 async function v1gSha(text) {
  return [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -132,8 +138,9 @@ document.addEventListener('click', async event => {
   if (data.v1gFile !== undefined) {
    const f = rt.atlas?.files?.[Number(data.v1gFile)];
    app.v1gLoading = f?.file_ref; livePaint();
-   try { const {file} = await v1gReadFile(Number(data.v1gFile)); rt.file = file; }
-   catch (error) { rt.error = error.message; }
+   // A failed file read stays on this page (review P2-2): writing it to rt.error made the home page refuse to open topics.
+   try { const {file} = await v1gReadFile(Number(data.v1gFile)); rt.file = file; app.v1gFileError = null; }
+   catch (error) { app.v1gFileError = {ref:rt.ref, file:f?.file_ref, code:error.message}; }
    app.v1gLoading = null;
   }
   livePaint(); return;
@@ -147,7 +154,10 @@ document.addEventListener('click', async event => {
    const name = dot > 0 ? `${file.filename.slice(0, dot)}-v${version}${file.filename.slice(dot)}` : `${file.filename}-v${version}`;
    const blob = new Blob([file.content], {type:f.mime || 'text/plain'}), url = URL.createObjectURL(blob), a = document.createElement('a');
    a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
-  } catch (error) { rt.error = error.message; livePaint(); }
+  } catch (error) {
+   const f = rt.atlas?.files?.[Number(data.v1gDownload)];
+   app.v1gFileError = {ref:rt.ref, file:f?.file_ref, code:error.message, download:true}; livePaint();
+  }
  }
 }, true);
 
@@ -320,3 +330,4 @@ v7AfterRender = function (app) {
  const content = app.el.querySelector('.hs-content'), env = content?.querySelector(':scope > [data-v1-env]');
  if (env && content.firstElementChild !== env) content.prepend(env);
 };
+

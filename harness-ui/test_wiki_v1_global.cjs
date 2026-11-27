@@ -1,4 +1,5 @@
 // Wiki V1 global pages (DESIGN 8.1, 8.2): files, history, settings markup and their five states. No network.
+(async () => {
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -10,7 +11,7 @@ const rt = {ref:null, list:[], meta:null, loading:false, busy:false, pending:nul
 const app = {lang:'zh', page:'files', stage:1, el:{contains:() => true}};
 const esc = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const context = vm.createContext({
- rt, apps:[app], esc, Date, JSON, Number, String, Object, Array, Promise, Math,
+ rt, apps:[app], esc, setTimeout:() => {}, Date, JSON, Number, String, Object, Array, Promise, Math,
  v1On:a => a.lang === 'zh', v1OriginNames:{local:'本地项目', archive:'历史归档', synthetic:'合成样例', unknown:'来历未标注'},
  v1CurrentRow:() => rt.ref ? {origin:'local'} : null, v1ProjectTitle:() => rt.overview?.project?.brief?.original_description || '',
  wikiHomeArchiveBound:ref => /^view:/.test(ref || '') && rt.savedRun?.entry?.project_ref === ref,
@@ -58,6 +59,18 @@ assert.doesNotMatch(text(html).replace(/本页技术细节.*$/, ''), /1111111111
 app.v1gBad = {['1'.repeat(64)]:true};
 assert.match(page('files'), /data-v1g-download="0" disabled>下载<\/button><small class="v1-reason">保存的文件和记录不一致，不能下载/);
 app.v1gBad = {};
+// Review P2-2: a failed file read stays on this page and never becomes the global error.
+await (async () => {
+ const button = {disabled:false, dataset:{v1gOpen:'f0', v1gFile:'0'}};
+ const event = {target:{closest:() => button}, preventDefault() {}, stopImmediatePropagation() {}};
+ app.page = 'files'; app.el.contains = () => true;
+ for (const fn of listeners.click) await fn(event);
+})();
+assert.equal(rt.error, '', 'the global error stays empty');
+html = page('files');
+assert.match(html, /这次没有读出来，可以再试一次/);
+assert.match(text(html), /这份文件这次没有读出来/);
+app.v1gFileError = null; app.v1gOpen = null;
 
 // History: plain words, newest first, result tags, filters, raw record highlighted on request.
 rt.history = {project_ref:'project-a', actions:[
@@ -112,3 +125,4 @@ rt.error = ''; context.window.RESEARCH_PROJECTS = undefined;
 assert.equal(context.v1gEnvAlerts()[0].raw, 'no-service-bootstrap');
 
 console.log('PASS Wiki V1 global pages: environment bar, no topic, loading, refused, error, empty, files, history filters and raw rows, settings blocks, archives.');
+})().catch(error => { console.error(error); process.exit(1); });
