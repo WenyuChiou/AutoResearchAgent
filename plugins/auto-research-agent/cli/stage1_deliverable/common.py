@@ -105,8 +105,10 @@ def private_output(path):
     path = Path(path).absolute()
     reject_links(path)
     probe_required = any(
-        key.upper().startswith("GIT_") and key.upper() != "GIT_PAGER"
-        for key in os.environ
+        key.startswith("GIT_")
+        and key not in {"GIT_PAGER", "GIT_CONFIG_COUNT"}
+        and not re.fullmatch(r"GIT_CONFIG_(?:KEY|VALUE)_[0-9]+", key)
+        for key in map(str.upper, os.environ)
     )
     for parent in (path, *path.parents):
         try:
@@ -125,9 +127,9 @@ def private_output(path):
             pass
         else:
             probe_required = True
-    # Ordinary discovery needs .git or a bare repository's HEAD. Environment
-    # overrides and ambiguous HEAD markers retain the original Git check.
-    # GIT_PAGER affects display only, never repository discovery.
+    # Without .git or a bare repository's HEAD, display and runtime config
+    # variables cannot supply a repository. Other GIT_* variables and ambiguous
+    # HEAD markers retain the Git probe.
     # Never cache ancestry: a newly introduced gitfile must be rejected.
     if not probe_required:
         return path
