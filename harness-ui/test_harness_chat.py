@@ -223,6 +223,28 @@ class ChatServiceTests(unittest.TestCase):
         self.assertFalse(fx.rpcs[-1].sent[-1]["result"]["success"])
         self.assertIn("binding", json.dumps(fx.rpcs[-1].sent[-1]["result"]))
 
+    def test_failed_turn_text_carries_no_local_path(self):
+        fx = self.fx
+        secret = "C:" + chr(92) + "Users" + chr(92) + "private-name" + chr(92) + "config.toml"
+
+        class Broken(FakeRpc):
+            def request(self, method, params, timeout=10):
+                if method == "initialize":
+                    raise FileNotFoundError(2, "No such file", secret)
+                return super().request(method, params, timeout)
+
+        service = fx.service()
+        service.rpc_factory = lambda record: Broken(record)
+        row = fx.finished(service, fx.send(service))
+        self.assertEqual(row["status"], "failed")
+        shown = json.dumps(service.status(fx.ref, 1, PRINCIPAL), ensure_ascii=False)
+        self.assertNotIn("private-name", shown)
+        self.assertNotIn("private-name", json.dumps(row))
+        self.assertEqual(row["error"], "FileNotFoundError:chat-state-unreadable")
+        with service.db() as db:
+            events = [r[0] for r in db.execute("SELECT body FROM events WHERE turn_id=?", (row["id"],))]
+        self.assertTrue(any("private-name" in e for e in events), "full text stays in the local record")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

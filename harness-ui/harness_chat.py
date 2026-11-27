@@ -1137,11 +1137,25 @@ class ChatService:
                 error="chat-deadline-native-terminal-unconfirmed",
             )
         except Exception as exc:
+            # The page gets a content-free code; the full text stays in the local event record only.
+            code = (
+                str(exc).split(":", 1)[0][:120]
+                if isinstance(exc, ValueError)
+                else "chat-state-unreadable"
+            )
+            try:
+                self.event(
+                    turn["id"],
+                    "error",
+                    dict(detail=type(exc).__name__ + ":" + str(exc)[:1200]),
+                )
+            except Exception:  # noqa: BLE001 -- recording must not hide the failure itself
+                pass
             self.update(
                 turn["id"],
                 status="unknown" if dispatched else "failed",
                 execution_dispatched=dispatched,
-                error=type(exc).__name__ + ":" + str(exc)[:1200],
+                error=type(exc).__name__ + ":" + code,
             )
         finally:
             if rpc is not None:
