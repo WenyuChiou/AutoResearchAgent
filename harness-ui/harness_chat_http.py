@@ -160,6 +160,10 @@ def install_chat(
                         raise SessionApiError("invalid-json", 400) from None
                     if not isinstance(body, dict):
                         raise SessionApiError("object-required", 400)
+                    # Identifiers go into SQL lookups; anything but a string is a malformed request.
+                    for field in ("turn_id", "request_id", "request_sha256", "session_id"):
+                        if body.get(field) is not None and type(body[field]) is not str:
+                            raise SessionApiError("invalid-id-type", 400)
                     if route == "send":
                         value = service.start(body, principal)
                     elif route == "answer":

@@ -524,6 +524,12 @@ class ChatService:
             "chat-start-fields-invalid",
         )
         require(
+            (body["session_id"] is None or type(body["session_id"]) is str)
+            and type(body["project_ref"]) is str
+            and type(body["stage"]) is int,
+            "chat-start-fields-invalid",
+        )
+        require(
             isinstance(body["text"], str) and 0 < len(body["text"].encode()) <= 8192,
             "chat-message-size-invalid",
         )
@@ -673,6 +679,10 @@ class ChatService:
             set(body) == {"turn_id", "request_id", "request_sha256", "value"},
             "chat-answer-fields-invalid",
         )
+        require(
+            all(type(body[k]) is str for k in ("turn_id", "request_id", "request_sha256")),
+            "chat-answer-fields-invalid",
+        )
         with self.lock:
             turn = self.get("turns", body["turn_id"])
             pending = turn.get("pending")
@@ -719,6 +729,7 @@ class ChatService:
         return dict(saved=True, turn_id=turn["id"], request_id=pending["id"])
 
     def stop(self, identity):
+        require(type(identity) is str, "chat-turn-id-invalid")
         with self.lock:
             row = self.get("turns", identity)
             if row["status"] in TERMINAL:
