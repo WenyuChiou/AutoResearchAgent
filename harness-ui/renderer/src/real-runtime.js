@@ -67,10 +67,11 @@ if(typeof v7AfterRender==='function'){
 }
 livePost = async function(tail,body,ref=rt.ref){
   if(liveReal() && tail==='confirm') {
-    const limits=rt.meta.run_limits,positive=value=>Number.isSafeInteger(value)&&value>0;
+    // Consent is what the researcher ticked on the page (wsgScopeConsent), never derived from the launch limits.
+    const limits=rt.meta.run_limits,ticked=typeof wsgScopeConsent==='function'?wsgScopeConsent():{external_search:false,public_source_read:false,browser_fallback:false};
     body={...body,
-      resource_envelope:'Bounded V7 integration validation: '+JSON.stringify(limits)+'. No scoring or later-stage execution.',
-      budgets:limits,consent:{external_search:positive(limits?.seconds)&&positive(limits?.search_calls),public_source_read:positive(limits?.seconds)&&positive(limits?.source_reads),browser_fallback:false}};
+      resource_envelope:'Launch limits '+JSON.stringify(limits)+'; external search consent: '+(ticked.external_search?'yes':'no')+'; public source read consent: '+(ticked.public_source_read?'yes':'no')+'. No scoring or later-stage execution.',
+      budgets:limits,consent:ticked};
   }
   return savedPost(tail,body,ref);
 };
@@ -227,11 +228,16 @@ document.addEventListener('click',async e=>{
    try{const text=document.querySelector('[data-real-plan]').value,request=JSON.parse(text);rt.planDraft.text=text;await livePost('compile',{...liveBound(),request,as_of:new Date().toISOString().slice(0,10)});}catch(error){rt.error=error.message;livePaint();}return;
   }
   if(['authorize-plan','plan'].includes(action)&&!realPlanningState().allowed){rt.error=realPlanningBlockMessage();livePaint();return;}
-  if(action==='authorize-plan')return livePost('models/authorize',{...liveBound(),operation:'plan-search',user_input:'用户要求在本地 V7 用本人 Codex 和仓库 Harness 实际验证链路。本轮上限 '+JSON.stringify(realBudget())+'；不做评分、不运行Stage2。',confirmed:true});
+  if(action==='authorize-plan'){const words=realResearcherWords('authorize-plan');if(!words)return;const ok=realCanSend();await livePost('models/authorize',{...liveBound(),operation:'plan-search',user_input:words,confirmed:true});realReasonDone('authorize-plan',ok);return;}
   if(action==='plan'){const o=realModelOffers().find(o=>o.available&&o.operation==='plan-search');if(o)return livePost('models/actions',{...liveBound(),offer_ref:o.offer_ref,offer_sha256:o.offer_sha256,confirmed:true});}
-  if(action.startsWith('query-')){const q=rt.overview.stage1.query_execution;const o=action==='query-restore-owner'?realQueryOwnerOffer():q?.[{'query-authorize':'authorization_offer','query-bootstrap':'bootstrap_offer','query-execute':'query_offer'}[action]];if(!o)return;const body={...liveBound(),offer_ref:o.offer_ref,offer_sha256:o.offer_sha256,confirmed:true};if(action==='query-authorize')body.user_input='本地 V7 限定链路验收，本轮上限 '+JSON.stringify(realBudget())+'；不评分，不进入Stage2。';return livePost('stage1/'+action,body);}
+  if(action.startsWith('query-')){const q=rt.overview.stage1.query_execution;const o=action==='query-restore-owner'?realQueryOwnerOffer():q?.[{'query-authorize':'authorization_offer','query-bootstrap':'bootstrap_offer','query-execute':'query_offer'}[action]];if(!o)return;const body={...liveBound(),offer_ref:o.offer_ref,offer_sha256:o.offer_sha256,confirmed:true};if(action==='query-authorize'){const words=realResearcherWords('query-authorize');if(!words)return;body.user_input=words;}const ok=realCanSend(),sent=await livePost('stage1/'+action,body);if(action==='query-authorize')realReasonDone(action,ok);return sent;}
 },true);
 
+// The researcher's own words, written on the page. Without them no authorization is sent.
+function realResearcherWords(action){const words=typeof wsgActionWords==='function'?wsgActionWords(action):'';if(!words){rt.error=apps[0]?.lang==='zh'?'请先在这张授权卡里写下授权理由，并勾选确认。':rl('请先在这张授权卡里写下授权理由，并勾选确认。','Authorizing needs a reason box that only the Simplified Chinese page has. Switch the language to Simplified Chinese to authorize.','授權需要填寫理由，理由框只在簡體中文頁面。請切換到簡體中文再授權。');livePaint();}return words;}
+// livePost returns early (no error) while the page is busy; the request was then never sent, so keep the words.
+function realCanSend(){return !(rt.busy||rt.loading||rt.pending||rt.controlHeld);}
+function realReasonDone(action,wasSent){if(wasSent&&!rt.error&&typeof wsgClearReason==='function'){wsgClearReason(action);livePaint();}}
 // Every write below is offered by the current production service. Reads never dispatch work.
 function realActionEnvelope(view){const p=rt.overview?.project;return !!(p&&p.project_ref===rt.ref&&view?.project_ref===rt.ref&&view.revision===p.revision);}
 function realModelOffers(){const value=rt.overview?.model_offers;return realActionEnvelope(value)&&Array.isArray(value.offers)?value.offers:[];}
@@ -363,8 +369,9 @@ document.addEventListener('click',async e=>{
    if(apps[0].stage!==1||!realFollowupEnabled())return;const d=realFollowupDraft(),target=realFollowupTargets().find(j=>j.output_ref===d.output_ref&&j.output_sha256===d.output_sha256),m=rt.overview.models,budget=p.settings?.budgets?.model_calls;
    if(!target||!Number.isFinite(budget)||!Number.isFinite(m.calls_reserved)||budget-m.calls_reserved<1)return;
    if(document.querySelector('[data-v7-followup-consent]')?.checked!==true)throw new Error(rl('请明确授权本次内容问答','Explicitly authorize this content discussion'));
+   const words=realResearcherWords('followup-authorize');if(!words)return;
    const question=realText(document.querySelector('[data-v7-followup-question]').value);rt.followupDraft={...d,question};
-   return await livePost('models/authorize',{...liveBound(),operation:'follow-up',stage:1,output_ref:target.output_ref,output_sha256:target.output_sha256,question,user_input:rl('授权当前项目对选定保存输出执行一次内容问答；不启动新检索、不修改产物或审阅决定。','Authorize one content discussion about this saved output in the current project; no new search or artifact/review changes.'),confirmed:true});
+   const ok=realCanSend(),sent=await livePost('models/authorize',{...liveBound(),operation:'follow-up',stage:1,output_ref:target.output_ref,output_sha256:target.output_sha256,question,user_input:words,confirmed:true});realReasonDone('followup-authorize',ok);return sent;
   }
   if(action==='followup-send'){
    if(apps[0].stage!==1)return;const item=realFollowupOffers().find(x=>x.i===index);if(!item)return;const o=item.o;

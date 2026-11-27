@@ -106,7 +106,8 @@ m9Panel = function (app) {
  const progress = m9.busy ? `<div class="ws-m9-line">${wsTag('run', '上传中')}<span>${esc(status || '正在保存，请稍等')}</span></div>` :
   m9.error ? `<div class="ws-m9-line ws-m9-bad">${wsTag(refused ? 'block' : 'err', refused ? '被拦下' : '出错')}<span>${esc(wsM9Error(m9.error))}</span>${wsBtn('读取保存状态', 'data-n9-action="refresh"', '')}<details class="ws-tech"><summary>技术细节</summary><code>${esc(m9.error)}</code></details></div>` :
   status ? `<div class="ws-m9-line">${wsTag('done', '已保存')}<span>${esc(status)}</span></div>` : '';
- const table = loading ? '<p class="wiki-s1-muted">正在读取保存记录</p>' : !materials.length ? '<p class="wiki-s1-muted">这个课题在这一段还没有登记材料。</p>' :
+ const unread = !m9.catalog && !!m9.error; // the saved list was not read: neither "none" nor a count is known
+ const table = loading ? '<p class="wiki-s1-muted">正在读取保存记录</p>' : unread ? '<p class="wiki-s1-muted">这次没有读到已保存的材料，原因写在上面；已保存的文件没有变。</p>' : !materials.length ? '<p class="wiki-s1-muted">这个课题在这一段还没有登记材料。</p>' :
   `<div class="ws-m9-wrap"><table class="ws-table ws-m9-table"><thead><tr><th scope="col">文件</th><th scope="col">所属阶段</th><th scope="col">大小</th><th scope="col">版本</th><th scope="col">登记时间</th><th scope="col">状态</th><th scope="col"><span class="wiki-home-visually-hidden">操作</span></th></tr></thead><tbody>${materials.map(wsM9Row).join('')}</tbody></table></div>`;
  const files = app.stage === 1 && typeof wsMaterialsDownloads === 'function' ? wsMaterialsDownloads() :
   '<p class="wiki-s1-muted">这一段的交付文件（候选包原报告、评语、资源补件、全部原始文件）还不能在这里下载：后台还没有交付文件的下载接口。</p>';
@@ -122,7 +123,7 @@ m9Panel = function (app) {
   <section class="ws-m9-card"><div class="ws-m9-head"><h3>加入文件</h3><label class="ws-m9-pick ${m9.busy ? 'off' : ''}">选择阶段材料<input type="file" multiple data-n9-upload aria-label="选择阶段材料" accept="${wsM9Accept}" ${m9.busy ? 'disabled' : ''}></label></div>
    <p class="wiki-s1-muted">你自己登记的材料保留原件、版本和所属阶段。登记后可以恢复、核验、准备接续；不会自动标记为已读、已纳入或已批准。每个文件最多 128 MiB；压缩包按原样保存，不解包、不执行。</p>
    ${m9.busy ? '<small class="ws-why">正在保存，请稍等</small>' : ''}${progress}</section>
-  <section class="ws-m9-card ws-m9-flush"><div class="ws-m9-head"><h3>已保存的材料</h3><small class="wiki-s1-muted">${materials.length ? materials.length + ' 份。文件已按原始字节保存，没有启动研究。' : '还没有登记材料。'}</small></div>${table}
+  <section class="ws-m9-card ws-m9-flush"><div class="ws-m9-head"><h3>已保存的材料</h3><small class="wiki-s1-muted">${loading ? '正在读取' : unread ? '没有读到' : materials.length ? materials.length + ' 份。文件已按原始字节保存，没有启动研究。' : '还没有登记材料。'}</small></div>${table}
    <p class="wiki-s1-muted ws-m9-foot">同名同内容再传一次会写「已经登记过，没有重复」；超过 128 MiB 写「超过 128 MiB」；别的课题的材料不会出现在这里。</p></section>
   ${importFold}
   <div class="ws-m9-two"><section class="ws-m9-card"><h3>${app.stage === 1 ? '文献包里的文件' : '这一段的交付文件'}</h3>${files}</section>
