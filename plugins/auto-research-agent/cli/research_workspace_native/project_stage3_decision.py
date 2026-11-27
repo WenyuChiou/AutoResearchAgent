@@ -201,8 +201,12 @@ def accept_condition(plan, job=None):
     return ok, "+".join(used)
 
 
-def record_decision(jobs, ref, view, body, check_deadline=None):
-    """Append once; replay returns the stored record and never dispatches."""
+def check_shape(body):
+    """Everything about the request that needs neither the journal nor a lease.
+
+    The Host calls this before it takes the journal owner lease, so a malformed
+    request leaves no ``owner-acquired`` event behind.
+    """
     _fields(body, FIELDS)
     _check(body["confirmed"] is True, "explicit-stage3-decision-required", 400)
     _check(body["decision"] in DECISIONS, "stage3-decision-invalid", 400)
@@ -213,6 +217,11 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
         "stage3-decision-text-too-long",
         413,
     )
+
+
+def record_decision(jobs, ref, view, body, check_deadline=None):
+    """Append once; replay returns the stored record and never dispatches."""
+    check_shape(body)
     base, binding, revised = _binding(jobs, ref, view)
     _check(
         all(

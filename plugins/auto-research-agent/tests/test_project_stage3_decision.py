@@ -306,6 +306,89 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
             (status, reply["error"]), (400, "explicit-stage3-decision-required")
         )
 
+    def test_malformed_requests_are_refused_before_the_lease_is_taken(self):
+        calls = []
+
+        class Bindings(dict):
+            def for_write(self, ref):
+                calls.append(ref)
+                return self.get(ref)
+
+        self.service.bindings = Bindings({"authored-ref": {"jobs": self.jobs}})
+        good = self.decision()
+        for body in (
+            dict(good, extra=1),
+            dict(good, confirmed=False),
+            dict(good, decision="approve"),
+            dict(good, text="x" * 5000),
+            {k: v for k, v in good.items() if k != "key"},
+        ):
+            status, _ = self.post(body)
+            self.assertGreaterEqual(status, 400)
+        self.assertEqual(calls, [])
+        self.assertEqual(self.post(good)[0], 200)
+        self.assertEqual(calls, ["authored-ref"])
+
+    def concurrent(self, bodies):
+        results = []
+        threads = [
+            threading.Thread(target=lambda b=b: results.append(self.post(b)))
+            for b in bodies
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(30)
+        self.assertEqual(len(results), len(bodies))
+        for status, reply in results:
+            self.assertIn(status, (200, 409), reply)
+            if status == 409:
+                self.assertEqual(reply["error"], "stage3-planning-project-busy")
+        view = self.transport.view("own", "authored-ref")["host_decision"]
+        return results, view
+
+    def test_concurrent_decisions_with_different_keys_never_share_a_sequence(self):
+        results, view = self.concurrent(
+            [
+                self.decision("a", "accept", "A"),
+                self.decision("b", "return-to-stage2", "B"),
+            ]
+        )
+        successes = sum(1 for status, _ in results if status == 200)
+        self.assertGreaterEqual(successes, 1)
+        sequences = [r["record"]["sequence"] for r in view["records"]]
+        self.assertEqual(sequences, list(range(1, successes + 1)))
+
+    def test_concurrent_decisions_with_the_same_key_record_once(self):
+        results, view = self.concurrent(
+            [
+                self.decision("same", "accept", "S"),
+                self.decision("same", "accept", "S"),
+            ]
+        )
+        self.assertGreaterEqual(sum(1 for status, _ in results if status == 200), 1)
+        self.assertEqual(len(view["records"]), 1)
+
+    def test_view_says_so_when_the_decision_does_not_fit_the_response(self):
+        from unittest.mock import patch
+
+        real = __import__(
+            "research_workspace_native.project_stage3_http", fromlist=["fits_response"]
+        ).fits_response
+        self.post(self.decision())
+        with patch(
+            "research_workspace_native.project_stage3_http.fits_response",
+            side_effect=lambda value: (
+                (
+                    "host_decision" not in value
+                    or value["host_decision"] == {"omitted": "response-bound"}
+                )
+                and real(value)
+            ),
+        ):
+            view = self.transport.view("own", "authored-ref")
+        self.assertEqual(view["host_decision"], {"omitted": "response-bound"})
+
     def test_credentials_and_origin_are_checked(self):
         before = self.journal_state()
         status, _ = self.post(self.decision(), credential="wrong")

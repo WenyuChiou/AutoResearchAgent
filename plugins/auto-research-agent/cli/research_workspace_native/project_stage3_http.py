@@ -21,7 +21,7 @@ from .http import MAX_BODY
 from .transport import _decode
 from .project_stage3_planning import SOURCE_FIELDS
 from .project_stage3_direction_planning import DIRECTION_FIELDS
-from .project_stage3_decision import read_decisions, record_decision
+from .project_stage3_decision import check_shape, read_decisions, record_decision
 from .project_stage3_feedback import fits_response, read_feedback, record_feedback
 from .project_selection_read_context import verified_selection_read
 
@@ -78,8 +78,11 @@ class ProjectStage3Http:
                         view,
                         host_decision=read_decisions(configured["jobs"], ref, view),
                     )
+                    omitted = dict(view, host_decision={"omitted": "response-bound"})
                     if fits_response(with_decision):
                         view = with_decision
+                    elif fits_response(omitted):
+                        view = omitted  # say so; never drop it silently
             return view
 
     def _view(self, credential, ref, *, check_deadline=None):
@@ -193,6 +196,7 @@ class ProjectStage3Http:
             )
 
     def decide(self, credential, ref, body, *, check_deadline=None):
+        check_shape(body)  # before any lock or journal owner lease
         with self.service.intake._lock:
             view = self._view(credential, ref, check_deadline=check_deadline)
             bindings = self.service.bindings
@@ -358,6 +362,7 @@ def handle_planning(handler, method):
                     service.run(token, ref, body, check_deadline=transport.check_open)
                     return
             elif action == "decide":
+                check_shape(body)
                 transport.admit_feedback(ref, body, action)
                 running = True
                 result = transport.decide(
