@@ -21,13 +21,14 @@ from .http import MAX_BODY
 from .transport import _decode
 from .project_stage3_planning import SOURCE_FIELDS
 from .project_stage3_direction_planning import DIRECTION_FIELDS
+from .project_stage3_decision import read_decisions, record_decision
 from .project_stage3_feedback import fits_response, read_feedback, record_feedback
 from .project_selection_read_context import verified_selection_read
 
 
 ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage3/planning"
-    r"(?:/(prepare|run|inspect|recover|comment|revise))?"
+    r"(?:/(prepare|run|inspect|recover|comment|revise|decide))?"
 )
 
 
@@ -73,6 +74,11 @@ class ProjectStage3Http:
                     )
                     if fits_response(projected):
                         view = projected
+                    with_decision = dict(
+                        view, decision=read_decisions(configured["jobs"], ref, view)
+                    )
+                    if fits_response(with_decision):
+                        view = with_decision
             return view
 
     def _view(self, credential, ref, *, check_deadline=None):
@@ -183,6 +189,17 @@ class ProjectStage3Http:
                 action,
                 check_deadline,
                 material_resolver=self.material_resolver,
+            )
+
+    def decide(self, credential, ref, body, *, check_deadline=None):
+        with self.service.intake._lock:
+            view = self._view(credential, ref, check_deadline=check_deadline)
+            bindings = self.service.bindings
+            configured = getattr(bindings, "for_write", bindings.get)(ref)
+            if configured is None:
+                raise SessionApiError("stage3-planning-unconnected", 409)
+            return record_decision(
+                configured["jobs"], ref, view, body, check_deadline=check_deadline
             )
 
     def admit_run(self, credential, ref, body, check_deadline):
@@ -333,6 +350,13 @@ def handle_planning(handler, method):
                     # response. The original adapter still owns the native limit.
                     service.run(token, ref, body, check_deadline=transport.check_open)
                     return
+            elif action == "decide":
+                transport.admit_feedback(ref, body, action)
+                running = True
+                result = transport.decide(
+                    token, ref, body, check_deadline=handler._remaining
+                )
+                transport.finish_feedback_write(ref)
             elif action in {"comment", "revise"}:
                 transport.admit_feedback(ref, body, action)
                 running = True
