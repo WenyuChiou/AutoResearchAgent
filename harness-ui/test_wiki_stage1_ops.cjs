@@ -249,7 +249,8 @@ assert.match(buttonOf(card, 'data-v7-workflow="source-preview"'), /来源获取�
 assert.match(card, /<b>不会改 Harness 的阅读提示词<\/b>/);
 assert.match(buttonOf(card, 'data-v7-workflow="reading-authorize"'), /阅读还没有可用的来源或额度/);
 // Backend codes are not body text (DESIGN 2.6); the raw value stays in technical details.
-assert.match(card, /阅读条件：有记录，原因见技术细节/);
+assert.match(card, /阅读条件：服务给了原因代码/);
+assert.match(card, /<summary>原值<\/summary><code>no-source<\/code>/, 'the raw value sits next to the plain sentence');
 assert.doesNotMatch(card, /阅读条件：no-source/);
 assert.match(card, /data-ws-expansion-slot/);
 assert.match(card, /未获取/);
