@@ -1181,12 +1181,15 @@ class ProjectHandler(AtlasHandler):
                         models=self.server.project_models is not None,
                         stage2=self.server.project_stage2 is not None,
                         stage2_selection_projects=(
-                            list(self.server.project_stage2_selection.bindings)
+                            # list(mapping) asks for len() first, and len() walks the
+                            # same discovery as iteration: every connected project's
+                            # full source verification ran twice per bootstrap.
+                            list(iter(self.server.project_stage2_selection.bindings))
                             if self.server.project_stage2_selection is not None
                             else []
                         ),
                         stage3_planning_projects=(
-                            list(self.server.project_stage3_http.service.bindings)
+                            list(iter(self.server.project_stage3_http.service.bindings))
                             if self.server.project_stage3_http is not None
                             else []
                         ),
