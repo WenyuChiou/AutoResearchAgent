@@ -61,7 +61,8 @@ function wikiS3RequestLine(view) {
  // A timeout or I/O failure after the run was accepted is an unknown outcome (DESIGN 8.0), never "blocked" -- until a
  // read-only inspect of that same request says it is still intent-recorded, i.e. it stopped before the model call.
  const settled = job?.status === 'intent-recorded' && !!job.request_sha256 && wikiS3Req.notRun.get(rt.ref) === job.request_sha256
-  && (!view.submission_error?.request_sha256 || view.submission_error.request_sha256 === job.request_sha256);
+  // A submission_error without its request_sha256 cannot be matched, so it is not released (review P2-5).
+  && (!view.submission_error || view.submission_error.request_sha256 === job.request_sha256);
  if (view.submission_error && !settled && /deadline-or-io-failed$/.test(String(view.submission_error.code || ''))) return {tone:'warn', tag:'结果未知', detail,
   text:'上次生成的结果还不清楚：模型可能已经调用过。原请求已保留，不会自动重发；先只读核对', buttons:[...(job?.request_sha256 ? [inspect] : []), read]};
  if (view.submission_error && !settled) return {tone:'warn', tag:'被拦下', detail, text:'上次生成没有完成，原因代码在技术细节里。原记录保留，不会自动重试', buttons:[read]};

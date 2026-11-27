@@ -259,3 +259,15 @@ test('review P2-4: after the read-only check the latest read decides; a later ex
  assert.equal(row.tag, '结果未知');
  assert.equal(row.grant, undefined);
 });
+
+test('review P2-5: a timed-out submission_error without request_sha256 is not released by the read-only check', async () => {
+ const sha = 'c'.repeat(64);
+ for (const error of [{key:request.key, code:'stage3-planning-deadline-or-io-failed'}, {key:request.key, request_sha256:'d'.repeat(64), code:'stage3-planning-deadline-or-io-failed'}]) {
+  const {ctx} = load({view:{submission_error:error, job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+  ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'intent-recorded'});
+  await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
+  const row = line(ctx);
+  assert.equal(row.tag, '结果未知', JSON.stringify(error));
+  assert.equal(row.grant, undefined);
+ }
+});
