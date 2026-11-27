@@ -153,8 +153,8 @@ function wikiRecPump() {
  const {ref, stage, home} = wikiRecWant, key = ref + '|' + stage, entry = wikiRecStore.get(key);
  wikiRecWant = null;
  if (!entry || entry.state !== 'loading') return;
- // A page read is dropped when its block is no longer on the page (the user moved to another stage or project); a home read is dropped as soon as the user left the home page.
- if (home ? !wikiRecHomeActive() : !wikiRecShown(ref, stage)) { wikiRecStore.delete(key); return; }
+ // A page read is dropped when its block is no longer on the page (the user moved to another stage or project); a home read is dropped as soon as the user left the home page, unless the opened project's page now shows that block (then it is sent as a page read, so the page never stays on "读取中").
+ if (!(wikiRecShown(ref, stage) || (home && wikiRecHomeActive()))) { wikiRecStore.delete(key); return; }
  wikiRecFlight = {key};
  const timer = setTimeout(() => {
   if (entry.state === 'loading') { entry.state = 'timeout'; wikiRecRepaint(); wikiRecHomeStep(); }

@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 // Queued reads follow the page: a wish whose block is no longer shown is cancelled, never sent.
-const A = 'project-aaaa1111', B = 'project-bbbb2222';
+const A = 'project-aaaa1111', B = 'project-bbbb2222', C = 'project-cccc3333', D = 'project-dddd4444';
 const calls = [], pending = [];
 const shown = new Set(); // 'ref|stage' blocks currently in the page
 const apps = [{lang:'zh', page:'workspace', el:{querySelector: selector => {
@@ -41,6 +41,31 @@ const has = key => vm.runInContext(`wikiRecStore.has(${JSON.stringify(key)})`, c
  assert.equal(calls.length, 2);
  assert.match(calls[1], /stage-2$/);
  await settle(1, answer(B, 2));
+
+ // A2: a home read queued behind another read; the user opens that project before it starts.
+ apps[0].page = 'home'; context.rt.ref = null; shown.clear();
+ shown.add(C + '|1');
+ const n = calls.length;
+ wikiRecEnsure(C, 1);
+ assert.equal(calls.length, n + 1);
+ wikiRecEnsure(A, 1, false, true); // home wish, queued
+ apps[0].page = 'workspace'; context.rt.ref = A; shown.clear(); shown.add(A + '|1'); // opened A's Stage 1 page
+ await settle(pending.length - 1, answer(C, 1));
+ assert.equal(calls.length, n + 2, "A's block is on the page: its read is sent, not dropped");
+ assert.match(calls[n + 1], /project-aaaa1111\/harness-record\/stage-1$/);
+ assert.equal(has(A + '|1'), true);
+ await settle(pending.length - 1, answer(A, 1));
+ assert.equal(vm.runInContext("wikiRecStore.get('" + A + "|1').state", context), 'ok');
+ // The same wish is still dropped when nothing shows it and the user is off the home page.
+ shown.clear();
+ shown.add(D + '|1');
+ wikiRecEnsure(D, 1);
+ wikiRecEnsure(A, 2, false, true);
+ shown.clear();
+ apps[0].page = 'workspace';
+ const m = calls.length;
+ await settle(pending.length - 1, answer(D, 1));
+ assert.equal(calls.length, m, 'a home wish with no block on the page is dropped after leaving home');
 
  console.log('PASS Harness record queue: a queued read is cancelled when its page is left.');
 })().catch(error => { console.error(error); process.exit(1); });
