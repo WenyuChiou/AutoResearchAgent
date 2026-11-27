@@ -444,8 +444,10 @@ function wikiS3Page(app, base) {
 }
 
 function wikiS3FeedbackLead(context, state, revision) {
- const version = revision ? `当前规划 v${wikiS3Escape(revision.record.revision_number)} · 父版本 v1 · 收据 ✓` : '当前规划 v1 · 原始规划';
- return `<p class="ws3-version" data-s3-version><b>${version}</b></p>`;
+ // Parent version and receipt are internal identities (2.6): they go in the technical details, not the text.
+ const version = revision ? `当前规划 v${wikiS3Escape(revision.record.revision_number)} · 人工修订版` : '当前规划 v1 · 原始规划';
+ const tech = revision ? `<details class="ws3-tech"><summary>技术细节</summary><dl><dt>父版本</dt><dd><code>v1</code></dd><dt>修订收据</dt><dd><code>已保存</code></dd></dl></details>` : '';
+ return `<p class="ws3-version" data-s3-version><b>${version}</b></p>${tech}`;
 }
 
 // ---- Hook-up: the page replaces the Stage 3 body only when this module is active ----
