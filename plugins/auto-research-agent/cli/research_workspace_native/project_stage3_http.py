@@ -75,7 +75,8 @@ class ProjectStage3Http:
                     if fits_response(projected):
                         view = projected
                     with_decision = dict(
-                        view, decision=read_decisions(configured["jobs"], ref, view)
+                        view,
+                        host_decision=read_decisions(configured["jobs"], ref, view),
                     )
                     if fits_response(with_decision):
                         view = with_decision

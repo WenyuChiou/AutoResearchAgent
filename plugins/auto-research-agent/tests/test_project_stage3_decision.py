@@ -65,10 +65,32 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
         before = self.journal_state()
         view = self.transport.view("own", "authored-ref")
         self.assertEqual(
-            view["decision"]["latest"]["receipt_sha256"], reply["receipt_sha256"]
+            view["host_decision"]["latest"]["receipt_sha256"], reply["receipt_sha256"]
         )
         self.assertEqual(view["plan"], self.view["plan"])
         self.assertEqual(self.journal_state(), before)  # reading writes nothing
+
+    def test_latest_is_the_last_written_not_the_last_by_hash_order(self):
+        sent = []
+        for index, kind in enumerate(
+            (
+                "accept",
+                "return-to-stage2",
+                "revise-then-review",
+                "accept",
+                "return-to-stage2",
+                "accept",
+            )
+        ):
+            key = "k-" + str(index)
+            status, reply = self.post(self.decision(key, kind, "text " + key))
+            self.assertEqual(status, 200, reply)
+            self.assertEqual(reply["record"]["sequence"], index + 1)
+            sent.append(key)
+        view = self.transport.view("own", "authored-ref")["host_decision"]
+        self.assertEqual([r["record"]["request"]["key"] for r in view["records"]], sent)
+        self.assertEqual(view["latest"]["record"]["request"]["key"], sent[-1])
+        self.assertEqual(view["latest"]["record"]["decision"], "accept")
 
     def test_replay_returns_the_stored_record_and_changes_nothing(self):
         first = self.post(self.decision())[1]

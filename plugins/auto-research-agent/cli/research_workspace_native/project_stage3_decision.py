@@ -85,6 +85,16 @@ def _rows(jobs, binding):
             {"receipt_sha256": item["record_sha256"], "record": deepcopy(record)}
         )
     _check(len(rows) <= MAX_RECORDS, "stage3-decision-record-bound", 409)
+    # The journal stores intents sorted by their (hashed) key, so file order is
+    # random. The server-assigned sequence, taken inside the locked write path,
+    # is the only order that means "written first / last".
+    rows.sort(key=lambda row: row["record"].get("sequence", 0))
+    _check(
+        [row["record"].get("sequence") for row in rows]
+        == list(range(1, len(rows) + 1)),
+        "stage3-decision-record-differs",
+        409,
+    )
     return rows
 
 
@@ -169,6 +179,7 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
         "request_sha256": digest(body),
         "decision": body["decision"],
         "text": body["text"],
+        "sequence": len(rows) + 1,
         "decision_status": STATUS,
         "identity_authenticated": False,
         "input_source": "project-host-user-submission",
@@ -193,7 +204,7 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
         and fits_response(
             dict(
                 view,
-                decision=dict(
+                host_decision=dict(
                     read_decisions(jobs, ref, view), records=rows + [pending]
                 ),
             )
