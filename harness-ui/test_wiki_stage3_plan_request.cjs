@@ -16,7 +16,7 @@ function load({calls = 1, view = {}} = {}) {
   rt:{ref:'project-p', epoch:1, loading:false, busy:false, pending:null, controlHeld:false, meta:{run_limits:{model_calls:calls}}},
   v93:{busy:false, basis, view:{...basis, plan:null, planning_configured:true, dispatch_action:'prepare-then-confirm-run', default_request:request, job:null, ...view}},
   apps:[{el:{contains:() => true}}],
-  v93Identity:() => basis, v93Matches:(a, b) => !!a && !!b && a.project_ref === b.project_ref,
+  v93Identity:() => ctx.v93.basis, v93Matches:(a, b) => !!a && !!b && a.project_ref === b.project_ref,
   wikiS3Escape:value => String(value), projectPath:(ref, tail) => `/api/projects/${ref}/${tail}`, livePaint:() => {},
   v93ReadSaved:async () => { reads.push(1); },
   liveRequest:async (p, body) => { posts.push({p, body:JSON.parse(JSON.stringify(body))}); return ctx.answer(p, body); },
@@ -133,6 +133,7 @@ test('inspect is read-only and its answer is shown; a receipt for another key is
  await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
  assert.equal(posts[0].p, '/api/projects/project-p/stage3/planning/inspect');
  assert.equal(posts[0].body.confirmed, undefined);
+ ctx.v93.view.job = {status:'completed', outcome:'failed', request_sha256:'c'.repeat(64)}; // the re-read that follows
  assert.equal(line(ctx).tag, '规划失败');
  ({ctx} = load({view:{job:{status:'execution-unknown', request_sha256:'c'.repeat(64)}}}));
  ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:'other', status:'completed'});
@@ -200,4 +201,73 @@ test('review P2-3: a request in flight stays busy when the user leaves the topic
  assert.equal(posts.length, 1, 'no second POST while the first is in flight');
  release(); await first;
  assert.equal(vm.runInContext('wikiS3Req.busy.size', ctx), 0);
+});
+
+test('review P2-10: an unknown run outcome is kept per topic; another topic unknown does not replace it', async () => {
+ const sha = 'c'.repeat(64);
+ const {ctx} = load({view:{job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ ctx.answer = () => { throw Error('Failed to fetch'); };
+ const runOn = async topic => {
+  ctx.rt.ref = topic; ctx.v93.basis = {...basis, project_ref:topic}; line(ctx);
+  vm.runInContext(`wikiS3Req.check = '${sha}'`, ctx);
+  await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
+ };
+ await runOn('project-p');
+ assert.equal(line(ctx).tag, '结果未知');
+ await runOn('project-b');
+ assert.equal(line(ctx).tag, '结果未知');
+ ctx.rt.ref = 'project-p'; ctx.v93.basis = {...basis};
+ const row = line(ctx);
+ assert.equal(row.tag, '结果未知', 'back on the first topic its unknown outcome is still there');
+ assert.equal(row.grant, undefined);
+});
+
+test('review P2-9: a timed-out submission that the read-only check finds never dispatched goes back to the grant', async () => {
+ const sha = 'c'.repeat(64), timeout = {key:request.key, request_sha256:sha, code:'stage3-planning-deadline-or-io-failed', automatic_retry:false};
+ const {ctx, posts} = load({view:{submission_error:timeout, job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ let row = line(ctx);
+ assert.equal(row.tag, '结果未知');
+ assert.equal(row.grant, undefined);
+ // The read-only check answers: still intent-recorded (the Host keeps submission_error until the next run).
+ ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'intent-recorded'});
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
+ row = line(ctx);
+ assert.equal(row.tag, '等你授权', 'not stuck in 结果未知');
+ assert.match(row.text, /上次在调用模型之前就停了，没有执行/);
+ assert.equal(row.grant.gate, '请先勾选确认', 'the tick must be given again');
+ vm.runInContext(`wikiS3Req.check = '${sha}'`, ctx);
+ ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningSubmission', job:{project_ref:'project-p', key:body.key, request_sha256:sha, status:'dispatching'}});
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
+ assert.equal(posts.filter(p => p.p.endsWith('/run')).length, 1, 'a new run can be requested explicitly');
+ // If the check had found it dispatched or unknown, nothing changes.
+ const other = load({view:{submission_error:timeout, job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ other.ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'execution-unknown'});
+ await other.ctx.wikiS3PlanAction(other.ctx.apps[0], 'inspect');
+ assert.equal(line(other.ctx).tag, '结果未知');
+ assert.equal(line(other.ctx).grant, undefined);
+});
+
+test('review P2-4: after the read-only check the latest read decides; a later execution-unknown brings no grant', async () => {
+ const sha = 'c'.repeat(64), timeout = {key:request.key, request_sha256:sha, code:'stage3-planning-deadline-or-io-failed'};
+ const {ctx} = load({view:{submission_error:timeout, job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'intent-recorded'});
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
+ assert.equal(line(ctx).tag, '等你授权');
+ // Another tab ran it meanwhile: the latest read says execution-unknown.
+ ctx.v93.view = {...ctx.v93.view, submission_error:null, job:{status:'execution-unknown', request_sha256:sha, key:request.key}};
+ const row = line(ctx);
+ assert.equal(row.tag, '结果未知');
+ assert.equal(row.grant, undefined);
+});
+
+test('review P2-5: a timed-out submission_error without request_sha256 is not released by the read-only check', async () => {
+ const sha = 'c'.repeat(64);
+ for (const error of [{key:request.key, code:'stage3-planning-deadline-or-io-failed'}, {key:request.key, request_sha256:'d'.repeat(64), code:'stage3-planning-deadline-or-io-failed'}]) {
+  const {ctx} = load({view:{submission_error:error, job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+  ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'intent-recorded'});
+  await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
+  const row = line(ctx);
+  assert.equal(row.tag, '结果未知', JSON.stringify(error));
+  assert.equal(row.grant, undefined);
+ }
 });
