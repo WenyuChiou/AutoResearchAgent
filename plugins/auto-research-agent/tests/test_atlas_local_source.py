@@ -153,15 +153,18 @@ class LocalLauncherTests(unittest.TestCase):
     # right after file A was opened was refused when file B was read. On Windows that
     # walk (about ten lstat calls per file) was 4 of the 5 seconds of one plugin-tree
     # pass and exhausted the 30 s handshake step. Now each ancestor is lstat'ed once
-    # PER inventory() PASS, held only in that call's local memo; nothing is kept on an
-    # object or module, so every new pass (every I/O check) re-checks every ancestor.
-    # GIVEN UP: an ancestor swapped for a link in the middle of one pass, after it
-    # was checked but before a later file of the same pass is read, is no longer
-    # caught by that pass. It is caught by the next pass, i.e. the next I/O check.
-    def test_each_ancestor_is_checked_once_per_pass(self):
+    # per inventory() pass and once more at the END of the pass. The memo is local to
+    # the call; nothing is kept on an object or module, so every new pass (every I/O
+    # check) re-checks every ancestor from scratch.
+    # GIVEN UP: an ancestor swapped for a link mid-pass is no longer refused at the
+    # next file. It is still refused by the end-of-pass recheck if it is a link then.
+    # NOT DETECTED (deliberately not asserted anywhere): swapped for a link and
+    # swapped back within one pass.
+    def test_each_ancestor_is_checked_once_and_rechecked_at_pass_end(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder).resolve()
-            for name in ("a.txt", "b.txt", "c.txt"):
+            (root / "sub").mkdir()
+            for name in ("a.txt", "b.txt", "sub/c.txt", "sub/d.txt"):
                 (root / name).write_bytes(b"x")
             calls, original = [], Path.lstat
 
@@ -171,8 +174,11 @@ class LocalLauncherTests(unittest.TestCase):
 
             with patch.object(Path, "lstat", counted):
                 source.inventory(root)
-            self.assertEqual(calls.count(root), 1)
-            self.assertEqual(len(calls), len(set(calls)))
+            self.assertEqual(calls.count(root), 2)  # checked once, rechecked once
+            # walk's own link check, first ancestor check, end-of-pass recheck
+            self.assertEqual(calls.count(root / "sub"), 3)
+            for name in ("a.txt", "b.txt", "sub/c.txt", "sub/d.txt"):
+                self.assertEqual(calls.count(root / name), 1)
 
     def test_ancestor_swapped_between_passes_is_refused_by_next_pass(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -193,8 +199,7 @@ class LocalLauncherTests(unittest.TestCase):
                 with self.assertRaisesRegex(source.LauncherError, "links/reparse"):
                     source.inventory(root)
 
-    def test_ancestor_swapped_inside_one_pass_is_not_detected_by_that_pass(self):
-        # Documents the guarantee given up above; see the comment block.
+    def test_ancestor_that_is_a_link_at_pass_end_refuses_the_pass(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder).resolve()
             first, second = root / "a.txt", root / "b.txt"
@@ -219,10 +224,28 @@ class LocalLauncherTests(unittest.TestCase):
                 patch.object(Path, "lstat", observed),
                 patch.object(Path, "open", opened),
             ):
-                self.assertEqual(
-                    source.inventory(root),
-                    {"a.txt": source.digest(b"a"), "b.txt": source.digest(b"b")},
-                )
+                with self.assertRaisesRegex(source.LauncherError, "links/reparse"):
+                    source.inventory(root)
+
+    def test_passes_share_no_state_and_helpers_have_no_cache_parameter(self):
+        import inspect
+
+        for helper in (source.unlinked, source.read, source.pinned):
+            self.assertNotIn("checked", inspect.signature(helper).parameters)
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            (root / "a.txt").write_bytes(b"a")
+            calls, original = [], Path.lstat
+
+            def counted(value):
+                calls.append(value)
+                return original(value)
+
+            with patch.object(Path, "lstat", counted):
+                source.inventory(root)
+                once = calls.count(root)
+                source.inventory(root)
+            self.assertEqual(calls.count(root), 2 * once)
 
     def test_duplicates_nonfinite_and_symbolic_inventory_rejected(self):
         for raw in (b'{"x":1,"x":2}', b'{"x":NaN}', b'{"x":1e1000}'):
