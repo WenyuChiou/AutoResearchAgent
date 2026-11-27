@@ -3,6 +3,7 @@
 from copy import deepcopy
 import re
 
+from .project_stage1_library import row_origin
 from .session_api import _check
 
 PAGE_SIZE = 20
@@ -80,7 +81,7 @@ def read_page(service, credential, match, *, detail=False):
                 title=row["metadata"].get("title"),
                 authors=deepcopy(row["metadata"].get("authors")),
                 year=row["metadata"].get("year"),
-                origin=row["origin"],
+                origin=row_origin(row),
                 screening_status=row["screening_status"],
                 source_status=row["source_status"],
                 reading=deepcopy(row["reading"]),

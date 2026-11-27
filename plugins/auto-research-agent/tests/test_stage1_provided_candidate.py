@@ -13,7 +13,7 @@ from stage1_ledger.identity import work_key
 from stage1_ledger.journal import LedgerError, canonical, digest
 from stage1_ledger.store import Ledger
 from stage1_ledger.validation import validate_run
-from research_workspace_native.project_stage1_library import _project
+from research_workspace_native.project_stage1_library import _project, row_origin
 from research_workspace_native.session_api import SessionApiError
 
 
@@ -101,7 +101,7 @@ class ProvidedCandidateTests(unittest.TestCase):
         library = _project(self.ref, self.intake.binding(self.ref), run, ledger, report)
         row = library["rows"][0]
         self.assertEqual(row["screening_status"], "not-screened")
-        self.assertEqual(row["origin"], "provided-saved-material")
+        self.assertEqual(row_origin(row), "provided-saved-material")
         self.assertEqual(row["counts"]["distinct_queries"], 0)
         self.assertEqual(row["counts"]["discovery_producing_backend_attempts"], 0)
         self.assertEqual(
