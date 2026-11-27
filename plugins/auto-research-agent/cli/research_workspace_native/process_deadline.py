@@ -27,21 +27,19 @@ class Deadline:
             raise ValueError("bounded I/O timeout required")
         if time.monotonic() >= lease:
             raise TimeoutError("owned process lifetime expired")
-        # The I/O timeout is a business bound (metered local verification is
-        # excluded); the owned process lease stays a hard raw-clock bound.
-        self.until, self.lease = (
-            (time.monotonic() - verification_clock.excluded()) + timeout,
-            lease,
-        )
+        # The I/O timeout is a business bound: metered local verification done
+        # after construction extends it. The meter object is captured here, so
+        # threads that did not inherit the context (process writer/reader
+        # threads) read the same remaining time. The owned process lease stays
+        # a hard raw-clock bound.
+        self.meter = verification_clock.current()
+        self.base = 0.0 if self.meter is None else self.meter.excluded()
+        self.until, self.lease = time.monotonic() + timeout, lease
 
     def left(self):
-        return max(
-            0,
-            min(
-                self.until - (time.monotonic() - verification_clock.excluded()),
-                self.lease - time.monotonic(),
-            ),
-        )
+        now = time.monotonic()
+        extra = 0.0 if self.meter is None else self.meter.excluded() - self.base
+        return max(0, min(self.until + extra - now, self.lease - now))
 
     def check(self):
         if not self.left():
