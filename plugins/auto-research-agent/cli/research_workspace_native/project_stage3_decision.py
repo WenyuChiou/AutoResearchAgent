@@ -114,16 +114,31 @@ def read_decisions(jobs, ref, view):
     }
 
 
-def accept_condition(plan):
-    """The strongest readiness test this build can make without a saved review.
+def accept_condition(plan, job=None):
+    """The strongest readiness test this build can make from the saved views.
 
-    Returns ``(ok, name)``. A direction plan is ready when every question plan has
-    all of its content fields filled; a full plan must pass ``check_plan`` with
-    no blocked question. Neither test needs, or claims, an independent review.
+    Returns ``(ok, name)``; ``name`` lists every signal used. Signals:
+    - ``job.planning_status`` (saved with the plan; it is ``needs-information``
+      when the plan says so or when the independent design review found any
+      question not adequately answerable): anything but ``draft`` refuses;
+    - the plan's own ``planning_status`` (``needs-information`` refuses);
+    - a direction plan needs every content field filled in every question plan; a
+      full plan must pass ``check_plan`` with no blocked question.
+    A saved human-readable review file is not read by this build, so none is
+    required or claimed.
     """
+    used = []
+    ok = True
+    status = (job or {}).get("planning_status")
+    if status is not None:
+        used.append("job-planning-status-draft")
+        ok = ok and status == "draft"
+    if plan.get("planning_status") is not None:
+        used.append("plan-planning-status-not-needs-information")
+        ok = ok and plan["planning_status"] != "needs-information"
     if plan.get("kind") == "Stage3DirectionPlanningResult":
         plans = plan.get("question_plans")
-        ok = (
+        ok = ok and (
             type(plans) is list
             and bool(plans)
             and all(
@@ -135,12 +150,12 @@ def accept_condition(plan):
                 for row in plans
             )
         )
-        return ok, "every-question-plan-has-all-content-fields"
-    check = check_plan(plan)
-    return (
-        bool(check["structural_valid"]) and not check["blocked_questions"],
-        "structurally-valid-with-no-blocked-question",
-    )
+        used.append("every-question-plan-has-all-content-fields")
+    else:
+        check = check_plan(plan)
+        ok = ok and bool(check["structural_valid"]) and not check["blocked_questions"]
+        used.append("structurally-valid-with-no-blocked-question")
+    return ok, "+".join(used)
 
 
 def record_decision(jobs, ref, view, body, check_deadline=None):
@@ -189,7 +204,7 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
         **POLICY,
     }
     if body["decision"] == "accept":
-        ok, name = accept_condition(view["plan"])
+        ok, name = accept_condition(view["plan"], view.get("job"))
         _check(ok, "stage3-decision-plan-not-ready", 409)
         record["accept_condition"] = name
         record["independent_review_required_by_this_build"] = False

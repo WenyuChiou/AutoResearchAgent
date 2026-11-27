@@ -156,6 +156,64 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
         self.assertIs(reply["record"]["stage2_selection_change_required"], True)
         self.assertNotIn("accept_condition", reply["record"])
 
+    def test_accept_refuses_a_plan_the_saved_review_says_needs_information(self):
+        self.view["job"]["planning_status"] = "needs-information"
+        before = self.journal_state()
+        status, reply = self.post(self.decision())
+        self.assertEqual(
+            (status, reply["error"]), (409, "stage3-decision-plan-not-ready")
+        )
+        self.assertEqual(self.journal_state(), before)
+        self.view["job"]["planning_status"] = "draft"
+        status, reply = self.post(self.decision())
+        self.assertEqual(status, 200, reply)
+        self.assertEqual(
+            reply["record"]["accept_condition"],
+            "job-planning-status-draft+every-question-plan-has-all-content-fields",
+        )
+        # intent-only decisions are never gated by the review status
+        self.view["job"]["planning_status"] = "needs-information"
+        status, reply = self.post(self.decision("d-2", "revise-then-review", "More."))
+        self.assertEqual(status, 200, reply)
+
+    def test_plan_that_says_it_needs_information_cannot_be_accepted(self):
+        self.view["plan"]["planning_status"] = "needs-information"
+        self.rebind()
+        status, reply = self.post(self.decision())
+        self.assertEqual(
+            (status, reply["error"]), (409, "stage3-decision-plan-not-ready")
+        )
+
+    def test_full_plan_accept_branch_uses_check_plan(self):
+        from unittest.mock import patch
+
+        self.view["plan"] = dict(self.view["plan"], kind="Stage3PlanningResult")
+        self.rebind()
+        for check, expected in (
+            ({"structural_valid": True, "blocked_questions": []}, 200),
+            ({"structural_valid": True, "blocked_questions": ["q1"]}, 409),
+            ({"structural_valid": False, "blocked_questions": []}, 409),
+        ):
+            with self.subTest(check=check):
+                with patch(
+                    "research_workspace_native.project_stage3_decision.check_plan",
+                    return_value=check,
+                ):
+                    status, reply = self.post(
+                        self.decision(
+                            "full-"
+                            + str(expected)
+                            + str(len(check["blocked_questions"]))
+                            + str(check["structural_valid"])
+                        )
+                    )
+                self.assertEqual(status, expected, reply)
+                if expected == 200:
+                    self.assertEqual(
+                        reply["record"]["accept_condition"],
+                        "structurally-valid-with-no-blocked-question",
+                    )
+
     def test_bad_shapes_are_refused_before_any_write(self):
         before = self.journal_state()
         good = self.decision()
