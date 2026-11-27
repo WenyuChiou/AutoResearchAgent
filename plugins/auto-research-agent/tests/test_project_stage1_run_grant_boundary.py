@@ -28,6 +28,121 @@ class RunGrantBoundaryTests(unittest.TestCase):
             self.intake, runtime_sha256="a" * 64, clock=lambda: self.now
         )
 
+    def resolve(self, credential="alice-token", **changes):
+        view = self.intake.read("alice-token", self.ref)
+        return self.service.resolve_current(
+            credential,
+            self.ref,
+            **{
+                "input_version": view["input_version"],
+                "brief_sha256": view["brief_sha256"],
+                **changes,
+            },
+        )
+
+    def test_entry_requires_current_input_and_existing_consent(self):
+        before = self.intake.history("alice-token", self.ref)
+        for changes, error, status in (
+            ({}, "stage1-run-grant-unavailable", 409),
+            ({"input_version": True}, "stage1-run-binding-invalid", 400),
+            ({"input_version": 2}, "intake-source-version-differs", 409),
+            ({"brief_sha256": "e" * 64}, "intake-source-version-differs", 409),
+            ({"credential": "bob-token"}, "project-unavailable", 404),
+        ):
+            with self.subTest(changes=changes):
+                with self.assertRaises(SessionApiError) as exc:
+                    self.resolve(**changes)
+                self.assertEqual(
+                    (exc.exception.code, exc.exception.status), (error, status)
+                )
+        self.assertEqual(self.intake.history("alice-token", self.ref), before)
+
+    def test_entry_recovers_same_grant_without_dispatch_or_new_intents(self):
+        grant = self.authorize()
+        first = self.resolve()
+        before = self.intake.history("alice-token", self.ref)
+        self.reopen()
+        self.now += 1
+        second = self.resolve()
+        self.assertEqual(second, first)
+        self.assertEqual(second["grant_ref"], grant["grant_ref"])
+        self.assertEqual(second["grant_sha256"], grant["grant_sha256"])
+        self.assertEqual(second["expires_at"], grant["expires_at"])
+        self.assertFalse(second["execution_authorized"])
+        self.assertEqual(self.intake.history("alice-token", self.ref), before)
+        self.assertEqual(
+            set(second),
+            {"grant_ref", "grant_sha256", "expires_at", "execution_authorized"},
+        )
+
+    def test_entry_refuses_expiry_after_reopen_and_clock_regression(self):
+        grant = self.authorize()
+        before = self.intake.history("alice-token", self.ref)
+        self.reopen()
+        for now in (grant["expires_at"], grant["expires_at"] - 1):
+            self.now = now
+            with self.subTest(now=now), self.assertRaises(SessionApiError) as exc:
+                self.resolve()
+            self.assertEqual(exc.exception.code, "stage1-run-grant-expired")
+            self.reopen()
+        self.assertEqual(self.intake.history("alice-token", self.ref), before)
+
+    def test_entry_refuses_stale_runtime_and_revocation(self):
+        grant = self.authorize()
+        service = self.service
+        self.service = ProjectStage1RunGrantService(
+            self.intake, runtime_sha256="c" * 64, clock=lambda: self.now
+        )
+        with self.assertRaises(SessionApiError) as exc:
+            self.resolve()
+        self.assertEqual(exc.exception.code, "stage1-run-grant-stale")
+        service.revoke(
+            "alice-token",
+            self.ref,
+            {
+                **bound_body(self.intake.read("alice-token", self.ref), "cancel-entry"),
+                "grant_ref": grant["grant_ref"],
+                "grant_sha256": grant["grant_sha256"],
+            },
+        )
+        self.reopen()
+        with self.assertRaises(SessionApiError) as exc:
+            self.resolve()
+        self.assertEqual(exc.exception.code, "stage1-run-grant-revoked")
+
+    def test_entry_does_not_supply_authority_when_existing_budget_gate_refuses(self):
+        view = self.intake.read("alice-token", self.ref)
+        settings = view["settings"]
+        self.intake.configure(
+            "alice-token",
+            self.ref,
+            {
+                **bound_body(view, "no-model-budget"),
+                "resource_envelope": settings["resource_envelope"],
+                "budgets": {**settings["budgets"], "model_calls": 0},
+                "consent": {**settings["consent"], "external_search": False},
+                "user_input": settings["user_input"],
+                "confirmed": True,
+            },
+        )
+        for operation in ("analyze-full-paper", "query"):
+            with self.subTest(operation=operation):
+                with self.assertRaises(SessionApiError) as denied:
+                    self.authorize(key=f"denied-{operation}", operations=[operation])
+                self.assertEqual(denied.exception.code, "intake-operation-failed")
+                self.assertEqual(denied.exception.receipt["status"], "failed")
+                self.assertEqual(
+                    denied.exception.receipt["error"], "stage1-run-lane-not-consented"
+                )
+                before = self.intake.history("alice-token", self.ref)
+                with self.assertRaises(SessionApiError) as unavailable:
+                    self.resolve()
+                self.assertEqual(
+                    unavailable.exception.code, "stage1-run-grant-unavailable"
+                )
+                self.assertEqual(self.intake.history("alice-token", self.ref), before)
+        self.assertFalse(list(self.root.rglob("stage1-run-lease-*.sqlite")))
+
     def test_in_interval_clock_regression_is_terminal_after_true_reopen(self):
         grant = self.authorize()
         self.now = 1050

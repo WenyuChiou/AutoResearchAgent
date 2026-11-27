@@ -238,6 +238,7 @@ class ProjectStage2Service:
             400,
         )
         self.intake = intake
+        self.registered_only = False
 
     @staticmethod
     def _matches(binding, offer):
@@ -266,18 +267,26 @@ class ProjectStage2Service:
         return import_stage1_project(self, credential, **trusted_inputs)
 
     def register_current(
-        self, project_ref, *, credential, delivery, stage1=None, check_deadline=None
+        self,
+        project_ref,
+        *,
+        credential,
+        delivery,
+        stage1=None,
+        check_deadline=None,
+        intent=None,
     ):
         """Register this project's verified native input; never grants execution."""
-        from .project_stage_connections import register_current
+        from .project_stage_connections import current_input
 
-        return register_current(
+        return current_input(
             self,
             project_ref,
             credential=credential,
             delivery=delivery,
             stage1=stage1,
             check_deadline=check_deadline,
+            intent=intent,
         )
 
     def register(
@@ -460,7 +469,9 @@ class ProjectStage2Service:
 
         return import_direct_request_project(self, credential, **trusted_inputs)
 
-    def read(self, credential, project_ref, *, registered_only=False):
+    def read(self, credential, project_ref, *, registered_only=None):
+        if registered_only is None:
+            registered_only = self.registered_only
         principal = self.intake._principal(credential)
         with self.intake._lock:
             state = self.intake._load(principal, project_ref)

@@ -1,4 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const test=require('node:test');
+const {runChromeExercise}=require('./test_v9_stage_connections.cjs');
 const source=fs.readFileSync(path.join(__dirname,'renderer/src/runtime.js'),'utf8');
 const bridge=fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8');
 const validProject=bridge.match(/function v93ValidProject\(p\)\{[^\n]+/)[0];
@@ -46,12 +48,9 @@ rt.overview={project:{...project,project_ref:'foreign'}};assert.equal(view().bou
 rt.overview={project:{...project,input_version:'fresh-1',revision:0}};assert.equal(view().bound,true,'the existing Stage3 string version is a readable identity');assert.equal(view().raw.input_version,'fresh-1');assert.equal(view().raw.revision,0);
 for(const invalid of ['', 'x'.repeat(129),-1,1.5,null,true]){rt.overview.project.input_version=invalid;assert.equal(view().bound,false,'unsupported input versions stay unknown');}
 rt.overview={project};
-const stage3=bridge.slice(bridge.indexOf('return `${canonicalTop()}<section class="hs-panel">'));
-assert(stage3.startsWith('return `${canonicalTop()}<section class="hs-panel">')&&stage3.includes('<h1>'),'test the actual enabled Stage3 title shape');
 let inserted='',position='';const title={closest:()=>null,matches:()=>false,insertAdjacentHTML(where,text){position=where;inserted=text;}};
 const content={querySelectorAll:()=>[title],querySelector(selector){if(selector==='[data-wiki-shell]')return null;if(selector.split(',').includes('h1'))return title;return null;},insertAdjacentHTML(where,text){position=where;inserted=text;}};
-app.el={querySelector:()=>content};context.wikiShellMount(app);assert.equal(position,'afterend','Stage3 state follows the real title, never before project selection');assert(inserted.includes('data-wiki-shell'));
-const hiddenTitle={closest:()=>({}),matches:()=>true,insertAdjacentHTML(){throw Error('closed earlier materials must not own the shared state');}};content.querySelectorAll=()=>[hiddenTitle,title];context.wikiShellMount(app);assert.equal(position,'afterend','formal Stage2 keeps state outside earlier-materials disclosure');app.el=undefined;
+const hiddenTitle={closest:()=>({}),matches:()=>true,insertAdjacentHTML(){throw Error('closed earlier materials must not own the shared state');}};content.querySelectorAll=()=>[hiddenTitle,title];app.el={querySelector:()=>content};context.wikiShellMount(app);assert.equal(position,'afterend','formal Stage2 keeps state outside earlier-materials disclosure');assert(inserted.includes('data-wiki-shell'));app.el=undefined;
 const outer={open:false,querySelector:()=>({textContent:'先前 Wiki 材料与本地草稿'}),parentElement:null};const inner={open:false,querySelector:()=>({textContent:'Stage2 · 操作'}),parentElement:{closest:()=>outer}};
 rt.error='fixed-nested-error';app.el={querySelector:()=>({textContent:'重新读取保存结果',closest:()=>inner})};assert(view().next.indexOf('先前 Wiki')<view().next.indexOf('Stage2 · 操作'),'recovery describes every closed ancestor from outside in');assert(view().next.includes('先前 Wiki'));app.el=undefined;rt.error='';
 const progress={binding:{project_ref:ref,input_version:1,revision:4,brief_sha256:'a'.repeat(64)},next_action:{phase_id:'screening',target:'screening',reason:'screening-required'},phases:[{phase_id:'screening',status:'available',reason:'screening-required'}]};
@@ -94,3 +93,40 @@ app.page='workspace';rt.error='<script>';assert(!html().includes('<script>'),'sh
 assert(!source.slice(start,end).includes('livePost('),'no new business action in shared shell');
 context.v93ValidProject=undefined;assert.equal(html(),'','ordinary V7 must not mount V9-only CSS components');
 console.log('PASS Wiki shell: binding, provenance, typed versions, empty/loading/error/pending, locale, escaping and no dispatch');
+
+async function exerciseEnabledStage3Shell() {
+  app.stage=3;
+  rt.list=[project];
+  window.changes={status:'connected'};
+  window.livePaint=()=>{
+    app.el.innerHTML='<div class="hs-content">'+laterStage(app)+'</div>';
+    v7AfterRender(app);
+  };
+  await liveRefresh();
+  await new Promise(resolve=>setTimeout(resolve,20));
+  const content=app.el.querySelector('.hs-content');
+  const projectSelect=content.querySelector('[data-live-project]');
+  const title=content.querySelector('h1');
+  const shell=content.querySelector('[data-wiki-shell]');
+  if (!content.querySelector('[data-v93-read]') || !projectSelect || projectSelect.value!==project.project_ref || !title || !shell)
+    throw Error('the enabled Stage 3 page must show its project selector, planning control, title and Wiki state');
+  if (calls.some(call=>call.body)) throw Error('viewing the enabled Stage 3 page must not send a write');
+  const follows=(first, second)=>Boolean(first.compareDocumentPosition(second)&Node.DOCUMENT_POSITION_FOLLOWING);
+  const ordered=(selector, heading, state)=>follows(selector,state)&&follows(heading,state);
+  const displaced=content.cloneNode(true);
+  const displacedShell=displaced.querySelector('[data-wiki-shell]');
+  const displacedSelect=displaced.querySelector('[data-live-project]');
+  const displacedTitle=displaced.querySelector('h1');
+  displacedTitle.before(displacedShell);
+  if (ordered(displacedSelect,displacedTitle,displacedShell)) throw Error('negative control missed state before the title');
+  displacedSelect.closest('.canonical-project-switch').before(displacedShell);
+  if (ordered(displacedSelect,displacedTitle,displacedShell)) throw Error('negative control missed state before project selection');
+  if (!ordered(projectSelect,title,shell))
+    throw Error('Wiki state must follow the project selector and Stage 3 title; follows selector='+follows(projectSelect,shell)+', follows title='+follows(title,shell));
+}
+
+test('enabled Stage 3 Wiki state follows the rendered title and project selector',()=>{
+  const projectSwitcher=canonical.match(/^function canonicalTop\(\).*$/m)[0];
+  runChromeExercise(exerciseEnabledStage3Shell,projectSwitcher+'\n'+source.slice(start)+'\n'+
+    'function translated(app, labels){return labels[{zh:0,en:1,tw:2}[app.lang]];}');
+});

@@ -2,7 +2,8 @@
 
 # ruff: noqa: E402 -- exercise the plugin and ordinary Wiki composition together.
 
-from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager, ExitStack
 from copy import deepcopy
 import json
 import os
@@ -22,10 +23,22 @@ sys.path[:0] = [
 from current_core_stage12_fixtures import current_core_stage1_case
 from test_project_stage2_current_evidence import authenticate, request, VIEWER
 from research_workspace_native.project_host import ProjectHost
+from research_workspace_native.project_stage1_delivery import (
+    ProjectStage1DeliveryService,
+)
 from research_workspace_native.http import SessionHandler
 from research_workspace_native.project_model import ProjectModelService
 from research_workspace_native.project_stage2 import ProjectStage2Service
-from research_workspace_native.project_stage2_current_evidence import current_evidence
+from research_workspace_native.project_stage2_selection import (
+    ProjectStage2SelectionService,
+)
+from research_workspace_native.project_stage2_controller_connections import (
+    Stage2ControllerConnections,
+)
+from research_workspace_native.project_stage2_current_evidence import (
+    _reference,
+    current_evidence,
+)
 from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage_connections import (
     CONTROLLER_STAGE,
@@ -34,14 +47,16 @@ from research_workspace_native.project_stage_connections import (
 )
 from research_workspace_native.session_api import SessionApiError
 from project_stage2_selection_fixture import Stage2SelectionFixture
+import test_project_stage2 as activation_fixture
 from research_workspace_native.project_stage2_selection_view import (
     ProjectStage2SelectionView,
 )
 from wiki_stage23_services import configure_services
+from wiki_stage2_continuation import install_stage2_continuation
 
 
 @contextmanager
-def wiki(case, controllers=None):
+def wiki(case, controllers=None, *, connections=False):
     services = dict(
         projects=case.intake,
         credential=VIEWER,
@@ -67,6 +82,8 @@ def wiki(case, controllers=None):
         views=[],
         port=0,
     ) as host:
+        if connections:
+            install_stage2_continuation(host, services["stage2_controller_profile"])
         thread = threading.Thread(target=host.serve_forever)
         thread.start()
         try:
@@ -89,8 +106,19 @@ class CurrentConnectionTests(unittest.TestCase):
     def test_current_native_package_has_a_reopenable_registration(self):
         with (
             patch("test_project_stage1_delivery.authenticate", authenticate),
-            current_core_stage1_case(screened=True) as data,
+            ExitStack() as fixture,
         ):
+            # Recreate the saved-but-unreceived package from before automatic
+            # handoff. Only its creation omits the new post-delivery hook.
+            with patch.object(
+                ProjectStage1DeliveryService,
+                "_receive_stage2_input",
+                autospec=True,
+                side_effect=lambda _service, _credential, _ref, receipt, _deadline: (
+                    receipt
+                ),
+            ):
+                data = fixture.enter_context(current_core_stage1_case(screened=True))
             case, ref = data["case"], data["project_ref"]
             source_files = {
                 p: (p.read_bytes(), p.stat().st_mtime_ns)
@@ -115,19 +143,90 @@ class CurrentConnectionTests(unittest.TestCase):
                 self.assertEqual(result["reason"], "session-deadline-exceeded")
                 self.assertIsNone(result["receipt_id"])
                 self.assertEqual(counts(case.intake), before)
-            legacy = current_evidence(
+            unpublished = current_evidence(
                 case.delivery,
                 VIEWER,
                 case.stage1.read(VIEWER, ref),
                 case.intake.read(VIEWER, ref),
+                allow_publish=False,
             )
-            self.assertEqual(legacy["status"], "received")
-            resources = (
-                case.intake._path(ref, "s2r-" + legacy["source_descriptor_sha256"][:32])
-                / "resources.txt"
+            self.assertEqual(unpublished["status"], "blocked")
+            self.assertEqual(
+                unpublished["reason"], "stage2-current-input-publication-unobserved"
             )
-            original_resources = resources.read_bytes()
-            with wiki(case) as origin:
+            self.assertFalse(list((case.intake.root / ref).glob("s2r-*")))
+            self.assertEqual(counts(case.intake), before)
+
+            def snapshot():
+                state = case.intake._load(case.intake._principal(VIEWER), ref)
+                root = case.intake.root / ref
+                return (
+                    counts(case.intake),
+                    state["revision"],
+                    state.get("stage_connections", {}).get("stage2-input"),
+                    state.get("stage_connections", {}).get("stage2-selection"),
+                    {
+                        file.relative_to(root): file.read_bytes()
+                        for file in root.rglob("*")
+                        if file.is_file()
+                    },
+                )
+
+            initial = snapshot()
+            self.assertEqual(initial[2:4], (None, None))
+            with wiki(case, connections=True) as origin:
+                for _ in range(2):
+                    status, overview = request(origin, route + "/overview")
+                    self.assertEqual(status, 200, overview)
+                    self.assertEqual(overview["stage2"]["offers"], [])
+                    self.assertIsNone(
+                        overview["stage2"]["current_evidence"]["receipt_id"]
+                    )
+                    self.assertEqual(snapshot(), initial)
+            case.reopen()
+            service = ProjectStage2Service(case.intake)
+            with wiki(case, connections=True) as origin:
+                status, overview = request(origin, route + "/overview")
+                self.assertEqual(status, 200, overview)
+                self.assertEqual(snapshot(), initial)
+                intent = dict(
+                    key="confirm-current-input",
+                    revision=overview["project"]["revision"],
+                    input_version=overview["project"]["input_version"],
+                    brief_sha256=overview["project"]["brief_sha256"],
+                    stage="stage2-input",
+                    confirmed=True,
+                )
+                for target, body, expected_status in (
+                    (route, dict(intent, confirmed=False), 400),
+                    (route, dict(intent, input_version=True), 400),
+                    (route, dict(intent, input_version=2), 409),
+                    (route, dict(intent, revision=intent["revision"] - 1), 409),
+                    ("/api/projects/project-" + "0" * 32, intent, 404),
+                ):
+                    status, rejected = request(
+                        origin, target + "/connections", body=body
+                    )
+                    self.assertEqual(status, expected_status, rejected)
+                    self.assertEqual(snapshot(), initial)
+
+                status, explicit = request(origin, route + "/connections", body=intent)
+                self.assertEqual(status, 200, explicit)
+                self.assertFalse(explicit["execution_authorized"])
+                self.assertEqual(
+                    explicit["connections"]["stage2-input"]["receipt_id"], intent["key"]
+                )
+                registered = snapshot()
+                self.assertIsNotNone(registered[2])
+                self.assertIsNone(registered[3])
+                self.assertEqual(
+                    request(origin, route + "/connections", body=intent),
+                    (200, explicit),
+                )
+                self.assertEqual(snapshot(), registered)
+                [receiver] = list((case.intake.root / ref).glob("s2r-*"))
+                resources = receiver / "resources.txt"
+                original_resources = resources.read_bytes()
                 try:
                     resources.write_bytes(original_resources + b"tampered")
                     rejected = request(origin, route + "/stage2")[1]
@@ -137,13 +236,17 @@ class CurrentConnectionTests(unittest.TestCase):
                     )
                     self.assertIsNone(rejected["current_evidence"]["receipt_id"])
                     self.assertEqual(rejected["offers"], [])
-                    self.assertEqual(counts(case.intake), before)
+                    self.assertEqual(counts(case.intake), registered[0])
                 finally:
                     resources.write_bytes(original_resources)
                 status, overview = request(origin, route + "/overview")
                 self.assertEqual(status, 200, overview)
                 accepted = overview["stage2"]["current_evidence"]
                 self.assertEqual(accepted["status"], "received", accepted)
+                self.assertEqual(
+                    accepted["connection_id"],
+                    explicit["connections"]["stage2-input"]["connection_id"],
+                )
                 self.assertIs(type(accepted["input_version"]), int)
                 self.assertFalse(accepted["activation_allowed"])
                 self.assertEqual(
@@ -152,6 +255,14 @@ class CurrentConnectionTests(unittest.TestCase):
                 self.assertTrue(accepted["connection_id"])
                 self.assertTrue(accepted["receipt_id"])
                 self.assertEqual(overview["stage2"]["offers"], [accepted["offer"]])
+                status, listed = request(origin, route + "/stage2/offers")
+                self.assertEqual(status, 200, listed)
+                self.assertEqual(listed["offers"], [accepted["offer"]])
+                self.assertEqual(listed["current_evidence"], accepted)
+                status, contract = request(origin, route + "/contract")
+                self.assertEqual(status, 200, contract)
+                self.assertEqual(contract["stages"]["2"]["offers"], [accepted["offer"]])
+                self.assertEqual(snapshot(), registered)
                 self.assertEqual(accepted["offer"]["status"], "receiving-only")
                 offer = accepted["offer"]
                 denied = dict(
@@ -186,6 +297,41 @@ class CurrentConnectionTests(unittest.TestCase):
                 after = counts(case.intake)
                 self.assertEqual(after["intake_actions"] - before["intake_actions"], 1)
                 self.assertEqual(after["intake_events"] - before["intake_events"], 2)
+                # The old receipt still passes _source's path guard. A changed
+                # re-derived descriptor must not publish a new seed on read.
+                paths = set((case.intake.root / ref).glob("s2r-*"))
+                old_receipt = case.intake._path(
+                    ref,
+                    "s2r-"
+                    + accepted["source_descriptor_sha256"][:32]
+                    + "/receipt.json",
+                )
+                old_bytes = old_receipt.read_bytes()
+                probe_host = SimpleNamespace(
+                    projects=case.intake,
+                    credential=VIEWER,
+                    project_stage1=case.stage1,
+                    project_stage1_delivery=case.delivery,
+                    project_stage2_controllers={},
+                )
+                connections = Stage2ControllerConnections(probe_host, None)
+
+                def changed_descriptor(*args):
+                    return {**_reference(*args), "settings_sha256": "0" * 64}
+
+                with (
+                    patch(
+                        "research_workspace_native.project_stage2_current_evidence._reference",
+                        side_effect=changed_descriptor,
+                    ),
+                    self.assertRaisesRegex(
+                        SessionApiError, "stage2-controller-current-input-differs"
+                    ),
+                ):
+                    connections._source(VIEWER, ref, None)
+                self.assertEqual(set((case.intake.root / ref).glob("s2r-*")), paths)
+                self.assertEqual(old_receipt.read_bytes(), old_bytes)
+                self.assertEqual(counts(case.intake), after)
                 for _ in range(2):
                     self.assertEqual(
                         request(origin, route + "/stage2")[1]["current_evidence"],
@@ -407,13 +553,18 @@ class CurrentConnectionTests(unittest.TestCase):
             base=snapshot["event"]["payload"]["snapshot_sha256"],
         )
         preparation.spec = Stage2ControllerTests._spec(preparation)
-        driver = ProjectStage2ControllerDriver(
-            service,
-            spec=preparation.spec,
-            controller_dir=data["root"] / "controller",
-            delivery_dir=data["root"] / "controller-delivery",
-            prerequisite_handler=CurrentCorePreparation(preparation),
-        )
+        original_preparation = CurrentCorePreparation(preparation)
+
+        def open_driver(stage2):
+            return ProjectStage2ControllerDriver(
+                stage2,
+                spec=preparation.spec,
+                controller_dir=data["root"] / "controller",
+                delivery_dir=data["root"] / "controller-delivery",
+                prerequisite_handler=original_preparation,
+            )
+
+        driver = open_driver(service)
         with patch(
             "stage2_live.controller._ProductionAdapter",
             return_value=CurrentCoreSyntheticAdapter(),
@@ -423,6 +574,7 @@ class CurrentConnectionTests(unittest.TestCase):
             )
         self.assertEqual(completed["status"], "saved", completed)
         before = counts(case.intake)
+        revision = case.intake.read(VIEWER, ref)["revision"]
         with (
             patch.object(
                 driver, "run", side_effect=AssertionError("GET cannot run controller")
@@ -444,25 +596,35 @@ class CurrentConnectionTests(unittest.TestCase):
             status, selected = request(origin, f"/api/projects/{ref}/stage2/selection")
             self.assertEqual(status, 200, selected)
             self.assertEqual(selected["selection_status"], "pending")
-            self.assertEqual(
-                selected["revision"], case.intake.read(VIEWER, ref)["revision"]
-            )
+            self.assertEqual(selected["revision"], revision)
             self.assertFalse(selected["execution_authorized"])
             self.assertTrue(selected["cards"])
             after = counts(case.intake)
-            self.assertEqual(after["intake_actions"] - before["intake_actions"], 1)
+            self.assertEqual(after, before)
+            self.assertIsNone(
+                ConnectionStore(case.intake, VIEWER).resolve(ref, "stage2-selection")
+            )
             self.assertEqual(
                 request(origin, f"/api/projects/{ref}/stage2/selection"),
                 (200, selected),
             )
             self.assertEqual(counts(case.intake), after)
         case.reopen()
-        with wiki(case) as origin:
+        reopened = open_driver(ProjectStage2Service(case.intake))
+        with (
+            patch.object(
+                reopened, "run", side_effect=AssertionError("GET cannot run controller")
+            ),
+            wiki(case, {ref: reopened}) as origin,
+        ):
             self.assertEqual(
                 request(origin, f"/api/projects/{ref}/stage2/selection"),
                 (200, selected),
             )
             self.assertEqual(counts(case.intake), after)
+            self.assertIsNone(
+                ConnectionStore(case.intake, VIEWER).resolve(ref, "stage2-selection")
+            )
         print(
             "SELECTION_EVIDENCE="
             + json.dumps(
@@ -594,7 +756,7 @@ class SelectionConnectionTests(Stage2SelectionFixture):
             with self.assertRaisesRegex(
                 SessionApiError, "stage2-selection-source-invalid"
             ):
-                table.receive_completed(self.ref)
+                table.read_unregistered("own", self.ref)
 
     def test_new_input_version_keeps_original_connection_and_receipt(self):
         store = ConnectionStore(self.intake, "own")
@@ -802,6 +964,47 @@ class SelectionConnectionTests(Stage2SelectionFixture):
                 native._output(self.ref, "long-root-" * 16).name, "long-root-" * 16
             )
 
+    def test_first_saved_selection_read_without_pointer_does_not_register(self):
+        ui, _, _ = self.prepare_choice()
+        binding = ui.bindings[self.ref]
+        original = ui.read("own", self.ref)
+
+        def read_state():
+            return (
+                counts(self.intake),
+                self.intake.read("own", self.ref)["revision"],
+                tuple(
+                    sorted(
+                        p.name
+                        for p in self.store_root.joinpath(self.ref).glob(
+                            "connection-*.json"
+                        )
+                    )
+                ),
+            )
+
+        before = read_state()
+        for reopen in (False, True):
+            if reopen:
+                self.intake.close()
+                self.intake = ProjectIntakeService(
+                    self.store_root, authenticate=self.authenticate
+                )
+            store = ConnectionStore(self.intake, "own")
+            candidate = ProjectStage2SelectionView(
+                self.intake, BindingTable({}, store, {self.ref: object()})
+            )
+            self.assertIsNone(store.resolve(self.ref, "stage2-selection"))
+            with patch(
+                "research_workspace_native.project_stage_connections._completed_binding",
+                return_value=binding,
+            ):
+                for _ in range(2):
+                    readback = candidate.read("own", self.ref)
+                    self.assertEqual(read_state(), before)
+                    self.assertEqual(readback, original)
+            self.assertIsNone(store.resolve(self.ref, "stage2-selection"))
+
     def test_saved_selection_static_dynamic_reopen_and_tampering(self):
         ui, _, _ = self.prepare_choice()
         binding = ui.bindings[self.ref]
@@ -851,6 +1054,189 @@ class SelectionConnectionTests(Stage2SelectionFixture):
                 dynamic.read("own", self.ref)
         finally:
             path.write_bytes(raw)
+
+
+class SelectionRegistrationHttpTests(Stage2SelectionFixture):
+    def setUp(self):
+        def authenticate_fixture(credential):
+            return "local-viewer" if credential in ("own", VIEWER) else None
+
+        def local_viewer_intake(root, *, authenticate):
+            return ProjectIntakeService(root, authenticate=authenticate_fixture)
+
+        with patch.object(
+            activation_fixture, "ProjectIntakeService", local_viewer_intake
+        ):
+            super().setUp()
+        self.authenticate = authenticate_fixture
+
+    def test_http_requires_explicit_current_selection_registration(self):
+        ui, _, _ = self.prepare_choice()
+        binding = ui.bindings[self.ref]
+
+        @contextmanager
+        def serve_selection():
+            store = ConnectionStore(self.intake, VIEWER)
+            table = BindingTable({}, store)
+            selection = ProjectStage2SelectionService(self.intake, table)
+            with ProjectHost(
+                projects=self.intake,
+                credential=VIEWER,
+                stage2=ProjectStage2Service(self.intake),
+                stage2_selection=selection,
+                files={},
+                views=[],
+                port=0,
+            ) as host:
+                install_stage2_continuation(host, profile)
+                connections = host.project_stage2_controllers
+                table.controllers = {self.ref: sentinel}
+                thread = threading.Thread(target=host.serve_forever)
+                thread.start()
+                try:
+                    with patch.object(
+                        connections,
+                        "driver",
+                        side_effect=lambda _, ref, __: (
+                            sentinel if ref == self.ref else None
+                        ),
+                    ):
+                        yield host.expected_origin, store, selection, connections
+                finally:
+                    host.shutdown()
+                    thread.join(5)
+                    self.assertFalse(thread.is_alive())
+
+        profile = SimpleNamespace(sha256="a" * 64)
+        sentinel = object()
+        project = self.intake.read("own", self.ref)
+        body = {
+            key: project[key] for key in ("revision", "input_version", "brief_sha256")
+        }
+        body.update(
+            key="register-saved-choice",
+            stage="stage2-selection",
+            confirmed=True,
+            profile_sha256=profile.sha256,
+        )
+        route = f"/api/projects/{self.ref}"
+        registration = route + "/connections"
+        other = self.intake.create("own", {"key": "wrong-project", "topic": "Other"})[
+            "project_ref"
+        ]
+        before = counts(self.intake)
+        with (
+            patch(
+                "research_workspace_native.project_stage_connections._completed_binding",
+                return_value=binding,
+            ),
+            serve_selection() as (origin, store, selection, connections),
+        ):
+            status, first = request(origin, route + "/stage2/selection", token=VIEWER)
+            self.assertEqual(status, 200, first)
+            self.assertEqual(first["selection_status"], "pending")
+            self.assertFalse(first["execution_authorized"])
+            self.assertEqual(
+                request(origin, route + "/stage2/selection", token=VIEWER), (200, first)
+            )
+            self.assertEqual(counts(self.intake), before)
+            with self.assertRaisesRegex(
+                SessionApiError, "stage2-selection-unconnected"
+            ):
+                selection._current("own", self.ref)
+
+            def register(payload=body):
+                return request(origin, registration, token=VIEWER, body=payload)
+
+            for payload, expected_status in (
+                ({**body, "input_version": str(body["input_version"])}, 400),
+                ({**body, "input_version": body["input_version"] + 1}, 409),
+                ({**body, "profile_sha256": "b" * 64}, 409),
+                ({**body, "confirmed": False}, 400),
+            ):
+                with self.subTest(payload=payload):
+                    self.assertEqual(register(payload)[0], expected_status)
+            self.assertEqual(
+                request(origin, registration, token=None, body=body)[0], 401
+            )
+            self.assertEqual(
+                request(
+                    origin,
+                    f"/api/projects/{other}/connections",
+                    token=VIEWER,
+                    body=body,
+                )[0],
+                409,
+            )
+            with patch.dict(connections.static, {self.ref: sentinel}):
+                self.assertEqual(
+                    register(),
+                    (409, {"error": "stage2-selection-dynamic-controller-required"}),
+                )
+            self.assertEqual(counts(self.intake), before)
+            self.assertIsNone(store.resolve(self.ref, "stage2-selection"))
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                replies = [pool.submit(register) for _ in range(2)]
+                saved, replay = [reply.result() for reply in replies]
+            self.assertEqual(saved[0], 200, saved)
+            self.assertEqual(saved, replay)
+            self.assertFalse(saved[1]["execution_authorized"])
+            self.assertEqual(
+                saved[1]["connections"]["stage2-selection"]["receipt_id"], body["key"]
+            )
+
+        after = {
+            "intake_actions": before["intake_actions"] + 1,
+            "intake_events": before["intake_events"] + 2,
+        }
+        self.assertEqual(counts(self.intake), after)
+        self.intake.close()
+        self.intake = ProjectIntakeService(
+            self.store_root, authenticate=self.authenticate
+        )
+        with (
+            patch(
+                "research_workspace_native.project_stage_connections._completed_binding",
+                return_value=binding,
+            ),
+            serve_selection() as (origin, _, _, _),
+        ):
+            self.assertEqual(
+                request(origin, registration, token=VIEWER, body=body), saved
+            )
+            status, registered = request(
+                origin, route + "/stage2/selection", token=VIEWER
+            )
+            self.assertEqual(status, 200, registered)
+            self.assertEqual(registered["cards"], first["cards"])
+            self.assertEqual(registered["selection_status"], "pending")
+            self.assertEqual(counts(self.intake), after)
+
+            current = self.intake.read("own", self.ref)
+            self.intake.revise(
+                "own",
+                self.ref,
+                dict(
+                    key="revise-fixture-after-registration",
+                    revision=current["revision"],
+                    input_version=current["input_version"],
+                    brief_sha256=current["brief_sha256"],
+                    topic=current["brief"]["original_description"],
+                    needs=[
+                        {
+                            "need_id": "consumption",
+                            "question": "Synthetic household question",
+                        }
+                    ],
+                ),
+            )
+            self.assertEqual(self.intake.read("own", self.ref)["input_version"], 2)
+            revised = counts(self.intake)
+            self.assertEqual(
+                request(origin, registration, token=VIEWER, body=body),
+                (409, {"error": "stage2-selection-project-stale"}),
+            )
+            self.assertEqual(counts(self.intake), revised)
 
 
 if __name__ == "__main__":

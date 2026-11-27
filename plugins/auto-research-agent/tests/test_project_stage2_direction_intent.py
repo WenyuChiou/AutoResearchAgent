@@ -15,8 +15,13 @@ import test_project_stage2_selection_http as http_fixture
 import test_stage2_delivery as delivery_fixture
 from test_stage2_delivery import _tree_hash
 from test_stage2_checker import assessment, finding
+from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage2_selection import (
     ProjectStage2SelectionService,
+)
+from research_workspace_native.project_stage_connections import (
+    BindingTable,
+    ConnectionStore,
 )
 from research_workspace_native.project_stage3_planning import (
     ProjectStage3PlanningService,
@@ -54,6 +59,55 @@ class DirectionIntentTests(Stage2SelectionFixture):
         else:
             result = self.prepare_choice(ProjectStage2SelectionService)
         return result[0], intent_body(result[1]), result[2]
+
+    def test_saved_preference_reads_without_registering_completed_selection(self):
+        static, body, _ = self.choice()
+        binding = static.bindings[self.ref]
+        receipt = static.direction_intent("own", self.ref, body)
+        expected = static.read("own", self.ref)
+        self.assertEqual(
+            expected["direction_intent"]["intent_sha256"], receipt["intent_sha256"]
+        )
+        self.assertEqual(expected["selection_status"], "pending")
+        self.assertFalse(expected["execution_authorized"])
+
+        self.intake.close()
+        self.intake = ProjectIntakeService(
+            self.store_root, authenticate=self.authenticate
+        )
+        store = ConnectionStore(self.intake, "own")
+        unregistered = ProjectStage2SelectionService(
+            self.intake, BindingTable({}, store, {self.ref: object()})
+        )
+
+        def footprint():
+            return (
+                self.intake.read("own", self.ref)["revision"],
+                tuple(
+                    self.intake.db.execute(f"SELECT count(*) FROM {table}").fetchone()[
+                        0
+                    ]
+                    for table in ("intake_actions", "intake_events")
+                ),
+                _tree_hash(self.store_root / self.ref),
+            )
+
+        before = footprint()
+        self.assertIsNone(store.resolve(self.ref, "stage2-selection"))
+        with patch(
+            "research_workspace_native.project_stage_connections._completed_binding",
+            return_value=binding,
+        ):
+            for _ in range(2):
+                self.assertEqual(unregistered.read("own", self.ref), expected)
+            with self.assertRaisesRegex(
+                SessionApiError, "stage2-selection-unconnected"
+            ):
+                unregistered.direction_intent_context(
+                    "own", self.ref, expected_intent_sha256=receipt["intent_sha256"]
+                )
+        self.assertIsNone(store.resolve(self.ref, "stage2-selection"))
+        self.assertEqual(footprint(), before)
 
     def test_saved_receipt_survives_later_frontier_drift_but_planning_rejects(self):
         service, body, _ = self.choice()

@@ -17,7 +17,7 @@ from stage1_ledger.journal import canonical, decode
 
 from .project_stage1 import _basis
 from .project_stage1_saved_import import source_observation_time_matches
-from .session_api import _check, _hash
+from .session_api import SessionApiError, _check, _hash
 
 MAX_RECORD_BYTES = 16 * 1024 * 1024
 MAX_OFFERS = 16
@@ -802,7 +802,7 @@ class ProjectStage1DeliveryService:
             "stage1-delivery-offer-hash-required",
             400,
         )
-        return self.stage1._mutate(
+        receipt = self.stage1._mutate(
             credential,
             project_ref,
             body,
@@ -811,6 +811,39 @@ class ProjectStage1DeliveryService:
             fields={"offer_ref", "offer_sha256"},
             check_deadline=check_deadline,
             run_authorization=run_authorization,
+        )
+        if receipt["status"] != "saved" or receipt["eligible_for_stage2"] is not True:
+            return receipt
+        return self._receive_stage2_input(
+            credential, project_ref, receipt, check_deadline
+        )
+
+    def _receive_stage2_input(self, credential, ref, receipt, check_deadline):
+        from .project_stage_connections import current_input
+
+        # The package and its Stage 1 receipt must be durable before the
+        # receiver verifies them. A replay can only receive the same artifact.
+        try:
+            received = current_input(
+                self,
+                ref,
+                credential=credential,
+                delivery=self,
+                stage1=None,
+                check_deadline=check_deadline,
+                expected_artifact_ref=receipt["artifact_ref"],
+            )
+        except SessionApiError as error:
+            received = dict(status="blocked", reason=error.code)
+        if received["status"] == "received":
+            return receipt
+        return dict(
+            receipt,
+            stage2_input=dict(
+                status="blocked",
+                reason=received["reason"],
+                execution_authorized=False,
+            ),
         )
 
     def binding(self, project_ref):

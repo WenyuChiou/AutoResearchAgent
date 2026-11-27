@@ -18,6 +18,7 @@ class WikiStage3DiagramTests(unittest.TestCase):
                 "--test",
                 str(here / "test_v9_stage3_bridge.cjs"),
                 str(here / "test_v9_selection_integration.cjs"),
+                str(here / "test_v9_stage_connections.cjs"),
                 str(tests / "project-stage3-research-diagram.cjs"),
                 str(tests / "project-stage3-wiki.cjs"),
             ],

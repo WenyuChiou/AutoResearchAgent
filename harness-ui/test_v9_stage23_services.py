@@ -37,7 +37,8 @@ class WikiStage23ServicesTests(unittest.TestCase):
         }
         configure_services(services, options())
         self.assertIsNotNone(services["stage2_selection"])
-        self.assertIs(services["stage2"].receive_current, True)
+        self.assertIs(services["stage2"].registered_only, True)
+        self.assertFalse(getattr(services["stage2"], "receive_current", False))
         self.assertIsNone(services["stage3_planning"])
         self.assertIsNone(services["stage3_recovery_pins"])
         self.assertIsNone(services["stage2_readings"])

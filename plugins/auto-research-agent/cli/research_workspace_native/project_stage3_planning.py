@@ -47,35 +47,7 @@ class ProjectStage3PlanningService:
             bindings is None or type(bindings) is dict, "stage3-bindings-invalid", 400
         )
         for ref, binding in (bindings or {}).items():
-            text(ref, "host project reference")
-            closed(
-                binding, {"jobs", "configuration", "callback"}, "Host planning binding"
-            )
-            jobs, callback = binding["jobs"], binding["callback"]
-            _check(
-                isinstance(jobs, PlanningJobs) and jobs.project_ref == ref,
-                "stage3-job-project-differs",
-            )
-            closed(binding["configuration"], {"model", "reasoning"}, "configuration")
-            for value in binding["configuration"].values():
-                text(value, "configuration value")
-            _check(callable(callback), "stage3-adapter-required", 400)
-            context = deepcopy(getattr(callback, "request_context", None))
-            timeout = context.get("timeout_seconds") if type(context) is dict else None
-            _check(
-                type(timeout) in (int, float)
-                and math.isfinite(timeout)
-                and timeout > 0,
-                "stage3-adapter-deadline-required",
-                400,
-            )
-            digest(context)
-            self.bindings[ref] = dict(
-                jobs=jobs,
-                configuration=deepcopy(binding["configuration"]),
-                callback=callback,
-                adapter_context=context,
-            )
+            self.bindings[ref] = self._validate_binding(ref, binding)
         from .project_stage3_direction_planning import ProjectStage3DirectionPlanning
 
         self.direction = ProjectStage3DirectionPlanning(self)
@@ -95,7 +67,42 @@ class ProjectStage3PlanningService:
             sha256(request)
             sha256(pin)
 
-    def _current(self, credential, project_ref, body=None, check_deadline=None):
+    @staticmethod
+    def _validate_binding(ref, binding):
+        text(ref, "host project reference")
+        closed(binding, {"jobs", "configuration", "callback"}, "Host planning binding")
+        jobs, callback = binding["jobs"], binding["callback"]
+        _check(
+            isinstance(jobs, PlanningJobs) and jobs.project_ref == ref,
+            "stage3-job-project-differs",
+        )
+        closed(binding["configuration"], {"model", "reasoning"}, "configuration")
+        for value in binding["configuration"].values():
+            text(value, "configuration value")
+        _check(callable(callback), "stage3-adapter-required", 400)
+        context = deepcopy(getattr(callback, "request_context", None))
+        timeout = context.get("timeout_seconds") if type(context) is dict else None
+        _check(
+            type(timeout) in (int, float) and math.isfinite(timeout) and timeout > 0,
+            "stage3-adapter-deadline-required",
+            400,
+        )
+        digest(context)
+        return dict(
+            jobs=jobs,
+            configuration=deepcopy(binding["configuration"]),
+            callback=callback,
+            adapter_context=context,
+        )
+
+    def _configured(self, project_ref, *, write=False):
+        if write and hasattr(self.bindings, "for_write"):
+            return self.bindings.for_write(project_ref)
+        return self.bindings.get(project_ref)
+
+    def _current(
+        self, credential, project_ref, body=None, check_deadline=None, *, write=False
+    ):
         if check_deadline:
             check_deadline()
         verified, _ = self.selection_view._current_context(credential, project_ref)
@@ -114,7 +121,7 @@ class ProjectStage3PlanningService:
                 and body["selection_request_sha256"] == ack["request_sha256"],
                 "stage3-current-selection-required",
             )
-        configured = self.bindings.get(project_ref)
+        configured = self._configured(project_ref, write=write)
         if configured:
             _check(
                 configured["jobs"].project_id == project["project_id"],
@@ -242,7 +249,9 @@ class ProjectStage3PlanningService:
             )
         _fields(body, SOURCE_FIELDS)
         with self.intake._lock:
-            current = self._current(credential, project_ref, body, check_deadline)
+            current = self._current(
+                credential, project_ref, body, check_deadline, write=True
+            )
             configured, source, item = self._job(current, body["key"])
             jobs = configured["jobs"]
             if item is None:
@@ -283,8 +292,10 @@ class ProjectStage3PlanningService:
                 )
             return self._public(project_ref, result)
 
-    def _saved(self, credential, project_ref, body, check_deadline):
-        current = self._current(credential, project_ref, body, check_deadline)
+    def _saved(self, credential, project_ref, body, check_deadline, *, write=False):
+        current = self._current(
+            credential, project_ref, body, check_deadline, write=write
+        )
         configured, _, item = self._job(current, body["key"])
         _check(item is not None, "stage3-job-not-prepared")
         sha256(body["request_sha256"])
@@ -319,7 +330,7 @@ class ProjectStage3PlanningService:
         _check(body["confirmed"] is True, "explicit-stage3-planning-required", 400)
         with self.intake._lock:
             configured, checkpoint = self._saved(
-                credential, project_ref, body, check_deadline
+                credential, project_ref, body, check_deadline, write=True
             )
 
         # Acquire publication protection only after the actual adapter finishes.
@@ -367,7 +378,7 @@ class ProjectStage3PlanningService:
         _fields(body, SOURCE_FIELDS | {"request_sha256"})
         with self.intake._lock:
             configured, checkpoint = self._saved(
-                credential, project_ref, body, check_deadline
+                credential, project_ref, body, check_deadline, write=True
             )
             result = configured["jobs"].recover(
                 body["key"],
