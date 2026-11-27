@@ -162,3 +162,42 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-v1]) { padding:0; backgrou
 #harness-trace-workbench-v6 [data-v1] .v1-alert.ok { background:var(--v1-teal-soft); border-left-color:var(--v1-teal); }
 #harness-trace-workbench-v6 [data-v1] .v1-alert.err { background:var(--v1-red-soft); border-color:var(--v1-red-line); border-left-color:var(--v1-red); }
 #harness-trace-workbench-v6 [data-v1] .v1-alert-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+/* Materials tab for Stage 1 and 2 (8.12, 8.14; shots/new-s1-materials.png). */
+#harness-trace-workbench-v6 [data-v1] .n9-materials.ws-m9 { border:0; padding:0; background:none; display:flex; flex-direction:column; gap:24px; margin-top:16px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-card { background:#fff; border:1px solid var(--v1-line); border-radius:8px; padding:24px; display:grid; gap:12px; align-content:start; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-card h3 { font-size:20px; line-height:1.35; margin:0; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-card > p { margin:0; max-width:72ch; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-head { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-pick { position:relative; display:inline-flex; align-items:center; min-height:44px; padding:0 18px; border-radius:8px; background:var(--v1-teal); color:#fff; font-weight:700; cursor:pointer; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-pick:hover { background:var(--v1-teal-dark); }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-pick.off { background:var(--v1-gray); color:#7b8a92; cursor:not-allowed; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-pick input[data-n9-upload] { position:absolute; inset:0; opacity:0; width:100%; max-width:none; min-height:0; padding:0; border:0; cursor:pointer; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-pick:focus-within { outline:3px solid #9cc3f0; outline-offset:2px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-line { display:flex; align-items:center; gap:12px; flex-wrap:wrap; border:1px solid var(--v1-line); border-radius:8px; padding:12px 14px; font-size:15px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-line .ws-btn { margin:0 0 0 auto; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-line .ws-tech { flex-basis:100%; font-size:13px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-flush { padding:0; gap:0; overflow:hidden; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-flush > .ws-m9-head { padding:20px 24px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-flush > p { padding:12px 24px 20px; margin:0; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-wrap { overflow-x:auto; border-top:1px solid var(--v1-line); }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-table { margin:0; font-size:15px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-table th, #harness-trace-workbench-v6 [data-v1] .ws-m9-table td { padding:12px 14px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-table thead th { background:#fafaf6; font-size:14px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-table tbody th { font-weight:600; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-table .n { font-family:ui-monospace,Consolas,monospace; white-space:nowrap; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-note { display:block; color:var(--v1-sub); font-size:13px; margin-top:4px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-acts { text-align:right; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-acts .ws-btn { margin:0 0 6px 8px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-op { margin:4px 0 0; font-size:13px; text-align:left; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-two { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-list { list-style:none; margin:0; padding:0; display:grid; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-list li { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--v1-line); }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-list small { color:var(--v1-sub); }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-draft { display:grid; gap:8px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-draft + .ws-m9-draft { border-top:1px solid var(--v1-line); padding-top:12px; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-draft p { margin:0; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-draft label, #harness-trace-workbench-v6 [data-v1] .ws-m9-fields label { display:grid; gap:4px; font-size:14px; font-weight:700; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-draft :is(select,textarea), #harness-trace-workbench-v6 [data-v1] .ws-m9-fields input { font:inherit; font-size:15px; font-weight:400; min-height:44px; padding:8px 12px; border:1px solid var(--v1-line2); border-radius:8px; background:#fff; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-import > summary { min-height:44px; display:flex; align-items:center; font-weight:700; cursor:pointer; }
+#harness-trace-workbench-v6 [data-v1] .ws-m9-fields { display:grid; gap:10px; max-width:640px; }

@@ -301,16 +301,18 @@ for (const name of ['未核对（还没判断）','支持','部分支持','相�
 assert.match(buttonOf(fold, 'claim-save'), /请先选关系/);
 assert.match(fold, /我已审阅这条证据/);
 
-// Materials tab: designed strip, downloads are gray with a stated reason, no invented files.
+// Materials tab: designed strip and the slot for the materials panel; the package files list (8.12 文献包里的文件)
+// names files as the project files page does and sends downloads there (checked download, 8.1). No invented files.
 rt.atlas = null;
 let materials = ctx.wsMaterialsTab({});
 assert.match(materials, /不会自动标记为已读、已纳入或已批准/);
-assert.match(materials, /文献包还没有生成，这里还没有可下载的文件/);
 assert.match(materials, /data-ws-materials-slot/);
-rt.atlas = {files:[{name:'papers.csv', sha256:'a'.repeat(64)}]};
-materials = ctx.wsMaterialsTab({});
-assert.match(materials, /papers\.csv/);
-assert.match(buttonOf(materials, 'data-ws-download'), /disabled/);
-assert.match(buttonOf(materials, 'data-ws-download'), /后台还没有文献包文件的下载接口/);
+assert.match(ctx.wsMaterialsDownloads(), /文献包还没有生成，这里还没有可下载的文件/);
+rt.atlas = {files:[{path:'references.bib', sha256:'a'.repeat(64)}, {path:'wiki/' + 'b'.repeat(64) + '.md', sha256:'c'.repeat(64)}]};
+const downloads = ctx.wsMaterialsDownloads();
+assert.match(downloads, /参考文献 BibTeX/);
+assert.match(downloads, /逐篇笔记 1/);
+assert.doesNotMatch(downloads, /bbbbbbbb/, 'no stored path in the text');
+assert.match(downloads, /data-page="files">去项目文件下载/);
 assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里改/);
 console.log('PASS Stage 1 ops: scope page, auto-advance states, run table, delivery decision, paper card, evidence review, materials.');

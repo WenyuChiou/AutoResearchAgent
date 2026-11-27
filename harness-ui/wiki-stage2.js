@@ -439,11 +439,8 @@ function wikiS2MaterialsTab(app) {
   : '<p class="wiki-s2-package">Stage 2 在等这个课题的 Stage 1 文献包</p>';
  const imported = typeof p9 !== 'undefined' && p9.shown;
  return `<section class="wiki-s2-card" data-s2-materials><h2>材料</h2>${row}
-  <details class="wiki-s2-fold"><summary>接入其他候选包（本地已解包）· 高级</summary>
-  <p class="wiki-s2-muted">使用 Harness 原有的候选包格式；目录要放在配置的接入目录里；核对全部来源字节，原有科学规则不放宽。</p>
-  <p class="wiki-s2-muted">接入别的候选包的内容不会冒充本课题的 Stage 2，血缘按原包保留，页面用来历标签区分。</p>
   ${imported ? '<p role="status">已核验导入材料，下面显示该版本；还没有生成新研究。</p>' : ''}
-  ${typeof m9Panel === 'function' ? m9Panel(app) : ''}</details></section>`;
+  ${typeof m9Panel === 'function' ? m9Panel(app) : ''}</section>`;
 }
 
 // --- Page ----------------------------------------------------------------------------------
