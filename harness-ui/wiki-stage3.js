@@ -385,16 +385,18 @@ function wikiS3ConnectionLine(m) {
  const line = (tone, tag, text, buttons = []) => ({tone, tag, text, buttons});
  const reason = String(m.code || '');
  if (m.phase === 'waiting') return line('run', '正在核对', '正在核对这个课题的接通记录');
- // Before the selection check: a saved registration that lost its lease is not connected, so the selection read
- // (which needs a connected Stage 3) is unavailable too; the reconnect is the way back.
- if (!m.unknown && m.action === 'reconnect') return line('warn', '未接通', (m.reconnectError ? '上次点「重新接通」没有成功，原因代码在技术细节里；可以再试一次。' : '') + 'Stage 3 的规划登记已保存；如果上次是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。', [{label:'重新接通', attr:'reconnect', primary:true}]);
- if (!m.unknown && !m.connected && !v93Identity()) return line('warn', '缺正式选择', '还缺这个课题当前版本的正式选择和核对过的选择回执。请先在 Stage 2 选定方向', [{label:'前往 Stage 2', stage:2}]);
- if (!m.unknown && m.action === 'connect') return line('wait', '可以接通', '这个课题还没有接通 Stage 3。可以登记当前配置，登记不会启动研究', [{label:'接通本课题', attr:'connect', primary:true}]);
- if (!m.unknown && /profile-unavailable$/.test(reason)) return line('warn', '缺运行配置', '这次启动没有提供这一段的运行配置。请在原目录用核对过的配置重开', [{label:'去连接与设置', page:'settings'}]);
- if (!m.unknown && typeof v9StaticStage3Read === 'function' && v9StaticStage3Read()) return line('idle', '只能看旧规划', '可以查看原配置下这个课题已保存的 Stage 3 规划，不能生成新的', [{label:'查看已保存的规划', read:true}]);
+ // Follow what /connections says (8.13 ladder). The selection check used to come first and read v93Identity(),
+ // which needs Stage 3 to be connected already, so a connectable topic always showed "缺正式选择".
+ const shared = () => { const row = wikiS2ConnectionLine(m); return {...row, text:String(row.text).replace(/Stage 2/g, 'Stage 3')}; };
+ if (m.unknown || (m.noLocks && m.action)) return shared();
+ // Saved registration whose lease was lost after a forced stop (8.13 「登记还在，这次启动没接回」).
+ if (m.action === 'reconnect') return line('warn', '未接通', (m.reconnectError ? '上次点「重新接通」没有成功，原因代码在技术细节里；可以再试一次。' : '') + 'Stage 3 的规划登记已保存；如果上次是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。', [{label:'重新接通', attr:'reconnect', primary:true}]);
+ if (m.action === 'connect') return line('wait', '可以接通', '这个课题还没有接通 Stage 3。可以登记当前配置，登记不会启动研究', [{label:'接通本课题', attr:'connect', primary:true}]);
+ if (reason === 'stage3-current-selection-required') return line('warn', '缺正式选择', '还缺这个课题当前版本的正式选择和核对过的选择回执。请先在 Stage 2 选定方向', [{label:'前往 Stage 2', stage:2}]);
+ if (/profile-unavailable$/.test(reason)) return line('warn', '缺运行配置', '这次启动没有提供这一段的运行配置。请在原目录用核对过的配置重开', [{label:'去连接与设置', page:'settings'}]);
+ if (typeof v9StaticStage3Read === 'function' && v9StaticStage3Read()) return line('idle', '只能看旧规划', '可以查看原配置下这个课题已保存的 Stage 3 规划，不能生成新的', [{label:'查看已保存的规划', read:true}]);
  if (m.connected) return line('done', '已接通', '这个课题已接通');
- const shared = wikiS2ConnectionLine(m);
- return {...shared, text:String(shared.text).replace(/Stage 2/g, 'Stage 3')};
+ return shared();
 }
 
 // DESIGN 8.13 connection block for Stage 3 (same component as Stage 2; one GET read via v9ConnectionModel).

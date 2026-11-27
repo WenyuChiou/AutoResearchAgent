@@ -6,6 +6,8 @@ from pathlib import Path
 import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+import threading
 
 from stage1_ledger.journal import LedgerError, canonical, digest
 
@@ -54,8 +56,44 @@ def inspect_python(prefix, *, process_options=None):
     return mode, str(entry), info
 
 
+_scope = threading.local()
+
+
+@contextmanager
+def request_scope():
+    """Within ONE read request, hash each runtime root once instead of per caller.
+
+    A Wiki read verifies the same runtime pin from several places (offer, seal,
+    expansion); each verification re-reads every file under the runtime roots
+    (about 27,000 files for a virtual environment, ~5 s). Inside this scope the
+    first verification of a root is reused by the later ones of the *same
+    request only*; the scope ends with the request and nothing is kept across
+    requests. Use it for reads, never around a write that re-verifies before
+    launching a process.
+    """
+    if getattr(_scope, "trees", None) is not None:
+        yield
+        return
+    _scope.trees = {}
+    try:
+        yield
+    finally:
+        _scope.trees = None
+
+
 def tree_files(root, *, code_only=False):
     """Include executable/cache bytes and detect additions, not just old filenames."""
+    trees = getattr(_scope, "trees", None)
+    key = (str(root), bool(code_only))
+    if trees is not None and key in trees:
+        return dict(trees[key])
+    result = _tree_files(root, code_only=code_only)
+    if trees is not None:
+        trees[key] = result
+    return dict(result)
+
+
+def _tree_files(root, *, code_only=False):
     root = Path(root)
     if not root.is_absolute():
         raise LedgerError("runtime-root-not-absolute")
@@ -108,8 +146,14 @@ def tree_files(root, *, code_only=False):
             return str(path.absolute()), digest(canonical(binding))
         return str(path.resolve()), digest(path.read_bytes())
 
+    def hash_chunk(chunk):
+        return [hash_file(path) for path in chunk]
+
+    # One task per 64 files instead of one per file: same reads and same result
+    # order, without 27,000 futures to create and wait for.
+    chunks = [paths[start : start + 64] for start in range(0, len(paths), 64)]
     with ThreadPoolExecutor(max_workers=8) as workers:
-        return dict(workers.map(hash_file, paths))
+        return dict(row for part in workers.map(hash_chunk, chunks) for row in part)
 
 
 def capture_identity(prefix, *, process_options=None):
@@ -160,6 +204,10 @@ def capture_identity(prefix, *, process_options=None):
 
 
 def verify_identity(pin, *, probe=False, process_options=None):
+    # probe=True belongs to the write path that precedes a launch; it must never
+    # run inside a read request's reuse scope.
+    if probe and getattr(_scope, "trees", None) is not None:
+        raise LedgerError("runtime-probe-inside-read-scope")
     identity = pin.get("code_identity")
     if not identity:
         raise LedgerError("runtime-code-identity-required")

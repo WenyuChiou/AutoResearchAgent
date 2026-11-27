@@ -124,7 +124,7 @@ test('the Stage 3 connection block shows 重新接通 even though the selection 
  assert.equal(line.buttons[0].label, '重新接通');
  assert.match(line.text, /^Stage 3 的规划登记已保存；如果上次是强行关闭/);
  assert.match(ctx.wikiS3ConnectionLine({phase:'ready', unknown:false, connected:false, action:'reconnect', code:reason, reconnectError:{code:'x'}}).text, /^上次点「重新接通」没有成功/);
- assert.equal(ctx.wikiS3ConnectionLine({phase:'ready', unknown:false, connected:false, action:null, code:'x'}).tag, '缺正式选择');
+ assert.equal(ctx.wikiS3ConnectionLine({phase:'ready', unknown:false, connected:false, action:null, code:'stage3-current-selection-required'}).tag, '缺正式选择', 'only the service reason means a missing selection (8.13 ladder)');
 });
 
 // ---- Review P1: the real click handler, in-flight clicks, failures, topic switch, and id mismatch ----

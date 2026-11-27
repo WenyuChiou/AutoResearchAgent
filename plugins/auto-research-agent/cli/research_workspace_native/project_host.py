@@ -1147,7 +1147,11 @@ class ProjectHandler(AtlasHandler):
             self.end_headers()
             return
         if self.path.startswith("/api/projects"):
-            return self._project("GET")
+            from stage1_retrieval.runtime_identity import request_scope
+
+            # Reads only: each runtime root is hashed once per request.
+            with request_scope():
+                return self._project("GET")
         if self.path == "/project-bootstrap.js":
             # Same-origin local bootstrap, matching the existing Atlas credential
             # boundary. No credential appears in URL, HTML, logs or storage.
@@ -1181,12 +1185,15 @@ class ProjectHandler(AtlasHandler):
                         models=self.server.project_models is not None,
                         stage2=self.server.project_stage2 is not None,
                         stage2_selection_projects=(
-                            list(self.server.project_stage2_selection.bindings)
+                            # list(mapping) asks for len() first, and len() walks the
+                            # same discovery as iteration: every connected project's
+                            # full source verification ran twice per bootstrap.
+                            list(iter(self.server.project_stage2_selection.bindings))
                             if self.server.project_stage2_selection is not None
                             else []
                         ),
                         stage3_planning_projects=(
-                            list(self.server.project_stage3_http.service.bindings)
+                            list(iter(self.server.project_stage3_http.service.bindings))
                             if self.server.project_stage3_http is not None
                             else []
                         ),

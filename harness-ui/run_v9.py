@@ -45,6 +45,11 @@ def main(argv=None):
 
     def install(host, assets, meta, project_handler, atlas_handler):
         original(host, assets, meta, project_handler, atlas_handler)
+        # Grant creation/reading is a Wiki route, so it also exists without a consent file.
+        from wiki_stage1_run_grant_http import install_stage1_run_grant
+
+        install_stage1_run_grant(
+            host, limits=meta['run_limits'], runtime_sha256=meta['harness_inventory_sha256'])
         install_materials(host, host.projects, state, incoming, review_sources=review_sources)
         # Codex chat routes: off unless the operator passed --chat-config; never starts Codex by itself.
         chat = install_wiki_chat(host, host.materials, selected)
