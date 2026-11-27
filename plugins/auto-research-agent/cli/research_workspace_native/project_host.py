@@ -1147,7 +1147,11 @@ class ProjectHandler(AtlasHandler):
             self.end_headers()
             return
         if self.path.startswith("/api/projects"):
-            return self._project("GET")
+            from stage1_retrieval.runtime_identity import request_scope
+
+            # Reads only: each runtime root is hashed once per request.
+            with request_scope():
+                return self._project("GET")
         if self.path == "/project-bootstrap.js":
             # Same-origin local bootstrap, matching the existing Atlas credential
             # boundary. No credential appears in URL, HTML, logs or storage.
