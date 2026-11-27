@@ -62,8 +62,12 @@ async function inspect(page) {
   if (sc.inject) await require(path.resolve(sc.inject))(page);
   await page.goto(origin + sc.path, {waitUntil: 'networkidle'});
   await page.waitForTimeout(sc.wait || 4000);
-  for (const click of sc.clicks || []) { await page.click(click); await page.waitForTimeout(1500); }
-  const problems = (await inspect(page)).map(String);
+  const clickProblems = [];
+  for (const click of sc.clicks || []) {
+   try { await page.click(click, {timeout:20000}); await page.waitForTimeout(1500); }
+   catch (error) { clickProblems.push('点不到: ' + click + ' · 页面状态: ' + (await page.evaluate(() => (document.querySelector('[data-v1-status]')?.innerText || document.querySelector('.hs-content')?.innerText || '').replace(/\s+/g, ' ').slice(0, 160)).catch(() => '?'))); break; }
+  }
+  const problems = [...clickProblems, ...(await inspect(page)).map(String)];
   // Optional behaviour assertions: each selector must match a visible element after the clicks.
   for (const sel of sc.expect || []) if (!(await page.locator(sel).first().isVisible().catch(() => false))) problems.push('点击后没有出现预期结果: ' + sel);
   for (const e of errors) problems.push('控制台报错: ' + e);
