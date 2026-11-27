@@ -63,6 +63,8 @@ async function inspect(page) {
  let failed = 0;
  for (const sc of config.scenarios) {
   const page = await browser.newPage({viewport: {width: 1440, height: 1000}});
+  // CPU_RATE=4 replays a slow machine (Chrome CPU throttling) to reproduce timing problems.
+  if (Number(process.env.CPU_RATE) > 1) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', {rate:Number(process.env.CPU_RATE)});
   const errors = [], writes = [];
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text().slice(0, 200)); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
@@ -71,6 +73,9 @@ async function inspect(page) {
   if (sc.inject) await require(path.resolve(sc.inject))(page);
   await page.goto(origin + sc.path, {waitUntil: 'networkidle'});
   await page.waitForTimeout(sc.wait || 4000);
+  // A fixed wait is not enough when the Host is busy (a full run, or the Stage 3 fixture that re-reads the
+  // overview inside its interception): wait until the page has left its first-read state before clicking.
+  await page.waitForFunction(() => !!document.querySelector('.hs-product[data-v1]') && !document.querySelector('[data-v1-status="run"]'), null, {timeout:90000}).catch(() => {});
   const clickProblems = [];
   for (const click of sc.clicks || []) {
    try { await page.click(click, {timeout:20000}); await page.waitForTimeout(1500); }
