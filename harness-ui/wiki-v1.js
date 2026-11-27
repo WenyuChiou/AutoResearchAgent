@@ -304,6 +304,20 @@ document.addEventListener('click', event => {
  apps[0].v1SwitchOpen = !summary.parentElement.open;
  apps[0].v1SwitchRef = rt.ref;
 }, true);
+// Keeping the menu open across repaints must not keep it open forever (review P2-d): a click anywhere outside the
+// menu, or Escape, closes it. Listened on window so a page handler that stops the event cannot skip this.
+function v1SwitchClose(app) {
+ if (!app?.v1SwitchOpen) return;
+ app.v1SwitchOpen = false;
+ const menu = app.el.querySelector?.('[data-v1-switch]');
+ if (menu) menu.open = false;
+}
+window.addEventListener('click', event => {
+ if (!event.target.closest?.('[data-v1-switch]')) v1SwitchClose(apps[0]);
+}, true);
+window.addEventListener('keydown', event => {
+ if (event.key === 'Escape') v1SwitchClose(apps[0]);
+}, true);
 
 // ---------- Stage 1 status (DESIGN 3.2, 8.6) ----------
 function v1S1Counts() {
@@ -442,6 +456,8 @@ v1PageStatus.s3 = app => {
   if (conn.action === 'reconnect') return {tone:'wait', now:['Stage 3 未接通。', conn.reconnectError ? '上次点「重新接通」没有成功；规划登记仍然保存着。' : '规划登记已保存；如果上次是强行关闭，这次启动后会先显示未接通。'],
   next:conn.reconnectError ? '可以再点一次下面的「重新接通」；原因代码在接通块的技术细节里。' : '点下面的「重新接通」恢复，不会重复执行任何步骤，也不会新增记录。', you:{wait:true, text:'重新接通'}};
   if (conn.action === 'connect') return {tone:'wait', now:['还没有规划。', 'Stage 3 还没有接通；接通只是登记，不会启动研究。'], next:'在下面的接通块点「接通本课题」。', you:{wait:true, text:'接通本课题'}};
+  // Connected but no selection read: not "cannot connect" (review P2-c).
+  if (conn.connected) return {tone:'off', now:['还没有规划。', 'Stage 3 已接通，但这次没有读到选定的方向。'], next:'重新读取一次。', you:null, button:{label:'重新读取', attrs:'data-v1-reload', primary:false}};
   if (conn.code && conn.code !== 'stage3-current-selection-required') return {tone:'off', now:['还没有规划。', 'Stage 3 现在接不上，原因写在下面的接通块里。'], next:'按接通块里的说法处理。', you:null};
  }
  if (!basis) return {tone:'off', now:['还没有规划。', 'Stage 2 还没有选定方向，Stage 3 不会生成计划。'], next:'先到 Stage 2 选一个方向。', you:null, button:{label:'去 Stage 2', attrs:'data-stage="2"', primary:false}};
