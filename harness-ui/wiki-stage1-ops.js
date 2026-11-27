@@ -125,8 +125,10 @@ function wsBudget() {
  const used = rt.overview?.models?.calls_reserved;
  return {b, used};
 }
-function wsQuota() {
+function wsQuota(inCard = false) {
  const auto = wsAuto(), {b, used} = wsBudget();
+ // Inside an authorization card the bar shows this step's own limit, never a pointer back to the card (review P2-7).
+ if (inCard && !(b && Number(b.model_calls) > 0)) return '<div class="ws-quota ws-quota-gray"><b>这一步的上限</b><span>还没有这一段的运行许可，服务没有给出这一步的上限和有效期</span></div>';
  if (auto.installed !== true && !(b && Number(b.model_calls) > 0)) {
   return '<div class="ws-quota ws-quota-gray"><b>额度</b><span>每一步的上限写在那一步的授权卡里</span></div>';
  }
@@ -282,7 +284,7 @@ function wsPlanDetail(consent) {
  const reviewable = wsSavedPlan();
  const stepwise = !consent;
  return `${realPlanningFailure()}
- ${stepwise && !ro ? `<section class="ws-grant" data-ws-grant="plan"><span class="ws-label">授权：检索规划</span><p><b>会做：</b>让 Codex 规划查询。<b>不会做：</b>不检索、不读来源。</p>${wsQuota()}
+ ${stepwise && !ro ? `<section class="ws-grant" data-ws-grant="plan"><span class="ws-label">授权：检索规划</span><p><b>会做：</b>让 Codex 规划查询。<b>不会做：</b>不检索、不读来源。</p>${wsQuota(true)}<p class="wiki-s1-muted">授权理由：现在的授权接口没有理由这一项，页面不收集。</p>
  <label class="ws-check"><input type="checkbox" data-ws-check="plan" ${wsLockedChecks('plan') ? 'checked' : ''}> 我确认只授权这一次、这一件事</label>
  <div class="ws-actions">${wsBtn('授权一次检索规划', 'data-real-action="authorize-plan" data-ws-gate="plan"', authorizeWhy)}${wsBtn('运行 Codex 检索规划', 'data-real-action="plan"', planWhy, 'hs-button-primary')}</div></section>` : ''}
  <div class="ws-actions">${reviewable ? wsBtn('审阅已保存规划', 'data-real-action="review-plan"', common) : ''}</div>
