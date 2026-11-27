@@ -136,3 +136,12 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-v1]) { padding:0; backgrou
 #harness-trace-workbench-v6 [data-v1] .wiki-s2-page-tech dl div { display:contents; }
 #harness-trace-workbench-v6 [data-v1] .wiki-s2-page-tech dt { color:var(--v1-sub); font-size:14px; }
 #harness-trace-workbench-v6 [data-v1] .wiki-s2-page-tech dd { margin:0; font-size:13px; overflow-wrap:anywhere; }
+/* 8.27: "登记当前交付" is not offered in V1 (delivery registers itself). */
+#harness-trace-workbench-v6 [data-v1] .n9-material-tools { display:none !important; }
+#harness-trace-workbench-v6 [data-v1] [data-ws-materials-slot] .n9-materials,
+#harness-trace-workbench-v6 [data-v1] .wiki-s2-fold .n9-materials { border:1px solid var(--v1-line); border-radius:8px; box-shadow:none; background:#fff; padding:12px 16px; }
+#harness-trace-workbench-v6 [data-v1] [data-ws-materials-slot] .n9-materials > summary { font-weight:700; min-height:40px; }
+#harness-trace-workbench-v6 [data-v1] .wiki-s1-metrics strong.wiki-s1-none { font-size:18px; color:var(--v1-sub); font-weight:700; }
+#harness-trace-workbench-v6 [data-v1] .ws-ps-head { display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap; margin:20px 0 8px; }
+#harness-trace-workbench-v6 [data-v1] .ws-ps-head h3 { font-size:20px; margin:0; }
+#harness-trace-workbench-v6 [data-v1] .ws-ps-head small { color:var(--v1-sub); font-size:14px; }

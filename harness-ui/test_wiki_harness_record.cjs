@@ -9,10 +9,10 @@ const context = vm.createContext({
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8'), context);
 const {wikiHarnessRecord, wikiRecordSummary} = context;
 
-assert.equal(wikiRecordSummary(), '这一段还没有记录');
-assert.equal(wikiRecordSummary({recordCount:null, blockedCount:-1}), '这一段还没有记录');
+assert.equal(wikiRecordSummary(), '这一段还没有运行，没有记录。');
+assert.equal(wikiRecordSummary({recordCount:null, blockedCount:-1}), '这一段还没有运行，没有记录。');
 const empty = wikiHarnessRecord({checks:[{name:'没有原始记录', result:'不可展示'}]});
-assert.match(empty, /这一段还没有记录/);
+assert.match(empty, /这一段还没有运行，没有记录。/);
 assert.doesNotMatch(empty, /<details|不可展示|\d+ 次/);
 
 const rendered = wikiHarnessRecord({
@@ -29,6 +29,6 @@ assert.match(rendered, /&lt;script&gt;/);
 assert.doesNotMatch(rendered, /<script>|未保存的步骤|模型调用<\/th>/);
 assert.equal((rendered.match(/0 次 · 没有发生/g) || []).length, 1);
 assert.match(rendered, /超额度<\/th><td>未提供/);
-assert.match(rendered, /关掉重开<\/h3>\s*<p>这一段还没有记录/);
+assert.match(rendered, /关掉重开<\/h3>\s*<p>这一段还没有运行，没有记录。/);
 
 console.log('PASS Harness record: empty and partial records, explicit zero, escaped source, no fake timeline.');

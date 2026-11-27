@@ -327,7 +327,7 @@ function wsCoverageDetail() {
  const s = rt.overview.stage1, a = s.coverage_actions, lock = wsLock(), ro = wsReadonly();
  const blockers = (a?.blockers || []).map(x => typeof x === 'string' ? x : x.code);
  const round = a?.offers?.find(o => o.document?.round_number != null)?.document?.round_number;
- return `<p class="wiki-s1-muted">${esc(blockers.length ? '现在卡着：' + blockers.join('、') : '暂时没有阻塞记录')} · 目前第 ${esc(round ?? '未提供')} 轮 · <button type="button" class="ws-link" data-s1-tab="synthesis">看综合</button></p>
+ return `<p class="wiki-s1-muted">${esc(blockers.length ? '现在卡着：' + blockers.map(wsPlain).join('、') : '暂时没有阻塞记录')} · 目前第 ${esc(round ?? '未提供')} 轮 · <button type="button" class="ws-link" data-s1-tab="synthesis">看综合</button></p>
  <div class="ws-actions">${wsBtn('检查当前覆盖与状态', 'data-v7-workflow="checkpoint"', ro ? '这是历史归档，不能在这里改' : lock || (s.ledger ? '' : '现在还不能做这一步：还没有检索记录'))}</div>
  ${ro ? '' : wsCoverageForm()}<p class="ws-note">数量不能代替研究覆盖验收</p>`;
 }
@@ -385,6 +385,7 @@ function wsRunTab(app) {
  const ro = wsReadonly();
  return `<section class="wiki-s1-card ws-run-tab" data-wiki-ops="run" aria-label="运行与操作">${wsQuota()}${wsAutoRow()}
  ${rt.error ? `<div class="live-error ws-err" role="alert">${wsTag('err', '出错')} ${esc(rt.error)}</div>` : ''}
+ <div class="ws-ps-head"><h3>这一段的七步</h3><small>点一行看明细。按钮能不能点由服务当时给出的可用操作决定，不能点时写原因。</small></div>
  <div class="ws-ps" role="list">${rows.map((row, i) => `<details class="ws-ps-row" data-ws-row="${row.id}" ${open.has(row.id) ? 'open' : ''} role="listitem"><summary><span class="ws-dot">${i + 1}</span><b>${row.name}</b>${wsTag(row.kind, row.label)}<span class="ws-result">${esc(wsSummary(row))}</span></summary><div class="ws-detail">${wsRowDetail(app, row, consent)}</div></details>`).join('')}</div>
  <details class="ws-tech"><summary>技术细节：原始进度记录</summary><pre>${esc(JSON.stringify(rt.overview.stage1.progress ?? null, null, 2))}</pre></details></section>`;
 }
@@ -424,6 +425,15 @@ v7AfterRender = function (app) {
  // Old per-paper blocks live in the saved-output panel; the new paper card replaces them. Keep them mounted, hidden.
  for (const node of app.el.querySelectorAll('[data-v7-paper-review],[data-v7-reading-review]')) node.hidden = true;
  for (const node of app.el.querySelectorAll('[data-wiki-s1-output] section.live-files')) if (/^已保存的检索候选/.test(node.querySelector('h3')?.textContent || '')) node.hidden = true;
+ // The old handlers find their form with document.querySelector. Retire the selectors on the hidden
+ // old copies so the handlers read the form the user actually filled in on the new page (review P1-1..3).
+ for (const [name, retired] of [['data-v7-reading-review', 'data-v7-reading-review-retired'], ['data-v7-coverage-form', 'data-v7-coverage-form-retired'], ['data-real-plan', 'data-real-plan-retired']]) {
+  for (const node of app.el.querySelectorAll(`[${name}]`)) {
+   if (node.closest('[data-wiki-s1]')) continue;
+   node.setAttribute(retired, node.getAttribute(name));
+   node.removeAttribute(name);
+  }
+ }
  const slot = app.el.querySelector('[data-ws-expansion-slot]'), expansion = app.el.querySelector('.lp-operations [data-v7-expansion-panel]');
  if (slot && expansion) slot.append(expansion);
  else if (expansion) expansion.hidden = true;
@@ -534,6 +544,16 @@ function wsDetailFor(workId) {
  const d = rt.paperDetail, ledger = rt.overview?.stage1?.ledger?.state_sha256;
  return d && workId && realCurrent(d) && d.binding?.ledger_state_sha256 === ledger && d.row?.work_id === workId ? d : null;
 }
+// Backend codes never appear as body text (DESIGN 2.6, 8.0); the raw value stays in technical details.
+const wsCodeWords = {'saved-import-bytes-recorded':'已获取（保存了原文字节）', 'saved-import-intent-recorded':'已获取（保存了导入记录）',
+ 'not-started':'还没开始', 'available':'可以做', 'unavailable':'现在不能做', 'blocked':'被拦下', 'held':'暂停待处理', 'failed':'失败',
+ 'saved':'已保存', 'pending':'待处理', 'required':'需要先做', 'recorded':'已记录', 'unknown':'未提供'};
+function wsPlain(value) {
+ if (value == null || value === '') return '未提供';
+ const text = String(value);
+ if (Object.hasOwn(wsCodeWords, text)) return wsCodeWords[text];
+ return /^[a-z0-9]+(?:[-_.][a-z0-9]+)+$/i.test(text) ? '有记录，原因见技术细节' : text;
+}
 function wsLibraryRowFor(workId) { return (rt.library?.rows || []).find(row => row.work_id === workId); }
 function wsSourceState(d) {
  const source = rt.overview?.stage1?.source_execution, jobs = Object.values(source?.jobs || {}).filter(job => job.work_ref === d.row.work_id);
@@ -542,7 +562,7 @@ function wsSourceState(d) {
  if (status === 'saved-import-bytes-recorded' || status === 'saved-import-intent-recorded') return ['done', '已获取', '已保存来源笔记'];
  if (jobs.some(job => job.status && !['saved', 'failed'].includes(job.status))) return ['run', '进行中', '正在获取'];
  const failures = jobs.filter(job => job.failure?.code || job.followup?.failure?.code);
- if (failures.length) return ['err', '失败', failures.map((job, i) => `第 ${i + 1} 次：${job.failure?.code || job.followup?.failure?.code}`).join('；')];
+ if (failures.length) return ['err', '失败', failures.map((job, i) => `第 ${i + 1} 次：${wsPlain(job.failure?.code || job.followup?.failure?.code)}`).join('；')];
  return ['idle', '未获取', ''];
 }
 function wsNotes(view) {
@@ -550,9 +570,9 @@ function wsNotes(view) {
  const source = view.source_mode === 'saved-source-review', notes = source ? view : view.draft, offer = view.reading_review_offer;
  if (!notes) return '<p class="wiki-s1-muted">还没有阅读。</p>';
  const lock = wsLock();
- return `<div class="ws-notes"><p class="wiki-s1-muted">原始输出保持不变，只保存你确认的注释；无法核实的字段写「未提供」。</p>
+ return `<div class="ws-notes" data-v7-reading-review><p class="wiki-s1-muted">原始输出保持不变，只保存你确认的注释；无法核实的字段写「未提供」。</p>
  <details><summary>查看来源与原文</summary><pre class="live-record">${esc(JSON.stringify(source ? {sources:view.sources, claims:view.claims} : view.draft, null, 2))}</pre></details>
- <details open><summary>编辑阅读笔记</summary>${wsNoteGroups.map(([title, fields]) => `<h5>${title}</h5><div class="ws-grid">${fields.map(([group, key]) => `<label>${wsFieldNames[key]}<textarea rows="2" maxlength="4096" data-v7-note="${group}.${key}">${esc(notes[group]?.[key] ?? '未提供')}</textarea></label>`).join('')}</div>`).join('')}
+ <details open><summary>编辑阅读笔记</summary>${wsNoteGroups.map(([title, fields]) => `<h5>${title}</h5><div class="ws-grid">${fields.map(([group, key]) => `<label>${wsFieldNames[key]}<textarea rows="2" maxlength="4096" data-v7-note="${group}.${key}" placeholder="未提供">${esc(notes[group]?.[key] ?? '')}</textarea></label>`).join('')}</div>`).join('')}
  <label class="ws-check"><input type="checkbox" data-v7-reading-confirm data-ws-gate-confirm> 我已审阅这些注释；保存不代表 Stage 1 完成</label>
  ${wsBtn('保存审阅笔记', 'data-v7-workflow="reading-save" data-ws-needs-confirm' + (offer?.offer_ref ? '' : ' data-ws-blocked'), lock || (!offer?.offer_ref ? '现在还不能做这一步：服务没有给出保存审阅笔记的操作' : '请先勾选「我已审阅这些注释」'))}</details></div>`;
 }
@@ -583,12 +603,12 @@ function wsPaperProcess(workId) {
  <details class="ws-step" ${sourceKind === 'run' || sourceKind === 'err' ? 'open' : ''}><summary><b>来源与许可范围</b> ${wsTag(sourceKind, sourceLabel)} ${esc(sourceNote)}</summary>
   ${sourceKind === 'done' && d.reading_offer?.available ? '<p>已有可读来源，不再需要授权。</p>' : `
   <div class="ws-actions">${wsBtn('查看公开来源获取条件', 'data-v7-workflow="source-preview"', lock || sourceOff)}</div>
-  ${offer ? `<p>来源获取条件：${esc(offer.status || offer.blocked_reason || offer.refusal || '未提供')}</p><details class="ws-tech"><summary>技术细节：来源与许可范围原文</summary><pre>${esc(JSON.stringify(offer, null, 2))}</pre></details>
+  ${offer ? `<p>来源获取条件：${esc(wsPlain(offer.status || offer.blocked_reason || offer.refusal))}</p><details class="ws-tech"><summary>技术细节：来源与许可范围原文</summary><pre>${esc(JSON.stringify(offer, null, 2))}</pre></details>
   <section class="ws-grant"><span class="ws-label">授权：公开来源获取</span><p><b>会做：</b>只读取这一份公开来源。<b>不会做：</b>不读别的来源、不调用模型。</p>${wsBtn('授权此公开来源获取', 'data-v7-workflow="source-authorize"', lock || sourceOff || (offer.runner_connected === true && offer.offer_ref && offer.offer_sha256 ? '' : '不在授权范围：这份来源现在没有可用的获取许可'))}</section>` : ''}
   ${allowed.map(g => `<div class="ws-actions">${wsBtn('执行已授权来源获取', `data-v7-workflow="source-execute" data-v7-index="${grants.indexOf(g)}"`, lock)}</div>`).join('')}`}
   ${sourceKind === 'err' ? `<p class="ws-amber">${esc(sourceNote)}</p>` : ''}</details>
  <div class="ws-step"><h5>Codex 阅读 <span class="ws-tag ws-idle">${rt.readingView && realCurrent(rt.readingView) ? '已有阅读' : '还没有阅读'}</span></h5>
-  <p>阅读条件：${esc(d.reading_offer?.available ? '已有可读来源' : d.reading_offer?.blocked_reason ?? '要先获取到可读来源')}</p>
+  <p>阅读条件：${esc(d.reading_offer?.available ? '已有可读来源' : (d.reading_offer?.blocked_reason ? wsPlain(d.reading_offer.blocked_reason) : '要先获取到可读来源'))}</p>
   <section class="ws-grant"><span class="ws-label">授权：Codex 阅读</span><p>只读取这份已保存来源；这段说明保存到授权记录，<b>不会改 Harness 的阅读提示词</b>。</p>
   <label>本次阅读授权说明<textarea data-v7-reading-consent rows="2" maxlength="4096" placeholder="确认本次只读取这份已保存来源；此说明保存到授权记录。"></textarea></label>
   ${wsBtn('授权一次 Codex 阅读', 'data-v7-workflow="reading-authorize"', lock || (realReadingOffer(d) ? '' : '阅读还没有可用的来源或额度'))}
@@ -604,7 +624,7 @@ function wsCandidatePanel() {
  const selected = current && realCurrent(current) ? current.row?.work_id : null;
  return `<div class="wiki-s1-columns"><section class="wiki-s1-card"><h2>已保存的检索候选 · ${esc(library.total)}</h2>
  <p class="wiki-s1-muted">这是当前查询的输出，还不是正式交付。来源、阅读和纳入决定要分别审阅。</p>
- <div class="ws-scroll"><table class="ws-table"><thead><tr><th scope="col">论文</th><th scope="col">年份</th><th scope="col">来源状态</th><th scope="col">筛选状态</th></tr></thead><tbody>${library.rows.map(row => `<tr ${row.work_id === selected ? 'class="ws-sel"' : ''}><td><button type="button" class="ws-link" data-real-paper="${esc(row.index)}">${esc(row.title ?? '未提供')}</button></td><td>${esc(row.year ?? '未提供')}</td><td>${esc(row.source_status ?? '未提供')}</td><td>${esc(wsScreenNames[row.screening_status] || row.screening_status || '未提供')}</td></tr>`).join('')}</tbody></table></div>
+ <div class="ws-scroll"><table class="ws-table"><thead><tr><th scope="col">论文</th><th scope="col">年份</th><th scope="col">来源状态</th><th scope="col">筛选状态</th></tr></thead><tbody>${library.rows.map(row => `<tr ${row.work_id === selected ? 'class="ws-sel"' : ''}><td><button type="button" class="ws-link" data-real-paper="${esc(row.index)}">${esc(row.title ?? '未提供')}</button></td><td>${esc(row.year ?? '未提供')}</td><td>${esc(wsPlain(row.source_status))}</td><td>${esc(wsScreenNames[row.screening_status] || row.screening_status || '未提供')}</td></tr>`).join('')}</tbody></table></div>
  ${library.next_offset !== null && library.next_offset !== undefined ? wsBtn('读取更多候选', 'data-v7-workflow="library-next"', wsLock()) : ''}</section>
  <section class="wiki-s1-card">${selected ? `<h2>${esc(current.row?.metadata?.title || selected)}</h2>${wsPaperProcess(selected)}` : '<h2>这篇的处理</h2><p class="wiki-s1-muted">点左边一篇论文，才会在这里做筛选、来源获取和阅读。</p>'}</section></div>`;
 }

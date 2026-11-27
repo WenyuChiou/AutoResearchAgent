@@ -67,11 +67,13 @@ test('four candidates side by side with the seven rows in the specified order an
 test('archive and imported candidates cannot submit a formal selection and the button says why', () => {
   const ctx = load(); asArchive(ctx, archive(2));
   const html = ctx.wikiS2Page(ctx.__app);
-  assert.match(html, /<button type="button" class="hs-button hs-button-primary" disabled>请先选一个<\/button><small class="wiki-s2-reason">这是历史归档，不能在这里改/);
+  // DESIGN 8.0: archives show no write controls in the decision block, only the read-only sentence.
+  assert.match(html, /data-s2-decide[^]*这是历史归档，不能在这里改/);
+  assert.doesNotMatch(html, /data-s2-decide[^]*<input type="radio" name="wiki-s2-pick"/);
   assert.doesNotMatch(html, /data-v93-choice/);
   assert.match(html, /这份候选和某个课题的 Stage 1 文献包之间没有正式的绑定记录/);
   ctx.__app.wikiS2.pick = 'A-route-0@1';
-  assert.match(ctx.wikiS2Page(ctx.__app), /确认选择方向 A…/);
+  assert.doesNotMatch(ctx.wikiS2Page(ctx.__app), /确认选择方向 A…/, 'archives offer no confirm button even with a pick');
   const imported = load({p9:{shown:{}}, n2:{model:{routes:[{candidate:{candidate_id:'A', version:1, question:'q'}, assessment:{disposition:'recommend'}}], sources:[], packet:{evidence:[]}}}});
   const text = imported.wikiS2Page(imported.__app);
   assert.match(text, /没有这个课题的接通记录和 Stage 1 绑定，不能提交正式选择/);

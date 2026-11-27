@@ -47,7 +47,8 @@ function fixture({view = null, error = '', requests = [], guide = null} = {}) {
  const ctx = {rt:{ref:'project-a', epoch:1, overview:{project:{...basis, brief:{original_description:'Synthetic topic'}}}}, apps:[app],
   v93, laterStage:() => '<later/>', v7AfterRender:() => {}, livePaint:() => {}, rx:escapeHtml, rl:zh => zh,
   v93Identity:() => ({...basis}), v93Matches:(a, b) => !!a && !!b && ['project_ref','input_version','revision','brief_sha256'].every(k => a[k] === b[k]),
-  v93Fragment:() => '#project-a?stage=3', v9ConnectionConnected:() => true, v9ConnectionPanel:() => '<connection-panel/>',
+  v93Fragment:() => '#project-a?stage=3', v9ConnectionConnected:() => true, v9ConnectionPanel:() => '<connection-panel/>', v9ConnectionModel:() => ({phase:'ready', connected:true, canWrite:true, token:'t', code:null}),
+  wikiS2ConnectionLine:() => ({tone:'done', tag:'已接通', text:'这个课题已接通', buttons:[]}),
   v9StaticStage3Read:() => false, wikiHarnessRecord:() => '<div data-wiki-record>这一段还没有记录</div>',
   v93QuestionResourceUses:() => [{resource:{name:'Series A', status:'available', purpose:'baseline'}, resource_ref:{purpose:'baseline series', fit_status:'fits'}}],
   v93PublicArchive:() => '<section>archive</section>',
@@ -190,9 +191,10 @@ test('no saved plan: says so and keeps reading state out of the way', () => {
 
 test('connection block is dropped once connected and saved; it shows before the plan exists', () => {
  const saved = page(fixture({view:directionView()}));
- assert.doesNotMatch(saved, /connection-panel/);
+ assert.doesNotMatch(saved, /data-wiki-s3-conn/);
  const waiting = page(fixture());
- assert.match(waiting, /connection-panel/);
+ assert.match(waiting, /data-wiki-s3-conn/);
+ assert.doesNotMatch(waiting, /connection-panel/, 'the old V9 panel is not used on the V1 page');
 });
 
 test('hand-written draft: summary says 人工规划草案 and the amber line appears', () => {

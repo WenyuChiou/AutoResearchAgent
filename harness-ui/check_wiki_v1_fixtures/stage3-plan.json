@@ -1,0 +1,5 @@
+{"planning_status":"conditional-draft","kind":"Stage3DirectionPlanningResult",
+ "question_plans":[{"question_ref":"q1",
+  "method":"Step 1: 建立参照 — 复现老年家庭消费的基线模型\nInputs: 公开面板数据（2010–2019）\nProcedure: 用 2010–2019 年数据拟合基线\nOutput: 基线误差表\nDecision: 基线误差已记录\nIf blocked: 缩小到能拿到的年份\nTimebox: 2 周\n\nStep 2: 构建合成人口 — 生成带年龄结构的合成家庭\nInputs: 基线误差表\nProcedure: 按人口普查边际分布生成合成家庭\nOutput: 合成家庭文件\nDecision: 年龄结构与普查边际误差在 5% 以内\nIf blocked: 改用公开的小样本合成人口\nTimebox: 2 周\n\nStep 3: 校准 LLM 主体 — 用 10% 真实数据校准决策\nInputs: 合成家庭文件\nProcedure: 用冻结的规则做校准\nOutput: 校准后的主体参数\nDecision: 校准集上的支出份额误差低于基线\nIf blocked: 只报告校准集上的结果\nTimebox: 3 周\n\nStep 4: 双向反馈模拟 — 运行宏观与家庭的双向反馈\nInputs: 校准后的主体参数\nProcedure: 按季度迭代价格与收入\nOutput: 模拟消费路径\nDecision: 模拟路径与留出年份的实际路径相符\nIf blocked: 退回单向模拟\nTimebox: 3 周\n\nStep 5: 交付 — 写出比较报告\nInputs: 模拟消费路径\nProcedure: 与基线逐项比较\nOutput: 比较报告和图表\nDecision: 报告写明所有限制\nTimebox: 1 周",
+  "materials":"公开面板数据已列出，许可还没有核实。","design":"和透明的基线模型比较。","interpretation":"留出年份上的误差必须低于基线。",
+  "minimum_deliverable":"一张基线误差表和一份合成家庭文件。","unknowns":["面板数据的许可：还没确认","留出年份：还没定"]}]}

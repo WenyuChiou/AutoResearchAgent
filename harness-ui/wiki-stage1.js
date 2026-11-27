@@ -83,7 +83,7 @@ function wikiS1Metrics(index, state) {
  const located = claims.filter(row=>row.locator).length;
  const evaluated = claims.filter(row=>wikiS1Check(row)!=='unchecked').length;
  const included = state.sources.filter(row=>row.decision?.status==='include').length;
- const count = (amount,total) => `<strong>${index ? amount : '未提供'}</strong>${index && total !== undefined ? ' / '+total : ''}`;
+ const count = (amount,total) => index ? `<strong>${amount}</strong>${total !== undefined ? ' / '+total : ''}` : '<strong class="wiki-s1-none">还没有</strong>';
  const cells = [
   [count(included,state.sources.length),'来源已纳入','分母是这份交付的文献数','工程记录'],
   [count(located),'条证据定位','有保存出处位置的证据条目','工程记录'],

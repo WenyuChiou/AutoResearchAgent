@@ -9,7 +9,7 @@ function wsMaterialFiles() {
 }
 function wsMaterialsDownloads() {
  const files = wsMaterialFiles();
- const why = '后台还没有文献包文件的下载接口，现在只能在「保存输出与文献审阅」里查看';
+ const why = '现在还不能做这一步：后台还没有文献包文件的下载接口';
  if (!files.length) return '<p class="wiki-s1-muted">文献包还没有生成，这里还没有可下载的文件。</p>';
  return `<table class="ws-table"><thead><tr><th scope="col">文件</th><th scope="col">版本</th><th scope="col">大小</th><th scope="col">操作</th></tr></thead><tbody>${files.map(file => `<tr><td>${esc(file.name ?? file.path ?? file.file_ref ?? '未提供')}</td><td>${esc(file.version ?? (file.sha256 ? file.sha256.slice(0, 12) : '未提供'))}</td><td>${esc(file.size ?? file.bytes ?? '未提供')}</td><td>${wsBtn('下载', 'data-ws-download', why)}</td></tr>`).join('')}</tbody></table>`;
 }
@@ -23,7 +23,7 @@ function wsMaterialsTab(app) {
  <h3>文件下载与导出</h3>
  <p class="wiki-s1-muted">文献包里的版本化文件（文献图谱、论文目录、逐篇笔记、BibTeX）。下载前要核验原文件；核验不过时写「保存的文件和记录不一致」。</p>
  ${wsMaterialsDownloads()}
- <p class="ws-note">上传被拒绝的原因（类型不收、文件名不合规、超过 128 MiB、续传时文件变了等）、上传进度和已传字节，由现有材料面板显示它读到的原因；页面还没有把这些原因改写成设计稿里的句子。</p></section>`;
+ <p class="ws-note">上传被拒绝时，上面的材料区会写明原因；文件不会被改动。</p></section>`;
 }
 const wsMaterialsPrevResults = wikiS1Results;
 wikiS1Results = function (app) {

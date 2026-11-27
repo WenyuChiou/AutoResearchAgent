@@ -248,7 +248,9 @@ assert.match(card, /筛选决定只更新这一篇；来源获取和阅读要单
 assert.match(buttonOf(card, 'data-v7-workflow="source-preview"'), /来源获取现在不可用/);
 assert.match(card, /<b>不会改 Harness 的阅读提示词<\/b>/);
 assert.match(buttonOf(card, 'data-v7-workflow="reading-authorize"'), /阅读还没有可用的来源或额度/);
-assert.match(card, /阅读条件：no-source/);
+// Backend codes are not body text (DESIGN 2.6); the raw value stays in technical details.
+assert.match(card, /阅读条件：有记录，原因见技术细节/);
+assert.doesNotMatch(card, /阅读条件：no-source/);
 assert.match(card, /data-ws-expansion-slot/);
 assert.match(card, /未获取/);
 // Already readable: no authorization step for the source.
@@ -269,8 +271,10 @@ rt.paperDetail.row.work_id = 'w1';
 rt.readingView = {project_ref:'project-a', source_mode:'saved-source-review', classification:{topic_cluster:'T <x>'}, findings:{question:'Q'}, sources:[], claims:[], reading_review_offer:{offer_ref:'o'}, offers:[]};
 card = ctx.wsPaperProcess('w1');
 for (const group of ['分类', '内容', '和本课题的关系']) assert.match(card, new RegExp('<h5>' + group + '</h5>'));
-assert.match(card, /data-v7-note="classification\.topic_cluster">T &lt;x&gt;/);
-assert.match(card, /data-v7-note="findings\.limitations">未提供/);
+assert.match(card, /data-v7-note="classification\.topic_cluster" placeholder="未提供">T &lt;x&gt;/);
+// Missing fields stay empty with a placeholder, so saving never writes the words 「未提供」 as a note (review P2-2).
+assert.match(card, /data-v7-note="findings\.limitations" placeholder="未提供"><\/textarea>/);
+assert.match(card, /class="ws-notes" data-v7-reading-review/, 'old reading-save handler finds the new form');
 assert.match(buttonOf(card, 'reading-save'), /请先勾选「我已审阅这些注释」/);
 assert.match(card, /保存不代表 Stage 1 完成/);
 rt.readingView.reading_review_offer = null;
