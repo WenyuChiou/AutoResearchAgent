@@ -81,6 +81,10 @@ async function wikiS3PlanAction(app, act) {
  if (!view || wikiS3Req.busy) return;
  if (act === 'read') { wikiS3Req.error = null; wikiS3Req.inspected = null; return v93ReadSaved(app, basis); } // the re-read shows the saved state
  if (act === 'failure') { wikiS3Req.showFailure = !wikiS3Req.showFailure; return livePaint(); }
+ // Check the gate again right before sending (review P2-1): the button may have been drawn before the state changed.
+ const row = wikiS3RequestLine(view);
+ const offered = row?.buttons.find(button => button.act === act);
+ if (act === 'run' ? !(row?.tag === '等你授权' && row.grant && !row.grant.gate) : !offered || offered.gate) return;
  const ref = basis.project_ref, epoch = rt.epoch, job = wikiS3ReqState(view).job;
  const request = {...view.default_request};
  const body = act === 'prepare' ? request : act === 'run' ? {...request, request_sha256:job?.request_sha256, confirmed:true} : {...request, request_sha256:job?.request_sha256};

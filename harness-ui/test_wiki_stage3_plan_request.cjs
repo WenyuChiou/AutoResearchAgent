@@ -84,6 +84,7 @@ test('prepare sends the service request as given (fixed key), run adds request_s
  assert.equal(JSON.stringify(posts[0].body), JSON.stringify(request));
  assert.equal(reads.length, 1);
  ctx.v93.view.job = {status:'intent-recorded', request_sha256:'c'.repeat(64), key:request.key};
+ vm.runInContext(`wikiS3Req.check = '${'c'.repeat(64)}'`, ctx);
  await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
  assert.equal(posts[1].p, '/api/projects/project-p/stage3/planning/run');
  assert.equal(JSON.stringify(posts[1].body), JSON.stringify({...request, request_sha256:'c'.repeat(64), confirmed:true}));
@@ -93,6 +94,7 @@ test('prepare sends the service request as given (fixed key), run adds request_s
 test('a refused run is reported as blocked, a failure as an error; neither is retried', async () => {
  const {ctx, posts} = load({view:{job:{status:'intent-recorded', request_sha256:'c'.repeat(64)}}});
  ctx.answer = () => { throw Object.assign(Error('stage3-planning-project-busy'), {status:409}); };
+ line(ctx); vm.runInContext(`wikiS3Req.check = '${'c'.repeat(64)}'`, ctx);
  await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
  assert.equal(posts.length, 1, 'no automatic retry');
  let row = line(ctx);
@@ -165,4 +167,21 @@ test('review P2-2: the tick belongs to one prepared request; a new prepare voids
  ctx.v93.view.job = {status:'intent-recorded', request_sha256:'d'.repeat(64), key:request.key};
  assert.equal(line(ctx).grant.gate, '请先勾选确认');
  assert.doesNotMatch(ctx.wikiS3RequestMarkup(ctx.v93.view), /data-s3-plan-check checked/);
+});
+
+test('review P2-1: the action checks the gate again before sending', async () => {
+ const sha = 'c'.repeat(64);
+ let {ctx, posts} = load({view:{job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
+ assert.equal(posts.length, 0, 'not ticked: nothing sent');
+ line(ctx); vm.runInContext(`wikiS3Req.check = '${sha}'`, ctx);
+ ctx.rt.pending = {ref:'project-p'};
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
+ assert.equal(posts.length, 0, 'a lock that appeared after drawing still stops it');
+ ({ctx, posts} = load({view:{planning_configured:false, dispatch_action:'unavailable'}}));
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'prepare');
+ assert.equal(posts.length, 0, 'prepare is not sent without planning configuration');
+ ({ctx, posts} = load({view:{job:{status:'intent-recorded', request_sha256:sha, key:request.key}}}));
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
+ assert.equal(posts.length, 0, 'inspect is only sent where it is offered');
 });
