@@ -65,8 +65,9 @@ sidebar = function(app) {
   return `<button type="button" class="v1-flow-item" data-stage="${stage}" aria-current="${page === 's' + stage ? 'page' : 'false'}" ${disabled ? 'disabled' : ''}><span class="v1-flow-num">${stage}</span><span class="v1-flow-body"><b>${v1StageNames[stage - 1]}</b><small><i class="v1-dot ${shownTone}"></i>${shownLine}</small></span></button>`;
  }).join('');
  const later = [4, 5, 6].map(stage => `<button type="button" class="v1-later-item" data-stage="${stage}" aria-current="${page === 'later' && app.stage === stage ? 'page' : 'false'}" ${!opened || locked ? 'disabled' : ''}>${stage} ${v1LaterNames[stage]}</button>`).join('') + (!opened || locked ? `<small class="v1-later-why">${locked ? '上次提交还没确认' : '先打开一个课题'}</small>` : '');
- return `<aside class="hs-sidebar v1-side">
+ return `<aside class="hs-sidebar v1-side" id="v1-side" ${app.v1MenuOpen ? 'data-open' : ''}>
   <div class="hs-brand v1-brand"><span class="hs-logo">h</span><div><strong>Wiki V1</strong><small>RESEARCH WIKI</small></div></div>
+  <button type="button" class="v1-menu-btn" data-v1-menu aria-controls="v1-side" aria-expanded="${app.v1MenuOpen ? 'true' : 'false'}">菜单</button>
   <nav class="v1-nav" aria-label="全局">${nav('workspace', '工作台')}${nav('files', '项目文件')}${nav('history', '操作历史')}${nav('settings', '连接与设置')}</nav>
   <div class="v1-side-label">研究流程</div>
   <nav class="v1-flow" aria-label="研究流程">${flow}</nav>
@@ -292,6 +293,28 @@ document.addEventListener('click', event => {
  else if (button.hasAttribute('data-v1-reload')) liveRefresh(rt.ref, {list:true});
  else liveRecover();
 }, true);
+// Narrow screens (<= 900px, see wiki-v1.css): the sidebar is a top bar and this button opens its menu. The state lives on
+// the app so a repaint keeps it; Enter/Space reach it as a click. Escape, a click outside, or picking an item closes it.
+function v1MenuSet(app, open, focus) {
+ if (!app) return;
+ app.v1MenuOpen = !!open;
+ const side = app.el.querySelector?.('.v1-side');
+ const button = side?.querySelector('[data-v1-menu]');
+ if (side) side.toggleAttribute('data-open', !!open);
+ if (button) { button.setAttribute('aria-expanded', open ? 'true' : 'false'); if (focus) button.focus(); }
+}
+window.addEventListener('click', event => {
+ const app = apps[0];
+ if (!app || !app.v1MenuOpen && !event.target.closest?.('[data-v1-menu]')) return;
+ const toggle = event.target.closest?.('[data-v1-menu]');
+ if (toggle) v1MenuSet(app, !app.v1MenuOpen);
+ else if (!event.target.closest?.('.v1-side') || event.target.closest?.('[data-page],[data-stage]')) v1MenuSet(app, false);
+}, true);
+window.addEventListener('keydown', event => {
+ const app = apps[0];
+ if (event.key === 'Escape' && app?.v1MenuOpen) v1MenuSet(app, false, app.el.querySelector('.v1-side')?.contains(document.activeElement));
+}, true);
+
 document.addEventListener('toggle', event => {
  if (event.target.matches?.('[data-v1-later]') && event.target.isConnected) apps[0].v1LaterOpen = event.target.open;
  // A background repaint (a read finishing) re-renders the top bar; keep the topic menu open if the user opened it.
