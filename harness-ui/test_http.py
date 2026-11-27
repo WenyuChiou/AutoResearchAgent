@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import signal
 import subprocess
 import sys
 import tempfile
@@ -29,8 +30,13 @@ class PortableHost(unittest.TestCase):
             packet_path.write_text(json.dumps(packet), encoding='utf-8')
             pin = hashlib.sha256(packet_path.read_bytes()).hexdigest()
             helper = REPO/'plugins/auto-research-agent/cli/research_workspace_native/atlas_local_source.py'
+            # A venv's Scripts/python.exe on Windows is a launcher that runs the real interpreter as its child.
+            # Terminating the launcher leaves the child (which holds project-intake.sqlite) to be killed later,
+            # so record the real interpreter's process id and stop that one in teardown.
+            server_pid = root/'server.pid'
             startup_probe = (
                 "import faulthandler,os,runpy,sys;"
+                "open(os.environ['HARNESS_TEST_SERVER_PID'],'w').write(str(os.getpid()));"
                 "faulthandler.dump_traceback_later(20);"
                 "script=sys.argv.pop(1);sys.path.insert(0,os.path.dirname(script));"
                 "runpy.run_path(script,run_name='__main__')"
@@ -41,7 +47,8 @@ class PortableHost(unittest.TestCase):
                        '--incoming-root', str(incoming), '--run-limits', str(HERE/'zero-limits.json'), '--port', '0']
             with (root/'stderr.log').open('w+', encoding='utf-8') as errors:
                 process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=errors,
-                                           text=True, encoding='utf-8', env={**os.environ, 'PYTHONDONTWRITEBYTECODE':'1'})
+                                           text=True, encoding='utf-8', env={**os.environ, 'PYTHONDONTWRITEBYTECODE':'1',
+                                                                                     'HARNESS_TEST_SERVER_PID':str(server_pid)})
                 output = queue.Queue()
                 reader = threading.Thread(target=lambda: output.put(process.stdout.readline()), daemon=True)
                 reader.start()
@@ -123,6 +130,17 @@ class PortableHost(unittest.TestCase):
                     self.assertEqual(call('/api/v9/draft', dict(id=material['id'], revision=1,
                         note='', target_stage=2, selection=invalid))[0], 409)
                 finally:
+                    try:
+                        pid = int(server_pid.read_text())
+                    except (OSError, ValueError):
+                        pid = None
+                    if pid is not None and pid != process.pid and process.poll() is None:
+                        try:
+                            os.kill(pid, signal.SIGTERM)
+                            # The launcher returns only after its child has exited and released its files.
+                            process.wait(timeout=10)
+                        except (OSError, subprocess.TimeoutExpired):
+                            pass
                     process.terminate()
                     process.wait(timeout=10)
                     reader.join(timeout=2)
