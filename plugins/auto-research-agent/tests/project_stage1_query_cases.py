@@ -591,7 +591,9 @@ class ProjectQueryCases(QueryCase):
 
         job, state, _, _ = self._timed_bootstrap(
             "hard-expiry",
-            limits=dict(PER_FILE_SECONDS=10.0),  # allowance far above the jump
+            limits=dict(
+                PER_FILE_SECONDS=10.0, MAX_SECONDS=100000.0
+            ),  # allowance > jump
             on_verify=jump_past_expiry,
         )
         self.assertEqual(job["status"], "execution-unknown")

@@ -19,8 +19,21 @@ analysis used 3.4 ms per file. ``PER_FILE_SECONDS`` = 5 ms leaves about 1.5x
 over that figure and about 2x over the cold prewarm. Cold plugin-tree outliers
 (23-28 s for about 1,515 files) exceed 5 ms per file, but the allowance is
 cumulative across a scope's passes, so the slack of the warm runtime passes
-absorbs them. ``MAX_PASSES`` = 64 is above the 17 worker passes and 26
-handshake checks observed.
+absorbs them.
+
+``MAX_PASSES`` = 64: observed 17-26 passes in the bootstrap worker (two runs
+on a copied data root), 24 in the planned-query worker, and 21 in a real
+codex.exe handshake up to account/read (thread/start not sent).
+
+``MAX_SECONDS`` = 600 caps one scope's whole allowance. Without it the file
+formula alone allows 10 + 64 x (1 + 0.005 x 13,696) = about 4,457 s (74 min)
+for the 13,696-file runtime. The slowest observed scope was 202 s of
+verification (bootstrap worker while the machine also ran two test suites),
+so 600 s is about 3x that; worst wall time is the business budget + 600 s.
+
+Do not run verification and an external action in parallel under one meter:
+while any verification span is open the business clock is paused for every
+thread sharing the meter (union time).
 """
 
 from contextlib import contextmanager
@@ -32,13 +45,19 @@ BASE_SECONDS = 10.0
 PASS_SECONDS = 1.0
 PER_FILE_SECONDS = 0.005
 MAX_PASSES = 64
+MAX_SECONDS = 600.0
 BUDGET_CODE = "local-verification-budget-exceeded"
 
 _METER = contextvars.ContextVar("local_verification_meter", default=None)
 
 
-class LocalVerificationBudgetExceeded(TimeoutError):
-    """Local verification itself overran its separate, file-count budget."""
+class LocalVerificationBudgetExceeded(RuntimeError):
+    """Local verification itself overran its separate, file-count budget.
+
+    Deliberately not a TimeoutError: read paths treat TimeoutError as an idle
+    read (transport.poll, recording) and HTTP maps it to 408, which would hide
+    this distinct reason.
+    """
 
     code = BUDGET_CODE
 
@@ -53,6 +72,7 @@ class Meter:
         pass_seconds=None,
         per_file_seconds=None,
         max_passes=None,
+        max_seconds=None,
     ):
         # Module constants are read at construction so one scope keeps one budget.
         self.base_seconds = BASE_SECONDS if base_seconds is None else base_seconds
@@ -61,15 +81,17 @@ class Meter:
             PER_FILE_SECONDS if per_file_seconds is None else per_file_seconds
         )
         self.max_passes = MAX_PASSES if max_passes is None else max_passes
+        self.max_seconds = MAX_SECONDS if max_seconds is None else max_seconds
         self._lock = threading.Lock()
         self._closed, self._passes, self._files = 0.0, 0, 0
         self._active, self._since = 0, None
 
     def _allowance(self):
-        return (
+        return min(
+            self.max_seconds,
             self.base_seconds
             + self.pass_seconds * self._passes
-            + self.per_file_seconds * self._files
+            + self.per_file_seconds * self._files,
         )
 
     def _total(self, now):

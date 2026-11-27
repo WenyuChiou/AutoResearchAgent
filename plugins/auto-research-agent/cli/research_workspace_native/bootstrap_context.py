@@ -22,6 +22,22 @@ def _now():
     return time.monotonic() - verification_clock.excluded()
 
 
+def _failure_type(error):
+    """Outer exception type, except a local verification budget overrun.
+
+    Transport and channel layers wrap whatever a binding check raised (for
+    example TransportError or DispatchUnknown). The overrun is a distinct,
+    non-timeout reason, so it is reported even when it is only the cause.
+    """
+    seen, current = set(), error
+    while current is not None and id(current) not in seen:
+        if isinstance(current, verification_clock.LocalVerificationBudgetExceeded):
+            return type(current).__name__
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return type(error).__name__
+
+
 def _rpc_id(value):
     return canonical(list(_key(value))).decode()
 
@@ -382,18 +398,17 @@ class BootstrapContext:
 
     def _fail(self, error):
         self.failure = "bootstrap failed; no automatic resend"
+        failure_type = _failure_type(error)
         try:
             with self.store._edit(
                 self.project_id,
                 self.owner,
                 None,
                 "bootstrap-failed",
-                {"exception_type": type(error).__name__},
+                {"exception_type": failure_type},
             ) as state:
                 _invalidate(state)
-                state["bootstrap"].update(
-                    phase="failed", failure_type=type(error).__name__
-                )
+                state["bootstrap"].update(phase="failed", failure_type=failure_type)
         except BaseException:
             self.failure += "; failure persistence unobserved"
         finally:
