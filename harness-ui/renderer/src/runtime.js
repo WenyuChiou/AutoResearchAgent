@@ -313,7 +313,10 @@ document.addEventListener('click',async e=>{
  if(action==='review'){if(!rt.draft.trim())return;const c=rt.atlas.stage2_input;return livePost('stage1/review-stage2-input',{...liveBound(),artifact_ref:c.artifact_ref,manifest_sha256:c.manifest_sha256,context_sha256:c.context_sha256,decision:document.querySelector('[data-live-decision]').value,user_input:rt.draft,confirmed:true});}
 },true);
 // Load only on this local server. No model, stage or search action runs on read.
-rt.overview=null;rt.atlas=null;livePaint();
+// The first roster read counts as loading: until it returns, "create" and other writes stay disabled.
+// Otherwise a create sent meanwhile was overtaken by the startup project selection, whose newer read
+// left the page on the previous project after the create succeeded.
+rt.overview=null;rt.atlas=null;rt.loading=true;livePaint();
 Promise.all([liveRequest('/v7-case.json'),liveRequest('/api/projects')]).then(async([meta,list])=>{
  // Wiki HOME and archive links need the roster as wrapped by later modules (saved views): read it once more.
  if(typeof wikiHomeProjectOpened==='function'&&((apps[0]?.lang==='zh'&&!location.hash)||wikiHomeArchiveFragment()))list=await liveRequest('/api/projects');
