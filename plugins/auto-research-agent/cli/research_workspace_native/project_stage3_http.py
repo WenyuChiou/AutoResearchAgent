@@ -22,7 +22,7 @@ from .transport import _decode
 from .project_stage3_planning import SOURCE_FIELDS, default_key
 from .project_stage3_replan import FIELDS as REPLAN_FIELDS
 from .project_stage3_replan import MODE as REPLAN_MODE
-from .project_stage3_replan import ProjectStage3Replan
+from .project_stage3_replan import ProjectStage3Replan, newest
 from .project_stage3_direction_planning import DIRECTION_FIELDS
 from .project_stage3_decision import check_shape, read_decisions, record_decision
 from .project_stage3_feedback import fits_response, read_feedback, record_feedback
@@ -100,6 +100,9 @@ class ProjectStage3Http:
                         omitted = dict(view, host_decision=summary)
                         if fits_response(omitted):
                             view = omitted  # say so; never drop it silently
+                    view = self.replan.decorate(
+                        credential, ref, view, configured["jobs"], check_deadline
+                    )
             return view
 
     def _view(self, credential, ref, *, check_deadline=None):
@@ -140,42 +143,48 @@ class ProjectStage3Http:
                 jobs._key(body["key"])
             )
             if item is not None:
-                body = dict(body, request_sha256=digest(item["payload"]))
-                pin = self.recovery_pins.get((ref, body["key"], body["request_sha256"]))
-                if (
-                    item["status"] != "completed"
-                    or (item["evidence"] or {}).get("outcome") != "saved"
-                ):
-                    pin = None
-                inspect = self.service.inspect_saved if pin else self.service.inspect
-                result["job"] = inspect(
-                    credential, ref, body, check_deadline=check_deadline
+                body, result["job"], plan, result["recovery_pin_available"] = (
+                    self._saved_job(credential, ref, jobs, body, item, check_deadline)
                 )
                 result["default_request"] = body
-                result["recovery_pin_available"] = (
-                    ref,
-                    body["key"],
-                    body["request_sha256"],
-                ) in self.recovery_pins
-                if result["job"]["outcome"] == "saved":
-                    read = jobs.inspect_saved if pin else jobs.inspect
-                    verified = read(
-                        body["key"],
-                        expected_request_sha256=body["request_sha256"],
-                        current_checkpoint=item["payload"]["checkpoint"],
-                        **({"expected_plan_manifest_sha256": pin} if pin else {}),
-                    )["result"]["plan"]
-                    from stage3_plan.storage import inspect_completed_package
-
-                    inspect_package_view = (
-                        inspect_completed_package if pin else inspect_package
-                    )
-                    result["plan"] = inspect_package_view(
-                        verified["package"], verified["manifest_sha256"]
-                    )["artifacts"]["plan.json"]
+                if plan is not None:
+                    result["plan"] = plan
+            if result["plan"] is not None:
+                # A saved replan from a manual revision becomes the displayed plan;
+                # without one the view is unchanged.
+                result = newest(self, credential, ref, jobs, result, check_deadline)
         if check_deadline:
             check_deadline()
         return result
+
+    def _saved_job(self, credential, ref, jobs, body, item, check_deadline):
+        """Public job and, when saved, its verified plan (pinned read if trusted)."""
+        body = dict(body, request_sha256=digest(item["payload"]))
+        pin = self.recovery_pins.get((ref, body["key"], body["request_sha256"]))
+        if (
+            item["status"] != "completed"
+            or (item["evidence"] or {}).get("outcome") != "saved"
+        ):
+            pin = None
+        inspect = self.service.inspect_saved if pin else self.service.inspect
+        job = inspect(credential, ref, body, check_deadline=check_deadline)
+        recovery = (ref, body["key"], body["request_sha256"]) in self.recovery_pins
+        plan = None
+        if job["outcome"] == "saved":
+            read = jobs.inspect_saved if pin else jobs.inspect
+            verified = read(
+                body["key"],
+                expected_request_sha256=body["request_sha256"],
+                current_checkpoint=item["payload"]["checkpoint"],
+                **({"expected_plan_manifest_sha256": pin} if pin else {}),
+            )["result"]["plan"]
+            from stage3_plan.storage import inspect_completed_package
+
+            inspect_package_view = inspect_completed_package if pin else inspect_package
+            plan = inspect_package_view(
+                verified["package"], verified["manifest_sha256"]
+            )["artifacts"]["plan.json"]
+        return body, job, plan, recovery
 
     def admit_feedback(self, ref, body, action):
         """Serialize local feedback writes for the same project."""

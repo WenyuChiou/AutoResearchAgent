@@ -329,5 +329,150 @@ class ReplanHostTests(ReplanFixture, unittest.TestCase):
         self.assertEqual(read["status"], "intent-recorded")
 
 
+class ReplanViewTests(ReplanFixture, unittest.TestCase):
+    def run_replan(self):
+        comment, revision, decision = self.revised_and_decided()
+        template = self.view()["replan"]
+        body = self.replan_body(decision, revision)
+        self.assertEqual(template["request"], body)
+        prepared = self.http.replan.prepare("own", self.ref, body)
+        new_plan = self.respond(body["key"], marker="NEW-PLAN-MARKER")
+        result = self.http.replan.run(
+            "own",
+            self.ref,
+            dict(body, request_sha256=prepared["request_sha256"], confirmed=True),
+        )
+        self.assertEqual(result["outcome"], "saved", result)
+        return comment, revision, decision, body, prepared, new_plan
+
+    def test_view_without_revision_has_no_replan_fields(self):
+        view = self.view()
+        self.assertNotIn("replan", view)
+        self.assertNotIn("previous_plans", view)
+        self.assertEqual(view["plan"], self.original)
+
+    def test_template_follows_revision_decision_and_job_state(self):
+        comment = self.comment()
+        revision = self.revise(comment)
+        replan = self.view()["replan"]
+        self.assertEqual(
+            (replan["available"], replan["reason"]),
+            (False, "stage3-replan-decision-required"),
+        )
+        self.assertEqual(
+            replan["from_revision_receipt_sha256"], revision["receipt_sha256"]
+        )
+        self.assertEqual(
+            replan["parent_plan_manifest_sha256"],
+            self.view()["job"]["plan_manifest_sha256"],
+        )
+        decision = self.decide()
+        view = self.view()
+        replan = view["replan"]
+        self.assertTrue(replan["available"])
+        self.assertIsNone(replan["reason"])
+        self.assertIsNone(replan["job"])
+        self.assertEqual(
+            replan["from_decision_receipt_sha256"], decision["receipt_sha256"]
+        )
+        prepared = self.http.replan.prepare("own", self.ref, replan["request"])
+        view = self.view()
+        self.assertEqual(view["replan"]["job"], prepared)
+        self.assertEqual(
+            view["replan"]["request"]["request_sha256"], prepared["request_sha256"]
+        )
+        self.assertEqual(view["plan"], self.original)  # in progress: still the parent
+        self.assertNotIn("previous_plans", view)
+
+    def test_failed_replan_keeps_the_parent_displayed_and_is_not_resent(self):
+        _, revision, decision = self.revised_and_decided()
+        body = self.replan_body(decision, revision)
+        prepared = self.http.replan.prepare("own", self.ref, body)
+        self.callback.side_effect = RuntimeError("authored adapter failure")
+        run_body = dict(body, request_sha256=prepared["request_sha256"], confirmed=True)
+        failed = self.http.replan.run("own", self.ref, run_body)
+        self.assertEqual(failed["status"], "execution-unknown", failed)
+        self.assertEqual(self.http.replan.run("own", self.ref, run_body), failed)
+        self.assertEqual(self.callback.call_count, 2)
+        view = self.view()
+        self.assertEqual(view["plan"], self.original)
+        self.assertEqual(view["replan"]["job"]["status"], "execution-unknown")
+        self.assertNotIn("previous_plans", view)
+
+    def test_saved_replan_becomes_current_and_parent_is_history(self):
+        comment, revision, decision, body, prepared, new_plan = self.run_replan()
+        before = self.journal.snapshot(self.jobs.project_id)
+        view = self.view()
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+        self.assertEqual(view["plan"], new_plan)
+        self.assertEqual(view["job"]["request_sha256"], prepared["request_sha256"])
+        self.assertEqual(view["default_request"]["key"], self.key)
+        [old] = view["previous_plans"]
+        self.assertEqual(old["plan"], self.original)
+        self.assertEqual(
+            old["job"]["request_sha256"], self.default_body["request_sha256"]
+        )
+        self.assertEqual(
+            old["replanned_by"],
+            {
+                "key": body["key"],
+                "request_sha256": prepared["request_sha256"],
+                "from_revision_receipt_sha256": revision["receipt_sha256"],
+                "from_decision_receipt_sha256": decision["receipt_sha256"],
+            },
+        )
+        self.assertEqual(
+            {r["receipt_sha256"] for r in old["feedback"]["records"]},
+            {comment["receipt_sha256"], revision["receipt_sha256"]},
+        )
+        self.assertEqual(
+            old["host_decision"]["latest"]["receipt_sha256"], decision["receipt_sha256"]
+        )
+        # the new plan starts clean; comments now bind to it
+        self.assertEqual(view["feedback"]["records"], [])
+        self.assertIsNone(view["host_decision"]["latest"])
+        self.assertEqual(
+            (view["replan"]["available"], view["replan"]["reason"]),
+            (False, "stage3-replan-revision-required"),
+        )
+        self.assertEqual(
+            view["replan"]["parent_plan_manifest_sha256"],
+            view["job"]["plan_manifest_sha256"],
+        )
+        fresh = self.comment(key="c-new", text="On the new plan.")
+        self.assertEqual(
+            fresh["record"]["binding"]["plan_request_sha256"],
+            prepared["request_sha256"],
+        )
+        # a second replan chains from the new plan
+        revision2 = self.revise(fresh, key="r-new", value="SECOND-ROUND")
+        decision2 = self.decide(key="d-new")
+        body2 = dict(
+            self.replan_body(decision2, revision2),
+            key=replan_key(
+                self.key, decision2["receipt_sha256"], revision2["receipt_sha256"]
+            ),
+        )
+        prepared2 = self.http.replan.prepare("own", self.ref, body2)
+        payload = self.item_for(body2["key"])["payload"]
+        self.assertEqual(
+            payload["revision_input"]["parent_request_sha256"],
+            prepared["request_sha256"],
+        )
+        third = self.respond(body2["key"], marker="THIRD-PLAN")
+        self.http.replan.run(
+            "own",
+            self.ref,
+            dict(body2, request_sha256=prepared2["request_sha256"], confirmed=True),
+        )
+        view = self.view()
+        self.assertEqual(view["plan"], third)
+        self.assertEqual(
+            [entry["plan"] for entry in view["previous_plans"]],
+            [self.original, new_plan],
+        )
+        self.assertEqual(self.callback.call_count, 3)
+
+
 if __name__ == "__main__":
     unittest.main()

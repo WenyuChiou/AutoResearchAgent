@@ -21,7 +21,8 @@ from stage3_plan.prompts import RevisionContextTooLarge, build_prompt
 from .project_intake_contract import _fields
 from .project_stage3_decision import REVISION, _binding
 from .project_stage3_decision import _rows as _decision_rows
-from .project_stage3_feedback import _reference
+from .project_stage3_decision import read_decisions
+from .project_stage3_feedback import _reference, fits_response, read_feedback
 from .project_stage3_feedback import _rows as _feedback_rows
 from .project_stage3_planning import SOURCE_FIELDS, default_key
 from .session_api import SessionApiError, _check
@@ -30,6 +31,7 @@ MODE = "replan-from-revision"
 DECISION = "revise-then-review"
 RECEIPTS = ("decision_receipt_sha256", "plan_revision_receipt_sha256")
 FIELDS = SOURCE_FIELDS | {"mode", *RECEIPTS}
+MAX_CHAIN = 32
 
 
 def replan_key(base_key, decision_receipt, revision_receipt):
@@ -48,6 +50,64 @@ def _saved(item):
         item["status"] == "completed"
         and (item["evidence"] or {}).get("outcome") == "saved"
     )
+
+
+def newest(transport, credential, ref, jobs, result, check_deadline=None):
+    """Point the view at the newest saved replan; earlier plans become history.
+
+    A replan job names its parent (the plan displayed when it was prepared) by
+    request and manifest hash. Without a saved replan the view is unchanged.
+    """
+    intents = list(jobs.journal.snapshot(jobs.project_id)["intents"].values())
+    previous = []
+    for _ in range(MAX_CHAIN):
+        job = result["job"]
+        kids = [
+            item
+            for item in intents
+            if item["method"] == jobs.method
+            and _saved(item)
+            and (item["payload"].get("revision_input") or {}).get(
+                "parent_request_sha256"
+            )
+            == job["request_sha256"]
+            and item["payload"]["revision_input"]["parent_plan_manifest_sha256"]
+            == job["plan_manifest_sha256"]
+        ]
+        if not kids:
+            break
+        if len(kids) > 1:  # never chosen by an arbitrary rule
+            result["replan_error"] = "stage3-replan-history-ambiguous"
+            break
+        kid = kids[0]
+        body = _source(dict(result["default_request"], key=kid["payload"]["key"]))
+        body.pop("request_sha256", None)
+        body, child, plan, _ = transport._saved_job(
+            credential, ref, jobs, body, kid, check_deadline
+        )
+        frozen = kid["payload"]["revision_input"]
+        previous.append(
+            {
+                "job": job,
+                "plan": result["plan"],
+                "replanned_by": {
+                    "key": body["key"],
+                    "request_sha256": body["request_sha256"],
+                    "from_revision_receipt_sha256": frozen[
+                        "plan_revision_receipt_sha256"
+                    ],
+                    "from_decision_receipt_sha256": frozen["decision_receipt_sha256"],
+                },
+            }
+        )
+        result["job"], result["plan"] = child, plan
+    if previous:
+        result["previous_plans"] = previous
+        for entry in previous:  # oldest bodies give way first; say so
+            if fits_response(result):
+                break
+            entry["plan"] = {"omitted": "response-bound"}
+    return result
 
 
 class ProjectStage3Replan:
@@ -271,3 +331,92 @@ class ProjectStage3Replan:
             expected_plan_manifest_sha256=expected_plan_manifest_sha256,
             check_deadline=check_deadline,
         )
+
+    def describe(self, credential, ref, view, jobs, check_deadline=None):
+        """The ``replan`` view field, or None when nothing about it has changed."""
+        try:
+            base, binding, _, ambiguous = _binding(jobs, ref, view)
+            rows = _decision_rows(jobs, base)
+        except SessionApiError as error:
+            return {"error": error.code}
+        receipt = binding[REVISION]
+        if receipt is None and not ambiguous and "previous_plans" not in view:
+            return None
+        decisions = [
+            row["receipt_sha256"]
+            for row in rows
+            if row["record"]["binding"] == binding
+            and row["record"]["decision"] == DECISION
+        ]
+        out = {
+            "available": False,
+            "reason": None,
+            "request": None,
+            "job": None,
+            "parent_plan_manifest_sha256": base["parent_plan_manifest_sha256"],
+            "from_revision_receipt_sha256": receipt,
+            "from_decision_receipt_sha256": None
+            if ambiguous or not decisions
+            else decisions[-1],
+        }
+        if view.get("planning_mode") == "direction-intent":
+            out["reason"] = "stage3-replan-direction-mode-unsupported"
+        elif ambiguous:
+            out["reason"] = "stage3-decision-revision-ambiguous"
+        elif receipt is None:
+            out["reason"] = "stage3-replan-revision-required"
+        elif not decisions:
+            out["reason"] = "stage3-replan-decision-required"
+        else:
+            default = view["default_request"]
+            request = dict(
+                _source(default),
+                mode=MODE,
+                key=replan_key(default["key"], decisions[-1], receipt),
+                decision_receipt_sha256=decisions[-1],
+                plan_revision_receipt_sha256=receipt,
+            )
+            request.pop("request_sha256", None)
+            item = jobs.journal.snapshot(jobs.project_id)["intents"].get(
+                jobs._key(request["key"])
+            )
+            if item is not None:
+                request["request_sha256"] = digest(item["payload"])
+                try:
+                    out["job"] = self.service.inspect(
+                        credential, ref, _source(request), check_deadline=check_deadline
+                    )
+                except (SessionApiError, Stage3Error) as error:
+                    out["job"] = {
+                        "error": getattr(error, "code", "stage3-replan-job-unreadable")
+                    }
+            out["request"] = request
+            out["available"] = True
+        return out
+
+    def decorate(self, credential, ref, view, jobs, check_deadline=None):
+        """Add history readbacks and the ``replan`` field when they fit."""
+        if view.get("previous_plans"):
+            enriched = []
+            for entry in view["previous_plans"]:
+                entry = dict(entry)
+                if "omitted" not in entry["plan"]:
+                    old = dict(view, job=entry["job"], plan=entry["plan"])
+                    for name, read in (
+                        ("feedback", read_feedback),
+                        ("host_decision", read_decisions),
+                    ):
+                        try:
+                            entry[name] = read(jobs, ref, old)
+                        except SessionApiError as error:
+                            entry[name] = {"error": error.code}
+                enriched.append(entry)
+            candidate = dict(view, previous_plans=enriched)
+            if fits_response(candidate):
+                view = candidate
+        described = self.describe(credential, ref, view, jobs, check_deadline)
+        if described is not None:
+            candidate = dict(view, replan=described)
+            if fits_response(candidate):
+                view = candidate
+        return view
