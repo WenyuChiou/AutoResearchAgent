@@ -11,12 +11,14 @@ import tempfile
 from threading import Thread
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 PLUGIN = Path(__file__).resolve().parents[1] / "plugins" / "auto-research-agent"
 sys.path[:0] = [str(PLUGIN / name) for name in ("cli", "tests")]
 
 from research_workspace_native.http import token_authenticator
 from research_workspace_native.project_host import ProjectHost
+from research_workspace_native.session_api import SessionApiError
 from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage1_run_grant import (
     ProjectStage1RunGrantService,
@@ -413,6 +415,21 @@ class RunGrantHttpTests(Fixture, unittest.TestCase):
         self.assertTrue(all(code in (201, 409) for code in results), results)
         state = self.intake._load("local-viewer", self.ref)
         self.assertEqual(len(state["stage1_run_grants"]), 1)
+        failed = [
+            row
+            for (row,) in self.intake.db.execute(
+                "SELECT receipt FROM intake_actions"
+            ).fetchall()
+            if json.loads(row).get("status") == "failed"
+        ]
+        self.assertEqual(failed, [], "losing racers must not leave failed records")
+
+    def test_binding_refusals_are_made_before_the_service_and_write_nothing(self):
+        self.build()
+        for code in ("intake-plan-not-ready", "imported-intake-is-read-only"):
+            error = SessionApiError(code, 409)
+            with patch.object(self.issuer, "_binding", side_effect=error):
+                self.refuse(409, code)
 
     def test_progression_needs_the_grant_then_reaches_the_submit_branch(self):
         self.build()
