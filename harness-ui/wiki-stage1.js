@@ -118,6 +118,41 @@ function wikiS1Selected(state) {
  <p>${wikiS1PaperMeta(row)}</p><button type="button" class="hs-button" data-s1-tab="evidence">看这篇的证据</button></article>`;
 }
 
+// DESIGN 2.5「平面视图提示」, 3.2: shown only while the view was switched to 2D automatically, on every repaint.
+const wikiS1FlatText = '已切换到平面视图。这台电脑显示 3D 不够流畅。内容和选中的论文都没有变。';
+function wikiS1FlatNotice(state) {
+ if (state.graphLost) return '<div class="wiki-s1-fallback" data-s1-fallback role="status">图形没有加载出来；可以用左边的来源清单，内容没有变。</div>';
+ if (!state.auto2d) return '<div class="wiki-s1-fallback" data-s1-fallback role="status" hidden></div>';
+ return `<div class="wiki-s1-fallback" data-s1-fallback role="status"><span>${wikiS1FlatText}${state.no3d ? '这台电脑现在打不开 3D。' : ''}</span><button type="button" class="hs-button" data-s1-keep3d>仍然用 3D</button></div>`;
+}
+function wikiS1Keep3d() { try { return sessionStorage.getItem('wiki-s1-keep3d') === '1'; } catch (_) { return false; } }
+function wikiS1AutoFlat(app, graph) {
+ const state = app.wikiS1;
+ if (!graph || state.mode !== 2) { try { graph?.setMode(2); } catch (_) { return; } }
+ state.mode = 2; state.auto2d = true; state.autoDone = true;
+ for (const button of app.el.querySelectorAll('[data-s1-mode]')) button.setAttribute('aria-pressed', String(Number(button.dataset.s1Mode) === 2));
+ const note = app.el.querySelector('[data-s1-fallback]');
+ if (note) note.outerHTML = wikiS1FlatNotice(state);
+}
+// About 2 s of 3D below 20 frames per second (after the layout settles) switches to 2D once (5.2 第二批 降级).
+function wikiS1WatchFrames(app, graph) {
+ const state = app.wikiS1;
+ if (state.autoDone || state.mode !== 3 || wikiS1Keep3d()) return;
+ const key = app.v7SpatialKey;
+ setTimeout(() => {
+  if (app.v7Spatial !== graph || app.v7SpatialKey !== key || state.mode !== 3 || state.autoDone || document.visibilityState !== 'visible') return;
+  let frames = 0;
+  const start = performance.now();
+  const tick = now => {
+   if (app.v7Spatial !== graph || state.mode !== 3 || document.visibilityState !== 'visible') return;
+   frames++;
+   if (now - start < 2000) { requestAnimationFrame(tick); return; }
+   if (frames / ((now - start) / 1000) < 20 && !wikiS1Keep3d()) wikiS1AutoFlat(app, graph);
+  };
+  requestAnimationFrame(tick);
+ }, 1500);
+}
+
 function wikiS1Graph(state) {
  return `<section class="wiki-s1-card wiki-s1-graph"><h2>文献星图</h2>
  <div class="wiki-s1-tools">
@@ -130,7 +165,7 @@ function wikiS1Graph(state) {
   <p class="wiki-s1-muted">节点按需求分组着色。核对状态可在证据页查看。</p>
   <p class="wiki-s1-muted">Tab 进入节点，Enter 或空格选中。拖动旋转或平移，滚轮缩放。</p>
  </div></details>
- </div><div class="wiki-s1-fallback" data-s1-fallback role="status" hidden></div>
+ </div>${wikiS1FlatNotice(state)}
  <div class="wiki-s1-atlas" data-wiki-s1-atlas></div>
  <p class="wiki-s1-muted">颜色表示分组。相似线来自相同的已保存需求，距离不表示证据强弱。</p>
  <div data-s1-selected>${wikiS1Selected(state)}</div></section>`;
@@ -249,14 +284,13 @@ function wikiS1MountAtlas(app, host) {
   if (state.mode===3) {
    try {
     graph=mount(2);
-    wikiS1SetMode(app,2,graph);
-    note.hidden=false;
-    note.textContent='已切换到平面视图。当前环境无法显示 3D，已保留选中的文献。';
+    state.no3d=true;
+    wikiS1AutoFlat(app,graph);
    } catch (_) { /* The native flat view may also require graphics support. */ }
   }
   if (!graph) {
-   note.hidden=false;
-   note.textContent='图形未加载；可使用文献列表。';
+   state.graphLost=true;
+   if (note) note.outerHTML=wikiS1FlatNotice(state);
    host.hidden=true;
   }
  }
@@ -264,6 +298,7 @@ function wikiS1MountAtlas(app, host) {
  app.v7Spatial=graph;
  host.v7Diagnostics=()=>graph?.diagnostics();
  for (const button of app.el.querySelectorAll('[data-s1-graph],[data-s1-labels],[data-s1-related]')) button.disabled=!graph;
+ wikiS1WatchFrames(app,graph);
 }
 
 function wikiS1SetMode(app,mode,graph=app.v7Spatial) {
@@ -335,7 +370,7 @@ function wikiS1ChangeTab(app, tab, focus=true) {
 }
 
 document.addEventListener('click',event=>{
- const button=event.target.closest('[data-s1-tab],[data-s1-group],[data-s1-paper],[data-s1-mode],[data-s1-check],[data-s1-graph]');
+ const button=event.target.closest('[data-s1-tab],[data-s1-group],[data-s1-paper],[data-s1-mode],[data-s1-check],[data-s1-graph],[data-s1-keep3d]');
  const app=apps[0], state=app.wikiS1;
  if (!button || button.disabled || !state || !button.closest('[data-wiki-s1]')) return;
  const data=button.dataset;
@@ -346,8 +381,17 @@ document.addEventListener('click',event=>{
   state.check=data.s1Check;livePaint();
   app.el.querySelector('[data-s1-check][aria-pressed="true"]')?.focus({preventScroll:true});
  } else if (data.s1Mode) {
+  // A manual choice is the user's; the automatic notice goes away and does not come back this time.
+  state.auto2d=false; state.autoDone=true;
   if (app.v7Spatial) { wikiS1SetMode(app,Number(data.s1Mode)); app.el.querySelector('[data-s1-fallback]').hidden=true; }
   else { state.mode=Number(data.s1Mode);livePaint(); }
+ } else if (data.s1Keep3d!==undefined) {
+  try { sessionStorage.setItem('wiki-s1-keep3d','1'); } catch (_) { /* Session preference only. */ }
+  try {
+   if (!app.v7Spatial) throw Error('no-graph');
+   wikiS1SetMode(app,3); state.auto2d=false; state.no3d=false;
+   app.el.querySelector('[data-s1-fallback]').outerHTML=wikiS1FlatNotice(state);
+  } catch (_) { state.no3d=true; app.el.querySelector('[data-s1-fallback]').outerHTML=wikiS1FlatNotice(state); }
  } else if (data.s1Graph==='focus') {
   if (state.selected) app.v7Spatial?.setFocus({kind:'paper',key:state.selected});
   app.v7Spatial?.fitFocus();

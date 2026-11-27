@@ -47,7 +47,8 @@ body:has(#harness-trace-workbench-v6 [data-wiki-s1]) { padding:0; }
 .wiki-s1-selection { background:#fffefa; border:1px solid #dde5e2; border-inline-start:4px solid #2f7a70; border-radius:6px; padding:12px 16px; }
 .wiki-s1-selection small { color:#235d56; font-weight:650; }
 .wiki-s1-selection button { margin-top:10px; }
-.wiki-s1-fallback { margin-bottom:12px; padding:12px; background:#edf3fc; border-radius:8px; }
+.wiki-s1-fallback { margin-bottom:12px; padding:12px; background:#edf3fc; border-radius:8px; display:flex; justify-content:space-between; align-items:center; gap:12px; color:#203342; }
+.wiki-s1-fallback[hidden] { display:none; }
 .wiki-s1-claim { display:grid; grid-template-columns:minmax(0,140px) minmax(0,1fr) minmax(0,230px); gap:16px; border:1px solid #dde5e2; border-radius:8px; margin-top:12px; padding:16px; }
 .wiki-s1-claim > div:last-child { border-inline-start:1px solid #dde5e2; padding-inline-start:16px; }
 .wiki-s1-claim p,.wiki-s1-claim details { margin-top:6px; }
@@ -68,3 +69,4 @@ body:has(#harness-trace-workbench-v6 [data-wiki-s1]) { padding:0; }
  .wiki-s1-claim > div:last-child { border-inline-start:0; padding-inline-start:0; }
  .wiki-s1-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+.wiki-s1-fallback [data-s1-keep3d] { white-space:nowrap; flex:none; }
