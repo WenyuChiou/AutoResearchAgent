@@ -25,6 +25,11 @@ from .session_api import _check
 SOURCE_FIELDS = BOUND_FIELDS | {"selection_request_sha256"}
 
 
+def default_key(project_ref, input_version, selection_request_sha256):
+    """The page's first planning key; it only changes with version or selection."""
+    return "stage3-" + digest([project_ref, input_version, selection_request_sha256])
+
+
 class ProjectStage3PlanningService:
     """Server-only bindings map project refs to jobs/configuration/callback.
 
@@ -255,35 +260,7 @@ class ProjectStage3PlanningService:
             configured, source, item = self._job(current, body["key"])
             jobs = configured["jobs"]
             if item is None:
-                # write_new in the core preserves an orphan checkpoint on failure;
-                # a changed key never overwrites it or reconciles it implicitly.
-                namespace = digest(
-                    dict(
-                        project_id=jobs.project_id, method=jobs.method, key=body["key"]
-                    )
-                )
-                path = safe_path(jobs.root / ("host-input-" + namespace + ".json"))
-                started = start_workflow(
-                    source["package"],
-                    source["delivery"],
-                    expected_source_manifest_sha256=source["manifest_sha256"],
-                    output=path,
-                    workflow_id="host-plan-" + digest(body["key"]),
-                )
-                result = jobs.prepare(
-                    body["key"],
-                    checkpoint={
-                        "path": str(path),
-                        "sha256": started["checkpoint_sha256"],
-                    },
-                    configuration=configured["configuration"],
-                    adapter_context=configured["adapter_context"],
-                    plan_id="host-plan-" + digest(body["key"]),
-                    expected_revision=jobs.journal.snapshot(jobs.project_id)[
-                        "revision"
-                    ],
-                    schema_version="1.1.0",
-                )
+                result = self._create(configured, source, body["key"])
             else:
                 result = jobs.inspect(
                     body["key"],
@@ -291,6 +268,40 @@ class ProjectStage3PlanningService:
                     current_checkpoint=item["payload"]["checkpoint"],
                 )
             return self._public(project_ref, result)
+
+    @staticmethod
+    def _create(configured, source, key, **revision):
+        """Save the workflow checkpoint and the job intent; never dispatches.
+
+        ``revision`` is only passed by a replan from a manual revision.
+        """
+        jobs = configured["jobs"]
+        # write_new in the core preserves an orphan checkpoint on failure;
+        # a changed key never overwrites it or reconciles it implicitly.
+        namespace = digest(
+            dict(project_id=jobs.project_id, method=jobs.method, key=key)
+        )
+        path = safe_path(jobs.root / ("host-input-" + namespace + ".json"))
+        started = start_workflow(
+            source["package"],
+            source["delivery"],
+            expected_source_manifest_sha256=source["manifest_sha256"],
+            output=path,
+            workflow_id="host-plan-" + digest(key),
+        )
+        return jobs.prepare(
+            key,
+            checkpoint={
+                "path": str(path),
+                "sha256": started["checkpoint_sha256"],
+            },
+            configuration=configured["configuration"],
+            adapter_context=configured["adapter_context"],
+            plan_id="host-plan-" + digest(key),
+            expected_revision=jobs.journal.snapshot(jobs.project_id)["revision"],
+            schema_version="1.1.0",
+            **revision,
+        )
 
     def _saved(self, credential, project_ref, body, check_deadline, *, write=False):
         current = self._current(
@@ -321,7 +332,16 @@ class ProjectStage3PlanningService:
             )
             return self._public(project_ref, result)
 
-    def run(self, credential, project_ref, body, *, check_deadline=None):
+    def run(
+        self,
+        credential,
+        project_ref,
+        body,
+        *,
+        check_deadline=None,
+        before_dispatch=None,
+    ):
+        """``before_dispatch`` is the replan revision check; replan jobs need it."""
         if type(body) is dict and body.get("mode") == "direction-intent":
             return self.direction.run(
                 credential, project_ref, body, check_deadline=check_deadline
@@ -332,6 +352,16 @@ class ProjectStage3PlanningService:
             configured, checkpoint = self._saved(
                 credential, project_ref, body, check_deadline, write=True
             )
+            jobs = configured["jobs"]
+            item = jobs.journal.snapshot(jobs.project_id)["intents"][
+                jobs._key(body["key"])
+            ]
+            if "revision_input" in item["payload"]:
+                # A replan job runs only through its mode, which re-checks that
+                # the frozen revision is still the displayed one; no call otherwise.
+                _check(before_dispatch is not None, "stage3-replan-mode-required")
+                if item["status"] == "intent-recorded":
+                    before_dispatch(item["payload"])
 
         # Acquire publication protection only after the actual adapter finishes.
         # Keep it through the core's write/attach/completion, without holding the
