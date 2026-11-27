@@ -326,3 +326,27 @@ class ProvidedCandidateTests(unittest.TestCase):
                     ]
                 )
         self.assertEqual(self.admit(self.body("corrected"))["status"], "saved")
+
+    def test_included_provided_candidate_keeps_its_origin_in_the_stage2_handoff(self):
+        from stage1_ledger.handoff import PROVIDED_MARK, PROVIDED_ORIGIN, handoff
+
+        self.admit()
+        ledger = self.private_ledger(self.ref)
+        discovery = ledger.candidates()[self.work]["discoveries"][0]
+        ledger.decide(
+            self.work,
+            "include",
+            reason="relevant-evidence",
+            rationale="included for the handoff test",
+            evidence_refs=[discovery["source_ref"]],
+            actor="agent",
+        )
+        events = [row["payload"] for row in ledger.events()]
+        value = handoff(
+            ledger.manifest, ledger.state_hash(), events, [], {}, "stop-sufficient"
+        )
+        (paper,) = value["papers"]
+        self.assertEqual(paper["origin"], PROVIDED_ORIGIN)
+        self.assertEqual(paper["metadata_identity"], "unverified")
+        (line,) = value["manual_paper_list"].splitlines()
+        self.assertTrue(line.endswith(PROVIDED_MARK))

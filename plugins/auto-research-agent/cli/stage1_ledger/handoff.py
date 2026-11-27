@@ -17,6 +17,11 @@ DIMENSIONS = [
     "Use as",
 ]
 
+# A paper the researcher supplied is not a search result and its identity is unverified; the
+# handoff says so on the paper and on its line of the manual paper list.
+PROVIDED_ORIGIN = "provided-saved-material"
+PROVIDED_MARK = " (researcher-provided saved material, unverified, not a search result)"
+
 
 def snapshots(manifest, state, events):
     base = dict(
@@ -82,6 +87,9 @@ def handoff(manifest, state, events, refs, gate, action):
                 metadata_identity=candidate["identity_status"],
                 identity_review=review["identity_status"] if review else "not-assessed",
                 source_ref=discovery["source_ref"],
+                origin=PROVIDED_ORIGIN
+                if discovery.get("provided")
+                else "search-result",
             )
         )
     # Quoted data stays one line per known paper; no comparison cells are invented.
@@ -90,6 +98,7 @@ def handoff(manifest, state, events, refs, gate, action):
         + json.dumps(" ".join(p["title"].split()), ensure_ascii=False)
         + ", "
         + (p["identifier"] or p["work_id"])
+        + (PROVIDED_MARK if p["origin"] == PROVIDED_ORIGIN else "")
         for p in papers
     )
     return dict(
