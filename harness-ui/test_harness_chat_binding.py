@@ -34,8 +34,10 @@ class RuntimeBindingTests(unittest.TestCase):
         self.helper.write_bytes(b"HELPER = True\n")
         self.actual = {"harness_chat": self.module, "helper": self.helper}
         self.data = {
-            "kind": "V9ChatRuntimeBinding", "version": 1,
-            "executable": self.entry(self.exe), "config": self.entry(self.config),
+            "kind": "V9ChatRuntimeBinding",
+            "version": 1,
+            "executable": self.entry(self.exe),
+            "config": self.entry(self.config),
             "modules": {name: self.entry(path) for name, path in self.actual.items()},
         }
         self.save()
@@ -44,14 +46,23 @@ class RuntimeBindingTests(unittest.TestCase):
         return {"path": str(path), "sha256": sha(path)}
 
     def save(self, raw=None):
-        self.manifest.write_bytes(raw if raw is not None else json.dumps(
-            self.data, ensure_ascii=False, sort_keys=True).encode("utf-8"))
+        self.manifest.write_bytes(
+            raw
+            if raw is not None
+            else json.dumps(self.data, ensure_ascii=False, sort_keys=True).encode(
+                "utf-8"
+            )
+        )
         self.pin = sha(self.manifest)
 
     def load(self, **overrides):
-        args = {"path": self.manifest, "pin": self.pin,
-                "actual_modules": self.actual, "expected_executable": self.exe,
-                "expected_config": self.config}
+        args = {
+            "path": self.manifest,
+            "pin": self.pin,
+            "actual_modules": self.actual,
+            "expected_executable": self.exe,
+            "expected_config": self.config,
+        }
         args.update(overrides)
         return load_binding(**args)
 
@@ -81,9 +92,11 @@ class RuntimeBindingTests(unittest.TestCase):
         self.rejects("chat-binding-file-too-large")
 
     def test_bad_json_utf8_and_nonfinite_rejected(self):
-        for raw, code in [(b"{", "chat-binding-json-invalid"),
-                          (b"\xff", "chat-binding-json-invalid"),
-                          (b'{"version":NaN}', "chat-binding-json-nonfinite-number")]:
+        for raw, code in [
+            (b"{", "chat-binding-json-invalid"),
+            (b"\xff", "chat-binding-json-invalid"),
+            (b'{"version":NaN}', "chat-binding-json-nonfinite-number"),
+        ]:
             with self.subTest(raw=raw):
                 self.save(raw)
                 self.rejects(code)
@@ -137,7 +150,9 @@ class RuntimeBindingTests(unittest.TestCase):
 
     def test_host_closure_required_and_named(self):
         self.rejects("chat-binding-runtime-closure-required", actual_modules={})
-        self.rejects("chat-binding-module-name-invalid", actual_modules={"../x": self.module})
+        self.rejects(
+            "chat-binding-module-name-invalid", actual_modules={"../x": self.module}
+        )
 
     def test_entry_extra_fields_and_relative_path_rejected(self):
         self.data["config"]["extra"] = True
@@ -165,7 +180,9 @@ class RuntimeBindingTests(unittest.TestCase):
     def test_manifest_change_after_initial_load_rejected_on_verify(self):
         bound = self.load()
         self.manifest.write_bytes(self.manifest.read_bytes() + b"\n")
-        with self.assertRaisesRegex(BindingError, "^chat-binding-manifest-pin-differs$"):
+        with self.assertRaisesRegex(
+            BindingError, "^chat-binding-manifest-pin-differs$"
+        ):
             bound.verify()
 
     def test_recheck_uses_new_actual_loaded_mapping(self):
@@ -173,7 +190,9 @@ class RuntimeBindingTests(unittest.TestCase):
         new_module = self.root / "loaded-elsewhere.py"
         new_module.write_bytes(self.module.read_bytes())
         with self.assertRaisesRegex(BindingError, "^chat-binding-actual-path-differs$"):
-            bound.verify(actual_modules={"harness_chat": new_module, "helper": self.helper})
+            bound.verify(
+                actual_modules={"harness_chat": new_module, "helper": self.helper}
+            )
 
     def test_deleted_file_and_directory_rejected(self):
         self.module.unlink()

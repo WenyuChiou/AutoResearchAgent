@@ -17,18 +17,25 @@ from chat_test_fixtures import PRINCIPAL, ChatFixture, FakeRpc
 from harness_chat import ChatService, load_config
 from harness_chat_tools import encoded
 
-CODES = lambda view: [r["code"] for r in view["connect_check"]["reasons"] + view["spend_check"]["reasons"]]  # noqa: E731
+CODES = lambda view: [
+    r["code"] for r in view["connect_check"]["reasons"] + view["spend_check"]["reasons"]
+]  # noqa: E731
 
 
 class Base(unittest.TestCase):
     def setUp(self):
         self.fx = ChatFixture(self)
-        self.channel = patch("native_stage1._ProcessChannel", side_effect=AssertionError("native-process-forbidden")).start()
+        self.channel = patch(
+            "native_stage1._ProcessChannel",
+            side_effect=AssertionError("native-process-forbidden"),
+        ).start()
         self.popen = None
         self.addCleanup(patch.stopall)
 
     def forbid_popen(self):
-        self.popen = patch("subprocess.Popen", side_effect=AssertionError("native-process-forbidden")).start()
+        self.popen = patch(
+            "subprocess.Popen", side_effect=AssertionError("native-process-forbidden")
+        ).start()
 
     def tearDown(self):
         self.assertEqual(self.channel.call_count, 0)
@@ -37,19 +44,38 @@ class Base(unittest.TestCase):
 
     def ledger(self, service):
         with service.db() as db:
-            return (db.execute("SELECT turns,seconds FROM quota.budget WHERE id=1").fetchone(),
-                    db.execute("SELECT COUNT(*) FROM turns").fetchone()[0])
+            return (
+                db.execute(
+                    "SELECT turns,seconds FROM quota.budget WHERE id=1"
+                ).fetchone(),
+                db.execute("SELECT COUNT(*) FROM turns").fetchone()[0],
+            )
 
     def grant_file(self, **override):
         fx = self.fx
         exe, config = fx.root / "codex.exe", fx.root / "config.toml"
         exe.write_bytes(b"fixture, never executed")
         config.write_text("", encoding="utf-8")
-        spec = dict(executable=str(exe), config_path=str(config), model="fixture-model", effort="high",
-                    expires_at=time.time() + 600, max_turns=3, turn_seconds=10, previous_calls=0, previous_seconds=0,
-                    max_calls=3, max_seconds=100, pins={}, authorization="fixture-test-grant",
-                    budget_path=str(fx.root / "quota.sqlite3"), principal=PRINCIPAL, bindings=[fx.binding()],
-                    stages=[1, 2], money_cap_usd=None)
+        spec = dict(
+            executable=str(exe),
+            config_path=str(config),
+            model="fixture-model",
+            effort="high",
+            expires_at=time.time() + 600,
+            max_turns=3,
+            turn_seconds=10,
+            previous_calls=0,
+            previous_seconds=0,
+            max_calls=3,
+            max_seconds=100,
+            pins={},
+            authorization="fixture-test-grant",
+            budget_path=str(fx.root / "quota.sqlite3"),
+            principal=PRINCIPAL,
+            bindings=[fx.binding()],
+            stages=[1, 2],
+            money_cap_usd=None,
+        )
         spec.update(override)
         path = fx.root / "grant.json"
         path.write_bytes(encoded(spec))
@@ -65,19 +91,32 @@ class Rule1Login(Base):
         self.assertEqual(fx.finished(service, fx.send(service))["status"], "completed")
         self.assertEqual(service.status(fx.ref, 1, PRINCIPAL)["panel_state"], "ready")
 
-    def test_codex_not_logged_in_shows_login_text_hides_content_and_calls_no_model(self):
+    def test_codex_not_logged_in_shows_login_text_hides_content_and_calls_no_model(
+        self,
+    ):
         fx = self.fx
         service = fx.service(logged_in=False)
         before = service.status(fx.ref, 1, PRINCIPAL)
-        self.assertEqual((before["panel_state"], before["can_send"], before["codex_login"]), ("ready", True, "unknown-until-send"))
+        self.assertEqual(
+            (before["panel_state"], before["can_send"], before["codex_login"]),
+            ("ready", True, "unknown-until-send"),
+        )
         turn = fx.finished(service, fx.send(service))
         self.assertEqual(turn["status"], "failed")
         self.assertIn("codex-login-required", turn["error"])
         self.assertTrue({"initialize", "account/read"} <= set(fx.rpcs[0].methods))
-        self.assertFalse({"thread/start", "turn/start", "model/list"} & set(fx.rpcs[0].methods))
+        self.assertFalse(
+            {"thread/start", "turn/start", "model/list"} & set(fx.rpcs[0].methods)
+        )
         view = service.status(fx.ref, 1, PRINCIPAL)
-        self.assertEqual((view["panel_state"], view["codex_login"], view["content_hidden"]), ("login-required", "logged-out", True))
-        self.assertEqual((view["sessions"], view["turns"], view["context"]["materials"]), ([], [], []))
+        self.assertEqual(
+            (view["panel_state"], view["codex_login"], view["content_hidden"]),
+            ("login-required", "logged-out", True),
+        )
+        self.assertEqual(
+            (view["sessions"], view["turns"], view["context"]["materials"]),
+            ([], [], []),
+        )
         self.assertEqual(view["panel_reason"]["text"], "还没登录 Codex")
 
 
@@ -96,9 +135,14 @@ class Rule2Permit(Base):
         fx.projects.add("project-beta", "pid-beta")
         service = fx.service(fx.grant(bindings=[fx.binding("project-beta")]))
         view = service.status(fx.ref, 1, PRINCIPAL)
-        self.assertEqual((view["panel_state"], view["can_send"], view["content_hidden"]), ("no-permit", False, False))
+        self.assertEqual(
+            (view["panel_state"], view["can_send"], view["content_hidden"]),
+            ("no-permit", False, False),
+        )
         self.assertIn("Stage 1 整轮运行的同意书不能代用", view["panel_reason"]["text"])
-        self.assertEqual([m["name"] for m in view["context"]["materials"]], ["notes.md"])
+        self.assertEqual(
+            [m["name"] for m in view["context"]["materials"]], ["notes.md"]
+        )
         with self.assertRaisesRegex(ValueError, "project-stage-not-authorized"):
             fx.send(service)
         self.assertEqual(self.ledger(service), (None, 0))
@@ -118,7 +162,9 @@ class Rule2Permit(Base):
             service.start(dict(old_body, key="unique-request-0002"), PRINCIPAL)
         self.assertEqual(self.ledger(service), (None, 0))
 
-    def test_changed_brief_or_stale_page_version_is_refused_and_exact_version_passes(self):
+    def test_changed_brief_or_stale_page_version_is_refused_and_exact_version_passes(
+        self,
+    ):
         fx = self.fx
         service = fx.service()
         stale = dict(fx.body(), input_version=2)
@@ -146,9 +192,15 @@ class Rule2Permit(Base):
     def test_stage_one_progression_consent_cannot_stand_in_for_a_chat_permit(self):
         fx = self.fx
         binding = fx.binding()
-        consent = dict(kind="ProjectStageProgressionConsent", schema_version="1.0.0", confirmed=True,
-                       expires_at="2099-01-01T00:00:00+00:00", settings_sha256="d" * 64,
-                       stages={"stage1": dict(profile_sha256="e" * 64, max_dispatches=1)}, **binding)
+        consent = dict(
+            kind="ProjectStageProgressionConsent",
+            schema_version="1.0.0",
+            confirmed=True,
+            expires_at="2099-01-01T00:00:00+00:00",
+            settings_sha256="d" * 64,
+            stages={"stage1": dict(profile_sha256="e" * 64, max_dispatches=1)},
+            **binding,
+        )
         path = fx.root / "consent.json"
         path.write_bytes(encoded(consent))
         with self.assertRaisesRegex(ValueError, "chat-config-fields-differ"):
@@ -158,12 +210,17 @@ class Rule2Permit(Base):
         fx = self.fx
         path, pin = self.grant_file()
         spec = load_config(path, pin)
-        service = ChatService(fx.root / "chat", fx.tools, spec, rpc_factory=lambda r: self.fail("no rpc"))
+        service = ChatService(
+            fx.root / "chat", fx.tools, spec, rpc_factory=lambda r: self.fail("no rpc")
+        )
         self.addCleanup(service.close)
         self.assertEqual(service.status(fx.ref, 1, PRINCIPAL)["panel_state"], "ready")
         Path(str(path) + ".revoked").write_text("operator", encoding="utf-8")
         view = service.status(fx.ref, 1, PRINCIPAL)
-        self.assertEqual((view["panel_state"], view["enabled"], view["can_send"]), ("blocked", False, False))
+        self.assertEqual(
+            (view["panel_state"], view["enabled"], view["can_send"]),
+            ("blocked", False, False),
+        )
         self.assertIn("已被操作者撤销", view["panel_reason"]["text"])
         with self.assertRaisesRegex(ValueError, "chat-permit-revoked"):
             fx.send(service)
@@ -177,7 +234,9 @@ class Rule2Permit(Base):
             load_config(capped_path, capped_pin)
         capped = fx.service(fx.grant(money_cap_usd=5))
         view = capped.status(fx.ref, 1, PRINCIPAL)
-        self.assertEqual(view["panel_reason"]["text"], "服务无法执行金额上限，所以不发送")
+        self.assertEqual(
+            view["panel_reason"]["text"], "服务无法执行金额上限，所以不发送"
+        )
         with self.assertRaisesRegex(ValueError, "money-cap-not-enforceable"):
             fx.send(capped)
 
@@ -187,8 +246,12 @@ class Rule2Permit(Base):
         view = service.status(fx.ref, 1, PRINCIPAL)
         self.assertTrue(view["connect_check"]["ok"])
         self.assertFalse(view["spend_check"]["ok"])
-        self.assertEqual(view["spend_check"]["reasons"][0]["text"], "调用次数已用完，不会自动追加")
-        self.assertEqual((view["spend_check"]["remaining_turns"], view["can_send"]), (0, False))
+        self.assertEqual(
+            view["spend_check"]["reasons"][0]["text"], "调用次数已用完，不会自动追加"
+        )
+        self.assertEqual(
+            (view["spend_check"]["remaining_turns"], view["can_send"]), (0, False)
+        )
 
 
 class Rule3NoDoubleCharge(Base):
@@ -222,11 +285,19 @@ class Rule3NoDoubleCharge(Base):
         service = fx.service(fx.grant(turn_seconds=1), silent=True)
         turn = fx.send(service)
         row = fx.finished(service, turn)
-        self.assertEqual((row["status"], row["error"]), ("unknown", "chat-deadline-native-terminal-unconfirmed"))
+        self.assertEqual(
+            (row["status"], row["error"]),
+            ("unknown", "chat-deadline-native-terminal-unconfirmed"),
+        )
         self.assertEqual(fx.rpcs[0].methods.count("turn/start"), 1)
         view = service.status(fx.ref, 1, PRINCIPAL)
-        self.assertEqual((view["panel_state"], view["can_send"], view["reserved_turns"]), ("unknown-result", False, 1))
-        self.assertEqual(view["turns"][0]["error_reason"]["text"], "这一轮的结果还没确认")
+        self.assertEqual(
+            (view["panel_state"], view["can_send"], view["reserved_turns"]),
+            ("unknown-result", False, 1),
+        )
+        self.assertEqual(
+            view["turns"][0]["error_reason"]["text"], "这一轮的结果还没确认"
+        )
         with self.assertRaisesRegex(ValueError, "unresolved"):
             fx.send(service, key="unique-request-0002")
         self.assertEqual(fx.send(service)["id"], turn["id"])
@@ -239,13 +310,23 @@ class Rule3NoDoubleCharge(Base):
     def test_started_elsewhere_blocks_every_project_until_reconciled(self):
         fx = self.fx
         fx.projects.add("project-beta", "pid-beta")
-        spec = fx.grant(bindings=[fx.binding(), fx.binding("project-beta")], max_turns=5, max_calls=5, max_seconds=200)
-        service = fx.service(spec, wrong_binding=True, action=dict(action="state", id="", note=""))
+        spec = fx.grant(
+            bindings=[fx.binding(), fx.binding("project-beta")],
+            max_turns=5,
+            max_calls=5,
+            max_seconds=200,
+        )
+        service = fx.service(
+            spec, wrong_binding=True, action=dict(action="state", id="", note="")
+        )
         held = fx.finished(service, fx.send(service))
         self.assertEqual(held["status"], "unknown")
         view = service.status("project-beta", 1, PRINCIPAL)
         self.assertEqual((view["panel_state"], view["can_send"]), ("other-turn", False))
-        self.assertEqual((view["other_turn"]["project_ref"], view["other_turn"]["stage"]), (fx.ref, 1))
+        self.assertEqual(
+            (view["other_turn"]["project_ref"], view["other_turn"]["stage"]),
+            (fx.ref, 1),
+        )
 
 
 class Rule4NoDecisionsByChat(Base):
@@ -256,7 +337,9 @@ class Rule4NoDecisionsByChat(Base):
         service = fx.service(action=dict(action="materials", id="", note=""))
         turn = fx.finished(service, fx.send(service))
         self.assertEqual(turn["status"], "completed")
-        self.assertEqual(turn["outputs"][0]["value"]["materials"][0]["name"], "notes.md")
+        self.assertEqual(
+            turn["outputs"][0]["value"]["materials"][0]["name"], "notes.md"
+        )
 
     def test_offered_tool_has_read_actions_only(self):
         fx = self.fx
@@ -266,30 +349,59 @@ class Rule4NoDecisionsByChat(Base):
         for stage in range(1, 7):
             context = fx.tools.context(fx.ref, stage)
             self.assertEqual(context["supported_actions"][:1], ["state"])
-            self.assertTrue(set(context["supported_actions"]) <= {"state", "materials", "read_material"})
-            self.assertFalse(context["capabilities"]["formal_selection"] or context["capabilities"]["research_execution"])
-            self.assertFalse(context["capabilities"]["material_registration"] or context["capabilities"]["local_review_notes"])
+            self.assertTrue(
+                set(context["supported_actions"])
+                <= {"state", "materials", "read_material"}
+            )
+            self.assertFalse(
+                context["capabilities"]["formal_selection"]
+                or context["capabilities"]["research_execution"]
+            )
+            self.assertFalse(
+                context["capabilities"]["material_registration"]
+                or context["capabilities"]["local_review_notes"]
+            )
 
     def test_model_asking_for_a_decision_or_write_is_refused_and_nothing_changes(self):
         fx = self.fx
         project_before = json.dumps(fx.projects.records, sort_keys=True)
         catalog_before = json.dumps(fx.store.catalog(), sort_keys=True)
         service = fx.service(fx.grant(max_turns=20, max_calls=20, max_seconds=400))
-        for index, action in enumerate(("select_candidate", "register_delivery", "save_review", "prepare_workflow",
-                                       "prepare_advice", "approve_plan", "start_research")):
+        for index, action in enumerate(
+            (
+                "select_candidate",
+                "register_delivery",
+                "save_review",
+                "prepare_workflow",
+                "prepare_advice",
+                "approve_plan",
+                "start_research",
+            )
+        ):
             fake = []
 
             def factory(record, action=action, fake=fake):
-                fake.append(FakeRpc(record, action=dict(action=action, id=fx.text["id"], note="Choose direction A")))
+                fake.append(
+                    FakeRpc(
+                        record,
+                        action=dict(
+                            action=action, id=fx.text["id"], note="Choose direction A"
+                        ),
+                    )
+                )
                 return fake[0]
 
             service.rpc_factory = factory
-            row = fx.finished(service, fx.send(service, key="unique-decision-key-%04d" % index))
+            row = fx.finished(
+                service, fx.send(service, key="unique-decision-key-%04d" % index)
+            )
             self.assertEqual((row["status"], row["outputs"]), ("completed", []), action)
             result = fake[0].sent[-1]["result"]
             self.assertFalse(result["success"], action)
             self.assertIn("Harness rejected", result["contentItems"][0]["text"])
-        self.assertEqual(json.dumps(fx.projects.records, sort_keys=True), project_before)
+        self.assertEqual(
+            json.dumps(fx.projects.records, sort_keys=True), project_before
+        )
         self.assertEqual(json.dumps(fx.store.catalog(), sort_keys=True), catalog_before)
 
     def test_status_never_claims_a_decision_or_execution(self):
@@ -297,16 +409,29 @@ class Rule4NoDecisionsByChat(Base):
         service = fx.service()
         fx.finished(service, fx.send(service))
         view = service.status(fx.ref, 1, PRINCIPAL)
-        self.assertEqual((view["formal_selection"], view["execution_authorized"], view["research_execution"], view["read_only"]),
-                         (False, False, False, True))
+        self.assertEqual(
+            (
+                view["formal_selection"],
+                view["execution_authorized"],
+                view["research_execution"],
+                view["read_only"],
+            ),
+            (False, False, False, True),
+        )
 
 
 class ZeroAllowanceNeverStartsCodex(Base):
     """With no allowance, no path may launch Codex: no grant, exhausted, expired or zero-turn grants."""
 
     def assert_nothing_started(self, service, fx):
-        for call in (lambda: fx.send(service), lambda: service.answer(dict(turn_id="t", request_id="r", request_sha256="s", value=True)),
-                     lambda: service.stop("turn-none"), lambda: service.reconcile("turn-none")):
+        for call in (
+            lambda: fx.send(service),
+            lambda: service.answer(
+                dict(turn_id="t", request_id="r", request_sha256="s", value=True)
+            ),
+            lambda: service.stop("turn-none"),
+            lambda: service.reconcile("turn-none"),
+        ):
             with self.assertRaises(ValueError):
                 call()
         self.assertEqual(fx.rpcs, [])
@@ -321,16 +446,26 @@ class ZeroAllowanceNeverStartsCodex(Base):
         self.assert_nothing_started(service, fx)
         self.assertFalse(service.status(fx.ref, 1, PRINCIPAL)["can_send"])
 
-    def test_zero_turn_grant_exhausted_expired_each_refuse_without_rpc_or_reservation(self):
+    def test_zero_turn_grant_exhausted_expired_each_refuse_without_rpc_or_reservation(
+        self,
+    ):
         fx = self.fx
         self.forbid_popen()
-        cases = dict(zero=fx.grant(max_turns=0), exhausted=fx.grant(previous_calls=3, previous_seconds=0),
-                     seconds=fx.grant(previous_seconds=95), expired=fx.grant(expires_at=time.time() - 1))
+        cases = dict(
+            zero=fx.grant(max_turns=0),
+            exhausted=fx.grant(previous_calls=3, previous_seconds=0),
+            seconds=fx.grant(previous_seconds=95),
+            expired=fx.grant(expires_at=time.time() - 1),
+        )
         for name, spec in cases.items():
             with self.subTest(name):
                 fx.rpcs.clear()
-                service = ChatService(fx.root / ("chat-" + name), fx.tools, dict(spec, budget_path=str(fx.root / (name + ".sqlite3"))),
-                                      rpc_factory=None)
+                service = ChatService(
+                    fx.root / ("chat-" + name),
+                    fx.tools,
+                    dict(spec, budget_path=str(fx.root / (name + ".sqlite3"))),
+                    rpc_factory=None,
+                )
                 self.addCleanup(service.close)
                 view = service.status(fx.ref, 1, PRINCIPAL)
                 self.assertFalse(view["can_send"])
@@ -343,15 +478,28 @@ class ZeroAllowanceNeverStartsCodex(Base):
     def test_zero_allowance_over_real_http_never_starts_anything(self):
         from test_harness_chat_http import HostFixture
 
-        host = HostFixture(self, spec_factory=lambda f: f.grant(max_turns=0), rpc_factory=None)
+        host = HostFixture(
+            self, spec_factory=lambda f: f.grant(max_turns=0), rpc_factory=None
+        )
         self.forbid_popen()
         code, refused = host.call("/api/v9/chat/send", host.send_body())
-        self.assertEqual((code, refused["error"], refused["reason"]["text"]), (409, "chat-cumulative-budget-exhausted", "调用次数已用完，不会自动追加"))
-        for route, body in (("answer", dict(turn_id="t", request_id="r", request_sha256="s", value=True)),
-                            ("stop", dict(turn_id="t")), ("reconcile", dict(turn_id="t"))):
+        self.assertEqual(
+            (code, refused["error"], refused["reason"]["text"]),
+            (409, "chat-cumulative-budget-exhausted", "调用次数已用完，不会自动追加"),
+        )
+        for route, body in (
+            (
+                "answer",
+                dict(turn_id="t", request_id="r", request_sha256="s", value=True),
+            ),
+            ("stop", dict(turn_id="t")),
+            ("reconcile", dict(turn_id="t")),
+        ):
             self.assertEqual(host.call("/api/v9/chat/" + route, body)[0], 409, route)
         state = host.call("/api/v9/chat/state?project=" + host.ref + "&stage=1")[1]
-        self.assertEqual((state["can_send"], state["reserved_turns"], state["turns"]), (False, 0, []))
+        self.assertEqual(
+            (state["can_send"], state["reserved_turns"], state["turns"]), (False, 0, [])
+        )
         self.assertEqual(self.ledger(host.service), (None, 0))
 
 

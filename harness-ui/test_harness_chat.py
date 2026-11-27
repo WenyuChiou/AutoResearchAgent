@@ -29,7 +29,10 @@ class ChatServiceTests(unittest.TestCase):
         self.assertTrue(value["text"].startswith("Saved reading note"))
         self.assertFalse(value["research_generated"])
         self.assertFalse(value["execution_authorized"])
-        second = fx.finished(service, fx.send(service, key="unique-request-0002", session=first["session_id"]))
+        second = fx.finished(
+            service,
+            fx.send(service, key="unique-request-0002", session=first["session_id"]),
+        )
         self.assertEqual(second["thread_id"], first["thread_id"])
         self.assertEqual(fx.rpcs[-1].resumed, first["thread_id"])
         self.assertEqual(len(service.status(fx.ref, 2, PRINCIPAL)["turns"]), 0)
@@ -39,7 +42,9 @@ class ChatServiceTests(unittest.TestCase):
 
     def test_wrong_native_binding_held_and_readonly_recovery(self):
         fx = self.fx
-        service = fx.service(action=dict(action="state", id="", note=""), wrong_binding=True)
+        service = fx.service(
+            action=dict(action="state", id="", note=""), wrong_binding=True
+        )
         turn = fx.finished(service, fx.send(service))
         self.assertEqual(turn["status"], "unknown")
         with self.assertRaisesRegex(ValueError, "unresolved"):
@@ -55,7 +60,9 @@ class ChatServiceTests(unittest.TestCase):
         fx.projects.add("project-beta", "pid-beta")
         other = fx.tools.context("project-beta", 1)
         with self.assertRaisesRegex(ValueError, "binding"):
-            fx.tools.call(other, dict(action="read_material", id=fx.text["id"], note=""))
+            fx.tools.call(
+                other, dict(action="read_material", id=fx.text["id"], note="")
+            )
         service = fx.service(fx.grant(expires_at=time.time() - 1))
         with self.assertRaisesRegex(ValueError, "lease-expired"):
             fx.send(service)
@@ -66,7 +73,12 @@ class ChatServiceTests(unittest.TestCase):
         service = fx.service()
         fx.finished(service, fx.send(service))
         with self.assertRaisesRegex(ValueError, "another-store"):
-            ChatService(fx.root / "other-chat", fx.tools, fx.grant(), rpc_factory=lambda r: FakeRpc(r))
+            ChatService(
+                fx.root / "other-chat",
+                fx.tools,
+                fx.grant(),
+                rpc_factory=lambda r: FakeRpc(r),
+            )
         self.assertEqual(service.status(fx.ref, 1, PRINCIPAL)["reserved_turns"], 1)
 
     def test_native_question_and_interrupt(self):
@@ -74,8 +86,14 @@ class ChatServiceTests(unittest.TestCase):
         service = fx.service(question=True)
         turn = fx.send(service)
         pending = fx.wait(service, turn, {"waiting"})["pending"]
-        service.answer(dict(turn_id=turn["id"], request_id=pending["id"], request_sha256=pending["sha256"],
-                            value={"scope": "Current topic only"}))
+        service.answer(
+            dict(
+                turn_id=turn["id"],
+                request_id=pending["id"],
+                request_sha256=pending["sha256"],
+                value={"scope": "Current topic only"},
+            )
+        )
         self.assertEqual(fx.finished(service, turn)["status"], "completed")
         again = fx.send(service, key="unique-request-0002", session=turn["session_id"])
         fx.wait(service, again, {"waiting"})
@@ -113,11 +131,19 @@ class ChatServiceTests(unittest.TestCase):
         fx.finished(service, fx.send(service))
 
         def snapshot():
-            return {p.name: (p.stat().st_mtime_ns, hashlib.sha256(p.read_bytes()).hexdigest())
-                    for p in sorted(fx.root.rglob("*.sqlite3"))}
+            return {
+                p.name: (
+                    p.stat().st_mtime_ns,
+                    hashlib.sha256(p.read_bytes()).hexdigest(),
+                )
+                for p in sorted(fx.root.rglob("*.sqlite3"))
+            }
 
         before = snapshot()
-        self.assertEqual(sorted(before), ["conversations.sqlite3", "materials.sqlite3", "quota.sqlite3"])
+        self.assertEqual(
+            sorted(before),
+            ["conversations.sqlite3", "materials.sqlite3", "quota.sqlite3"],
+        )
         for stage in range(1, 7):
             service.status(fx.ref, stage, PRINCIPAL)
         service.status(fx.ref, 1, "someone-else")
@@ -129,18 +155,30 @@ class ChatServiceTests(unittest.TestCase):
         fx.register_text(fx.ref, 1, "paper.pdf", b"%PDF-1.7 fixture")
         gone = fx.register_text(fx.ref, 1, "gone.txt", b"will be deleted")
         changed = fx.register_text(fx.ref, 1, "changed.txt", b"before")
-        upload = fx.store.begin_upload(dict(project_ref=fx.ref, name="partial.txt", stage=1, bytes=10, sha256="c" * 64))
+        upload = fx.store.begin_upload(
+            dict(
+                project_ref=fx.ref,
+                name="partial.txt",
+                stage=1,
+                bytes=10,
+                sha256="c" * 64,
+            )
+        )
         base = Path(fx.store.root) / "files"
         (base / (gone["id"] + ".bin")).unlink()
         (base / (changed["id"] + ".bin")).write_bytes(b"after!")
-        rows = {m["name"]: m["readable"] for m in fx.tools.context(fx.ref, 1)["materials"]}
+        rows = {
+            m["name"]: m["readable"] for m in fx.tools.context(fx.ref, 1)["materials"]
+        }
         self.assertEqual(rows["notes.md"], dict(ok=True, reason=None, text="能读"))
         self.assertEqual(rows["big.txt"]["reason"], "too-large")
         self.assertEqual(rows["paper.pdf"]["reason"], "not-plain-text")
         self.assertEqual(rows["gone.txt"]["reason"], "file-missing")
         self.assertEqual(rows["changed.txt"]["reason"], "changed-since-registration")
         self.assertEqual(rows["partial.txt"]["reason"], "not-screened-or-verified")
-        self.assertTrue(upload["name"] in rows and all(r["text"] for r in rows.values()))
+        self.assertTrue(
+            upload["name"] in rows and all(r["text"] for r in rows.values())
+        )
         service = fx.service(action=dict(action="read_material", id=big["id"], note=""))
         result = fx.finished(service, fx.send(service))
         self.assertEqual(result["status"], "completed")
@@ -153,7 +191,9 @@ class ChatServiceTests(unittest.TestCase):
         foreign = fx.register_text("project-beta", 1, "secret.md", b"belongs to beta")
         names = [m["name"] for m in fx.tools.context(fx.ref, 1)["materials"]]
         self.assertEqual(names, ["notes.md"])
-        service = fx.service(action=dict(action="read_material", id=foreign["id"], note=""))
+        service = fx.service(
+            action=dict(action="read_material", id=foreign["id"], note="")
+        )
         result = fx.finished(service, fx.send(service))
         self.assertEqual(result["outputs"], [])
         self.assertFalse(fx.rpcs[-1].sent[-1]["result"]["success"])

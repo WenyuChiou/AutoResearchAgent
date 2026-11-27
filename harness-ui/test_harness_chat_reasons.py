@@ -1,11 +1,18 @@
 """Reason wording, runtime closure and operator preparation: pure, no model, no network."""
+
 import json
 from pathlib import Path
 import re
 import tempfile
 import unittest
 
-from harness_chat_reasons import EXACT, FALLBACK, explain, explain_all, explain_turn_error
+from harness_chat_reasons import (
+    EXACT,
+    FALLBACK,
+    explain,
+    explain_all,
+    explain_turn_error,
+)
 from harness_chat_runtime import HERE, runtime_module_paths
 
 # Design 8.4 "错误码怎么写成人话": every row, by code.
@@ -53,16 +60,23 @@ class Reasons(unittest.TestCase):
             self.assertEqual(explain(code)["text"], FALLBACK)
 
     def test_stage_context_refusals_all_mean_not_connected(self):
-        for code in ("chat-stage-context-provider-unregistered", "chat-stage-provider-binding-differs",
-                     "chat-stage-required-evidence-missing"):
+        for code in (
+            "chat-stage-context-provider-unregistered",
+            "chat-stage-provider-binding-differs",
+            "chat-stage-required-evidence-missing",
+        ):
             self.assertEqual(explain(code)["group"], "stage-unconnected", code)
 
     def test_text_never_contains_a_raw_code_and_explain_all_dedupes(self):
         for code, group, text in EXACT:
             self.assertNotIn(code, text)
             self.assertNotRegex(text, r"[a-z]+-[a-z]+-[a-z]+")
-        both = explain_all(["codex-quota-below-15", "codex-quota-below-15", "codex-quota-unknown"])
-        self.assertEqual([x["code"] for x in both], ["codex-quota-below-15", "codex-quota-unknown"])
+        both = explain_all(
+            ["codex-quota-below-15", "codex-quota-below-15", "codex-quota-unknown"]
+        )
+        self.assertEqual(
+            [x["code"] for x in both], ["codex-quota-below-15", "codex-quota-unknown"]
+        )
 
 
 class TurnErrors(unittest.TestCase):
@@ -89,20 +103,33 @@ class TurnErrors(unittest.TestCase):
 class Closure(unittest.TestCase):
     def test_runtime_closure_stays_inside_harness_ui_and_uses_mainline_channel(self):
         modules = runtime_module_paths()
-        self.assertEqual(Path(modules["native_stage1"]).resolve(), (HERE / "native_stage1.py").resolve())
+        self.assertEqual(
+            Path(modules["native_stage1"]).resolve(),
+            (HERE / "native_stage1.py").resolve(),
+        )
         for name, path in modules.items():
             self.assertTrue(Path(path).resolve().is_relative_to(HERE.resolve()), name)
         self.assertIn("harness_chat", modules)
         self.assertNotIn("local_reuse_chat_tools", modules)
 
     def test_no_ported_source_names_a_ui_work_path(self):
-        names = [p for p in HERE.glob("*.py") if p.name.startswith(("harness_chat", "chat_", "current_chat"))]
+        names = [
+            p
+            for p in HERE.glob("*.py")
+            if p.name.startswith(("harness_chat", "chat_", "current_chat"))
+        ]
         self.assertGreater(len(names), 10)
         for path in names:
             if path.name.startswith("test_") or path.name == "chat_test_fixtures.py":
                 continue
             text = path.read_text(encoding="utf-8")
-            for forbidden in ("UI/work", "v7-functional-candidate", "v9-ui-stage12", "D:/Codex_Learning", "harness_ui/"):
+            for forbidden in (
+                "UI/work",
+                "v7-functional-candidate",
+                "v9-ui-stage12",
+                "D:/Codex_Learning",
+                "harness_ui/",
+            ):
                 self.assertNotIn(forbidden, text, (path.name, forbidden))
             self.assertIsNone(re.search(r"[A-Z]:[\\/]", text), path.name)
 
@@ -115,12 +142,25 @@ class Closure(unittest.TestCase):
             exe.write_bytes(b"fixture, never executed")
             config.write_text("", encoding="utf-8")
             result = prepare(base / "observation", exe, config)
-            self.assertEqual((result["message_permit_created"], result["send_ready"], result["model_messages"]), (False, False, 0))
-            manifest = json.loads((base / "observation" / "runtime-binding.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                (
+                    result["message_permit_created"],
+                    result["send_ready"],
+                    result["model_messages"],
+                ),
+                (False, False, 0),
+            )
+            manifest = json.loads(
+                (base / "observation" / "runtime-binding.json").read_text(
+                    encoding="utf-8"
+                )
+            )
             self.assertEqual(manifest["kind"], "V9ChatRuntimeBinding")
             self.assertIn("native_stage1", manifest["modules"])
             self.assertEqual(sorted(p.name for p in base.rglob("*.sqlite3")), [])
-            with self.assertRaisesRegex(ValueError, "new-absolute-observation-directory-required"):
+            with self.assertRaisesRegex(
+                ValueError, "new-absolute-observation-directory-required"
+            ):
                 prepare(base / "observation", exe, config)
             with self.assertRaisesRegex(ValueError, "outside-git"):
                 prepare(HERE / "never-created", exe, config)

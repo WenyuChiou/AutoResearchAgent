@@ -32,31 +32,52 @@ class PermitTests(unittest.TestCase):
             self.key_path.chmod(0o600)
         self.receipt_path = self.root / "synthetic-receipt.json"
         now = int(time.time())
-        self.request = {"kind": "V9ChatContinuationPermissionCheck",
-                        "contract_sha256": "a" * 64, "research_execution": False,
-                        "contract": {"kind": "V9ChatContinuation", "version": 3,
-                                     "scope": {"issued_at": now - 10, "expires_at": now + 3600,
-                                               "model_messages_authorized": True,
-                                               "research_execution": False,
-                                               "actions": ["state", "materials"]}}}
-        self.receipt = {"kind": "V9LocalChatOnlyPermit", "version": 1,
-                        "contract_sha256": "a" * 64,
-                        "request_sha256": hashlib.sha256(canonical(self.request)).hexdigest(),
-                        "authorization_source_sha256": "b" * 64,
-                        "issued_at": now - 5, "expires_at": now + 3500,
-                        "signature": "0" * 64}
+        self.request = {
+            "kind": "V9ChatContinuationPermissionCheck",
+            "contract_sha256": "a" * 64,
+            "research_execution": False,
+            "contract": {
+                "kind": "V9ChatContinuation",
+                "version": 3,
+                "scope": {
+                    "issued_at": now - 10,
+                    "expires_at": now + 3600,
+                    "model_messages_authorized": True,
+                    "research_execution": False,
+                    "actions": ["state", "materials"],
+                },
+            },
+        }
+        self.receipt = {
+            "kind": "V9LocalChatOnlyPermit",
+            "version": 1,
+            "contract_sha256": "a" * 64,
+            "request_sha256": hashlib.sha256(canonical(self.request)).hexdigest(),
+            "authorization_source_sha256": "b" * 64,
+            "issued_at": now - 5,
+            "expires_at": now + 3500,
+            "signature": "0" * 64,
+        }
         self.save()
 
     def save(self, raw=None, *, sign=True):
         if sign:
-            payload = {key: value for key, value in self.receipt.items() if key != "signature"}
-            self.receipt["signature"] = hmac.new(self.key, canonical(payload), hashlib.sha256).hexdigest()
+            payload = {
+                key: value for key, value in self.receipt.items() if key != "signature"
+            }
+            self.receipt["signature"] = hmac.new(
+                self.key, canonical(payload), hashlib.sha256
+            ).hexdigest()
         raw = raw if raw is not None else canonical(self.receipt)
         self.receipt_path.write_bytes(raw)
         self.pin = hashlib.sha256(raw).hexdigest()
 
     def bind(self, **kwargs):
-        args = {"receipt_path": self.receipt_path, "receipt_sha": self.pin, "key_path": self.key_path}
+        args = {
+            "receipt_path": self.receipt_path,
+            "receipt_sha": self.pin,
+            "key_path": self.key_path,
+        }
         args.update(kwargs)
         return load_permit_verifier(**args)
 
@@ -65,7 +86,9 @@ class PermitTests(unittest.TestCase):
             self.bind(**kwargs)
 
     def resign_request(self):
-        self.receipt["request_sha256"] = hashlib.sha256(canonical(self.request)).hexdigest()
+        self.receipt["request_sha256"] = hashlib.sha256(
+            canonical(self.request)
+        ).hexdigest()
         self.save()
 
     def test_fixed_request_success_and_no_file_changes(self):
@@ -73,23 +96,42 @@ class PermitTests(unittest.TestCase):
         verify = self.bind()
         for _ in range(2):
             result = verify(deepcopy(self.request))
-            self.assertEqual(result, {"kind": "V9VerifiedChatOnlyPermit",
-                                      "request_sha256": self.receipt["request_sha256"],
-                                      "model_messages_authorized": True, "research_execution": False})
-        self.assertEqual(before, (self.key_path.read_bytes(), self.receipt_path.read_bytes()))
+            self.assertEqual(
+                result,
+                {
+                    "kind": "V9VerifiedChatOnlyPermit",
+                    "request_sha256": self.receipt["request_sha256"],
+                    "model_messages_authorized": True,
+                    "research_execution": False,
+                },
+            )
+        self.assertEqual(
+            before, (self.key_path.read_bytes(), self.receipt_path.read_bytes())
+        )
 
     def test_operator_revocation_marker_stops_a_valid_permit(self):
         verify = self.bind()
-        self.assertEqual(verify(deepcopy(self.request))["model_messages_authorized"], True)
-        Path(str(self.receipt_path) + ".revoked").write_text("operator revoked", encoding="utf-8")
+        self.assertEqual(
+            verify(deepcopy(self.request))["model_messages_authorized"], True
+        )
+        Path(str(self.receipt_path) + ".revoked").write_text(
+            "operator revoked", encoding="utf-8"
+        )
         with self.assertRaisesRegex(PermitError, "^chat-permit-revoked$"):
             verify(deepcopy(self.request))
         Path(str(self.receipt_path) + ".revoked").unlink()
-        self.assertEqual(verify(deepcopy(self.request))["model_messages_authorized"], True)
+        self.assertEqual(
+            verify(deepcopy(self.request))["model_messages_authorized"], True
+        )
 
     def test_canonical_rule_matches_contract_encoding(self):
-        expected = json.dumps({"中文": [2, 1], "a": False}, ensure_ascii=False,
-                              sort_keys=True, allow_nan=False, separators=(",", ":")).encode("utf-8")
+        expected = json.dumps(
+            {"中文": [2, 1], "a": False},
+            ensure_ascii=False,
+            sort_keys=True,
+            allow_nan=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
         self.assertEqual(canonical({"中文": [2, 1], "a": False}), expected)
 
     def test_receipt_external_pin_is_required(self):
@@ -118,12 +160,17 @@ class PermitTests(unittest.TestCase):
             self.bind()(changed)
 
     def test_research_or_no_model_authority_rejected_even_if_signed(self):
-        for field, value in [("research_execution", True), ("model_messages_authorized", False)]:
+        for field, value in [
+            ("research_execution", True),
+            ("model_messages_authorized", False),
+        ]:
             with self.subTest(field=field):
                 original = self.request["contract"]["scope"][field]
                 self.request["contract"]["scope"][field] = value
                 self.resign_request()
-                with self.assertRaisesRegex(PermitError, "^chat-permit-scope-chat-only-required$"):
+                with self.assertRaisesRegex(
+                    PermitError, "^chat-permit-scope-chat-only-required$"
+                ):
                     self.bind()(self.request)
                 self.request["contract"]["scope"][field] = original
 
@@ -132,7 +179,9 @@ class PermitTests(unittest.TestCase):
             with self.subTest(actions=actions):
                 self.request["contract"]["scope"]["actions"] = actions
                 self.resign_request()
-                with self.assertRaisesRegex(PermitError, "^chat-permit-read-actions-only$"):
+                with self.assertRaisesRegex(
+                    PermitError, "^chat-permit-read-actions-only$"
+                ):
                     self.bind()(self.request)
 
     def test_request_shape_and_outer_research_rejected(self):
@@ -141,7 +190,9 @@ class PermitTests(unittest.TestCase):
         with self.assertRaisesRegex(PermitError, "^chat-permit-request-fields-differ$"):
             verify(changed)
         changed = dict(self.request, research_execution=True)
-        with self.assertRaisesRegex(PermitError, "^chat-permit-request-chat-only-required$"):
+        with self.assertRaisesRegex(
+            PermitError, "^chat-permit-request-chat-only-required$"
+        ):
             verify(changed)
 
     def test_receipt_extra_fields_and_bool_version_rejected(self):
@@ -154,9 +205,11 @@ class PermitTests(unittest.TestCase):
         self.rejects_load("chat-permit-receipt-version-invalid")
 
     def test_duplicate_keys_and_nonfinite_json_rejected(self):
-        for raw, code in [(b'{"kind":"x","kind":"y"}', "chat-permit-json-duplicate-key"),
-                          (b'{"issued_at":NaN}', "chat-permit-json-nonfinite"),
-                          (b"\xff", "chat-permit-json-invalid")]:
+        for raw, code in [
+            (b'{"kind":"x","kind":"y"}', "chat-permit-json-duplicate-key"),
+            (b'{"issued_at":NaN}', "chat-permit-json-nonfinite"),
+            (b"\xff", "chat-permit-json-invalid"),
+        ]:
             with self.subTest(code=code):
                 self.save(raw, sign=False)
                 self.rejects_load(code)
@@ -168,10 +221,12 @@ class PermitTests(unittest.TestCase):
 
     def test_receipt_future_expired_and_invalid_windows_rejected(self):
         now = int(time.time())
-        for issued, expiry, code in [(now + 10, now + 20, "chat-permit-not-current"),
-                                     (now - 20, now - 10, "chat-permit-not-current"),
-                                     (True, now + 10, "chat-permit-time-invalid"),
-                                     (now + 10, now, "chat-permit-time-invalid")]:
+        for issued, expiry, code in [
+            (now + 10, now + 20, "chat-permit-not-current"),
+            (now - 20, now - 10, "chat-permit-not-current"),
+            (True, now + 10, "chat-permit-time-invalid"),
+            (now + 10, now, "chat-permit-time-invalid"),
+        ]:
             with self.subTest(code=code):
                 self.receipt.update(issued_at=issued, expires_at=expiry)
                 self.save()
@@ -185,7 +240,9 @@ class PermitTests(unittest.TestCase):
 
     def test_callback_rechecks_time_without_new_verifier(self):
         verify = self.bind()
-        with patch("harness_chat_permit.time.time", return_value=self.receipt["expires_at"]):
+        with patch(
+            "harness_chat_permit.time.time", return_value=self.receipt["expires_at"]
+        ):
             with self.assertRaisesRegex(PermitError, "^chat-permit-not-current$"):
                 verify(self.request)
 
@@ -201,8 +258,10 @@ class PermitTests(unittest.TestCase):
             verify(self.request)
 
     def test_key_must_be_exactly_32_bytes(self):
-        for raw, code in [(b"a" * 31, "chat-permit-key-size-invalid"),
-                          (b"a" * 33, "chat-permit-file-too-large")]:
+        for raw, code in [
+            (b"a" * 31, "chat-permit-key-size-invalid"),
+            (b"a" * 33, "chat-permit-file-too-large"),
+        ]:
             with self.subTest(length=len(raw)):
                 self.key_path.write_bytes(raw)
                 self.rejects_load(code)
@@ -224,9 +283,11 @@ class PermitTests(unittest.TestCase):
         def linked(path):
             info = original(path)
             if path == key_path:
+
                 class Reparse:
                     st_mode = info.st_mode
                     st_file_attributes = 0x400
+
                 return Reparse()
             return info
 

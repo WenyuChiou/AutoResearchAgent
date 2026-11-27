@@ -20,9 +20,18 @@ import time
 LIMIT = 64 * 1024
 PIN = re.compile(r"[0-9a-f]{64}\Z")
 READ_ACTIONS = frozenset({"state", "materials", "read_material"})
-RECEIPT_FIELDS = frozenset({"kind", "version", "contract_sha256", "request_sha256",
-                            "authorization_source_sha256", "issued_at", "expires_at",
-                            "signature"})
+RECEIPT_FIELDS = frozenset(
+    {
+        "kind",
+        "version",
+        "contract_sha256",
+        "request_sha256",
+        "authorization_source_sha256",
+        "issued_at",
+        "expires_at",
+        "signature",
+    }
+)
 
 
 class PermitError(ValueError):
@@ -35,16 +44,23 @@ def _require(ok, code):
 
 
 def _sha(value):
-    _require(type(value) is str and PIN.fullmatch(value) is not None,
-             "chat-permit-sha256-invalid")
+    _require(
+        type(value) is str and PIN.fullmatch(value) is not None,
+        "chat-permit-sha256-invalid",
+    )
     return value
 
 
 def canonical(value):
     """The exact UTF-8 encoding signed and used for the request fingerprint."""
     try:
-        raw = json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False,
-                         separators=(",", ":")).encode("utf-8")
+        raw = json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            allow_nan=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
     except (TypeError, ValueError, UnicodeError, RecursionError):
         raise PermitError("chat-permit-canonical-json-invalid") from None
     _require(len(raw) <= LIMIT, "chat-permit-json-too-large")
@@ -52,8 +68,10 @@ def canonical(value):
 
 
 def _absolute(value):
-    _require(isinstance(value, (str, os.PathLike)) and not isinstance(value, bytes),
-             "chat-permit-path-invalid")
+    _require(
+        isinstance(value, (str, os.PathLike)) and not isinstance(value, bytes),
+        "chat-permit-path-invalid",
+    )
     try:
         path = Path(value)
         _require(path.is_absolute(), "chat-permit-absolute-path-required")
@@ -67,24 +85,37 @@ def _absolute(value):
 
 
 def _identity(value):
-    return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
 
 
 def _private_key_path(path):
-    _require(any(part.lower() in {"private", "_private"} for part in path.parts[:-1]),
-             "chat-permit-private-key-directory-required")
+    _require(
+        any(part.lower() in {"private", "_private"} for part in path.parts[:-1]),
+        "chat-permit-private-key-directory-required",
+    )
     # Runtime keys must not be in Git, including worktrees with a .git pointer.
     for parent in (path.parent, *path.parent.parents):
         _require(not (parent / ".git").exists(), "chat-permit-key-in-git-refused")
     try:
         for component in reversed((path, *path.parents)):
             info = component.lstat()
-            _require(not stat.S_ISLNK(info.st_mode)
-                     and not (getattr(info, "st_file_attributes", 0) & 0x400),
-                     "chat-permit-key-link-refused")
+            _require(
+                not stat.S_ISLNK(info.st_mode)
+                and not (getattr(info, "st_file_attributes", 0) & 0x400),
+                "chat-permit-key-link-refused",
+            )
         # POSIX mode bits are meaningful there; Windows ACLs are operator-owned.
         if os.name != "nt":
-            _require(not (path.stat().st_mode & 0o077), "chat-permit-key-permissions-not-private")
+            _require(
+                not (path.stat().st_mode & 0o077),
+                "chat-permit-key-permissions-not-private",
+            )
     except PermitError:
         raise
     except (OSError, ValueError):
@@ -104,8 +135,11 @@ def _read(path, limit, *, key=False):
             raw = stream.read(limit + 1)
             closed = os.fstat(stream.fileno())
         _require(len(raw) <= limit, "chat-permit-file-too-large")
-        _require(_identity(before) == _identity(closed) == _identity(path.stat())
-                 and len(raw) == before.st_size, "chat-permit-file-changed")
+        _require(
+            _identity(before) == _identity(closed) == _identity(path.stat())
+            and len(raw) == before.st_size,
+            "chat-permit-file-changed",
+        )
         if key:
             _private_key_path(path)
             _require(len(raw) == 32, "chat-permit-key-size-invalid")
@@ -130,18 +164,29 @@ def _nonfinite(_value):
 
 def _parse(raw):
     try:
-        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique,
-                           parse_constant=_nonfinite)
+        value = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_unique, parse_constant=_nonfinite
+        )
     except PermitError:
         raise
     except (ValueError, UnicodeError, RecursionError):
         raise PermitError("chat-permit-json-invalid") from None
-    _require(type(value) is dict and set(value) == RECEIPT_FIELDS,
-             "chat-permit-receipt-fields-differ")
-    _require(value["kind"] == "V9LocalChatOnlyPermit"
-             and type(value["version"]) is int and value["version"] == 1,
-             "chat-permit-receipt-version-invalid")
-    for field in ("contract_sha256", "request_sha256", "authorization_source_sha256", "signature"):
+    _require(
+        type(value) is dict and set(value) == RECEIPT_FIELDS,
+        "chat-permit-receipt-fields-differ",
+    )
+    _require(
+        value["kind"] == "V9LocalChatOnlyPermit"
+        and type(value["version"]) is int
+        and value["version"] == 1,
+        "chat-permit-receipt-version-invalid",
+    )
+    for field in (
+        "contract_sha256",
+        "request_sha256",
+        "authorization_source_sha256",
+        "signature",
+    ):
         _sha(value[field])
     _window(value)
     return value
@@ -155,19 +200,31 @@ def _number(value):
 
 
 def _window(value):
-    _require(_number(value.get("issued_at")) and _number(value.get("expires_at"))
-             and 0 < value["issued_at"] < value["expires_at"], "chat-permit-time-invalid")
+    _require(
+        _number(value.get("issued_at"))
+        and _number(value.get("expires_at"))
+        and 0 < value["issued_at"] < value["expires_at"],
+        "chat-permit-time-invalid",
+    )
 
 
 def _receipt(path, pin, key):
     raw = _read(path, LIMIT)
-    _require(hmac.compare_digest(hashlib.sha256(raw).hexdigest(), pin),
-             "chat-permit-receipt-pin-differs")
+    _require(
+        hmac.compare_digest(hashlib.sha256(raw).hexdigest(), pin),
+        "chat-permit-receipt-pin-differs",
+    )
     value = _parse(raw)
     payload = {name: item for name, item in value.items() if name != "signature"}
     expected = hmac.new(key, canonical(payload), hashlib.sha256).hexdigest()
-    _require(hmac.compare_digest(expected, value["signature"]), "chat-permit-signature-differs")
-    _require(value["issued_at"] <= time.time() < value["expires_at"], "chat-permit-not-current")
+    _require(
+        hmac.compare_digest(expected, value["signature"]),
+        "chat-permit-signature-differs",
+    )
+    _require(
+        value["issued_at"] <= time.time() < value["expires_at"],
+        "chat-permit-not-current",
+    )
     return value
 
 
@@ -185,37 +242,74 @@ def load_permit_verifier(receipt_path, receipt_sha, key_path):
 
     def verify(request):
         # Revocation is an operator-side marker next to the receipt, never a page action.
-        _require(not Path(str(receipt_path) + ".revoked").exists(), "chat-permit-revoked")
+        _require(
+            not Path(str(receipt_path) + ".revoked").exists(), "chat-permit-revoked"
+        )
         key = _read(key_path, 32, key=True)
         _require(hmac.compare_digest(key, initial_key), "chat-permit-key-changed")
         receipt = _receipt(receipt_path, receipt_sha, key)
-        _require(type(request) is dict and set(request) == {
-            "kind", "contract_sha256", "contract", "research_execution"},
-            "chat-permit-request-fields-differ")
-        _require(request["kind"] == "V9ChatContinuationPermissionCheck"
-                 and request["research_execution"] is False,
-                 "chat-permit-request-chat-only-required")
-        _require(_sha(request["contract_sha256"]) == receipt["contract_sha256"],
-                 "chat-permit-contract-pin-differs")
+        _require(
+            type(request) is dict
+            and set(request)
+            == {"kind", "contract_sha256", "contract", "research_execution"},
+            "chat-permit-request-fields-differ",
+        )
+        _require(
+            request["kind"] == "V9ChatContinuationPermissionCheck"
+            and request["research_execution"] is False,
+            "chat-permit-request-chat-only-required",
+        )
+        _require(
+            _sha(request["contract_sha256"]) == receipt["contract_sha256"],
+            "chat-permit-contract-pin-differs",
+        )
         fingerprint = hashlib.sha256(canonical(request)).hexdigest()
-        _require(hmac.compare_digest(fingerprint, receipt["request_sha256"]),
-                 "chat-permit-fixed-request-differs")
+        _require(
+            hmac.compare_digest(fingerprint, receipt["request_sha256"]),
+            "chat-permit-fixed-request-differs",
+        )
         contract = request["contract"]
-        _require(type(contract) is dict and contract.get("kind") == "V9ChatContinuation"
-                 and type(contract.get("version")) is int and contract["version"] == 3
-                 and type(contract.get("scope")) is dict, "chat-permit-contract-shape-invalid")
+        _require(
+            type(contract) is dict
+            and contract.get("kind") == "V9ChatContinuation"
+            and type(contract.get("version")) is int
+            and contract["version"] == 3
+            and type(contract.get("scope")) is dict,
+            "chat-permit-contract-shape-invalid",
+        )
         scope = contract["scope"]
-        _require(scope.get("model_messages_authorized") is True
-                 and scope.get("research_execution") is False, "chat-permit-scope-chat-only-required")
+        _require(
+            scope.get("model_messages_authorized") is True
+            and scope.get("research_execution") is False,
+            "chat-permit-scope-chat-only-required",
+        )
         actions = scope.get("actions")
-        _require(type(actions) is list and actions
-                 and all(type(action) is str and action in READ_ACTIONS for action in actions)
-                 and len(set(actions)) == len(actions), "chat-permit-read-actions-only")
+        _require(
+            type(actions) is list
+            and actions
+            and all(
+                type(action) is str and action in READ_ACTIONS for action in actions
+            )
+            and len(set(actions)) == len(actions),
+            "chat-permit-read-actions-only",
+        )
         _window(scope)
-        _require(scope["issued_at"] <= receipt["issued_at"] < receipt["expires_at"] <= scope["expires_at"],
-                 "chat-permit-time-outside-contract")
-        _require(scope["issued_at"] <= time.time() < scope["expires_at"], "chat-permit-contract-not-current")
-        return {"kind": "V9VerifiedChatOnlyPermit", "request_sha256": fingerprint,
-                "model_messages_authorized": True, "research_execution": False}
+        _require(
+            scope["issued_at"]
+            <= receipt["issued_at"]
+            < receipt["expires_at"]
+            <= scope["expires_at"],
+            "chat-permit-time-outside-contract",
+        )
+        _require(
+            scope["issued_at"] <= time.time() < scope["expires_at"],
+            "chat-permit-contract-not-current",
+        )
+        return {
+            "kind": "V9VerifiedChatOnlyPermit",
+            "request_sha256": fingerprint,
+            "model_messages_authorized": True,
+            "research_execution": False,
+        }
 
     return verify
