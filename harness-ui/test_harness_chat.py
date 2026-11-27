@@ -125,6 +125,30 @@ class ChatServiceTests(unittest.TestCase):
         fx.finished(owner, winner)
         self.assertEqual(owner.status(fx.ref, 1, PRINCIPAL)["reserved_turns"], 1)
 
+    def test_command_request_is_auto_declined_and_noted_without_asking(self):
+        fx = self.fx
+        service = fx.service(command=True)
+        row = fx.finished(service, fx.send(service))
+        self.assertEqual(row["status"], "completed")
+        self.assertEqual(row["notices"], [dict(kind="auto-declined-command")])
+        self.assertEqual(fx.rpcs[-1].sent[-1]["result"], {"decision": "decline"})
+        self.assertIsNone(row["pending"])
+
+    def test_long_tool_result_is_kept_whole_and_marked_as_truncated_for_codex(self):
+        fx = self.fx
+        text = "line of notes" + chr(10)
+        big = fx.register_text(fx.ref, 1, "long.md", (text * 4600).encode())
+        service = fx.service(action=dict(action="read_material", id=big["id"], note=""))
+        row = fx.finished(service, fx.send(service))
+        output = row["outputs"][0]
+        self.assertEqual(len(output["value"]["text"]), 14 * 4600)
+        self.assertTrue(output["model_saw_truncated"])
+        service.rpc_factory = lambda record: FakeRpc(
+            record, action=dict(action="read_material", id=fx.text["id"], note="")
+        )
+        short = fx.finished(service, fx.send(service, key="unique-request-0009"))
+        self.assertFalse(short["outputs"][0]["model_saw_truncated"])
+
     def test_status_reads_never_write_the_stores(self):
         fx = self.fx
         service = fx.service()

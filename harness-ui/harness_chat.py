@@ -899,7 +899,7 @@ class ChatService:
             )
             native_turn = result["turn"]["id"]
             self.update(turn["id"], native_turn_id=native_turn, status="running")
-            outputs, text, stopped, calls = [], "", False, {}
+            outputs, notices, text, stopped, calls = [], [], "", False, {}
             while time.monotonic() < deadline:
                 if control["stop"].is_set() and not stopped:
                     rpc.request(
@@ -1007,16 +1007,19 @@ class ChatService:
                                         )
                                     value = self.tools.call(session, args)
                                     raw = encoded(value)
+                                    # Never inject an unbounded full paper into Codex context.
+                                    shown = model_preview(value, sha(raw))
                                     output = dict(
                                         call_id=params["callId"],
                                         action=args["action"],
                                         value=value,
                                         sha256=sha(raw),
+                                        # The page keeps the full result; says when Codex saw only the start.
+                                        model_saw_truncated=isinstance(shown, dict)
+                                        and shown.get("truncated") is True,
                                     )
                                     outputs.append(output)
                                     self.update(turn["id"], outputs=outputs)
-                                    # Never inject an unbounded full paper into Codex context.
-                                    shown = model_preview(value, sha(raw))
                                     response = dict(
                                         success=True,
                                         contentItems=[
@@ -1076,6 +1079,14 @@ class ChatService:
                         "item/fileChange/requestApproval",
                     }:
                         response = {"decision": "decline"}
+                        # The page shows a grey "request declined" line; nobody is asked.
+                        kind = (
+                            "command"
+                            if method.startswith("item/commandExecution")
+                            else "file-change"
+                        )
+                        notices.append(dict(kind="auto-declined-" + kind))
+                        self.update(turn["id"], notices=notices)
                     else:
                         raise ValueError("chat-unsupported-native-request:" + method)
                     rpc.send(dict(id=frame["id"], result=response))

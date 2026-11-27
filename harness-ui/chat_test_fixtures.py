@@ -44,6 +44,7 @@ class FakeRpc:
         duplicate=False,
         logged_in=True,
         silent=False,
+        command=False,
     ):
         self.record, self.action, self.wrong, self.question, self.duplicate = (
             record,
@@ -52,7 +53,7 @@ class FakeRpc:
             question,
             duplicate,
         )
-        self.logged_in, self.silent = logged_in, silent
+        self.logged_in, self.silent, self.command = logged_in, silent, command
         self.sent, self.methods, self.events = [], [], []
         self.resumed = None
 
@@ -89,6 +90,14 @@ class FakeRpc:
             }
             if self.silent:
                 pass
+            elif self.command:
+                self.events.append(
+                    {
+                        "id": "command-1",
+                        "method": "item/commandExecution/requestApproval",
+                        "params": dict(base, command="dir"),
+                    }
+                )
             elif self.action:
                 frame = {
                     "id": "request-1",
