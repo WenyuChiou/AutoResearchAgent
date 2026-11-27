@@ -25,7 +25,7 @@ const REASON_CLASS = /reason|why|v1-reason|ws3-why-off|wiki-s2-reason|hint/;
 
 async function inspect(page) {
  return page.evaluate(({retiredText, retiredSelectors, internal, reasonClass}) => {
-  const visible = node => { if (!node || !node.isConnected) return false; const r = node.getBoundingClientRect(); const s = getComputedStyle(node); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
+  const visible = node => { if (!node || !node.isConnected) return false; if (node.checkVisibility && !node.checkVisibility({checkVisibilityCSS:true, contentVisibilityAuto:true})) return false; const r = node.getBoundingClientRect(); const s = getComputedStyle(node); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
   const root = document.querySelector('.hs-product') || document.body;
   const problems = [], reasonRe = new RegExp(reasonClass);
   for (const sel of retiredSelectors) for (const node of root.querySelectorAll(sel)) if (visible(node)) problems.push('旧版块可见: ' + sel);

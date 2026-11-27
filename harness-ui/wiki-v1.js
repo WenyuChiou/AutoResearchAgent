@@ -207,6 +207,12 @@ v7AfterRender = function(app) {
  if (!v1Page(app)) return;
  v1Heading(app);
  v1Mount(app);
+ // The embedded material panel keeps its handlers; its summary uses the design wording (8.12).
+ for (const summary of app.el.querySelectorAll('[data-ws-materials-slot] .n9-materials > summary, .wiki-s2-fold .n9-materials > summary')) {
+  const count = app.el.querySelectorAll('[data-n9-catalog] > *:not(p)').length;
+  const text = `已保存的材料 · ${count} 份`;
+  if (summary.textContent !== text) summary.textContent = text;
+ }
 };
 
 document.addEventListener('click', event => {
