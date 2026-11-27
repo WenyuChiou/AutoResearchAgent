@@ -105,10 +105,14 @@ def execute(root, query_id, backend, *, before_spawn=None):
     attempt = ledger.start("backend", arguments, backend=backend, parent_id=query_id)
     capture.mkdir(parents=True, exist_ok=False)
     started, failure, exit_code = utc_now(), None, 127
+    # research-hub refuses a knowledge-base root outside HOME unless this is set;
+    # it only lifts that location check (config.py _validate_root_under_home).
+    # The pinned config puts the root next to the project data, usually not in HOME.
     environment = dict(
         os.environ,
         RESEARCH_HUB_CONFIG=pin["config"]["path"],
         RESEARCH_HUB_NO_ZOTERO="1",
+        RESEARCH_HUB_ALLOW_EXTERNAL_ROOT="1",
     )
     # No shell, model CLI, vault ingest, or automatic retry is involved.
     with (
