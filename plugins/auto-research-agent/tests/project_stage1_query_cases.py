@@ -85,6 +85,101 @@ class ProjectQueryCases(QueryCase):
         receipt = self.queries.authorize("alice-token", self.ref, body)
         return body, receipt
 
+    def test_inspect_seal_verifies_the_runtime_once_per_call(self):
+        from research_workspace_native import project_query_permit as permit_module
+
+        self.authorize()
+        authorization = self.intake._load("alice", self.ref)[
+            "stage1_query_authorization"
+        ]
+        with patch.object(
+            permit_module,
+            "verify_identity",
+            wraps=permit_module.verify_identity,
+        ) as verified:
+            binding, permit = permit_module.inspect_seal(
+                self.intake, self.ref, authorization, self.queries.config
+            )
+        self.assertEqual(verified.call_count, 1)
+        self.assertEqual(permit, authorization["permit"])
+        # The two-pass offer and the one-pass offer are byte-identical.
+        _, plain, _ = permit_module.proposal(
+            self.intake, self.ref, permit["principals"][0], self.queries.config
+        )
+        _, reused, _ = permit_module.proposal(
+            self.intake,
+            self.ref,
+            permit["principals"][0],
+            self.queries.config,
+            runtime_digest=lambda: permit_module.configured_pin(
+                self.queries.config["pin"]
+            ),
+        )
+        self.assertEqual(canonical(plain), canonical(reused))
+
+    def _guard_events(self, change_at=None):
+        from research_workspace_native import project_query_permit as permit_module
+
+        if "stage1_query_authorization" not in self.intake._load("alice", self.ref):
+            self.authorize()
+        authorization = self.intake._load("alice", self.ref)[
+            "stage1_query_authorization"
+        ]
+        events = []
+        changed = []
+        real = permit_module.verify_identity
+
+        def identity(pin, **kwargs):
+            events.append("runtime")
+            if changed:
+                raise SessionApiError("synthetic-runtime-bytes-changed")
+            return real(pin, **kwargs)
+
+        def mark(name):
+            events.append(name)
+            if name == change_at:
+                changed.append(True)
+
+        def source(event):
+            mark("source")
+            return get_source_proof()
+
+        def admit(event):
+            mark("admit")
+            return True
+
+        self.queries.verify_source = source
+        self.queries.admit = admit
+        with patch.object(permit_module, "verify_identity", identity):
+            try:
+                self.queries._guard(
+                    "alice-token", self.ref, authorization, "before-bootstrap-probe"
+                )
+                error = None
+            except SessionApiError as raised:
+                error = raised
+        return events, error
+
+    def test_guard_keeps_a_runtime_check_after_every_callback(self):
+        events, error = self._guard_events()
+        self.assertIsNone(error)
+        # check, source, check, admission, check, source, check: no bracket lost
+        self.assertEqual(
+            events,
+            ["runtime", "source", "runtime", "admit", "runtime", "source", "runtime"],
+        )
+
+    def test_runtime_changed_during_a_callback_is_refused_by_the_next_check(self):
+        for point, expected in (
+            ("source", ["runtime", "source", "runtime"]),
+            ("admit", ["runtime", "source", "runtime", "admit", "runtime"]),
+        ):
+            with self.subTest(changed_during=point):
+                events, error = self._guard_events(change_at=point)
+                self.assertIsNotNone(error)
+                self.assertEqual(error.code, "synthetic-runtime-bytes-changed")
+                self.assertEqual(events[: len(expected)], expected)
+
     def bootstrap(self):
         body = self.body("bootstrap_offer", "bootstrap")
         with patch(
