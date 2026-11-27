@@ -1,5 +1,6 @@
 """Raw source inventory and loader; no processes, sessions or model calls."""
 
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import importlib.abc
 import importlib.util
@@ -104,10 +105,13 @@ def decode(raw):
     return value
 
 
+INVENTORY_WORKERS = 8
+
+
 def inventory(root):
     root = unlinked(root)
     require(root.is_absolute() and root.is_dir(), "inventory root required")
-    files = {}
+    selected = {}
     for base, directories, names in os.walk(root, followlinks=False):
         directories[:] = sorted(
             n
@@ -125,11 +129,20 @@ def inventory(root):
             if name.endswith((".pyc", ".pyo")):
                 continue
             item = Path(base) / name
-            require(len(files) < 4096, "inventory file bound exceeded")
-            files[item.relative_to(root).as_posix()] = digest(
-                read(item, 32 * 1024 * 1024, allow_empty=True)
-            )
-    return files
+            require(len(selected) < 4096, "inventory file bound exceeded")
+            selected[item.relative_to(root).as_posix()] = item
+
+    def hashed(item):
+        return digest(read(item, 32 * 1024 * 1024, allow_empty=True))
+
+    # Every file is still fully read and hashed on every call, and a failure in
+    # any file fails the whole inventory. Only the reads overlap: on Windows
+    # each open is slow under real-time scanning, and one serial pass over the
+    # plugin tree took 5-13 s, which used up the 30 s handshake step before the
+    # first initialize frame could be written.
+    with ThreadPoolExecutor(max_workers=INVENTORY_WORKERS) as pool:
+        digests = list(pool.map(hashed, selected.values()))
+    return dict(zip(selected, digests))
 
 
 class PinnedLoader(importlib.abc.MetaPathFinder, importlib.abc.Loader):
