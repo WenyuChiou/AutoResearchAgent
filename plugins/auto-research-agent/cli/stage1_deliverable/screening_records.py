@@ -33,6 +33,22 @@ def _require(condition, message):
         raise DeliverableError("screening library: " + message)
 
 
+def _require_no_provided(candidates):
+    """Researcher-provided saved materials have no query, attempt or result position.
+
+    The discovery bindings below describe search results only; until this record format can
+    describe provided origin, a delivery that contains one is refused with this reason rather
+    than failing on the missing query ids.
+    """
+    _require(
+        not any(
+            d.get("provided") for c in candidates for d in c.get("discoveries", [])
+        ),
+        "provided-candidate-delivery-unsupported: a researcher-provided saved material "
+        "is not a search result and cannot yet be delivered in this record format",
+    )
+
+
 @lru_cache(maxsize=1)
 def _ref_validator():
     schema = read_json(
@@ -503,6 +519,7 @@ def validate_extension(records):
         elif key != "input_version":
             _text(value)
     core = _snapshots(library)
+    _require_no_provided(core["CandidateSnapshot"])
     candidates = {c["work_id"]: c for c in core["CandidateSnapshot"]}
     _require(len(candidates) == len(core["CandidateSnapshot"]), "duplicate candidates")
     queries = _queries(library["query_history"])

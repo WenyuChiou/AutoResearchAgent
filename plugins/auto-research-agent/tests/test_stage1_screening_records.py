@@ -970,5 +970,21 @@ class ScreeningRecordsTests(unittest.TestCase):
             journal_rows(changed, journal)
 
 
+class ProvidedCandidateDeliveryTests(unittest.TestCase):
+    def test_provided_candidate_is_refused_with_a_reason_not_a_type_error(self):
+        from stage1_deliverable.common import DeliverableError
+        from stage1_deliverable.screening_records import _require_no_provided
+
+        searched = dict(work_id="w1", discoveries=[dict(completion_id="e000003")])
+        provided = dict(
+            work_id="w2",
+            discoveries=[dict(completion_id=None, provided=dict(event_id="e000004"))],
+        )
+        _require_no_provided([searched])
+        with self.assertRaises(DeliverableError) as caught:
+            _require_no_provided([searched, provided])
+        self.assertIn("provided-candidate-delivery-unsupported", str(caught.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

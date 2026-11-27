@@ -162,8 +162,15 @@ def derive_retrieval_prefix(
             for n, r in enumerate(library["rows"])
             if r["work_id"] == paper["work_id"]
         )
+        # A researcher-provided saved material was never retrieved: it has no completion and
+        # takes no part in the recorded retrieval prefix.
+        searched = [d for d in work["discoveries"] if not d.get("provided")]
+        if not searched:
+            trace["unknown_reasons"].append("provided-material-has-no-search-lineage")
+            output.append(trace)
+            continue
         first = min(
-            work["discoveries"],
+            searched,
             key=lambda d: (positions[d["completion_id"]], d["record_index"]),
         )
         cutoff = positions[first["completion_id"]]
