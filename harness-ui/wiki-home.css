@@ -101,3 +101,15 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-wiki-home-shell="true"]) {
 .wiki-home-record { display:block; color:#203342; font-weight:600; }
 .wiki-home-record + small { display:block; color:#566772; font-size:13px; }
 .wiki-home-twin { display:block; font-weight:400; color:#566772; font-size:13px; }
+/* DESIGN 8.5 first-visit guide: a closable strip, not a dialog. */
+.wiki-home-guide { background:#fffefa; border:1px solid #c4d1cd; border-left:6px solid #3e6699; border-radius:8px; padding:16px 20px; display:grid; gap:12px; }
+.wiki-home-guide-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.wiki-home-guide h2 { font-size:16px; margin:0; }
+.wiki-home-guide ol { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.wiki-home-guide li { display:flex; gap:10px; }
+.wiki-home-guide li > span { flex:0 0 24px; height:24px; border-radius:50%; border:1.5px solid #3e6699; color:#3e6699; display:grid; place-items:center; font-size:13px; font-weight:700; }
+.wiki-home-guide li p { margin:2px 0 0; font-size:14px; color:#566772; }
+.wiki-home-guide-codex { margin:0; font-size:14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.wiki-home-guide-codex span { color:#566772; }
+.wiki-home-link { border:0; background:none; color:#235d56; font:inherit; font-size:14px; text-decoration:underline; cursor:pointer; padding:6px 0; min-height:36px; }
+@media (max-width:900px) { .wiki-home-guide ol { grid-template-columns:1fr; } }

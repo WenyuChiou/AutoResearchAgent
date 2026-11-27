@@ -152,8 +152,29 @@ function wikiHomeMarkup() {
    </section>
   </div>
   <ol class="wiki-home-decisions" aria-label="研究中的三处决定">${wikiHomeDecisions.map(([name, note], i) => `<li><span aria-hidden="true">${i+1}</span><div><strong>${name}</strong><p>${note}</p></div></li>`).join('')}</ol>
+  ${wikiHomeGuide()}
   ${wikiHomeProjectTable(rows, ready, locked)}
  </div>`;
+}
+
+// DESIGN 8.5: first-visit three steps between the decisions and the project table; closable, remembered in
+// this browser; 连接与设置 can show it again. Links only move focus or change page; nothing is sent.
+const wikiHomeGuideKey = 'wiki-v1-guide-closed';
+function wikiHomeGuideClosed() {
+ try { return localStorage.getItem(wikiHomeGuideKey) === '1'; } catch (_) { return false; }
+}
+function wikiHomeGuide() {
+ if (wikiHomeGuideClosed()) return '';
+ const steps = [
+  ['开新课题', '在左上角写一个研究标题，点「开始」。只保存选题，不会检索、不会调用模型。', '去填标题', 'data-wiki-home-focus="topic"'],
+  ['你要点的三处', '确认范围和授权、选方向、对评审做决定。其余步骤按你的授权自动往下走。', '看这三处', 'data-wiki-home-focus="decisions"'],
+  ['产物在哪看', '每一段的结果在对应的 Stage 页；保存的文件都在「项目文件」页，每份带版本。', '去项目文件', 'data-page="files"']
+ ];
+ return `<section class="wiki-home-guide" aria-labelledby="wiki-home-guide" data-wiki-home-guide>
+  <div class="wiki-home-guide-head"><h2 id="wiki-home-guide">第一次用：三步看懂</h2><button type="button" class="wiki-home-link" data-wiki-home-guide-close>关闭引导</button></div>
+  <ol>${steps.map(([name, text, link, attrs], i) => `<li><span aria-hidden="true">${i + 1}</span><div><strong>${name}</strong><p>${text}</p><button type="button" class="wiki-home-link" ${attrs}>${link}</button></div></li>`).join('')}</ol>
+  <p class="wiki-home-guide-codex">要让 Codex 帮你检索和阅读，先做连接检查：<button type="button" class="wiki-home-link" data-page="settings" data-wiki-home-codex>连接 Codex</button><span>只读检查，不会要你贴任何密钥。</span></p>
+ </section>`;
 }
 
 function wikiHomeFilter(app, choice) {
@@ -241,7 +262,7 @@ v7AfterRender = function(app) {
 document.addEventListener('click', event => {
  const app = apps[0];
  if (app.lang !== 'zh' || !app.el.contains(event.target)) return;
- const button = event.target.closest('[data-page="workspace"],[data-wiki-home-open],[data-wiki-home-pending-open],[data-wiki-home-filter],[data-wiki-home-retry],[data-wiki-home-recover],[data-stage]');
+ const button = event.target.closest('[data-page="workspace"],[data-wiki-home-open],[data-wiki-home-pending-open],[data-wiki-home-guide-close],[data-wiki-home-focus],[data-wiki-home-filter],[data-wiki-home-retry],[data-wiki-home-recover],[data-stage]');
  if (!button || button.disabled || (button.dataset.stage && app.page !== 'home')) return;
  event.preventDefault();
  event.stopImmediatePropagation();
@@ -260,6 +281,14 @@ document.addEventListener('click', event => {
   if (recent) wikiHomeOpen(recent.ref, Number(button.dataset.stage));
  } else if (button.hasAttribute('data-wiki-home-open')) wikiHomeOpen(button.dataset.wikiHomeOpen);
  else if (button.hasAttribute('data-wiki-home-pending-open')) wikiHomePendingOpen(button.dataset.wikiHomePendingOpen);
+ else if (button.hasAttribute('data-wiki-home-guide-close')) {
+  try { localStorage.setItem(wikiHomeGuideKey, '1'); } catch (_) { /* Without storage the guide closes for this view only. */ }
+  app.el.querySelector('[data-wiki-home-guide]')?.remove();
+ } else if (button.dataset.wikiHomeFocus) {
+  const target = app.el.querySelector(button.dataset.wikiHomeFocus === 'topic' ? '#wiki-home-topic' : '.wiki-home-decisions');
+  target?.scrollIntoView({behavior:'smooth', block:'center'});
+  if (button.dataset.wikiHomeFocus === 'topic') target?.focus({preventScroll:true});
+ }
  else if (button.hasAttribute('data-wiki-home-filter')) wikiHomeFilter(app, button.dataset.wikiHomeFilter);
  else if (button.hasAttribute('data-wiki-home-retry')) liveRefresh(null, {list:true});
  else liveRecover();

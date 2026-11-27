@@ -87,4 +87,19 @@ click({'data-page':'workspace'});
 assert.equal(app.page, 'home');
 assert.equal(JSON.stringify(calls.find(call => call[0] === 'refresh')), JSON.stringify(['refresh', null, {list:true}]));
 
-console.log('PASS Wiki home: create 4xx/5xx shown with list kept, saving and unknown create wording, read-only recovery, foreign pending, same titles, record column, 工作台 rule.');
+// DESIGN 8.5 first-visit guide: three steps with links and a 连接 Codex entry; closing is remembered.
+rt.list = []; rt.error = ''; rt.pending = null; app.page = 'home';
+html = markup();
+assert.match(html, /data-wiki-home-guide/);
+for (const step of ['开新课题', '你要点的三处', '产物在哪看']) assert.match(html, new RegExp(step));
+assert.match(html, /data-page="files">去项目文件/);
+assert.match(html, /data-page="settings" data-wiki-home-codex>连接 Codex/);
+assert.ok(html.indexOf('wiki-home-decisions') < html.indexOf('data-wiki-home-guide') && html.indexOf('data-wiki-home-guide') < html.indexOf('wiki-home-projects'), 'between the three decisions and the project table');
+app.el.querySelector = () => ({remove() {}});
+click({'data-wiki-home-guide-close':''});
+assert.equal(store.get('wiki-v1-guide-closed'), '1');
+assert.doesNotMatch(markup(), /data-wiki-home-guide/);
+store.delete('wiki-v1-guide-closed');
+assert.match(markup(), /data-wiki-home-guide/, 'settings can show it again by clearing the mark');
+
+console.log('PASS Wiki home: first-visit guide, create 4xx/5xx shown with list kept, saving and unknown create wording, read-only recovery, foreign pending, same titles, record column, 工作台 rule.');
