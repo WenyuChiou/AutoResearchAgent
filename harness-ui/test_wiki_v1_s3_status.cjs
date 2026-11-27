@@ -28,6 +28,12 @@ test('connect, reconnect and other reasons keep their lines', () => {
  assert.match(load(ready({code:'stage3-current-selection-required'})).now[1], /Stage 2 还没有选定方向/);
 });
 
+test('a launch with no Stage 3 interface is not told as "Stage 2 has no selection"', () => {
+ const status = load(ready({stage2Only:true, stage2Reason:'stage2-controller-profile-unavailable'}));
+ assert.match(status.now[1], /Stage 3 现在接不上/);
+ assert.doesNotMatch(status.now.join(''), /还没有选定方向/);
+});
+
 test('connected without a selection read is not written as "cannot connect" (review P2-c)', () => {
  const status = load(ready({connected:true, code:'something-else'}));
  assert.doesNotMatch(status.now.join(''), /接不上/);

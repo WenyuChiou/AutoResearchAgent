@@ -157,7 +157,8 @@ function wikiS3DecVersion(hd) {
 function wikiS3DecMarkup(app) {
  const state = wikiS3DecState(), m = wikiS3DecModel(app), hd = m.hd;
  // A confirmation given for another plan version is void: the plan changed while the panel was open.
- if (state.confirming && state.confirmFor !== wikiS3DecVersion(hd)) { state.confirming = false; state.versionChanged = true; }
+ // No view yet (a re-read is in flight) is not a changed plan: the panel just waits, review P2-6.
+ if (hd && state.confirming && state.confirmFor !== wikiS3DecVersion(hd)) { state.confirming = false; state.versionChanged = true; }
  const busy = wikiS3Dec.busy.has(rt.ref);
  const latest = hd?.latest;
  const tech = codes => codes.filter(Boolean).length ? `<details class="wiki-s2-tech"><summary>技术细节</summary>${codes.filter(Boolean).map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
@@ -247,8 +248,8 @@ async function wikiS3DecSave(app) {
  const rows = [...m.hd.records, ...(m.hd.history || [])];
  const before = {count:m.hd.records.length, seq:rows.reduce((top, row) => Math.max(top, Number(row?.record?.sequence) || 0), 0)};
  if (outcome === 'unknown') wikiS3Dec.unknown = {ref, key, code, pick, before};
- // Every outcome is followed by a read-only re-read; an unknown outcome is then looked up by its key.
- if (epoch === rt.epoch && ref === rt.ref) { await v93ReadSaved(app, basis); if (outcome === 'unknown') wikiS3DecSettle(ref); }
+ // Every outcome is followed by a read-only re-read; an unknown outcome is then looked up by its key. The re-read is forced so a read already in flight cannot swallow it (same as plan-request P2-5).
+ if (epoch === rt.epoch && ref === rt.ref) { await v93ReadSaved(app, basis, true); if (outcome === 'unknown') wikiS3DecSettle(ref); }
  livePaint();
 }
 // Settle an unknown save from the re-read (review P1-1). Only a full decision view can say "not saved" by key; a size

@@ -13,8 +13,9 @@
 // busy: requests in flight, per topic (review P2-3), so leaving and coming back does not forget one.
 // notRun: per topic, the request_sha256 that a read-only inspect answered as still intent-recorded (never dispatched).
 // It lets a timed-out submission leave 「结果未知」 instead of staying there until the Host restarts (review P2-9).
-const wikiS3Req = {busy:new Map(), error:null, ref:null, check:null, inspected:null, unknown:new Map(), notRun:new Map()};
+const wikiS3Req = {busy:new Map(), error:null, ref:null, check:null, recoverCheck:null, inspected:null, unknown:new Map(), notRun:new Map()};
 function wikiS3ReqTicked(job) { return !!job?.request_sha256 && wikiS3Req.check === job.request_sha256; }
+function wikiS3ReqRecoverTicked(job) { return !!job?.request_sha256 && wikiS3Req.recoverCheck === job.request_sha256; }
 
 function wikiS3ReqLock() {
  if (rt.loading) return '正在读取保存记录';
@@ -24,7 +25,7 @@ function wikiS3ReqLock() {
  return '';
 }
 function wikiS3ReqState(view) {
- if (wikiS3Req.ref !== rt.ref) Object.assign(wikiS3Req, {error:null, ref:rt.ref, check:null, inspected:null});
+ if (wikiS3Req.ref !== rt.ref) Object.assign(wikiS3Req, {error:null, ref:rt.ref, check:null, recoverCheck:null, inspected:null});
  // The latest read always wins (review P2-4): the answer of a read-only inspect is a snapshot and is used only while
  // the read has not brought a job back. Otherwise a state that changed after the check could bring back the grant.
  const job = view?.job || (wikiS3Req.inspected?.key === view?.default_request?.key ? wikiS3Req.inspected : null);
@@ -48,8 +49,10 @@ function wikiS3RequestLine(view) {
  if (view.submission_in_progress || job?.status === 'dispatching') return {tone:'run', tag:'处理中', detail, text:'正在生成计划和评审。不需要你操作', buttons:[read]};
  const inspect = {label:'只读核对', act:'inspect', gate:lock};
  if (job?.status === 'execution-unknown') return {tone:'warn', tag:'结果未知', detail,
-  text:'上次生成的结果还不清楚。原请求已保留，不会自动重发；先只读核对' + (view.recovery_pin_available ? '，也可以从已保存的结果恢复' : ''),
-  buttons:[inspect, ...(view.recovery_pin_available ? [{label:'从已保存结果恢复', act:'recover', gate:lock}] : []), read]};
+  text:'上次生成的结果还不清楚。原请求已保留，不会自动重发；先只读核对' + (view.recovery_pin_available ? '，也可以从已保存的结果恢复（只挂上已经保存的结果，不会重新生成）' : ''),
+  // Recovery is a persistent write (review P2-7): it needs its own tick, like the grant.
+  recoverConfirm:!!view.recovery_pin_available,
+  buttons:[inspect, ...(view.recovery_pin_available ? [{label:'从已保存结果恢复', act:'recover', gate:lock || (wikiS3ReqRecoverTicked(job) ? '' : '请先勾选确认')}] : []), read]};
  if (job?.status === 'completed' && job.outcome === 'failed') return {tone:'err', tag:'规划失败', detail, text:'规划已失败，原失败记录会保留', buttons:[{label:'看失败记录', act:'failure'}]};
  if (job?.status === 'completed' && job.outcome === 'saved') return {tone:'run', tag:'计划已保存', detail, text:'计划已保存，正在读取', buttons:[read]};
  const mine = wikiS3Req.unknown.get(rt.ref);
@@ -84,9 +87,10 @@ function wikiS3RequestMarkup(view) {
   <p class="wiki-s1-muted">授权理由：现在的规划接口没有理由这一项，页面不收集。</p>
   <label class="ws-check"><input type="checkbox" data-s3-plan-check ${wikiS3ReqTicked(wikiS3ReqState(view).job) ? 'checked' : ''}> 我确认只授权这一次、这一件事</label>
   <span><button type="button" class="hs-button hs-button-primary" data-s3-plan="run" ${row.grant.gate ? 'disabled' : ''}>确认生成计划</button>${row.grant.gate ? `<small class="wiki-s2-reason">${wikiS3Escape(row.grant.gate)}</small>` : ''}</span></section>` : '';
+ const recoverConfirm = row.recoverConfirm ? `<label class="ws-check" data-s3-plan-recover><input type="checkbox" data-s3-plan-recover-check ${wikiS3ReqRecoverTicked(wikiS3ReqState(view).job) ? 'checked' : ''}> 我确认：只把已经保存的结果挂上，不会重新生成，也不会再调用模型</label>` : '';
  const failure = row.tag === '规划失败' && wikiS3Req.showFailure ? `<details class="wiki-s2-tech" open data-s3-plan-failure><summary>失败记录（原样）</summary><pre>${wikiS3Escape(JSON.stringify(wikiS3ReqState(view).job, null, 2))}</pre></details>` : '';
  const detail = row.detail?.length ? `<details class="wiki-s2-tech"><summary>技术细节</summary>${row.detail.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
- return `<hr><div class="wiki-s2-conn-row" data-tone="${row.tone}" data-s3-plan-row><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${grant}${failure}${detail}`;
+ return `<hr><div class="wiki-s2-conn-row" data-tone="${row.tone}" data-s3-plan-row><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${recoverConfirm}${grant}${failure}${detail}`;
 }
 async function wikiS3PlanAction(app, act) {
  const basis = v93Identity(), view = basis && v93Matches(v93.basis, basis) ? v93.view : null;
@@ -112,10 +116,11 @@ async function wikiS3PlanAction(app, act) {
   if (act === 'inspect' && returned.status === 'intent-recorded' && returned.request_sha256) wikiS3Req.notRun.set(ref, returned.request_sha256);
   else if (act === 'inspect') wikiS3Req.notRun.delete(ref);
   if (act === 'run') wikiS3Req.notRun.delete(ref);
-  wikiS3Req.check = null;
+  wikiS3Req.check = null; wikiS3Req.recoverCheck = null;
  } catch (error) {
   const code = String(error.message || error), refused = Number.isInteger(error.status) && error.status >= 400 && error.status < 500;
   // A run without a clear refusal may have reached the model: unknown outcome, the tick is cleared, no resend.
+  if (act === 'recover') wikiS3Req.recoverCheck = null;
   if (act === 'run') { wikiS3Req.check = null; wikiS3Req.notRun.delete(ref); if (!refused) wikiS3Req.unknown.set(ref, {sha:body.request_sha256, code}); }
   if (epoch !== rt.epoch || ref !== rt.ref) return;
   if (!(act === 'run' && !refused)) wikiS3Req.error = {code, refused};
@@ -123,7 +128,7 @@ async function wikiS3PlanAction(app, act) {
   wikiS3Req.busy.delete(ref);
  }
  // Every outcome is followed by a read-only re-read of the saved state.
- if (epoch === rt.epoch && ref === rt.ref) await v93ReadSaved(app, basis);
+ if (epoch === rt.epoch && ref === rt.ref) await v93ReadSaved(app, basis, true); // forced (review P2-5): an in-flight read must not swallow it
 }
 document.addEventListener('click', event => {
  const button = event.target.closest?.('[data-s3-plan]');
@@ -137,5 +142,11 @@ document.addEventListener('change', event => {
  if (!event.target.matches?.('[data-s3-plan-check]')) return;
  const basis = v93Identity(), view = basis && v93Matches(v93.basis, basis) ? v93.view : null;
  wikiS3Req.check = event.target.checked ? wikiS3ReqState(view).job?.request_sha256 || null : null;
+ livePaint();
+});
+document.addEventListener('change', event => {
+ if (!event.target.matches?.('[data-s3-plan-recover-check]')) return;
+ const basis = v93Identity(), view = basis && v93Matches(v93.basis, basis) ? v93.view : null;
+ wikiS3Req.recoverCheck = event.target.checked ? wikiS3ReqState(view).job?.request_sha256 || null : null;
  livePaint();
 });
