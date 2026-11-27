@@ -1,8 +1,9 @@
 """Native same-project input reception through ordinary ProjectHost HTTP."""
 
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, ExitStack
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import secrets
 from tempfile import TemporaryDirectory
@@ -298,6 +299,94 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
                     unrelated["current_evidence"]["reason"],
                     "stage1-current-checkpoint-unavailable",
                 )
+
+    def test_delivery_replay_recovers_only_the_original_interrupted_input(self):
+        with ExitStack() as fixture:
+            with patch(
+                "research_workspace_native.project_stage2_current_evidence.publish_new",
+                side_effect=OSError("interrupted before receipt publication"),
+            ) as publish:
+                data = fixture.enter_context(current_core_stage1_case(screened=True))
+                publish.assert_called_once()
+            case, ref = data["case"], data["project_ref"]
+            route = f"/api/projects/{ref}"
+            [receiver] = list((case.intake_root / ref).glob("s2r-*"))
+            receipt = receiver / "receipt.json"
+            self.assertFalse(receipt.exists())
+            case.reopen()
+            original = case.intake.action(VIEWER, "deliver", project_ref=ref)
+            state = case.intake._load(case.intake._principal(VIEWER), ref)
+            body = case.body(
+                data["fixture"], state["stage1_delivery_offers"][original["offer_ref"]]
+            )
+
+            def snapshot():
+                history = case.intake.history(VIEWER, ref)
+                return (
+                    history["revision"],
+                    history["actions"],
+                    {
+                        path.relative_to(receiver): path.read_bytes()
+                        for path in receiver.rglob("*")
+                        if path.is_file()
+                    },
+                )
+
+            before = snapshot()
+            with serve(case) as origin:
+                status, result = request(origin, route + "/stage2")
+            self.assertEqual(status, 200)
+            self.assertEqual(
+                result["current_evidence"]["reason"],
+                "stage2-current-input-publication-unobserved",
+            )
+            self.assertEqual(snapshot(), before)
+
+            packet = receiver / "seed" / "packet.json"
+            saved_packet = packet.read_bytes()
+            wrong = json.loads(saved_packet)
+            wrong["comparison"] = "Tampered authored fixture comparison."
+            packet.write_bytes(canonical(wrong))
+            try:
+                result = case.delivery.deliver(VIEWER, ref, body)
+                self.assertEqual(
+                    result["stage2_input"]["reason"],
+                    "stage2-current-input-interrupted-seed-differs",
+                )
+                self.assertFalse(receipt.exists())
+            finally:
+                packet.write_bytes(saved_packet)
+            self.assertEqual(snapshot(), before)
+
+            resources = receiver / "resources.txt"
+            external = Path(data["root"]) / "test-external-resources.txt"
+            resources.rename(external)
+            try:
+                os.link(external, resources)
+                result = case.delivery.deliver(VIEWER, ref, body)
+                self.assertEqual(
+                    result["stage2_input"]["reason"],
+                    "stage2-current-input-interrupted-seed-differs",
+                )
+                self.assertFalse(receipt.exists())
+            finally:
+                if resources.exists():
+                    resources.unlink()
+                external.rename(resources)
+            self.assertEqual(snapshot(), before)
+
+            self.assertEqual(case.delivery.deliver(VIEWER, ref, body), original)
+            self.assertTrue(receipt.is_file())
+            self.assertEqual(packet.read_bytes(), saved_packet)
+            after = snapshot()
+            self.assertEqual(after[0], before[0] + 2)
+            self.assertEqual(len(after[1]), len(before[1]) + 1)
+            self.assertEqual(case.delivery.deliver(VIEWER, ref, body), original)
+            self.assertEqual(snapshot(), after)
+            self.assertEqual(
+                data["zero_callback_counts"],
+                {"query_runner": 0, "source_service": 0, "model": 0},
+            )
 
     def test_receive_and_reopen_one_offline_packet_without_activation(self):
         with current_core_stage1_case(screened=True) as data:

@@ -1,9 +1,18 @@
 """Receive a project's own published Stage 1 input without starting Stage 2."""
 
 from contextlib import nullcontext
+from pathlib import Path
 import sqlite3
+import stat
+from tempfile import TemporaryDirectory
 
-from stage1_deliverable.common import private_output, reject_links, safe_path, sha
+from stage1_deliverable.common import (
+    inventory,
+    private_output,
+    reject_links,
+    safe_path,
+    sha,
+)
 from stage1_ledger.journal import LedgerError, canonical, decode, write_new
 from stage2_common import canonical_hash, validate_packet
 from stage2_workflow import build_stage2_seed
@@ -82,8 +91,64 @@ def _packet(root, pin, source):
     return packet
 
 
+def _build_seed(root, binding, bound):
+    resources = safe_path(root, "resources.txt")
+    write_new(resources, binding["settings"]["resource_envelope"].encode("utf-8"))
+    return build_stage2_seed(
+        bound["deliverable_dir"],
+        bound["manifest_sha256"],
+        bound["handoff_path"],
+        bound["handoff_sha256"],
+        binding["brief_path"],
+        resources,
+        safe_path(root, "seed"),
+        allow_current_core=True,
+    )["packet_sha256"]
+
+
+def _check_interrupted_seed(root, binding, bound):
+    """Prove the interrupted bytes against the original producer without rewriting them."""
+    reason = "stage2-current-input-interrupted-seed-differs"
+    _check(
+        {child.name for child in root.iterdir()} == {"resources.txt", "seed"}, reason
+    )
+    names = set()
+    for candidate in root.rglob("*"):
+        relative = candidate.relative_to(root).as_posix()
+        path = safe_path(root, relative)
+        info = path.lstat()
+        _check(
+            stat.S_ISDIR(info.st_mode)
+            or (stat.S_ISREG(info.st_mode) and info.st_nlink == 1),
+            reason,
+        )
+        names.add(relative)
+
+    # The initial seed is deterministic for the pinned, still-current delivery.
+    # Compare the entire original tree, not a digest read from mutable seed bytes.
+    with TemporaryDirectory(dir=root.parent, prefix=".s2r-check-") as directory:
+        expected = Path(directory)
+        pin = _build_seed(expected, binding, bound)
+        _check(
+            names
+            == {path.relative_to(expected).as_posix() for path in expected.rglob("*")}
+            and inventory(root) == inventory(expected),
+            reason,
+        )
+    return pin
+
+
 def _receive(
-    intake, view, binding, bound, source, check_deadline, check_owner, *, allow_publish
+    intake,
+    view,
+    binding,
+    bound,
+    source,
+    check_deadline,
+    check_owner,
+    *,
+    allow_publish,
+    recover_interrupted,
 ):
     digest = canonical_hash(source)
     root = private_output(intake._path(view["project_ref"], "s2r-" + digest[:32]))
@@ -104,10 +169,8 @@ def _receive(
             pass
         else:
             created = True
-    if not created:
-        reject_links(root)
-        if not receipt_path.is_file():
-            return _blocked(view, "stage2-current-input-publication-unobserved")
+    reject_links(root)
+    if not created and receipt_path.is_file():
         with receipt_path.open("rb") as stream:
             raw = stream.read(8193)
         _check(len(raw) <= 8192, "stage2-current-input-receipt-invalid")
@@ -118,24 +181,18 @@ def _receive(
         )
         packet = _packet(root, receipt["packet_sha256"], source)
     else:
-        resources = safe_path(root, "resources.txt")
-        write_new(resources, binding["settings"]["resource_envelope"].encode("utf-8"))
-        imported = build_stage2_seed(
-            bound["deliverable_dir"],
-            bound["manifest_sha256"],
-            bound["handoff_path"],
-            bound["handoff_sha256"],
-            binding["brief_path"],
-            resources,
-            safe_path(root, "seed"),
-            allow_current_core=True,
-        )
-        packet = _packet(root, imported["packet_sha256"], source)
-        receipt = {**identity, "packet_sha256": imported["packet_sha256"]}
+        if created:
+            pin = _build_seed(root, binding, bound)
+        elif allow_publish and recover_interrupted and root.is_dir():
+            pin = _check_interrupted_seed(root, binding, bound)
+        else:
+            return _blocked(view, "stage2-current-input-publication-unobserved")
+        packet = _packet(root, pin, source)
+        receipt = {**identity, "packet_sha256": pin}
         raw = canonical(receipt)
         check_owner()
         check_deadline()
-        publish_new(receipt_path, raw)
+        publish_new(safe_path(root, "receipt.json"), raw)
     check_owner()
     check_deadline()
     return {
@@ -261,6 +318,7 @@ def current_evidence(
                         check_deadline,
                         check_owner,
                         allow_publish=allow_publish,
+                        recover_interrupted=expected_artifact_ref is not None,
                     )
                     if result["status"] != "received":
                         return result
