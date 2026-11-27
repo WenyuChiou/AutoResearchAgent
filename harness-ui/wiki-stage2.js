@@ -228,7 +228,7 @@ function wikiS2CheckCell(route) {
 
 function wikiS2EvidenceCell(route) {
  if (!route.evidenceIds) return '<span class="wiki-s2-missing">还没有</span><small>这份保存的结果没有给出这条路线引用的证据</small>';
- return route.evidenceIds.length ? `<span>${route.evidenceIds.length} 条保存的证据</span><small>${route.evidenceIds.map(id => esc(id)).join(' · ')}</small>` : '<span>没有引用证据</span>';
+ return route.evidenceIds.length ? `<span>${route.evidenceIds.length} 条保存的证据</span><small>编号见本页技术细节</small>` : '<span>没有引用证据</span>';
 }
 
 function wikiS2CompareTable(app, model, state) {
@@ -491,7 +491,7 @@ function wikiS2Page(app) {
 
 function wikiS2TechDetails(model) {
  const rows = [['project_ref', rt.ref], ['input_version', rt.overview?.project?.input_version], ['revision', rt.overview?.project?.revision],
-  ['origin', model?.origin], ...(model?.routes || []).map(route => ['candidate ' + route.letter, route.id + ' · v' + route.version])]
+  ['origin', model?.origin], ...(model?.routes || []).flatMap(route => [['candidate ' + route.letter, route.id + ' · v' + route.version], ['evidence ' + route.letter, (route.evidenceIds || []).join(' · ') || null]])]
   .filter(([, value]) => value !== undefined && value !== null);
  return `<details class="wiki-s2-tech wiki-s2-page-tech" data-s2-tech><summary>本页技术细节</summary><dl>${rows.map(([key, value]) => `<div><dt>${esc(key)}</dt><dd><code>${esc(value)}</code></dd></div>`).join('')}</dl></details>`;
 }
