@@ -115,7 +115,10 @@ html = page('files');
 assert.match(html, /只读/);
 assert.match(html, /归档没有随附这份原件，只能在页面里看/);
 assert.match(text(page('history')), /归档里没有保存操作记录/);
-assert.match(text(page('settings')), /这是历史归档：只读，不连接 Codex，没有许可和额度。/);
+html = page('settings');
+assert.match(text(html), /这是历史归档：只读，不连接 Codex，没有许可和额度。/);
+assert.doesNotMatch(html, /模型调用 上限/, 'no launch limits on an archive');
+assert.match(text(html), /额度 归档没有这一项/);
 
 // 8.22 environment bar: only when the page itself can tell it was not opened from the service.
 assert.equal(context.v1gEnvAlerts().length, 0);

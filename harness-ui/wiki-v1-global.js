@@ -249,7 +249,8 @@ function v1gSettings() {
   ['登录', !ok ? none : d.authentication === 'verified' ? v1gTag('done', '服务报告已登录') : d.authentication === 'not-authenticated' ? v1gTag('block', '服务报告未登录') : v1gTag('idle', '无法核实登录状态'), '登录在 Codex 自己的界面完成，这里不会要你输入密钥；也不从历史记录推断。'],
   ['对话许可<small>用于右侧 Codex 对话</small>', chat, chatNote],
   ['运行许可<small>用于检索、阅读、规划</small>', run, '对话许可不能当运行许可用，反过来也不行。'],
-  ['额度', `<div>${v1gQuota(d)}</div>`, null],
+  // Archives have no limits at all; the launch limits (0/0/0) belong to live topics only (review P2-4).
+  ['额度', archive ? none : `<div>${v1gQuota(d)}</div>`, archive ? '归档只读，不调用模型、不检索。' : null],
   ['有效期', expiry, ok && d.permits.length ? '到期后需要原操作者重新确认，不会自动续期。' : '']
  ];
  const permits = ok && d.permits.length ? `<details class="v1-fold"><summary>逐项许可（${d.permits.length} 项）</summary><ul class="v1-permits">${d.permits.map(row => `<li><b>${row.operation === 'Unknown' ? '未提供' : esc(row.operation)}</b> ${v1gTag(row.reason === 'confirmable' ? 'done' : row.reason === 'unknown' ? 'idle' : 'block', v1gReasons[row.reason] || '无法核实')} 到期 ${esc(v1gTime(row.expiresAt))} · 调用上限 ${row.maxCalls ?? '未提供'} 次 · 时长上限 ${row.maxSeconds ?? '未提供'} 秒</li>`).join('')}</ul></details>` : `<p class="v1-small v1-muted">逐项许可：${ok ? '这个课题现在没有逐项许可。' : '还没有读取到。'}</p>`;
