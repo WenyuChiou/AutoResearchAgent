@@ -7,7 +7,7 @@ const {readFileSync, writeFileSync, mkdtempSync, existsSync, rmSync} = require('
 const {join} = require('node:path');
 const {tmpdir} = require('node:os');
 const {pathToFileURL} = require('node:url');
-const {spawnSync} = require('node:child_process');
+const {spawn, spawnSync} = require('node:child_process');
 const source = name => readFileSync(join(__dirname,name),'utf8');
 
 function browserFixture() {
@@ -396,12 +396,108 @@ async function exerciseStaticPlanningRead() {
   if (defects.length) throw Error(defects.join(' | '));
 }
 
-function runChromeExercise(exercise, runtimeHooks='') {
-  const chrome=[process.env.CHROME_BIN, process.env.CHROME_PATH,
+// One headless Chrome per test file (each file is its own Node process); every exercise gets a new page.
+// Starting the browser and running the page are limited separately: a cold Windows runner may need a long
+// time to start Chrome, but a page that does not finish within PAGE_LIMIT_MS is a real hang and fails fast.
+const STARTUP_LIMIT_MS = 90000;
+const PAGE_LIMIT_MS = 10000;
+let browserPromise = null;
+
+function findChrome() {
+  return [process.env.CHROME_BIN, process.env.CHROME_PATH,
     'C:/Program Files/Google/Chrome/Application/chrome.exe','/usr/bin/google-chrome','/usr/bin/chromium',
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p=>p&&existsSync(p));
+}
+
+function killTree(child) {
+  if (!child || child.exitCode !== null || child.pid === undefined) return;
+  if (process.platform === 'win32') spawnSync('taskkill',['/PID',String(child.pid),'/T','/F'],{stdio:'ignore',timeout:15000});
+  else { try { child.kill('SIGKILL'); } catch {} }
+}
+
+function launchBrowser() {
+  const chrome=findChrome();
   assert.ok(chrome,'Chrome or Chromium is required (or set CHROME_BIN)');
   const temp=mkdtempSync(join(tmpdir(),'pr4-connections-'));
+  const started=Date.now();
+  const child=spawn(chrome,['--headless','--disable-gpu','--disable-background-networking','--no-first-run',
+    '--remote-debugging-port=0','--user-data-dir='+join(temp,'profile'),'about:blank'],{stdio:['ignore','ignore','pipe'],windowsHide:true});
+  let stderr='';
+  child.stderr.on('data',chunk=>{stderr=(stderr+chunk).slice(-4000);});
+  const state={chrome,temp,child,ws:null,nextId:1,pending:new Map(),startupMs:0,stderr:()=>stderr,exited:false};
+  child.on('exit',()=>{state.exited=true;});
+  process.on('exit',()=>{killTree(child);});
+  const portFile=join(temp,'profile','DevToolsActivePort');
+  return (async()=>{
+    while (!existsSync(portFile)) {
+      if (state.exited) throw Error('Chrome exited before it was ready: '+stderr);
+      if (Date.now()-started>STARTUP_LIMIT_MS) throw Error('Chrome did not start within '+STARTUP_LIMIT_MS+' ms (browser startup, not the page): '+stderr);
+      await new Promise(resolve=>setTimeout(resolve,50));
+    }
+    let lines;
+    for (;;) {  // Chrome may still hold the file (EBUSY on Windows) or have written only one line
+      try {
+        lines=readFileSync(portFile,'utf8').split('\n');
+        if (lines.length>=2&&lines[1]) break;
+      } catch (error) {
+        if (!['EBUSY','EPERM','EACCES','ENOENT'].includes(error.code)) throw error;
+      }
+      if (state.exited) throw Error('Chrome exited before it was ready: '+stderr);
+      if (Date.now()-started>STARTUP_LIMIT_MS) throw Error('DevToolsActivePort stayed unreadable or incomplete: '+stderr);
+      await new Promise(resolve=>setTimeout(resolve,50));
+    }
+    const ws=new WebSocket('ws://127.0.0.1:'+lines[0].trim()+lines[1].trim());
+    await new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(Error('DevTools connection timed out after browser start: '+stderr)),Math.max(1000,STARTUP_LIMIT_MS-(Date.now()-started)));
+      ws.addEventListener('open',()=>{clearTimeout(timer);resolve();});
+      ws.addEventListener('error',()=>{clearTimeout(timer);reject(Error('DevTools connection failed: '+stderr));});
+    });
+    ws.addEventListener('message',event=>{
+      const message=JSON.parse(event.data), waiting=state.pending.get(message.id);
+      if (!waiting) return;
+      state.pending.delete(message.id);
+      if (message.error) waiting.reject(Error(message.error.message)); else waiting.resolve(message.result);
+    });
+    const failPending=reason=>{
+      for (const waiting of state.pending.values()) waiting.reject(Error(reason));
+      state.pending.clear();
+    };
+    ws.addEventListener('close',()=>failPending('DevTools connection closed: '+stderr));
+    ws.addEventListener('error',()=>failPending('DevTools connection failed: '+stderr));
+    state.ws=ws;
+    state.startupMs=Date.now()-started;
+    return state;
+  })().catch(error=>{killTree(child);throw error;});
+}
+
+// Every DevTools call has an upper bound, so a lost reply can never hang the test file.
+function cdp(state,method,params={},sessionId,limitMs=PAGE_LIMIT_MS*3) {
+  const id=state.nextId++;
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{state.pending.delete(id);reject(Error('DevTools call '+method+' got no reply within '+limitMs+' ms'));},limitMs);
+    state.pending.set(id,{resolve:value=>{clearTimeout(timer);resolve(value);},reject:error=>{clearTimeout(timer);reject(error);}});
+    try { state.ws.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})})); }
+    catch (error) { clearTimeout(timer);state.pending.delete(id);reject(error); }
+  });
+}
+
+async function closeBrowser() {
+  if (!browserPromise) return;
+  const promise=browserPromise;
+  browserPromise=null;
+  let state;
+  try { state=await promise; } catch { return; }
+  try { state.ws.close(); } catch {}
+  killTree(state.child);
+  if (!state.exited) await new Promise(resolve=>{const timer=setTimeout(resolve,5000);state.child.once('exit',()=>{clearTimeout(timer);resolve();});});
+  rmSync(state.temp,{recursive:true,force:true,maxRetries:8,retryDelay:100});
+}
+
+async function runChromeExercise(exercise, runtimeHooks='') {
+  browserPromise ||= launchBrowser();
+  const state=await browserPromise;
+  const temp=mkdtempSync(join(tmpdir(),'pr4-connections-page-'));
+  let targetId;
   try {
     const runtime=source('renderer/src/runtime.js');
     const actions=runtime.slice(runtime.indexOf('async function liveReceiptBound('),runtime.indexOf('const liveDisabled='));
@@ -410,14 +506,26 @@ function runChromeExercise(exercise, runtimeHooks='') {
     const html=join(temp,'fixture.html');
     writeFileSync(html,'<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'"><title>RUNNING</title><main></main>'+
       scripts.map(s=>'<script>'+s.replaceAll('</script','<\\/script')+'</script>').join(''));
-    const run=spawnSync(chrome,['--headless','--disable-gpu','--disable-background-networking','--no-first-run',
-      '--user-data-dir='+join(temp,'profile'),'--virtual-time-budget=5000','--dump-dom',pathToFileURL(html).href],{encoding:'utf8',timeout:30000,maxBuffer:2e6});
-    assert.equal(run.status,0,run.error?.message||run.stderr);
-    assert.equal(run.stdout.match(/<title>([^<]*)<\/title>/)?.[1],'SYNTHETIC_PASS');
-  } finally { rmSync(temp,{recursive:true,force:true,maxRetries:8,retryDelay:100}); }
+    ({targetId}=await cdp(state,'Target.createTarget',{url:pathToFileURL(html).href}));
+    const {sessionId}=await cdp(state,'Target.attachToTarget',{targetId,flatten:true});
+    const began=Date.now();
+    let title='';
+    // Strict page limit: this is the time for the page's own work, not for starting the browser.
+    while (Date.now()-began<PAGE_LIMIT_MS) {
+      const result=await cdp(state,'Runtime.evaluate',{expression:'document.title',returnByValue:true},sessionId);
+      title=String(result.result?.value??'');
+      if (title==='SYNTHETIC_PASS'||title.startsWith('FAIL ')) break;
+      await new Promise(resolve=>setTimeout(resolve,25));
+    }
+    assert.equal(title,'SYNTHETIC_PASS','page did not pass within '+PAGE_LIMIT_MS+' ms (browser had started in '+state.startupMs+' ms); title='+title+(state.stderr()?'\nChrome stderr: '+state.stderr():''));
+  } finally {
+    if (targetId) { try { await cdp(state,'Target.closeTarget',{targetId}); } catch {} }
+    rmSync(temp,{recursive:true,force:true,maxRetries:8,retryDelay:100});
+  }
 }
-module.exports = {runChromeExercise};
+module.exports = {runChromeExercise, closeBrowser};
 if (require.main === module) {
+test.after(()=>closeBrowser());
 test('SYNTHETIC stage connections through the served renderer functions and real button clicks',
   ()=>runChromeExercise(exercise));
 test('SYNTHETIC ordinary Stage 2 unified request controls and original not-connected 409',
