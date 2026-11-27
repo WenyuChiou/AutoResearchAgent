@@ -110,4 +110,4 @@ def explain_turn_error(error):
         if code.startswith(prefixes) or text.startswith(prefixes):
             return dict(code=text, group=group, text=words)
     hit = explain(code)
-    return hit if hit['group'] != 'unknown' else dict(code=text, group='unknown', text='这一轮没有完成，原始错误见技术细节')
+    return dict(hit, code=text) if hit['group'] != 'unknown' else dict(code=text, group='unknown', text='这一轮没有完成，原始错误见技术细节')
