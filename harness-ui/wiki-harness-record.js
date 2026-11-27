@@ -142,13 +142,19 @@ function wikiRecRepaint() {
   }
  }
 }
+// Is this stage's record block on the page right now? (Without a page, fall back to the open project.)
+function wikiRecShown(ref, stage) {
+ const el = typeof apps !== 'undefined' ? apps[0]?.el : null;
+ if (el?.querySelector) return !!el.querySelector(`[data-wiki-record-stage="${stage}"][data-wiki-record-ref="${ref}"]`);
+ return typeof rt !== 'undefined' && rt.ref === ref;
+}
 function wikiRecPump() {
  if (wikiRecFlight || !wikiRecWant) return;
  const {ref, stage, home} = wikiRecWant, key = ref + '|' + stage, entry = wikiRecStore.get(key);
  wikiRecWant = null;
  if (!entry || entry.state !== 'loading') return;
- // A page read is dropped when the page changed; a home read is dropped as soon as the user left the home page.
- if (home ? !wikiRecHomeActive() : typeof rt !== 'undefined' && rt.ref !== ref) { wikiRecStore.delete(key); return; }
+ // A page read is dropped when its block is no longer on the page (the user moved to another stage or project); a home read is dropped as soon as the user left the home page.
+ if (home ? !wikiRecHomeActive() : !wikiRecShown(ref, stage)) { wikiRecStore.delete(key); return; }
  wikiRecFlight = {key};
  const timer = setTimeout(() => {
   if (entry.state === 'loading') { entry.state = 'timeout'; wikiRecRepaint(); wikiRecHomeStep(); }
