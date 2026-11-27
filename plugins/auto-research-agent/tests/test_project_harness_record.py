@@ -101,6 +101,60 @@ class HarnessRecordTests(unittest.TestCase):
                 )
                 self.assertEqual(status, 404)
 
+    def test_new_route_checks_credentials_origin_and_creates_only_the_temporary_lock(
+        self,
+    ):
+        import json as _json
+        from urllib.error import HTTPError
+        from urllib.request import Request, urlopen
+        import pathlib
+
+        with (
+            patch("test_project_stage1_delivery.authenticate", authenticate),
+            ExitStack() as fixture,
+        ):
+            data = fixture.enter_context(current_core_stage1_case(screened=True))
+            case, ref = data["case"], data["project_ref"]
+            route = f"/api/projects/{ref}/harness-record"
+            with wiki(case, connections=True) as origin:
+                self.assertEqual(request(origin, route, token=None)[0], 401)
+                for headers in (
+                    {"Sec-Fetch-Site": "cross-site"},
+                    {"Origin": "http://evil.example"},
+                ):
+                    req = Request(
+                        origin + route,
+                        headers={"Authorization": "Bearer " + VIEWER, **headers},
+                    )
+                    try:
+                        status = urlopen(req, timeout=60).status
+                    except HTTPError as error:
+                        status = error.code
+                    self.assertGreaterEqual(status, 400, headers)
+                created = []
+                real_open = pathlib.Path.open
+
+                def watching(self, mode="r", *args, **kwargs):
+                    if any(flag in mode for flag in "xwa"):
+                        created.append(self.name)
+                    return real_open(self, mode, *args, **kwargs)
+
+                with patch.object(pathlib.Path, "open", watching):
+                    status, one = request(origin, route + "/stage-1")
+                self.assertEqual(status, 200, one)
+                self.assertEqual(set(one["stages"]), {"1"})
+                self.assertTrue(one["temporary_files"])
+                self.assertTrue(
+                    all(name == ".writer-lock" for name in created), created
+                )
+                self.assertFalse(
+                    list((case.intake.root).rglob(".writer-lock")),
+                    "the temporary lock must be gone after the read",
+                )
+                status, _ = request(origin, route + "/stage-9")
+                self.assertGreaterEqual(status, 400)
+                _ = _json
+
     def test_failure_classes_and_scope(self):
         self.assertEqual(_classify("project-unavailable"), "wrong-project")
         self.assertEqual(_classify("stage2-selection-view-stale"), "stale-version")

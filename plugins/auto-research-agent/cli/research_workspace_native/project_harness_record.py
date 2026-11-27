@@ -9,6 +9,8 @@ sentence, never as a made-up number. One stage failing to read never fails the
 whole answer.
 """
 
+import sqlite3
+
 from .session_api import SessionApiError
 
 KIND = "HarnessRecordSummary"
@@ -31,13 +33,20 @@ TIMELINE = {
     "available": False,
     "missing": "后台没有保存每一步的开始和结束时间、模型调用次数和花费，这里不给数字",
 }
+# A request-deadline TimeoutError is an OSError: it is re-raised before these are
+# consulted so a timeout is reported as a timeout, never as "stage unavailable".
 _READ_ERRORS = (
     SessionApiError,
+    sqlite3.Error,
     OSError,
     ValueError,
     KeyError,
     TypeError,
     RecursionError,
+)
+TEMPORARY_FILES = (
+    "While reading, Stage 1 verification may create and remove a .writer-lock file "
+    "inside the Stage 1 ledger folder; no other file is created and nothing remains."
 )
 
 
@@ -64,7 +73,11 @@ def _stage(status, reason, rows, *, records=None, checks=None, passed=None):
     return {
         "status": status,
         "reason": reason,
-        "summary": {"records": records, "checks": checks, "checkpoint_passed": passed},
+        "summary": {
+            "records": records,
+            "rows_with_data": checks,
+            "checkpoint_passed": passed,
+        },
         "rows": rows,
     }
 
@@ -79,17 +92,23 @@ def _unavailable(error):
 
 
 def _classify(error):
-    text = str(error or "")
-    if any(
-        word in text
-        for word in ("project-unavailable", "project-differs", "wrong-project")
-    ):
+    """Whole-word (dash separated) matching of the saved error code, never substrings.
+
+    wrong-project: project-unavailable, project-differs
+    stale-version: any code with the word stale, or version-differs
+    duplicate-click: idempotency-*, *-already-* (already-recorded, already-published)
+    over-limit: bound-exceeded, budget, limit, quota
+    anything else (including unknown and timeout texts): failed-check
+    """
+    code = str(error or "")
+    words = set(code.split("-"))
+    if code == "project-unavailable" or {"project", "differs"} <= words:
         return "wrong-project"
-    if any(word in text for word in ("stale", "version-differs", "view-stale")):
+    if "stale" in words or {"version", "differs"} <= words:
         return "stale-version"
-    if any(word in text for word in ("idempotency", "already", "replay")):
+    if "idempotency" in words or "already" in words:
         return "duplicate-click"
-    if any(word in text for word in ("bound-exceeded", "budget", "limit", "quota")):
+    if words & {"budget", "limit", "quota"} or {"bound", "exceeded"} <= words:
         return "over-limit"
     return "failed-check"
 
@@ -254,7 +273,7 @@ def _stage1(view):
     )
 
 
-def _stage2(stage2, selection):
+def _stage2(stage2, selection, selection_error=None):
     if stage2 is None and selection is None:
         return _not_run("stage2-unconnected")
     activation = _get(stage2, "activation")
@@ -269,7 +288,11 @@ def _stage2(stage2, selection):
             None if cards is None else {"candidates": len(cards)},
             "stage2-selection",
             "cards",
-            missing=None if cards is not None else "还没有候选",
+            missing=None
+            if cards is not None
+            else (
+                "选案读取失败：" + selection_error if selection_error else "还没有候选"
+            ),
         ),
         _row(
             "same-conditions",
@@ -319,7 +342,7 @@ def _stage2(stage2, selection):
         "recorded",
         None,
         rows,
-        records=None if cards is None else len(cards) + (1 if receipt else 0),
+        records=1 if receipt else 0,
         checks=sum(1 for row in rows if row["value"] is not None),
         passed=None,
     )
@@ -391,49 +414,89 @@ def _stage3(view):
     )
 
 
-def harness_record(server, credential, ref, *, check_deadline=None):
-    """Compose the summary from the same read-only views the pages already use."""
+def harness_record(server, credential, ref, *, stage=None, check_deadline=None):
+    """Compose the summary from the same read-only views the pages already use.
+
+    ``stage`` ("1", "2" or "3") reads only that stage so a page can fetch the three
+    stages separately; with ``stage=None`` all three are read in one request, which
+    can approach the request deadline on a fully connected project (the deadline is
+    then reported as a timeout, never as an empty stage).
+    """
+    if stage not in (None, "1", "2", "3"):
+        raise SessionApiError("invalid-project-read", 400)
     projects = server.projects
     project = projects.read(credential, ref)
-    stage1 = stage2 = None
-    stage1_error = stage2_error = stage3_error = None
-    try:
-        overview = server.overview(
-            credential, ref, automatic=True, check_deadline=check_deadline
+    stage1 = stage2 = selection = planning = None
+    errors = {}
+    selection_error = None
+    if stage in (None, "1", "2") and server.project_stage1 is not None:
+        direct = (
+            project.get("input_origin") == "stage2-direct-request"
+            and project.get("receiving_only") is True
         )
-        stage1, stage2 = overview.get("stage1"), overview.get("stage2")
-    except _READ_ERRORS as error:
-        stage1_error = stage2_error = error
-    selection = None
-    extension = getattr(server, "project_stage2_selection", None)
-    if extension is not None:
+        if not direct:
+            try:
+                stage1 = server.stage1_view(credential, ref, automatic=True)
+            except TimeoutError:
+                raise
+            except _READ_ERRORS as error:
+                errors["1"] = error
+    if stage in (None, "2") and server.project_stage2 is not None:
         try:
-            selection = extension.read(credential, ref, check_deadline=check_deadline)
-        except _READ_ERRORS:
-            selection = None
-    planning = None
-    http = getattr(server, "project_stage3_http", None)
-    if http is not None:
-        try:
-            planning = http.view(credential, ref, check_deadline=check_deadline)
+            stage2 = server.stage2_view(
+                credential,
+                ref,
+                project=project,
+                stage1=stage1,
+                check_deadline=check_deadline,
+            )
+        except TimeoutError:
+            raise
         except _READ_ERRORS as error:
-            stage3_error = error
+            errors["2"] = error
+        extension = getattr(server, "project_stage2_selection", None)
+        if extension is not None and "2" not in errors:
+            try:
+                selection = extension.read(
+                    credential, ref, check_deadline=check_deadline
+                )
+            except TimeoutError:
+                raise
+            except _READ_ERRORS as error:
+                selection_error = getattr(error, "code", type(error).__name__)
+    if stage in (None, "3"):
+        http = getattr(server, "project_stage3_http", None)
+        if http is not None:
+            try:
+                planning = http.view(credential, ref, check_deadline=check_deadline)
+            except TimeoutError:
+                raise
+            except _READ_ERRORS as error:
+                errors["3"] = error
     try:
         history = projects.history(credential, ref)
+    except TimeoutError:
+        raise
     except _READ_ERRORS:
         history = {}
     blocked = _blocked(history)
-    stages = {
-        "1": _unavailable(stage1_error) if stage1_error else _stage1(stage1),
-        "2": _unavailable(stage2_error) if stage2_error else _stage2(stage2, selection),
-        "3": _unavailable(stage3_error) if stage3_error else _stage3(planning),
-    }
-    for stage, value in stages.items():
-        value["blocked"] = blocked[stage]
+    stages = {}
+    wanted = ("1", "2", "3") if stage is None else (stage,)
+    for number in wanted:
+        if number in errors:
+            value = _unavailable(errors[number])
+        elif number == "1":
+            value = _stage1(stage1)
+        elif number == "2":
+            value = _stage2(stage2, selection, selection_error)
+        else:
+            value = _stage3(planning)
+        value["blocked"] = blocked[number]
         value["blocked_scope"] = BLOCKED_SCOPE
-        value["blocked_total"] = sum(cell["count"] for cell in blocked[stage])
+        value["blocked_total"] = sum(cell["count"] for cell in blocked[number])
         value["reopen"] = dict(REOPEN)
         value["timeline"] = dict(TIMELINE)
+        stages[number] = value
     return {
         "kind": KIND,
         "schema_version": SCHEMA_VERSION,
@@ -442,5 +505,6 @@ def harness_record(server, credential, ref, *, check_deadline=None):
         "revision": project.get("revision"),
         "read_only": True,
         "execution_authorized": False,
+        "temporary_files": TEMPORARY_FILES,
         "stages": stages,
     }
