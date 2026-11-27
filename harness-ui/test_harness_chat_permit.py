@@ -14,7 +14,7 @@ from unittest.mock import patch
 from harness_chat_permit import PermitError, canonical, load_permit_verifier
 
 
-TEMP_ROOT = Path("D:/Codex_Learning/harness_ui/t/v9-chat-continuation-20261019")
+TEMP_ROOT = Path(tempfile.gettempdir()) / "ara-chat-tests"
 
 
 class PermitTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class PermitTests(unittest.TestCase):
         now = int(time.time())
         self.request = {"kind": "V9ChatContinuationPermissionCheck",
                         "contract_sha256": "a" * 64, "research_execution": False,
-                        "contract": {"kind": "V9ChatContinuation", "version": 2,
+                        "contract": {"kind": "V9ChatContinuation", "version": 3,
                                      "scope": {"issued_at": now - 10, "expires_at": now + 3600,
                                                "model_messages_authorized": True,
                                                "research_execution": False,
@@ -77,6 +77,15 @@ class PermitTests(unittest.TestCase):
                                       "request_sha256": self.receipt["request_sha256"],
                                       "model_messages_authorized": True, "research_execution": False})
         self.assertEqual(before, (self.key_path.read_bytes(), self.receipt_path.read_bytes()))
+
+    def test_operator_revocation_marker_stops_a_valid_permit(self):
+        verify = self.bind()
+        self.assertEqual(verify(deepcopy(self.request))["model_messages_authorized"], True)
+        Path(str(self.receipt_path) + ".revoked").write_text("operator revoked", encoding="utf-8")
+        with self.assertRaisesRegex(PermitError, "^chat-permit-revoked$"):
+            verify(deepcopy(self.request))
+        Path(str(self.receipt_path) + ".revoked").unlink()
+        self.assertEqual(verify(deepcopy(self.request))["model_messages_authorized"], True)
 
     def test_canonical_rule_matches_contract_encoding(self):
         expected = json.dumps({"中文": [2, 1], "a": False}, ensure_ascii=False,

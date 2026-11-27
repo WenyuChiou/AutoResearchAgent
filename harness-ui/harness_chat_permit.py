@@ -19,8 +19,7 @@ import time
 
 LIMIT = 64 * 1024
 PIN = re.compile(r"[0-9a-f]{64}\Z")
-READ_ACTIONS = frozenset({"state", "materials", "read_material", "read_saved_stage",
-                          "read_paper", "inspect_workflow", "handoff_status"})
+READ_ACTIONS = frozenset({"state", "materials", "read_material"})
 RECEIPT_FIELDS = frozenset({"kind", "version", "contract_sha256", "request_sha256",
                             "authorization_source_sha256", "issued_at", "expires_at",
                             "signature"})
@@ -185,6 +184,8 @@ def load_permit_verifier(receipt_path, receipt_sha, key_path):
     _receipt(receipt_path, receipt_sha, initial_key)
 
     def verify(request):
+        # Revocation is an operator-side marker next to the receipt, never a page action.
+        _require(not Path(str(receipt_path) + ".revoked").exists(), "chat-permit-revoked")
         key = _read(key_path, 32, key=True)
         _require(hmac.compare_digest(key, initial_key), "chat-permit-key-changed")
         receipt = _receipt(receipt_path, receipt_sha, key)
@@ -201,7 +202,7 @@ def load_permit_verifier(receipt_path, receipt_sha, key_path):
                  "chat-permit-fixed-request-differs")
         contract = request["contract"]
         _require(type(contract) is dict and contract.get("kind") == "V9ChatContinuation"
-                 and type(contract.get("version")) is int and contract["version"] == 2
+                 and type(contract.get("version")) is int and contract["version"] == 3
                  and type(contract.get("scope")) is dict, "chat-permit-contract-shape-invalid")
         scope = contract["scope"]
         _require(scope.get("model_messages_authorized") is True

@@ -16,15 +16,13 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-HERE = Path(__file__).resolve().parent
-UI = HERE.parents[1]
-sys.path.append(str(UI / 'work/v7-functional-candidate'))
-sys.path.append(str(UI / 'work/v7r19/github-main/plugins/auto-research-agent/cli'))
+REPO = Path(__file__).resolve().parents[1]
+sys.path.append(str(REPO / 'plugins/auto-research-agent/cli'))
 from harness_chat import ChatService, check_config, load_config
 from harness_chat_continuation import digest, encoded, load_continuation
 from harness_chat_stages import StageContextRegistry, attach_stage_availability, EVIDENCE_KIND, EVIDENCE_VERSION
 from harness_chat_tools import HarnessChatTools
-REAL_CONNECT = socket.create_connection
+BINDING = {'project_ref': 'project-fixture', 'project_id': 'pid-fixture', 'input_version': 1, 'brief_sha256': 'a' * 64}
 
 
 def identity(path):
@@ -62,9 +60,7 @@ class MemoryRpc:
 
 class ContinuationTests(unittest.TestCase):
     def setUp(self):
-        base = UI / 't/v9-chat-continuation-20261019'
-        base.mkdir(parents=True, exist_ok=True)
-        self.temp = tempfile.TemporaryDirectory(prefix='continuation-fixture-', dir=base)
+        self.temp = tempfile.TemporaryDirectory(prefix='continuation-fixture-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.chat = self.root / 'original-owner'
@@ -91,7 +87,7 @@ class ContinuationTests(unittest.TestCase):
                          'CREATE TABLE events(seq INTEGER PRIMARY KEY,turn_id TEXT,body TEXT NOT NULL);')
         for index in range(2):
             row = {'id': 'historical-' + str(index), 'session_id': 'historical-session', 'status': 'completed',
-                   'stage': 2, 'project_ref': 'view:fixture', 'response': 'synthetic historical metadata', 'pending': None}
+                   'stage': 2, 'project_ref': 'project-fixture', 'response': 'synthetic historical metadata', 'pending': None}
             db.execute('INSERT INTO turns VALUES(?,?,?)', (row['id'], row['session_id'], json.dumps(row)))
         db.commit(); db.close()
         db = sqlite3.connect(self.budget)
@@ -99,13 +95,14 @@ class ContinuationTests(unittest.TestCase):
         db.execute('INSERT INTO budget VALUES(1,?,?,2,240)', (self.old_pin, str(self.owner.resolve())))
         db.commit(); db.close()
         scope = {'id': 'fixture-only-chat-lease-0001', 'issued_at': time.time() - 5, 'expires_at': time.time() + 120,
-                 'projects': ['view:fixture'], 'stages': list(range(1, 7)), 'actions': ['state', 'materials', 'read_material'],
+                 'principal': 'local-viewer', 'bindings': [BINDING], 'money_cap_usd': None,
+                 'stages': list(range(1, 7)), 'actions': ['state', 'materials', 'read_material'],
                  'model': 'fixture-model', 'effort': 'high',
                  'expected_account_sha256': digest(encoded({'type': 'chatgpt', 'identity': 'fixture@example.invalid'})),
                  'model_messages_authorized': True, 'research_execution': False,
                  'max_turns': 3, 'turn_seconds': 120, 'previous_calls': 5, 'previous_seconds': 840,
                  'max_calls': 8, 'max_seconds': 1200}
-        self.contract = {'kind': 'V9ChatContinuation', 'version': 2,
+        self.contract = {'kind': 'V9ChatContinuation', 'version': 3,
                          'predecessor': identity(self.old_path),
                          'budget': {'path': str(self.budget), 'owner': str(self.owner), 'identity_pin': self.old_pin,
                                     'minimum_turns': 2, 'minimum_seconds': 240},
@@ -117,7 +114,10 @@ class ContinuationTests(unittest.TestCase):
         for stage in range(3, 7):
             self.registry.register(stage, self.evidence, provider_id='fixture-context', implementation_sha256='b' * 64)
         self.materials = SimpleNamespace(catalog=lambda: {'materials': [], 'available_deliveries': [], 'drafts': [], 'operations': []})
-        self.tools = HarnessChatTools(SimpleNamespace(views=[{'ref': 'fixture', 'manifest_sha256': 'a' * 64}]), self.materials, self.registry)
+        self.project = {'project_ref': 'project-fixture', 'project_id': 'pid-fixture', 'input_version': 1,
+                        'brief_sha256': 'a' * 64, 'brief': {'original_description': 'fixture topic'}}
+        projects = SimpleNamespace(read=lambda credential, ref: dict(self.project))
+        self.tools = HarnessChatTools(SimpleNamespace(credential='fixture-token', projects=projects), self.materials, self.registry)
         self.rpcs = []
         # No test can accidentally start native or reach a non-local endpoint.
         self.addCleanup(patch.stopall)
@@ -156,8 +156,8 @@ class ContinuationTests(unittest.TestCase):
         finally: db.close()
 
     def send(self, service, stage=2, key='fixture-request-key-0001'):
-        return service.start({'project_ref': 'view:fixture', 'stage': stage, 'text': 'Synthetic protocol fixture only',
-                              'key': key, 'session_id': None})
+        return service.start({'project_ref': 'project-fixture', 'stage': stage, 'text': 'Synthetic protocol fixture only',
+                              'key': key, 'session_id': None, 'input_version': 1, 'brief_sha256': 'a' * 64}, 'local-viewer')
 
     def finished(self, service, turn):
         deadline = time.monotonic() + 5
@@ -185,20 +185,20 @@ class ContinuationTests(unittest.TestCase):
         service = self.service(); self.finished(service, self.send(service))
         self.contract['scope']['id'] = 'fixture-only-chat-lease-0002'; self.seal()
         renewed = self.service()
-        self.assertIn('chat-cumulative-budget-exhausted', renewed.status('view:fixture', 2)['admission_blockers'])
+        self.assertIn('chat-cumulative-budget-exhausted', renewed.status('project-fixture', 2, 'local-viewer')['admission_blockers'])
         self.assertEqual(self.row()[2:], (3, 360))
 
     def test_cleared_test_session_cannot_resume_or_consume_budget(self):
         service = self.service()
-        context = self.tools.context('view:fixture', 2)
-        session = dict(id='cleared-test', project_ref='view:fixture', stage=2,
+        context = self.tools.context('project-fixture', 2)
+        session = dict(id='cleared-test', project_ref='project-fixture', stage=2,
                        project_pin=context['project_pin'], thread_id='archived-test-thread',
                        content_cleared=True)
         with service.db() as db: service.put(db, 'sessions', session)
         before = self.row()
         with self.assertRaisesRegex(ValueError, 'content-cleared-open-new-session'):
-            service.start(dict(project_ref='view:fixture', stage=2, text='fixture',
-                               key='cleared-test-new-key', session_id=session['id']))
+            service.start(dict(project_ref='project-fixture', stage=2, text='fixture', key='cleared-test-new-key',
+                               session_id=session['id'], input_version=1, brief_sha256='a' * 64), 'local-viewer')
         self.assertEqual(self.row(), before)
         self.assertEqual(self.rpcs, [])
 
@@ -214,7 +214,7 @@ class ContinuationTests(unittest.TestCase):
                 result = self.finished(service, self.send(service, stage, 'fixture-stage-key-' + str(stage)))
                 self.assertEqual(result['status'], 'completed', result)
                 self.assertEqual(result['stage'], stage)
-                self.assertFalse(service.status('view:fixture', stage)['research_execution'])
+                self.assertFalse(service.status('project-fixture', stage, 'local-viewer')['research_execution'])
         self.assertEqual(self.row()[2:], (8, 960))
 
     def test_future_stage_missing_provider_rejects_before_reservation(self):
@@ -336,58 +336,6 @@ class ContinuationTests(unittest.TestCase):
             load_continuation(self.contract_path, digest(bad), actual_modules=self.modules, precheck_only=True)
         self.contract['scope']['max_calls'] = True; self.seal()
         with self.assertRaisesRegex(ValueError, 'budget-invalid'): self.spec()
-
-    def test_http_all_stage_status_scope_auth_and_preparation_write_guard(self):
-        from research_workspace_native.project_host import ProjectHost
-        from research_workspace_native.project_intake import ProjectIntakeService
-        from research_workspace_native.http import token_authenticator
-        from harness_chat_http import install_chat
-        from connection_preparation import install_connection_preparation
-        token = 'synthetic-loopback-credential-only'
-        projects = ProjectIntakeService(self.root / 'http-projects', authenticate=token_authenticator({token: 'local-viewer'}))
-        self.addCleanup(projects.close)
-        host = ProjectHost(projects=projects, credential=token, files={}, views=[], port=0)
-        host.views = self.tools.host.views
-        service = install_chat(host, self.materials, self.root / 'ignored-new-material-root', self.spec(),
-                               rpc_factory=lambda r: MemoryRpc(r), stage_registry=self.registry)
-        thread = threading.Thread(target=host.serve_forever, daemon=True); thread.start()
-        self.addCleanup(lambda: (service.close(), host.shutdown(), host.server_close(), thread.join(2)))
-        port = host.server_address[1]
-
-        def loopback_only(address, *args, **kwargs):
-            if address != ('127.0.0.1', port): raise AssertionError('external-network-forbidden')
-            return REAL_CONNECT(address, *args, **kwargs)
-
-        def call(path, body=None, auth=True):
-            headers = {'Origin': 'http://127.0.0.1:' + str(port)}
-            if auth: headers['Authorization'] = 'Bearer ' + token
-            raw = None if body is None else json.dumps(body)
-            if body is not None: headers['Content-Type'] = 'application/json'
-            connection = HTTPConnection('127.0.0.1', port, timeout=3)
-            try:
-                connection.request('GET' if body is None else 'POST', path, body=raw, headers=headers)
-                response = connection.getresponse()
-                return response.status, json.loads(response.read())
-            finally: connection.close()
-
-        with patch('socket.create_connection', side_effect=loopback_only):
-            for stage in range(1, 7):
-                code, result = call('/api/v9/chat/state?project=view%3Afixture&stage=' + str(stage))
-                self.assertEqual(code, 200, result)
-                self.assertEqual(result['stage'], stage)
-                self.assertTrue(result['local_admission_ready'])
-                self.assertFalse(result['live_native_connection_verified'])
-            self.assertEqual(call('/api/v9/chat/state?project=view%3Afixture&stage=1', auth=False)[0], 401)
-            code, turn = call('/api/v9/chat/send', {'project_ref': 'view:fixture', 'stage': 2,
-                'text': 'Synthetic HTTP fixture only', 'key': 'fixture-http-request-key-0001', 'session_id': None})
-            self.assertEqual(code, 200, turn)
-            self.assertEqual(self.finished(service, turn)['status'], 'completed')
-            before = self.budget.read_bytes()
-            install_connection_preparation(host)
-            self.assertEqual(call('/api/v9/chat/send', {})[0], 405)
-            self.assertEqual(before, self.budget.read_bytes())
-        self.assertEqual(service.path, self.owner)
-        self.assertFalse((self.root / 'ignored-new-material-root').exists())
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

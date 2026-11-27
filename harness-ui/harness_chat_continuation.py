@@ -16,11 +16,34 @@ from harness_chat_binding import load_binding
 
 LIMIT = 64 * 1024
 PIN = re.compile(r'[0-9a-f]{64}\Z')
-READ_ACTIONS = frozenset({'state', 'materials', 'read_material', 'read_saved_stage',
-                          'read_paper', 'inspect_workflow', 'handoff_status'})
+READ_ACTIONS = frozenset({"state", "materials", "read_material"})
 LEGACY_FIELDS = {'executable', 'config_path', 'model', 'effort', 'expires_at', 'max_turns',
                  'turn_seconds', 'previous_calls', 'previous_seconds', 'max_calls',
                  'max_seconds', 'pins', 'authorization', 'budget_path'}
+# The predecessor is a historical file, read only for its ledger counts, so its
+# field set stays the one the old host wrote. New grants add the project fields below.
+BINDING_FIELDS = {'project_ref', 'project_id', 'input_version', 'brief_sha256'}
+
+
+def normalize_bindings(value):
+    """Exact Wiki project bindings: ref, ID, strict integer input version, brief hash."""
+    require(type(value) is list and 1 <= len(value) <= 32, 'chat-continuation-projects-invalid')
+    result = []
+    for item in value:
+        require(type(item) is dict and set(item) == BINDING_FIELDS, 'chat-continuation-projects-invalid')
+        require(type(item['project_ref']) is str and 0 < len(item['project_ref']) <= 200
+                and type(item['project_id']) is str and 0 < len(item['project_id']) <= 200
+                and type(item['input_version']) is int and item['input_version'] > 0
+                and type(item['brief_sha256']) is str and PIN.fullmatch(item['brief_sha256']),
+                'chat-continuation-projects-invalid')
+        result.append(dict(item))
+    require(len({x['project_ref'] for x in result}) == len(result), 'chat-continuation-projects-invalid')
+    return result
+
+
+def require_money_cap_unset(value):
+    """The provider reports no money, so a dollar cap cannot be enforced; refuse to pretend."""
+    require(value is None, 'chat-money-cap-not-enforceable')
 
 
 def require(ok, reason):
@@ -70,7 +93,7 @@ def load_continuation(path, pin, *, actual_modules, verify_permission=None, prec
     value = read_json(path, pin)
     require(set(value) == {'kind', 'version', 'predecessor', 'budget', 'binding', 'scope', 'authorization'},
             'chat-continuation-fields-invalid')
-    require(value['kind'] == 'V9ChatContinuation' and type(value['version']) is int and value['version'] == 2,
+    require(value['kind'] == 'V9ChatContinuation' and type(value['version']) is int and value['version'] == 3,
             'chat-continuation-version-unsupported')
     predecessor, budget, binding, scope = (value[k] for k in ('predecessor', 'budget', 'binding', 'scope'))
     require(type(predecessor) is dict and set(predecessor) == {'path', 'sha256'}, 'chat-predecessor-fields-invalid')
@@ -86,17 +109,17 @@ def load_continuation(path, pin, *, actual_modules, verify_permission=None, prec
     require(all(_integer(budget[k]) for k in ('minimum_turns', 'minimum_seconds')),
             'chat-continuation-counter-floor-invalid')
     require(type(binding) is dict and set(binding) == {'path', 'sha256'}, 'chat-continuation-binding-fields-invalid')
-    fields = {'id', 'issued_at', 'expires_at', 'projects', 'stages', 'actions', 'model', 'effort',
-              'expected_account_sha256', 'model_messages_authorized', 'research_execution',
+    fields = {'id', 'issued_at', 'expires_at', 'principal', 'bindings', 'stages', 'actions', 'model', 'effort',
+              'expected_account_sha256', 'model_messages_authorized', 'research_execution', 'money_cap_usd',
               'max_turns', 'turn_seconds', 'previous_calls', 'previous_seconds', 'max_calls', 'max_seconds'}
     require(type(scope) is dict and set(scope) == fields, 'chat-continuation-scope-fields-invalid')
     require(type(scope['id']) is str and 12 <= len(scope['id']) <= 128, 'chat-continuation-scope-id-required')
     require(all(type(scope[k]) in (int, float) and math.isfinite(scope[k]) for k in ('issued_at', 'expires_at'))
             and 0 < scope['issued_at'] < scope['expires_at'], 'chat-continuation-time-invalid')
     require(scope['issued_at'] <= time.time() < scope['expires_at'], 'chat-operator-lease-expired')
-    require(type(scope['projects']) is list and 1 <= len(scope['projects']) <= 32
-            and all(type(x) is str and 0 < len(x) <= 200 for x in scope['projects'])
-            and len(set(scope['projects'])) == len(scope['projects']), 'chat-continuation-projects-invalid')
+    normalize_bindings(scope['bindings'])
+    require(type(scope['principal']) is str and 0 < len(scope['principal']) <= 128, 'chat-continuation-principal-required')
+    require_money_cap_unset(scope['money_cap_usd'])
     require(type(scope['stages']) is list and scope['stages']
             and all(type(x) is int and 1 <= x <= 6 for x in scope['stages'])
             and len(set(scope['stages'])) == len(scope['stages']), 'chat-continuation-stages-invalid')
@@ -188,8 +211,19 @@ def verify_budget(spec, row, owner):
     return turns, seconds
 
 
-def verify_request_scope(spec, project, stage, action=None):
-    require(project in spec['projects'] and type(stage) is int and stage in spec['stages'],
-            'chat-continuation-project-stage-not-authorized')
-    if action is not None:
+def verify_request_scope(spec, project, stage, action=None, binding=None, principal=None):
+    """One scope check for both grant shapes.
+
+    ``binding`` is the project's *current* ref/ID/input-version/brief-hash read by the
+    host; the grant must name exactly that tuple, so a changed project or a new input
+    version is refused instead of silently covered by an old grant.
+    """
+    require(type(stage) is int and stage in spec['stages'], 'chat-continuation-project-stage-not-authorized')
+    granted = next((b for b in spec['bindings'] if b['project_ref'] == project), None)
+    require(granted is not None, 'chat-continuation-project-stage-not-authorized')
+    if binding is not None:
+        require(granted == {k: binding[k] for k in BINDING_FIELDS}, 'chat-grant-binding-differs-from-current-project')
+    if principal is not None:
+        require(principal == spec['principal'], 'chat-principal-differs')
+    if action is not None and 'actions' in spec:
         require(action in spec['actions'], 'chat-continuation-action-not-authorized')

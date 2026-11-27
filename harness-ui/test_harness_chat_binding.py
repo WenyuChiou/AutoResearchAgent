@@ -10,7 +10,7 @@ import unittest
 from harness_chat_binding import BindingError, load_binding
 
 
-TEMP_ROOT = Path("D:/Codex_Learning/harness_ui/t/v9-chat-continuation-20261019")
+TEMP_ROOT = Path(tempfile.gettempdir()) / "ara-chat-tests"
 
 
 def sha(path):

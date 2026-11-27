@@ -16,6 +16,8 @@ import uuid
 from harness_chat_tools import encoded, require
 from harness_chat_rpc import Rpc, preflight
 from harness_chat_stages import require_context_available
+from harness_chat_continuation import BINDING_FIELDS, normalize_bindings, require_money_cap_unset, verify_request_scope
+from harness_chat_reasons import explain, explain_all
 
 TERMINAL = {'completed', 'failed', 'interrupted'}
 
@@ -37,12 +39,19 @@ def load_config(path, pin, *, actual_modules=None, verify_permission=None, prech
         return load_continuation(path, pin, actual_modules=actual_modules,
                                  verify_permission=verify_permission, precheck_only=precheck_only)
     required = {'executable', 'config_path', 'model', 'effort', 'expires_at', 'max_turns', 'turn_seconds',
-                'previous_calls', 'previous_seconds', 'max_calls', 'max_seconds', 'pins', 'authorization', 'budget_path'}
+                'previous_calls', 'previous_seconds', 'max_calls', 'max_seconds', 'pins', 'authorization', 'budget_path',
+                'principal', 'bindings', 'stages', 'money_cap_usd'}
     require(set(spec) == required, 'chat-config-fields-differ')
+    normalize_bindings(spec['bindings'])
+    require(type(spec['principal']) is str and 0 < len(spec['principal']) <= 128, 'chat-continuation-principal-required')
+    require(type(spec['stages']) is list and spec['stages'] and all(type(x) is int and 1 <= x <= 6 for x in spec['stages'])
+            and len(set(spec['stages'])) == len(spec['stages']), 'chat-continuation-stages-invalid')
+    require_money_cap_unset(spec['money_cap_usd'])
     require(spec['authorization'] and spec['model'] and spec['effort'], 'chat-operator-authorization-required')
     require(all(type(spec[k]) is int and spec[k] >= 0 for k in ('max_turns', 'turn_seconds', 'previous_calls',
                 'previous_seconds', 'max_calls', 'max_seconds')), 'chat-budget-invalid')
-    require(1 <= spec['max_turns'] <= 100 and 1 <= spec['turn_seconds'] <= 120, 'chat-batch-bounds-invalid')
+    # max_turns == 0 is a legal zero-allowance grant: it can be configured and read, never sent.
+    require(0 <= spec['max_turns'] <= 100 and 1 <= spec['turn_seconds'] <= 120, 'chat-batch-bounds-invalid')
     require(Path(spec['executable']).suffix.lower() not in {'.cmd', '.ps1', '.bat'}, 'chat-native-executable-required')
     spec['_path'], spec['_pin'] = str(path), pin
     check_config(spec)
@@ -58,6 +67,7 @@ def check_config(spec):
         return
     require(time.time() < spec['expires_at'], 'chat-operator-lease-expired')
     if spec.get('_path'):
+        require(not Path(spec['_path'] + '.revoked').exists(), 'chat-permit-revoked')
         require(sha(Path(spec['_path']).read_bytes()) == spec['_pin'], 'chat-config-changed')
     for path, pin in spec['pins'].items():
         require(sha(Path(path).read_bytes()) == pin, 'chat-bound-file-changed:' + Path(path).name)
@@ -148,75 +158,168 @@ class ChatService:
             require(total + len(raw) <= 8 * 1024 * 1024, 'chat-turn-log-full')
             db.execute('INSERT INTO events(turn_id,body) VALUES(?,?)', (turn, raw.decode()))
 
-    def status(self, project, stage):
-        context = self.tools.context(project, stage)
-        with self.db() as db:
-            sessions = [json.loads(r[0]) for r in db.execute('SELECT body FROM sessions')]
-            sessions = [s for s in sessions if s['project_ref'] == project and s['stage'] == stage]
-            identities = {s['id'] for s in sessions}
-            turns = [json.loads(r[0]) for r in db.execute('SELECT body FROM turns ORDER BY rowid')]
-            turns = [t for t in turns if t['session_id'] in identities]
-            budget = db.execute('SELECT turns,seconds FROM quota.budget WHERE id=1').fetchone()
-        enabled = self.spec is not None
-        reason = None
-        if enabled:
-            try:
-                check_config(self.spec)
-            except ValueError as exc:
-                enabled, reason = False, str(exc)
-        blockers = [reason or 'operator-chat-config-required'] if not enabled else []
+    CHECK_FAIL = (ValueError, OSError, sqlite3.Error)
+
+    @staticmethod
+    def _failure(exc):
+        """Content-free refusal code; raw OS errors can carry private paths."""
+        return str(exc) if isinstance(exc, ValueError) else 'chat-state-unreadable'
+
+    def _connect_failures(self, context, principal, expected=None):
+        """Gate 1: may this person, project, input version and stage use the chat now?
+
+        Pure read: file stats/hashes, the permit verifier and the in-memory context.
+        """
+        if self.spec is None:
+            return ['operator-chat-config-required']
+        failures = []
+        try:
+            check_config(self.spec)
+        except self.CHECK_FAIL as exc:
+            failures.append(self._failure(exc))
+        if principal is None:
+            failures.append('chat-principal-differs')
         try:
             require_context_available(context)
-            if self.spec and self.spec.get('_continuation'):
-                from harness_chat_continuation import verify_request_scope, verify_budget
-                verify_request_scope(self.spec, project, stage)
-                with self.db() as db:
-                    row = db.execute('SELECT pin,turns,seconds,owner FROM quota.budget WHERE id=1').fetchone()
-                verify_budget(self.spec, row, self.path)
-            if self.spec:
-                with self.db() as db:
-                    counts = db.execute('SELECT turns,seconds FROM quota.budget WHERE id=1').fetchone()
-                    unfinished = [json.loads(r[0]) for r in db.execute('SELECT body FROM turns')]
-                require(not any(t['status'] not in TERMINAL for t in unfinished), 'chat-unresolved-turn-must-be-reconciled')
-                count, seconds = counts if counts else (0, 0)
-                require(count < self.spec['max_turns'] and self.spec['previous_calls'] + count < self.spec['max_calls']
-                        and self.spec['previous_seconds'] + seconds + self.spec['turn_seconds'] <= self.spec['max_seconds'],
-                        'chat-cumulative-budget-exhausted')
-        except (ValueError, OSError, sqlite3.Error) as exc:
-            blockers.append(str(exc))
-        controls = [t['id'] for t in turns if t['id'] in tuple(self.running)
-                    and t['status'] in {'starting','running','waiting','stop-requested'}]
-        shown_sessions = [s for s in sessions if not s.get('content_cleared')]
-        shown_turns = [t for t in turns if not t.get('content_cleared')]
-        return dict(kind='V9HarnessConversation', project_ref=project, stage=stage, context=context,
-                    enabled=enabled, disabled_reason=reason or (None if enabled else 'operator-chat-config-required'),
-                    model=self.spec['model'] if self.spec else None, effort=self.spec['effort'] if self.spec else None,
-                    sessions=shown_sessions, turns=shown_turns[-50:], hidden_turn_count=max(0, len(shown_turns)-50),
-                    reserved_turns=budget[0] if budget else 0, reserved_seconds=budget[1] if budget else 0,
-                    max_turns=self.spec['max_turns'] if self.spec else 0, research_execution=False,
-                    local_admission_ready=enabled and not blockers, admission_blockers=blockers,
-                    controllable_turn_ids=controls,
-                    cumulative_reserved_turns=(self.spec['previous_calls'] + (budget[0] if budget else 0)) if self.spec else None,
-                    cumulative_reserved_seconds=(self.spec['previous_seconds'] + (budget[1] if budget else 0)) if self.spec else None,
-                    cumulative_max_turns=self.spec['max_calls'] if self.spec else None,
-                    remaining_turns=max(0, min(self.spec['max_turns'] - (budget[0] if budget else 0),
-                        self.spec['max_calls'] - self.spec['previous_calls'] - (budget[0] if budget else 0),
-                        (self.spec['max_seconds'] - self.spec['previous_seconds'] - (budget[1] if budget else 0)) // self.spec['turn_seconds'])) if self.spec else 0,
-                    live_native_connection_verified=False,
-                    budget_identity_preserved=bool(self.spec and self.spec.get('_continuation')))
+        except ValueError as exc:
+            failures.append(str(exc))
+        try:
+            verify_request_scope(self.spec, context['project_ref'], context['stage'],
+                                 binding=context.get('binding'), principal=principal)
+        except ValueError as exc:
+            failures.append(str(exc))
+        if expected is not None and context.get('binding') is not None:
+            binding = context['binding']
+            if (type(expected[0]) is not int or expected[0] != binding['input_version']
+                    or expected[1] != binding['brief_sha256']):
+                failures.append('chat-input-version-differs')
+        return failures
 
-    def start(self, body):
+    def _spend_failures(self, budget, unfinished):
+        """Gate 2: is there allowance left, and is the ledger intact and unclaimed?
+
+        ``budget`` is the ledger row ``(pin, turns, seconds, owner)`` or None.
+        """
+        if self.spec is None:
+            return []
+        failures = []
+        try:
+            require_money_cap_unset(self.spec.get('money_cap_usd'))
+        except ValueError as exc:
+            failures.append(str(exc))
+        if self.spec.get('_continuation'):
+            try:
+                from harness_chat_continuation import verify_budget
+                verify_budget(self.spec, budget, self.path)
+            except self.CHECK_FAIL as exc:
+                failures.append(self._failure(exc))
+        if any(t['status'] not in TERMINAL for t in unfinished):
+            failures.append('chat-unresolved-turn-must-be-reconciled')
+        count, seconds = (budget[1], budget[2]) if budget else (0, 0)
+        if not (count < self.spec['max_turns'] and self.spec['previous_calls'] + count < self.spec['max_calls']
+                and self.spec['previous_seconds'] + seconds + self.spec['turn_seconds'] <= self.spec['max_seconds']):
+            failures.append('chat-cumulative-budget-exhausted')
+        return failures
+
+    def status(self, project, stage, principal=None):
+        """Read-only panel state. Never writes a row, reserves allowance or starts Codex."""
+        context = self.tools.context(project, stage)
+        with self.db() as db:
+            all_sessions = [json.loads(r[0]) for r in db.execute('SELECT body FROM sessions')]
+            sessions = [s for s in all_sessions if s['project_ref'] == project and s['stage'] == stage]
+            identities = {s['id'] for s in sessions}
+            all_turns = [json.loads(r[0]) for r in db.execute('SELECT body FROM turns ORDER BY rowid')]
+            turns = [t for t in all_turns if t['session_id'] in identities]
+            budget = db.execute('SELECT pin,turns,seconds,owner FROM quota.budget WHERE id=1').fetchone()
+        used_turns, used_seconds = (budget[1], budget[2]) if budget else (0, 0)
+        connect = self._connect_failures(context, principal)
+        spend = self._spend_failures(budget, all_turns)
+        spec = self.spec
+        groups = [explain(c)['group'] for c in connect]
+        enabled = spec is not None and not any(g in {'permit-expired', 'permit-revoked', 'binding-changed', 'not-configured'}
+                                               for g in groups)
+        working = {'starting', 'running', 'waiting', 'stop-requested'}
+        controls = [t['id'] for t in turns if t['id'] in tuple(self.running) and t['status'] in working]
+        owners = {s['id']: s for s in all_sessions}
+        unfinished = [t for t in all_turns if t['status'] not in TERMINAL]
+        elsewhere = [t for t in unfinished if t['session_id'] not in identities]
+        failed_login = bool(turns) and 'codex-login-required' in str(turns[-1].get('error', ''))
+        other_turn = None
+        if elsewhere:
+            where = owners.get(elsewhere[0]['session_id'], {})
+            other_turn = dict(project_ref=where.get('project_ref'), stage=where.get('stage'),
+                              turn_id=elsewhere[0]['id'], created_at=elsewhere[0].get('created_at'))
+        failures = connect + [c for c in spend if c not in connect]
+        groups = [explain(c)['group'] for c in failures]
+        if spec is None:
+            panel = 'not-configured'
+        elif any(t['status'] in working for t in turns):
+            panel = 'sending'
+        elif any(t['status'] == 'unknown' for t in turns):
+            panel = 'unknown-result'
+        elif elsewhere:
+            panel = 'other-turn'
+        elif failed_login:
+            panel = 'login-required'
+        elif 'permit-missing' in groups and not {'permit-expired', 'permit-revoked'} & set(groups):
+            panel = 'no-permit'
+        elif 'stage-unconnected' in groups:
+            panel = 'stage-unconnected'
+        elif failures:
+            panel = 'blocked'
+        else:
+            panel = 'ready'
+        hidden = panel in {'not-configured', 'login-required'}
+        shown_sessions = [] if hidden else [s for s in sessions if not s.get('content_cleared')]
+        shown_turns = [] if hidden else [t for t in turns if not t.get('content_cleared')]
+        remaining = max(0, min(spec['max_turns'] - used_turns, spec['max_calls'] - spec['previous_calls'] - used_turns,
+                               (spec['max_seconds'] - spec['previous_seconds'] - used_seconds) // spec['turn_seconds'])) if spec else 0
+        binding = context.get('binding')
+        if hidden:
+            context = dict(project_ref=project, stage=stage, binding=binding, materials=[], content_hidden=True)
+        shown_reason = failures[0] if failures and panel not in {'ready', 'sending', 'unknown-result'} else None
+        return dict(kind='V9HarnessConversation', project_ref=project, stage=stage, context=context,
+                    binding=binding, panel_state=panel, content_hidden=hidden,
+                    panel_reason=explain(shown_reason) if shown_reason else None,
+                    connect_check=dict(ok=not connect, reasons=explain_all(connect)),
+                    spend_check=dict(ok=not spend, reasons=explain_all(spend), remaining_turns=remaining,
+                                     money_cap_usd=None, money_metering='unknown'),
+                    can_send=bool(spec) and not connect and not spend and not self.running,
+                    codex_login='logged-out' if failed_login else 'unknown-until-send',
+                    other_turn=other_turn, read_only=True, execution_authorized=False, formal_selection=False,
+                    enabled=enabled, disabled_reason=None if enabled else (connect[0] if connect else None),
+                    model=spec['model'] if spec else None, effort=spec['effort'] if spec else None,
+                    expires_at=spec['expires_at'] if spec else None,
+                    turn_seconds=spec['turn_seconds'] if spec else None,
+                    sessions=shown_sessions, turns=shown_turns[-50:], hidden_turn_count=max(0, len(shown_turns)-50),
+                    reserved_turns=used_turns, reserved_seconds=used_seconds,
+                    max_turns=spec['max_turns'] if spec else 0, research_execution=False,
+                    local_admission_ready=bool(spec) and not connect and not spend, admission_blockers=failures,
+                    controllable_turn_ids=controls,
+                    cumulative_reserved_turns=(spec['previous_calls'] + used_turns) if spec else None,
+                    cumulative_reserved_seconds=(spec['previous_seconds'] + used_seconds) if spec else None,
+                    cumulative_max_turns=spec['max_calls'] if spec else None,
+                    remaining_turns=remaining, live_native_connection_verified=False,
+                    budget_identity_preserved=bool(spec and spec.get('_continuation')))
+
+    def start(self, body, principal=None):
         require(self.spec is not None, 'operator-chat-config-required')
-        require(set(body) == {'project_ref', 'stage', 'text', 'key', 'session_id'}, 'chat-start-fields-invalid')
+        require(set(body) == {'project_ref', 'stage', 'text', 'key', 'session_id', 'input_version', 'brief_sha256'},
+                'chat-start-fields-invalid')
         require(isinstance(body['text'], str) and 0 < len(body['text'].encode()) <= 8192, 'chat-message-size-invalid')
         require(isinstance(body['key'], str) and 12 <= len(body['key']) <= 100, 'chat-idempotency-key-required')
-        context = self.tools.context(body['project_ref'], body['stage'])
-        require_context_available(context)
-        if self.spec.get('_continuation'):
-            from harness_chat_continuation import verify_request_scope
-            verify_request_scope(self.spec, body['project_ref'], body['stage'])
         identity = 'turn-' + sha(encoded([body['project_ref'], body['stage'], body['key']]))[:32]
         payload_pin = sha(encoded(body))
+        # A repeated request is a read of the saved turn: no new gate pass, no new reservation.
+        with self.db() as db:
+            row = db.execute('SELECT body FROM turns WHERE id=?', (identity,)).fetchone()
+        if row:
+            old = json.loads(row[0])
+            require(old['request_sha256'] == payload_pin, 'chat-idempotency-conflict')
+            return old
+        context = self.tools.context(body['project_ref'], body['stage'])
+        connect = self._connect_failures(context, principal, expected=(body['input_version'], body['brief_sha256']))
+        require(not connect, connect[0] if connect else '')
         with self.lock, self.db() as db:
             row = db.execute('SELECT body FROM turns WHERE id=?', (identity,)).fetchone()
             if row:
@@ -227,10 +330,10 @@ class ChatService:
             require(not self.running, 'chat-another-turn-running')
             session = self.get('sessions', body['session_id']) if body['session_id'] else dict(
                 id='chat-' + uuid.uuid4().hex, project_ref=body['project_ref'], stage=body['stage'],
-                project_pin=context['project_pin'], thread_id=None, created_at=time.time())
+                project_pin=context['project_pin'], binding=context['binding'], thread_id=None, created_at=time.time())
             require(not session.get('content_cleared'), 'chat-session-content-cleared-open-new-session')
-            require((session['project_ref'], session['stage'], session['project_pin']) ==
-                    (body['project_ref'], body['stage'], context['project_pin']), 'chat-session-binding-differs')
+            require((session['project_ref'], session['stage']) == (body['project_ref'], body['stage']), 'chat-project-differs')
+            require(session['project_pin'] == context['project_pin'], 'chat-input-version-differs')
             # Admission and reservation must be atomic across local server processes.
             db.execute('BEGIN IMMEDIATE')
             prior = [json.loads(r[0]) for r in db.execute('SELECT body FROM turns')]
@@ -400,10 +503,8 @@ class ChatService:
                     if method == 'item/tool/call':
                         require(params.get('tool') == 'harness' and not params.get('namespace'), 'chat-unknown-tool')
                         args = params.get('arguments')
-                        if self.spec.get('_continuation'):
-                            from harness_chat_continuation import verify_request_scope
-                            require(isinstance(args, dict), 'chat-tool-arguments-invalid')
-                            verify_request_scope(self.spec, session['project_ref'], session['stage'], args.get('action'))
+                        require(isinstance(args, dict), 'chat-tool-arguments-invalid')
+                        verify_request_scope(self.spec, session['project_ref'], session['stage'], args.get('action'))
                         call_id = params.get('callId')
                         require(isinstance(call_id, str) and call_id, 'chat-call-id-required')
                         binding = sha(encoded(params))
