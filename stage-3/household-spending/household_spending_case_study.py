@@ -1,4 +1,4 @@
-"""Play the U.S. household spending case study using Edtrace and the v57 manuscript.
+"""Play the U.S. household spending case study using Edtrace.
 
 Run this file with Python 3.11 or newer. The companion folders contain the
 player runtime, the study figures, and the recorded prompt. Use --export-pages
@@ -32,8 +32,8 @@ TRACE_PATH = HERE / "var" / "traces" / f"{ENTRY}.json"
 OBSERVED = "images/observed-bls.png"
 WORKFLOW = "images/household-loop.png"
 SQ1_COMPARISON = "images/sq1-quarterly-comparison.png"
-AGING = "images/sq2-aging.png"
-FEEDBACK = "images/sq3-feedback.png"
+AGING = "images/sq2-aging-percentages.png"
+FEEDBACK = "images/sq3-feedback-percentages.png"
 
 AGING_CHART = {
     "title": "U.S. residents aged 65+",
@@ -76,32 +76,58 @@ SQ1_SCORES = [
 SQ2_SPENDING = [
     [
         "Increase in 65+ share",
-        "Annual gap (USD per consumer unit)"
+        "Annual spending change (%)"
     ],
     [
         "+5 pp",
-        "−$1,149"
+        "−1.71%"
     ],
     [
         "+10 pp",
-        "−$2,297"
+        "−3.42%"
     ],
     [
         "+15 pp",
-        "−$3,446"
+        "−5.13%"
     ]
 ]
-AGE_MIX_CAPTION = (
-    "Table 3. U.S. household spending in 2030 on the CBO central path. "
-    "Amounts are in billions of nominal U.S. dollars. "
-    "Parentheses show reductions from the fixed mix under the same gasoline price rule. Differences use unrounded values."
-)
+AGE_MIX_CAPTION = 'Table 3. U.S. spending changes in 2030 on the CBO central path. Each gap compares an aging scenario with the fixed age mix under the same gasoline price rule. Spending changes use fixed-mix spending at preset prices as the denominator. Added change is the gap with feedback minus the gap at preset prices, before rounding.'
 AGE_MIX_SPENDING = [
-    ["Age mix", "65+ share", "No feedback", "With feedback", "Added reduction"],
-    ["Fixed", "28.22%", "9,125.58", "9,125.58", "—"],
-    ["+5 pp", "33.22%", "8,969.65 (155.92)", "8,966.06 (159.52)", "3.60"],
-    ["+10 pp", "38.22%", "8,813.73 (311.84)", "8,803.89 (321.69)", "9.85"],
-    ["+15 pp", "43.22%", "8,657.81 (467.76)", "8,638.12 (487.46)", "19.70"],
+    [
+        "Age mix",
+        "65+ share",
+        "No feedback",
+        "With feedback",
+        "Added change"
+    ],
+    [
+        "Fixed",
+        "28.22%",
+        "0.00%",
+        "0.00%",
+        "0.00%"
+    ],
+    [
+        "+5 pp",
+        "33.22%",
+        "−1.71%",
+        "−1.75%",
+        "−0.04%"
+    ],
+    [
+        "+10 pp",
+        "38.22%",
+        "−3.42%",
+        "−3.53%",
+        "−0.11%"
+    ],
+    [
+        "+15 pp",
+        "43.22%",
+        "−5.13%",
+        "−5.34%",
+        "−0.22%"
+    ]
 ]
 
 
@@ -331,33 +357,33 @@ def main() -> None:
 
     text("### SQ2 · Spending under Population Aging")
     text("- **What would aging change under the same economic outlook?** Projected CPI updates prices in the spending basket. Within each forecast path, all age mixes face the same prices and income.")
-    text("Each path uses **one set of LLM decisions** for 500 profiles. We keep those decisions and change the age weights, raising the **28.22%** older share by **5, 10, or 15 percentage points** by 2030.")
-    text(study_figure(AGING, "Quarterly spending and differences for the older age mixes", "Figure 4.", "Left shows spending per consumer unit. Right shows aging minus the fixed mix on the same path. Lines are medians across five economic paths. Shading spans the lowest and highest path results. Variability across repeated LLM generations with identical inputs remains unmeasured."))  # @stepover
-    text("- Annual spending rises in every age mix on the central path. In the **+15-point case**, it grows from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit, ending **$3,446 below** the fixed mix.")
-    text(table("2030 annual gaps vs. the fixed mix on the central path · v57 Table S8", SQ2_SPENDING))  # @stepover
-    text("- The **+15-point case** spends less than its fixed mix in 2030 on **all five economic paths**. The age shift gives more weight to **groups that spend less on average**.")
-    text("Historical mean spending under national weights was **27.2% below BLS**, so read the dollar gaps as scenario estimates.")
+    text("Each path uses **one set of LLM decisions** for 500 profiles across four regions. We keep those decisions and raise the national 65+ share by **1, 2, or 3 points per year**, reaching **+5, +10, or +15** by 2030.")
+    text(study_figure(AGING, "Quarterly percentage changes under three aging scenarios, by region and for the United States", "Figure 4.", "Changes are percentages of fixed-mix spending in the same area, quarter, and economic path. Lines show medians and shading the full range across five paths."))  # @stepover
+    text("- Annual spending grows under every age mix on the central path. The **+15-point case grows 5.47%** from 2026 to 2030 and ends **5.13% below** the fixed mix.")
+    text(table("Annual U.S. spending change from the fixed age mix in 2030 · central path", SQ2_SPENDING))  # @stepover
+    text("- In **2030 Q4**, the Northeast is **2.66% below** its fixed mix in the +10-point scenario. Giving more weight to older households lowers average spending because this group spends less in the model.")
+    text("Historical mean spending under national weights was **27.2% below BLS**. Read the percentage changes as **scenario results**. These age shifts exceed the household projection used for context.")
     text("- **SQ2 takeaway.** Under the projected price and income paths, population aging can **slow spending growth even as total spending rises**.")
     text("Would the gap change if gasoline prices responded to what households buy?")
 
     text("### SQ3 · Spending with Gasoline Feedback")
     text("- **How much would two-way gasoline feedback change the aging effect?** On one central path, we compare four age mixes under two pump-price rules, for **eight cases**. Other prices and non-gasoline spending follow the same paths.")
     text("- **Fuel purchases change inventories.** The inventory rule updates pump prices **two quarters later**, and households use those prices when they choose how much fuel to buy.")
-    text(study_figure(FEEDBACK, "Difference in national spending gaps with gasoline feedback", "Figure 5.", "The plotted effect is the aging-minus-fixed gap with feedback minus the same gap under prescribed prices. Values below zero show a larger reduction. Shading spans the LLM decisions and three alternative demand rules on the central path."))  # @stepover
-    text("In 2030, the **+15-point** mix buys less gasoline than the fixed mix under feedback, and its simulated market has higher stocks. By Q4, the pump price is **$2.81 per gallon**, compared with **$3.09** in the fixed mix.")
-    text("For the **+15-point** case, the price change adds **$21.55 billion** to the 2030 spending reduction. Changes in gallons purchased offset **$1.85 billion**.")
-    text("- In the **+15-point case**, gasoline feedback widens the 2030 spending gap from **$467.76 billion** to **$487.46 billion**, an additional **$19.70 billion**. Inventories are above the historical seasonal range in **14 of 20 quarters** for that feedback case.")
+    text(study_figure(FEEDBACK, "Additional quarterly percentage changes from gasoline price feedback, by region and for the United States", "Figure 5.", "The spending gap with feedback minus the gap at preset gasoline prices, as a percentage of fixed-mix spending at preset prices in the same area and quarter. Lines use the saved LLM decisions. Shading spans four fuel demand rules on the central path."))  # @stepover
+    text("Under feedback, the **+15-point case** buys less gasoline than the fixed mix. Higher inventories lead to lower pump prices in the model.")
+    text("Lower pump prices account for most of the additional reduction. Changes in gallons purchased partly offset it.")
+    text("- In the **+15-point case**, gasoline feedback widens the national 2030 gap from **5.13% to 5.34% below** the fixed mix. The added reduction is **0.22% of fixed-mix spending**. Inventories are above the historical seasonal range in **14 of 20 quarters**.")
     text("- **SQ3 takeaway.** The **two-way link between gasoline purchases and pump prices** widens the aging-related spending gap on the central path. Lower pump prices account for most of the added reduction.")
 
     text("## 04 · Discussion")
     text("### National Spending in 2030")
-    text("The fixed group keeps the **65+ share at 28.22%**. As prices and incomes change, its annual U.S. spending rises from **$8.294 trillion in 2026** to **$9.126 trillion in 2030** on the central path.")
+    text("The fixed group keeps the **65+ share at 28.22%**. Annual U.S. spending still grows **10.03%** from 2026 to 2030 on the central path as prices and incomes change.")
     text(table(AGE_MIX_CAPTION, AGE_MIX_SPENDING, compact=True))  # @stepover
 
     text("## 05 · Conclusion")
     text("- In the BLS comparison, the LLM simulation **captures typical spending levels in some groups** and **understates quarterly swings**.")
-    text("- **An older age mix slows spending growth on the central path.** Under the projected prices and income, annual spending in the **+15-point case** rises from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit. It ends **$3,446 below** the fixed age mix.")
-    text("- On the central path, **gasoline price feedback** widens the +15-point case's national spending gap in 2030 from **$467.76 billion** to **$487.46 billion**. Lower pump prices explain most of the **$19.70 billion** added reduction.")
+    text("- **An older age mix slows spending growth on the central path.** Spending in the +15-point case grows **5.47%** from 2026 to 2030 and ends **5.13% below** the fixed mix.")
+    text("- **Gasoline price feedback** adds a reduction equal to **0.22% of fixed-mix spending** nationally in 2030 in the +15-point case. Lower pump prices explain most of the change.")
 
 
 def record() -> bytes:
