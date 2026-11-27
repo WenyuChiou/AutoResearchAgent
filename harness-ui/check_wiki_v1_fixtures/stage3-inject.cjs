@@ -7,13 +7,17 @@ const review = JSON.parse(fs.readFileSync(path.join(__dirname, 'stage3-review.js
 module.exports = async page => {
  const ref = process.env.WIKI_V1_PROJECT;
  await page.route('**/project-bootstrap.js', async route => {
-  const r = await route.fetch(), body = await r.text();
-  await route.fulfill({response:r, body:body + `;window.RESEARCH_PROJECTS.stage3_planning_projects=[${JSON.stringify(ref)}];`});
+  try {
+   const r = await route.fetch(), body = await r.text();
+   await route.fulfill({response:r, body:body + `;window.RESEARCH_PROJECTS.stage3_planning_projects=[${JSON.stringify(ref)}];`});
+  } catch (_) { await route.continue().catch(() => {}); } // request cancelled by a navigation
  });
  await page.route(`**/api/projects/${ref}/connections`, route => route.request().method() === 'GET'
   ? route.fulfill({status:404, contentType:'application/json', body:'{"error":"not-found"}'}) : route.continue());
  await page.route(`**/api/projects/${ref}/stage3/planning`, async route => {
-  const overview = await (await route.fetch({url:route.request().url().replace('/stage3/planning', '/overview')})).json();
+  let overview;
+  try { overview = await (await route.fetch({url:route.request().url().replace('/stage3/planning', '/overview')})).json(); }
+  catch (_) { await route.continue().catch(() => {}); return; }
   const p = overview.project;
   const view = {project_ref:p.project_ref, input_version:p.input_version, revision:p.revision, brief_sha256:p.brief_sha256, plan, review,
    job:{plan_manifest_sha256:'b'.repeat(64), request_sha256:'c'.repeat(64)},

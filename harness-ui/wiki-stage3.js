@@ -483,7 +483,7 @@ document.addEventListener('click', event => {
  if (data.s3Tab) state.tab = data.s3Tab;
  else if (data.s3Draw) state.drawing = data.s3Draw;
  else if (data.s3StepPick) state.selected = state.selected === data.s3StepPick ? null : data.s3StepPick;
- else if (data.s3Unknowns) state.unknowns = true;
+ else if ('s3Unknowns' in data) { state.unknowns = true; state.flash = 'unknowns'; } // the attribute is empty, so test presence
  else if (data.s3Jump) {
   const model = wikiS3Model(v93.view, v93.view?.plan);
   const target = model && wikiS3JumpTarget(model, data.s3Jump);
