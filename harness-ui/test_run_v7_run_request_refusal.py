@@ -101,6 +101,49 @@ class RunRequestRefusalTests(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), "")
         self.assertFalse(self.projects.exists())
 
+    def test_full_source_options_are_refused_before_any_work(self):
+        notes = self.tmp / "notes"
+        notes.mkdir()
+        for extra in (
+            ["--enable-stage1-full-source"],
+            ["--stage1-full-notes-root", str(notes)],
+            ["--enable-stage1-full-source", "--stage1-full-notes-root", str(notes)],
+        ):
+            with self.subTest(extra=extra):
+                with self.assertRaises(ValueError) as caught:
+                    run_v7.main(self.base + extra)
+                message = str(caught.exception)
+                self.assertIn("--enable-stage1-full-source", message)
+                self.assertIn("old launcher", message)
+        self.assertFalse(self.projects.exists())
+
+    def test_help_names_the_single_entry_and_the_unsupported_options(self):
+        env = dict(os.environ)
+        env["PYTHONPATH"] = os.pathsep.join(
+            [str(HERE), str(PLUGIN / "cli"), str(PLUGIN / "tests")]
+        )
+        result = subprocess.run(
+            [sys.executable, str(HERE / "run_v9.py"), "--help"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=self.tmp,
+            timeout=60,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for text in (
+            "Start-Wiki.ps1",
+            "--ui-state-root",
+            "--incoming-root",
+            "Not supported here",
+            "--stage1-run-request",
+            "--enable-stage1-full-source",
+            "--stage1-full-notes-root",
+            "compatibility only",
+        ):
+            self.assertIn(text, result.stdout)
+        self.assertFalse(self.projects.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
