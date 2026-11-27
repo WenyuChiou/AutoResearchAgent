@@ -123,5 +123,76 @@ test('the Stage 3 connection block shows 重新接通 even though the selection 
  assert.equal(line.buttons[0].attr, 'reconnect');
  assert.equal(line.buttons[0].label, '重新接通');
  assert.match(line.text, /^Stage 3 的规划登记已保存；如果上次是强行关闭/);
+ assert.match(ctx.wikiS3ConnectionLine({phase:'ready', unknown:false, connected:false, action:'reconnect', code:reason, reconnectError:{code:'x'}}).text, /^上次点「重新接通」没有成功/);
  assert.equal(ctx.wikiS3ConnectionLine({phase:'ready', unknown:false, connected:false, action:null, code:'x'}).tag, '缺正式选择');
+});
+
+// ---- Review P1: the real click handler, in-flight clicks, failures, topic switch, and id mismatch ----
+function deferred() { let resolve; const promise = new Promise(r => { resolve = r; }); return {promise, resolve}; }
+function clickOn(ctx, v) {
+ const button = {disabled:false, dataset:{v9Connection:'reconnect', connectionBasis:JSON.stringify([v.stage, v.epoch, ...Object.values(v.basis)])}};
+ return ctx.clickHandler({target:{closest:() => button}});
+}
+
+test('two clicks while the first is in flight send exactly one POST', async () => {
+ const s = service('unavailable'), ctx = load(s);
+ const gate = deferred(), original = s.request;
+ s.request = async (p, body) => { if (body) await gate.promise; return original(p, body); };
+ const v = await view(ctx);
+ const first = clickOn(ctx, v), second = clickOn(ctx, v);
+ await new Promise(r => setTimeout(r, 20));
+ gate.resolve();
+ await Promise.all([first, second]);
+ assert.equal(s.posts.length, 1);
+ assert.equal(s.status, 'connected');
+});
+
+test('a refused request keeps the button, records the reason and never shows connected', async () => {
+ const s = service('unavailable'), ctx = load(s), original = s.request;
+ s.request = async (p, body) => { if (body) { s.posts.push(body); throw Object.assign(Error(reason), {status:409}); } return original(p, body); };
+ const v = await view(ctx);
+ await clickOn(ctx, v);
+ assert.equal(s.posts.length, 1);
+ assert.equal(ctx.v9ConnectionAction(ctx.v9ConnectionView), 'reconnect', 'the button stays');
+ assert.equal(ctx.v9ConnectionView.row.status, 'unavailable');
+ assert.equal(vm.runInContext('v9ReconnectErrors.get("project-r").code', ctx), reason);
+ assert.equal(s.refreshes, 0, 'nothing was saved, nothing to re-read');
+ assert.equal(ctx.rt.busy, false);
+});
+
+test('switching topic while the request is in flight shows nothing for the new topic', async () => {
+ const s = service('unavailable'), ctx = load(s), gate = deferred(), original = s.request;
+ s.request = async (p, body) => { if (body) { await gate.promise; } return original(p, body); };
+ const v = await view(ctx);
+ const pending = clickOn(ctx, v);
+ await new Promise(r => setTimeout(r, 10));
+ ctx.rt.ref = 'project-other'; ctx.rt.epoch++; ctx.rt.overview = {project:{...project, project_ref:'project-other'}};
+ gate.resolve();
+ await pending;
+ assert.equal(s.refreshes, 0, 'no refresh for a topic that is no longer shown');
+ assert.equal(vm.runInContext('v9ReconnectErrors.size', ctx), 0);
+ assert.equal(ctx.rt.busy, false);
+});
+
+test('a read-back that does not match the POST answer is refused, the page is re-read and the reason kept', async () => {
+ const s = service('unavailable'), ctx = load(s), original = s.request;
+ let posted = false;
+ s.request = async (p, body) => {
+  if (body) { posted = true; return original(p, body); }
+  if (posted && p.endsWith('/connections')) return {project_ref:project.project_ref, connections:{'stage3-planning':{status:'connected', reason:null, profile_sha256:profile, connection_id:'d'.repeat(64), receipt_id:'someone-else'}}, execution_authorized:false};
+  return original(p, body);
+ };
+ const v = await view(ctx);
+ await clickOn(ctx, v);
+ assert.equal(vm.runInContext('v9ReconnectErrors.get("project-r").code', ctx), 'stage-connection-receipt-unverified');
+ assert.equal(s.refreshes, 1, 'the service answered, so the page reads the project again');
+});
+
+test('an answer carrying this click key as the receipt is refused (a new registration would have been written)', async () => {
+ const s = service('unavailable'), ctx = load(s), original = s.request;
+ s.request = async (p, body) => body
+  ? {project_ref:project.project_ref, connections:{'stage3-planning':{status:'connected', reason:null, profile_sha256:profile, connection_id:saved.connection_id, receipt_id:body.key}}, execution_authorized:false}
+  : original(p, body);
+ const v = await view(ctx);
+ await assert.rejects(() => ctx.v9ReconnectStage(v), /stage-connection-receipt-unverified/);
 });
