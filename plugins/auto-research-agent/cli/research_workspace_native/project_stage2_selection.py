@@ -17,6 +17,18 @@ from .project_stage2_selection_view import ProjectStage2SelectionView
 from .session_api import SessionApiError, _check
 
 
+PRE_WRITE_REFUSALS = frozenset(
+    {
+        "stage2-selection-unconnected",
+        "stage2-selection-project-stale",
+        "stage2-selection-source-invalid",
+        "stage2-selection-already-recorded",
+        "stage2-selection-view-stale",
+        "stage2-selection-required",
+    }
+)
+
+
 class ProjectStage2SelectionService(
     ProjectStage2DirectionIntent, ProjectStage2SelectionView
 ):
@@ -69,6 +81,25 @@ class ProjectStage2SelectionService(
                 ) from error
             return result
 
+    def _refused_before_any_write(self, prior, request_hash):
+        """Old records from a request refused before any Core write.
+
+        Earlier versions recorded the durable intent first, so a request that was
+        refused by the read-only checks (for example "not connected yet") was
+        left as ``execution-unknown``. The error code proves it stopped before the
+        choice directory or Core was touched; the missing directory confirms it.
+        Any other unknown outcome keeps blocking.
+        """
+        return (
+            prior.get("status") == "execution-unknown"
+            and prior.get("failure_phase") == "core-write-outcome-unobserved"
+            and prior.get("error") in PRE_WRITE_REFUSALS
+            and "output_observation" not in prior
+            and not self.intake._path(
+                prior["project_ref"], "stage2-choice-" + request_hash
+            ).exists()
+        )
+
     def select(self, credential, project_ref, body, *, check_deadline=None):
         _fields(
             body,
@@ -84,7 +115,33 @@ class ProjectStage2SelectionService(
         _check(body["confirmed"] is True, "explicit-stage2-selection-required", 400)
         principal = self.intake._principal(credential)
 
+        def preflight():
+            """Every refusal that needs no Core write; shared by reserve and work.
+
+            Running it before the durable intent means an unconnected, stale or
+            already-recorded request leaves no action, event or file behind.
+            """
+            _, binding, delivery, workflow, ack, _ = self._current(
+                credential, project_ref
+            )
+            _check(ack is None, "stage2-selection-already-recorded")
+            manifest = delivery["manifest"]
+            _check(
+                body["delivery_manifest_sha256"] == binding["delivery_manifest_sha256"]
+                and body["workflow_head_sha256"] == workflow["head_sha256"]
+                and body["snapshot_sha256"] == manifest["snapshot_sha256"],
+                "stage2-selection-view-stale",
+            )
+            decision = body["decision"]
+            _check(
+                isinstance(decision, dict) and decision.get("kind") == "select",
+                "stage2-selection-required",
+                400,
+            )
+            return binding, workflow, decision
+
         def reserve(state, _request_hash, actor):
+            preflight()
             rows = self.intake.db.execute(
                 "SELECT request_hash,receipt FROM intake_actions WHERE principal=? AND project=?",
                 (actor, project_ref),
@@ -121,6 +178,8 @@ class ProjectStage2SelectionService(
                             "stage2-select-registration-recovered",
                         ),
                     ).fetchall()
+                    if self._refused_before_any_write(prior, row["request_hash"]):
+                        continue
                     _check(
                         prior.get("status") == "saved"
                         and sum(
@@ -132,23 +191,7 @@ class ProjectStage2SelectionService(
                     )
 
         def work(state, request_hash, actor):
-            _, binding, delivery, workflow, ack, _ = self._current(
-                credential, project_ref
-            )
-            _check(ack is None, "stage2-selection-already-recorded")
-            manifest = delivery["manifest"]
-            _check(
-                body["delivery_manifest_sha256"] == binding["delivery_manifest_sha256"]
-                and body["workflow_head_sha256"] == workflow["head_sha256"]
-                and body["snapshot_sha256"] == manifest["snapshot_sha256"],
-                "stage2-selection-view-stale",
-            )
-            decision = body["decision"]
-            _check(
-                isinstance(decision, dict) and decision.get("kind") == "select",
-                "stage2-selection-required",
-                400,
-            )
+            binding, workflow, decision = preflight()
             # _record verifies exact current recommendations before a workflow append.
             output = self.intake._path(project_ref, "stage2-choice-" + request_hash)
             _check(not output.exists(), "stage2-choice-requires-recovery")
