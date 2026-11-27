@@ -31,4 +31,8 @@ assert.equal((rendered.match(/0 次 · 没有发生/g) || []).length, 1);
 assert.match(rendered, /超额度<\/th><td>未提供/);
 assert.match(rendered, /关掉重开<\/h3>\s*<p>这一段还没有运行，没有记录。/);
 
-console.log('PASS Harness record: empty and partial records, explicit zero, escaped source, no fake timeline.');
+const fromCaller = wikiHarnessRecord({summary:'<img src=x onerror=1> 30 篇', checks:[{name:'a', result:'b'}]});
+assert.match(fromCaller, /&lt;img src=x onerror=1&gt; 30 篇/);
+assert.doesNotMatch(fromCaller, /<img/);
+
+console.log('PASS Harness record: escaped caller summary, empty and partial records, explicit zero, escaped source, no fake timeline.');

@@ -28,7 +28,7 @@ function wikiHarnessRecord(record) {
   return `<div class="wiki-record" data-wiki-record>${chip}<span>${wikiRecordMissing}</span></div>`;
  }
  return `<details class="wiki-record" data-wiki-record>
-  <summary>${chip}<span>${summary === wikiRecordMissing ? '有已保存的明细' : summary}</span>${chips ? `<span class="wiki-record-counts">${chips}</span>` : ''}<span class="wiki-record-expand">展开明细</span><span class="wiki-record-collapse">收起明细</span></summary>
+  <summary>${chip}<span>${summary === wikiRecordMissing ? '有已保存的明细' : esc(summary)}</span>${chips ? `<span class="wiki-record-counts">${chips}</span>` : ''}<span class="wiki-record-expand">展开明细</span><span class="wiki-record-collapse">收起明细</span></summary>
   <div class="wiki-record-body">
    <p>这里只说做了哪些检查，不代表研究结论是对的。</p>${record?.source ? `<p class="wiki-record-gap">${esc(record.source)}</p>` : ''}
    <h3>这一段查了什么、留了什么</h3>
