@@ -140,6 +140,7 @@ class ProjectStage1LibraryHttpTests(Stage1LibraryFixture, unittest.TestCase):
             self.assertEqual(canonical(detail["row"]), canonical(row))
             self.assertEqual(sha(canonical(detail["row"])), sha(canonical(row)))
             self.assertEqual(summary["work_id"], row["work_id"])
+            self.assertEqual(summary["origin"], row["origin"])
             self.assertEqual(summary["selected_version_id"], row["selected_version_id"])
             self.assertEqual(summary["reading"]["complete_body_reading"], "Unknown")
             self.assertIsNone(summary["relevance"]["score"])
