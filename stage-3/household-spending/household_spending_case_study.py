@@ -1,4 +1,4 @@
-"""Play the U.S. household spending case study using Edtrace and the v53 results.
+"""Play the U.S. household spending case study using Edtrace and the v57 manuscript.
 
 Run this file with Python 3.11 or newer. The companion folders contain the
 player runtime, the study figures, and the recorded prompt. Use --export-pages
@@ -301,57 +301,63 @@ def main() -> None:
     text(study_figure(OBSERVED, "Observed quarterly spending by region and age group", "Figure 2. Observed BLS benchmark.", "The lines show survey-weighted median spending by region from 2023 Q1 to 2025 Q2. Ages 45–54 are on the left and 65+ are on the right."))  # @stepover
 
     text('### 2.2 Study Setup')
-    text("- **Historical sample.** Draw 25 profiles per group using BLS survey weights, for **200** in total. The groups span the Northeast, Midwest, South, and West and two age bands, 45–54 and 65+. Age refers to the survey's household reference person.")
+    text("- **Historical sample.** Draw 25 profiles per group using BLS survey weights, for **200** in total. The groups span the Northeast, Midwest, South, and West and two age bands, 45–54 and 65+. Age refers to the survey's household reference person. The historical check uses **one set of LLM trajectories** for these profiles.")
     text('- **Starting point.** Each group starts from its 2019 Q4 BLS spending basket. Four warm-up quarters build a spending history.')
     text('- **Future scenarios.** A separate panel of **500 profiles** across four regions and six age groups starts from saved 2025 Q4 states.')
     text('- The **fixed age mix** keeps the first-half 2025 BLS survey weights. The **65+ share is 28.22%**, based on the age of each consumer unit’s reference person.')
 
     text('### 2.3 Quarterly Simulation Workflow')
     text('- **Household inputs.** The LLM sees *the household profile, recent spending, a basket updated for prices, and a spending limit*.')
-    text('- **Quarterly decision.** The model, **Gemma 4 12B**, proposes adjustments in **eight spending categories**. The program scales spending down if needed and saves *the dollar amounts* for next quarter. [Gemma model card](https://gemma.ai/models/gemma-4/model-card/)')
+    text('- **Quarterly decision.** The LLM proposes changes in **eight spending categories**. The program checks the budget and saves *the dollar amounts* for next quarter. This study uses Gemma 4 12B. [Gemma model card](https://gemma.ai/models/gemma-4/model-card/)')
     text(spending_prompt_table())  # @stepover
     text(workflow_figure())  # @stepover
     text(workflow_cue("spending", "Quarterly spending", "The LLM adjusts eight categories. The program checks the budget and carries the final spending into the next quarter."))  # @stepover
     text(workflow_cue("one-way", "One-way simulation", "Use the scenario prices and incomes, then apply age weights to compare spending across age mixes."))  # @stepover
-    text(workflow_cue("feedback", "Two-way gasoline feedback", "Gemma estimates gallons at the pump price. Purchases change inventories, which can affect the price two quarters later."))  # @stepover
+    text(workflow_cue("feedback", "Two-way gasoline feedback", "The LLM estimates gallons at the pump price. Purchases change inventories, which can affect the price two quarters later."))  # @stepover
     text(workflow_cue("overview"))  # @stepover
 
     text("## 03 · Results")
+    text("First, check the LLM against **historical spending**. Then, simulate an **older age mix** under projected prices and incomes. Finally, let **gasoline purchases affect future pump prices**.")
     text("### SQ1 · Historical Validation")
-    text("- We compare **simulated and observed BLS spending** across eight region–age groups, using group medians.")
-    text(study_figure(SQ1_COMPARISON, "BLS spending and historical spending simulations by region and age", "Figure 3.", "The quarterly lines show group medians. The blue band shows the middle half of spending in the calibrated replay."))  # @stepover
-    text("- **Scaled error** measures spending-level errors relative to observed spending. **Direction hits** count how often the model matches the observed quarterly rise or fall.")
-    text(table("Original validation, 2023 Q1–2025 Q2 · v53 Table 2", SQ1_SCORES))  # @stepover
-    text("- The LLM and CPI basket both have **15.99%** scaled error. Gemma matches **47 of 80** quarterly directions. The seasonal ridge has **12.36%** error and matches **50 of 80**.")
-    text("- **Fit varies by group.** Level error ranges from **5.55% in South 65+** to **35.57% in Northeast 45–54**. A single national score would hide those differences.")
-    text("- The **calibrated replay** reaches **14.61%** error and **51 of 80** direction matches in the period used to fit it.")
-    text("- In the original validation, the LLM understates quarterly swings in all eight groups. **Typical spending levels** are better supported than short-term changes.")
+    text("- We first ask **what the LLM can reproduce**. We compare spending levels and quarterly changes with BLS across eight region–age groups.")
+    text(study_figure(SQ1_COMPARISON, "BLS spending and historical spending simulations by region and age", "Figure 3.", "Lines show quarterly group medians. The blue band shows the middle half of household spending in the calibrated replay, with spread informed by BLS survey quartiles."))  # @stepover
+    text("**Scaled error** measures how far spending levels are from BLS. **Direction hits** count correct quarterly rises and falls.")
+    text(table("Original validation, 2023 Q1–2025 Q2 · v57 Table 2", SQ1_SCORES))  # @stepover
+    text("- **South 65+** had the closest spending levels, with **5.55%** error. **Midwest 65+** matched the direction in **8 of 10 quarters**.")
+    text("- The LLM **understates quarterly swings** in all eight groups. In **Northeast 45–54**, the average size of a quarterly change was **$110** per consumer unit, compared with **$3,447** in BLS.")
+    text("The **calibrated replay** reaches **14.61%** error and **51 of 80** direction matches in the period used to fit it.")
+
+    text("- **SQ1 takeaway.** The simulation captures **typical spending levels** in some groups. Interpret individual quarterly swings more cautiously.")
 
     text("### SQ2 · Spending under Population Aging")
-    text("- We compare the fixed mix with **5-, 10-, and 15-percentage-point** increases in the 65+ share by 2030. Each pair follows the **same price and income path**.")
-    text("- Within each path, household spending changes each quarter. The age weights determine how much each group contributes to the national average.")
-    text(study_figure(AGING, "Quarterly spending and differences for the older age mixes", "Figure 4.", "Left shows quarterly spending per consumer unit. Right shows each age mix minus the fixed mix on the same path. Shading spans five price and income paths."))  # @stepover
-    text("- Annual spending rises in every age scenario on the central path. In 2030 the **+10-point case** reaches **$64,921** per consumer unit, **$2,297 below** the fixed mix.")
-    text(table("2030 annual gaps vs. the fixed mix on the central path · v53 Table S8", SQ2_SPENDING))  # @stepover
-    text("- **Why the gap opens.** Setting the LLM’s adjustments to zero changes the central +10-point gap by only **$3.55 per consumer unit**. The spending difference comes mainly from giving older groups more weight.")
-    text("- **How to read the dollar amounts.** With national weights, historical mean spending was **27.2% below BLS**. That shortfall limits confidence in the absolute spending levels used for the scenarios.")
+    text("- **What would aging change under the same economic outlook?** Projected CPI updates prices in the spending basket. Within each forecast path, all age mixes face the same prices and income.")
+    text("Each path uses **one set of LLM decisions** for 500 profiles. We keep those decisions and change the age weights, raising the **28.22%** older share by **5, 10, or 15 percentage points** by 2030.")
+    text(study_figure(AGING, "Quarterly spending and differences for the older age mixes", "Figure 4.", "Left shows spending per consumer unit. Right shows aging minus the fixed mix on the same path. Lines are medians across five economic paths. Shading spans the lowest and highest path results. Variability across repeated LLM generations with identical inputs remains unmeasured."))  # @stepover
+    text("- Annual spending rises in every age mix on the central path. In the **+15-point case**, it grows from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit, ending **$3,446 below** the fixed mix.")
+    text(table("2030 annual gaps vs. the fixed mix on the central path · v57 Table S8", SQ2_SPENDING))  # @stepover
+    text("- The **+15-point case** spends less than its fixed mix in 2030 on **all five economic paths**. The age shift gives more weight to **groups that spend less on average**.")
+    text("Historical mean spending under national weights was **27.2% below BLS**, so read the dollar gaps as scenario estimates.")
+    text("- **SQ2 takeaway.** Under the projected price and income paths, population aging can **slow spending growth even as total spending rises**.")
+    text("Would the gap change if gasoline prices responded to what households buy?")
 
     text("### SQ3 · Spending with Gasoline Feedback")
-    text("- **Change the gasoline price rule.** Keep the central price and income path and non-gasoline spending fixed. With feedback, fuel purchases change inventories and can affect pump prices two quarters later.")
-    text("- **Compare the gaps.** Compute the **aging-minus-fixed** spending gap under both rules. Subtract the gap under prescribed gasoline prices from the gap with feedback.")
-    text(study_figure(FEEDBACK, "Difference in national spending gaps with gasoline feedback", "Figure 5.", "Values below zero mean feedback widens the U.S. spending gap that quarter. Lines show the saved Gemma run. Shading spans four demand rules."))  # @stepover
-    text("- **Gasoline prices drive the +10-point result.** The price change adds **$10.513 billion** to the annual national spending reduction. Differences in gallons bought offset **$0.667 billion**, leaving **$9.85 billion**. The estimated gap responds chiefly to how the fuel market sets prices.")
-    text("- **Why the dollar effect can change.** At least one paired inventory is outside the historical range for that season in **all four quarters of 2030** for the +10-point case. The estimated size of the feedback effect depends on how the price rule behaves at those stock levels.")
+    text("- **How much would two-way gasoline feedback change the aging effect?** On one central path, we compare four age mixes under two pump-price rules, for **eight cases**. Other prices and non-gasoline spending follow the same paths.")
+    text("- **Fuel purchases change inventories.** The inventory rule updates pump prices **two quarters later**, and households use those prices when they choose how much fuel to buy.")
+    text(study_figure(FEEDBACK, "Difference in national spending gaps with gasoline feedback", "Figure 5.", "The plotted effect is the aging-minus-fixed gap with feedback minus the same gap under prescribed prices. Values below zero show a larger reduction. Shading spans the LLM decisions and three alternative demand rules on the central path."))  # @stepover
+    text("In 2030, the **+15-point** mix buys less gasoline than the fixed mix under feedback, and its simulated market has higher stocks. By Q4, the pump price is **$2.81 per gallon**, compared with **$3.09** in the fixed mix.")
+    text("For the **+15-point** case, the price change adds **$21.55 billion** to the 2030 spending reduction. Changes in gallons purchased offset **$1.85 billion**.")
+    text("- In the **+15-point case**, gasoline feedback widens the 2030 spending gap from **$467.76 billion** to **$487.46 billion**, an additional **$19.70 billion**. Inventories are above the historical seasonal range in **14 of 20 quarters** for that feedback case.")
+    text("- **SQ3 takeaway.** The **two-way link between gasoline purchases and pump prices** widens the aging-related spending gap on the central path. Lower pump prices account for most of the added reduction.")
 
+    text("## 04 · Discussion")
     text("### National Spending in 2030")
-    text("- The fixed group keeps the **65+ share at 28.22%**. As prices and incomes change, its annual U.S. spending rises from **$8.294 trillion in 2026** to **$9.126 trillion in 2030** on the central path.")
+    text("The fixed group keeps the **65+ share at 28.22%**. As prices and incomes change, its annual U.S. spending rises from **$8.294 trillion in 2026** to **$9.126 trillion in 2030** on the central path.")
     text(table(AGE_MIX_CAPTION, AGE_MIX_SPENDING, compact=True))  # @stepover
-    text("- Each older mix spends less than its fixed-mix counterpart. In the **+10-point case**, the 2030 gap grows from **$311.84 billion** to **$321.69 billion** with feedback.")
 
-    text("## 04 · Conclusion")
-    text("- **SQ1.** The historical check gives more support to typical spending levels than to the size of quarterly swings.")
-    text("- **SQ2.** An older age mix slows spending growth relative to a growing fixed-mix baseline, with most of the gap coming from the change in age weights.")
-    text("- **SQ3.** Gasoline price feedback widens the spending gap on the central path, and its dollar effect depends on the price rule when inventories leave the historical range.")
+    text("## 05 · Conclusion")
+    text("- In the BLS comparison, the LLM simulation **captures typical spending levels in some groups** and **understates quarterly swings**.")
+    text("- **An older age mix slows spending growth on the central path.** Under the projected prices and income, annual spending in the **+15-point case** rises from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit. It ends **$3,446 below** the fixed age mix.")
+    text("- On the central path, **gasoline price feedback** widens the +15-point case's national spending gap in 2030 from **$467.76 billion** to **$487.46 billion**. Lower pump prices explain most of the **$19.70 billion** added reduction.")
 
 
 def record() -> bytes:
