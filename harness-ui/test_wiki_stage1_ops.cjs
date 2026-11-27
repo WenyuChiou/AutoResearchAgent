@@ -192,4 +192,120 @@ ctx = load(makeRt(true, {wsProg:{state:'absent'}}), {wikiHomeArchiveBound:()=>tr
 assert.match(ctx.wsScopePage({wikiS1:{}}), /这是历史归档，不能在这里改/);
 tab = ctx.wsRunTab({wikiS1:{}});
 assert.match(buttonOf(tab, 'data-real-action="authorize-plan"') || '', /这是历史归档，不能在这里改|^$/);
-console.log('PASS Stage 1 ops: scope page, auto-advance states, run table, delivery decision.');
+
+// ---- Paper card, candidate list, evidence review, materials (8.8, 8.9, 8.12) ----
+function loadPaper(rt, extra={}) {
+ const base = {wikiS1Relations:{supports:'支持', contradicts:'不支持'}, wikiS1Checks:{all:'全部', contradicts:'✕ 不支持'},
+  wikiS1Check:claim => claim.verified ? claim.relation : 'unchecked', wikiS1VisibleSources:()=>[], wikiS1Evidence:()=>'', wikiS1Selected:()=>'',
+  realActionEnvelope:()=>true, realReadingExecutable:()=>false, realReadingOffer:value => value.reading_offer?.available,
+  wsOpsActive:()=>true, wikiS1Tabs:{}, wikiS1Results:()=>'', v7AfterRender:()=>{}, ...extra};
+ const c = load(rt, base);
+ const source = fs.readFileSync(path.join(__dirname,'wiki-stage1-ops.js'),'utf8');
+ const from = source.indexOf('// ---------- 8.8 / 8.9'), to = source.indexOf("// Loading a paper's record");
+ vm.runInContext(source.slice(from, to), c);
+ const materials = fs.readFileSync(path.join(__dirname,'wiki-stage1-materials.js'),'utf8');
+ vm.runInContext(materials.slice(0, materials.indexOf('const wsMaterialsPrevResults')), c);
+ return c;
+}
+rt = makeRt(true, {wsProg:{state:'absent'}});
+ctx = loadPaper(rt);
+assert.equal(ctx.wikiS1Relations.contradicts, '相互矛盾');
+assert.equal(ctx.wikiS1Relations.unverifiable, '无法核实');
+assert.equal(ctx.wikiS1Checks.context, '· 只是背景');
+assert.equal(ctx.wikiS1Check({verified:true, relation:'supports', locator:'x'}), 'supports');
+const humanClaim = relation => ({relation, locator:'x', core_event:{payload:{verifier:{actor_type:'human'}}}});
+assert.equal(ctx.wikiS1Check(humanClaim('unclear')), 'unclear');
+assert.equal(ctx.wikiS1Check({...humanClaim('unclear'), core_event:{payload:{verifier:{actor_type:'agent'}}}}), 'unchecked', 'agent record is not a human check');
+assert.equal(ctx.wikiS1Check({...humanClaim('unclear'), locator:null}), 'unchecked');
+
+// Candidate list: design sentence, no invented rows, load-more only when the service offers a next page.
+assert.match(ctx.wsCandidatePanel(), /这里还没有检索候选/);
+rt.library = {total:2, next_offset:20, rows:[{index:0, work_id:'w1', title:'A <b>', year:2020, source_status:'not-acquired', screening_status:'include'},
+ {index:1, work_id:'w2', title:'B', year:null, source_status:'pending', screening_status:'not-screened'}]};
+let list = ctx.wsCandidatePanel();
+assert.match(list, /这是当前查询的输出，还不是正式交付。来源、阅读和纳入决定要分别审阅。/);
+assert.match(list, /A &lt;b&gt;/);
+assert.match(list, /<td>未提供<\/td>/);
+assert.match(list, /读取更多候选/);
+assert.match(list, /data-real-paper="1"/);
+rt.library.next_offset = null;
+assert.doesNotMatch(ctx.wsCandidatePanel(), /读取更多候选/);
+
+// Paper card: not loaded yet -> one button whose reason is explicit.
+let card = ctx.wsPaperProcess('w3');
+assert.match(buttonOf(card, 'data-ws-load-paper'), /这篇还没有出现在已保存的检索候选里/);
+card = ctx.wsPaperProcess('w1');
+assert.doesNotMatch(buttonOf(card, 'data-ws-load-paper'), /disabled/);
+// Loaded detail.
+rt.paperDetail = {project_ref:'project-a', binding:{ledger_state_sha256:'L'}, row:{work_id:'w1', screening_status:'pending', source_status:'not-acquired', metadata:{title:'A'}}, reading_offer:{available:false, blocked_reason:'no-source'}};
+rt.overview.stage1.ledger = {state_sha256:'L'};
+rt.overview.stage1.source_execution = null;
+card = ctx.wsPaperProcess('w1');
+assert.match(card, /筛选决定 <span class="ws-tag ws-idle">现在：待定/);
+assert.doesNotMatch(card, /type="radio"[^>]*checked/);
+assert.match(buttonOf(card, 'data-v7-workflow="screen"'), /请先选一个/);
+assert.match(card, /筛选决定只更新这一篇；来源获取和阅读要单独做/);
+assert.match(buttonOf(card, 'data-v7-workflow="source-preview"'), /来源获取现在不可用/);
+assert.match(card, /<b>不会改 Harness 的阅读提示词<\/b>/);
+assert.match(buttonOf(card, 'data-v7-workflow="reading-authorize"'), /阅读还没有可用的来源或额度/);
+assert.match(card, /阅读条件：no-source/);
+assert.match(card, /data-ws-expansion-slot/);
+assert.match(card, /未获取/);
+// Already readable: no authorization step for the source.
+rt.paperDetail.reading_offer = {available:true};
+card = ctx.wsPaperProcess('w1');
+assert.match(card, /已有可读来源/);
+assert.doesNotMatch(card, /data-v7-workflow="source-authorize"/);
+assert.doesNotMatch(buttonOf(card, 'data-v7-workflow="reading-authorize"'), /disabled/);
+// Locked while a write is pending.
+rt.busy = true;
+assert.match(buttonOf(ctx.wsPaperProcess('w1'), 'data-v7-workflow="screen"'), /正在保存，请稍等/);
+rt.busy = false;
+// A record for another paper is never shown for this one.
+rt.paperDetail.row.work_id = 'other';
+assert.match(ctx.wsPaperProcess('w1'), /读取这篇的处理/);
+rt.paperDetail.row.work_id = 'w1';
+// Reading notes: three groups, saved text stays, reason before the confirm box is ticked.
+rt.readingView = {project_ref:'project-a', source_mode:'saved-source-review', classification:{topic_cluster:'T <x>'}, findings:{question:'Q'}, sources:[], claims:[], reading_review_offer:{offer_ref:'o'}, offers:[]};
+card = ctx.wsPaperProcess('w1');
+for (const group of ['分类', '内容', '和本课题的关系']) assert.match(card, new RegExp('<h5>' + group + '</h5>'));
+assert.match(card, /data-v7-note="classification\.topic_cluster">T &lt;x&gt;/);
+assert.match(card, /data-v7-note="findings\.limitations">未提供/);
+assert.match(buttonOf(card, 'reading-save'), /请先勾选「我已审阅这些注释」/);
+assert.match(card, /保存不代表 Stage 1 完成/);
+rt.readingView.reading_review_offer = null;
+assert.match(buttonOf(ctx.wsPaperProcess('w1'), 'reading-save'), /data-ws-blocked/);
+// Archive projects cannot write.
+const archive = loadPaper(makeRt(true), {wikiHomeArchiveBound:()=>true});
+assert.match(archive.wsPaperProcess('w1'), /这是历史归档，不能在这里改/);
+assert.doesNotMatch(archive.wsPaperProcess('w1'), /data-v7-workflow/);
+
+// Evidence review fold.
+const claim = {quote:'q1', source_id:'s1', text:'T', evidence_level:'full-text'};
+rt.readingView = null;
+let fold = ctx.wsEvidenceReview(claim, 'w1');
+assert.match(fold, /依据全文/);
+assert.match(fold, /这条证据现在没有可保存的审阅入口/);
+assert.doesNotMatch(fold, /data-v7-workflow="claim-save"/, 'no review input exists, so no fake save button');
+assert.doesNotMatch(ctx.wsEvidenceReview({...claim, evidence_level:undefined}, 'w1'), /依据摘要|依据全文/, 'unmarked scope shows no tag');
+rt.readingView = {project_ref:'project-a', offers:[{quote:'other', evidence_index:0}, {quote:'q1', source_id:'s1', evidence_index:1}]};
+fold = ctx.wsEvidenceReview(claim, 'w1');
+assert.match(fold, /data-v7-claim-relation="1"/);
+assert.match(fold, /data-v7-index="1"/);
+for (const name of ['未核对（还没判断）','支持','部分支持','相互矛盾','不清楚','无法核实','只是背景']) assert.ok(fold.includes('>' + name + '</option>'), name);
+assert.match(buttonOf(fold, 'claim-save'), /请先选关系/);
+assert.match(fold, /我已审阅这条证据/);
+
+// Materials tab: designed strip, downloads are gray with a stated reason, no invented files.
+rt.atlas = null;
+let materials = ctx.wsMaterialsTab({});
+assert.match(materials, /不会自动标记为已读、已纳入或已批准/);
+assert.match(materials, /文献包还没有生成，这里还没有可下载的文件/);
+assert.match(materials, /data-ws-materials-slot/);
+rt.atlas = {files:[{name:'papers.csv', sha256:'a'.repeat(64)}]};
+materials = ctx.wsMaterialsTab({});
+assert.match(materials, /papers\.csv/);
+assert.match(buttonOf(materials, 'data-ws-download'), /disabled/);
+assert.match(buttonOf(materials, 'data-ws-download'), /后台还没有文献包文件的下载接口/);
+assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里改/);
+console.log('PASS Stage 1 ops: scope page, auto-advance states, run table, delivery decision, paper card, evidence review, materials.');

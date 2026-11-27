@@ -73,3 +73,20 @@ p.ws-run { background:none; padding:0; }
  .ws-ps-row > summary .ws-result { grid-column:2 / -1; }
  .ws-detail { padding-inline-start:16px; }
 }
+[data-wiki-s1-output] [hidden] { display:none !important; }
+.ws-process { margin-top:16px; border-top:1px solid #dde5e2; padding-top:12px; }
+.ws-process h4 { margin:0 0 8px; }
+.ws-step { border:1px solid #dde5e2; border-radius:8px; padding:12px 16px; margin-top:12px; background:#fffefa; }
+.ws-step h5,.ws-notes h5 { margin:0 0 8px; font-size:15px; display:flex; gap:8px; align-items:center; }
+.ws-step > summary { cursor:pointer; min-height:36px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.ws-step label { display:grid; gap:4px; font-size:14px; font-weight:650; margin-top:8px; }
+.ws-step textarea,.ws-evrev textarea,.ws-evrev select,.ws-evrev input[data-v7-claim-section] { border:1px solid #c4d1cd; border-radius:6px; padding:8px 10px; font:inherit; width:100%; box-sizing:border-box; }
+.ws-notes .ws-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.ws-evrev { grid-column:1 / -1; margin-top:8px; border:1px dashed #c4d1cd; border-radius:6px; padding:8px 12px; }
+.ws-evrev label { display:grid; gap:4px; font-size:14px; font-weight:650; margin-top:8px; }
+.ws-sel { background:#e4f0ed; }
+.n9-materials[hidden] { display:none !important; }
+.ws-strip { background:#edf3fc; border-radius:6px; padding:10px 14px; }
+.wiki-s1-claim > .ws-tag { grid-column:1 / -1; justify-self:start; }
+.ws-materials h3 { margin:20px 0 8px; }
+.lp-operations[hidden] { display:none !important; }
