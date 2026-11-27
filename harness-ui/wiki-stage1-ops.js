@@ -285,7 +285,7 @@ function wsPlanDetail(consent) {
  <div class="ws-actions">${wsBtn('授权一次检索规划', 'data-real-action="authorize-plan" data-ws-gate="plan"', authorizeWhy)}${wsBtn('运行 Codex 检索规划', 'data-real-action="plan"', planWhy, 'hs-button-primary')}</div></section>` : ''}
  <div class="ws-actions">${reviewable ? wsBtn('审阅已保存规划', 'data-real-action="review-plan"', common) : ''}</div>
  <h4>已保存的检索规划</h4>${wsPlanTable()}
- ${ro ? '' : `<details class="ws-adv"><summary>高级</summary><p class="wiki-s1-muted">这是审阅导入，不是新模型输出；原模型输出保持保存。</p>${rt.overview.project.intake_report?.necessary_clarification_complete === true && rt.overview.project.plan === null ? wsBtn('导入已有规划（不调用模型）', 'data-real-action="import-plan"', common || (realPlanImportReady() ? '' : '现在还不能导入：要先有确认过的范围，且没有进行中的任务')) : '<p class="wiki-s1-muted">现在还不能导入：这个课题已经有规划，或范围还没确认。</p>'}${wsPlanDraft()}</details>`}`;
+ ${ro ? '' : `<details class="ws-adv" ${realPlanDraftCurrent() || rt.wsAdvOpen ? 'open' : ''} data-ws-adv><summary>高级</summary><p class="wiki-s1-muted">这是审阅导入，不是新模型输出；原模型输出保持保存。</p>${rt.overview.project.intake_report?.necessary_clarification_complete === true && rt.overview.project.plan === null ? wsBtn('导入已有规划（不调用模型）', 'data-real-action="import-plan"', common || (realPlanImportReady() ? '' : '现在还不能导入：要先有确认过的范围，且没有进行中的任务')) : '<p class="wiki-s1-muted">现在还不能导入：这个课题已经有规划，或范围还没确认。</p>'}${wsPlanDraft()}</details>`}`;
 }
 function wsLockedChecks(id) { return apps[0]?.wikiS1?.wsChecks?.[id] === true; }
 function wsPlanTable() {
@@ -384,7 +384,7 @@ function wsRunTab(app) {
  if (!state.wsOpenInit) { state.wsOpenInit = true; const first = rows.find(r => r.kind === 'wait' || r.kind === 'block' || r.kind === 'run'); if (first) open.add(first.id); }
  const ro = wsReadonly();
  return `<section class="wiki-s1-card ws-run-tab" data-wiki-ops="run" aria-label="运行与操作">${wsQuota()}${wsAutoRow()}
- ${rt.error ? `<div class="live-error ws-err" role="alert">${wsTag('err', '出错')} ${esc(rt.error)}</div>` : ''}
+ ${rt.error ? `<div class="live-error ws-err" role="alert">${wsTag('err', '出错')} ${esc(wsPlain(rt.error) === '有记录，原因见技术细节' ? '这次操作没有完成，服务拒绝了这次提交；已保存的内容没有丢，原因见技术细节。' : rt.error)}<details class="ws-tech"><summary>技术细节</summary><code>${esc(rt.error)}</code></details></div>` : ''}
  <div class="ws-ps-head"><h3>这一段的七步</h3><small>点一行看明细。按钮能不能点由服务当时给出的可用操作决定，不能点时写原因。</small></div>
  <div class="ws-ps" role="list">${rows.map((row, i) => `<details class="ws-ps-row" data-ws-row="${row.id}" ${open.has(row.id) ? 'open' : ''} role="listitem"><summary><span class="ws-dot">${i + 1}</span><b>${row.name}</b>${wsTag(row.kind, row.label)}<span class="ws-result">${esc(wsSummary(row))}</span></summary><div class="ws-detail">${wsRowDetail(app, row, consent)}</div></details>`).join('')}</div>
  <details class="ws-tech"><summary>技术细节：原始进度记录</summary><pre>${esc(JSON.stringify(rt.overview.stage1.progress ?? null, null, 2))}</pre></details></section>`;
@@ -696,3 +696,4 @@ document.addEventListener('change', event => {
   if (!save.hasAttribute('data-ws-blocked')) patch(save, wsLock() || (target.checked ? '' : '请先勾选「我已审阅这些注释」'));
  }
 });
+document.addEventListener('toggle', event => { if (event.target.matches?.('[data-ws-adv]') && event.target.isConnected) rt.wsAdvOpen = event.target.open; }, true);
