@@ -80,6 +80,7 @@ def read_page(service, credential, match, *, detail=False):
                 title=row["metadata"].get("title"),
                 authors=deepcopy(row["metadata"].get("authors")),
                 year=row["metadata"].get("year"),
+                origin=row["origin"],
                 screening_status=row["screening_status"],
                 source_status=row["source_status"],
                 reading=deepcopy(row["reading"]),
