@@ -265,3 +265,34 @@ test('recorded_at is shown in local time with the UTC original on hover; null sa
  const bad = load({view:{host_decision:hdOf({records:[record(1, 'accept', 'k', {recorded_at:'not-a-time<'})], latest:null})}});
  assert.match(bad.html(), /title="not-a-time&lt;">not-a-time&lt;/, 'an unreadable value is shown as is, escaped');
 });
+
+test('review P1-1: after an unknown save, a size marker or a damaged journal in the re-read is not read as "not saved"', async () => {
+ const prior = record(1, 'accept', 'k-old');
+ const start = {host_decision:hdOf({records:[prior], latest:prior})};
+ const run = async (after, pick = 'return-to-stage2') => {
+  const t = load({view:start});
+  t.ctx.answer = () => { throw Object.assign(Error('HTTP 502'), {status:502}); };
+  t.ctx.nextView = {...t.ctx.v93.view, host_decision:after};
+  t.pick(pick);
+  await t.save();
+  return t;
+ };
+ // Damaged journal: still unknown, says the records cannot be read, no "not saved", the form stays closed.
+ let t = await run({error:'stage3-decision-record-differs'});
+ assert.match(t.text(), /结果未知/);
+ assert.match(t.text(), /读不出决定记录.*还不能确认有没有保存/);
+ assert.doesNotMatch(t.text(), /说明没有保存/);
+ assert.match(t.html(), /data-s3-dec="check" >只读核对/);
+ // Size marker with one more record whose latest is this choice: written.
+ t = await run({omitted:'response-bound', count:2, latest_decision:'return-to-stage2', latest_sequence:2});
+ assert.equal(vm.runInContext('wikiS3Dec.unknown', t.ctx), null);
+ assert.match(t.text(), /按读取摘要判断已经写入：第 2 次「退回 Stage 2 重选」/);
+ assert.doesNotMatch(t.text(), /说明没有保存/);
+ // Size marker unchanged: nothing was written.
+ t = await run({omitted:'response-bound', count:1, latest_decision:'accept', latest_sequence:1});
+ assert.match(t.text(), /说明没有保存/);
+ // Size marker with a new write that is not this choice: cannot tell.
+ t = await run({omitted:'response-bound', count:2, latest_decision:'accept', latest_sequence:2});
+ assert.match(t.text(), /对不上这次的选择，还不能确认有没有保存/);
+ assert.doesNotMatch(t.text(), /说明没有保存/);
+});

@@ -156,10 +156,12 @@ function wikiS3DecMarkup(app) {
  if (busy) result = line('run', '正在保存', '正在保存你的决定，请稍等');
  else if (wikiS3Dec.unknown?.ref === rt.ref) result = line('warn', '结果未知', wikiS3Dec.unknown.absent
    ? '核对时没有找到这次的记录，说明没有保存。原请求不会重发；如果还要保存，请重新确认（会用新的编号）。'
-   : '保存的结果还不清楚。不会自动重发；先只读核对。',
+   : wikiS3Dec.unknown.note || '保存的结果还不清楚。不会自动重发；先只读核对。',
   `<div class="wiki-s2-actions"><button type="button" class="hs-button" data-s3-dec="check" ${v93.busy ? 'disabled' : ''}>${wikiS3Dec.unknown.absent ? '知道了' : '只读核对'}</button></div>`) + tech([wikiS3Dec.unknown.code]);
  else if (state.error) result = line('warn', '被拦下', (wikiS3DecCodes[state.error.code] || '服务拒绝了这次保存，原因代码在技术细节里。') + '没有留下任何记录。') + tech([state.error.code]);
  if (m.notice) result += line(m.notice.tone, m.notice.tag, m.notice.text) + tech([m.notice.code]);
+ const summary = state.summarySaved?.ref === rt.ref && m.view?.host_decision?.omitted ? state.summarySaved : null;
+ if (summary) result += line('done', '已保存', `按读取摘要判断已经写入：第 ${summary.seq} 次「${wikiS3DecLabels[summary.decision]}」。这次读取放不下详情，没能按编号逐条核对。`);
  let saved = '';
  if (latest) {
   const d = latest.record?.decision;
@@ -213,7 +215,7 @@ async function wikiS3DecSave(app) {
  const key = wikiS3DecKey();
  const body = {...binding, key, decision:pick, text:state.text, confirmed:true};
  const basis = v93Identity(), epoch = rt.epoch;
- wikiS3Dec.busy.set(ref, key); state.error = null; state.confirming = false; livePaint();
+ wikiS3Dec.busy.set(ref, key); state.error = null; state.confirming = false; state.summarySaved = null; livePaint();
  let outcome = 'unknown', code = '';
  try {
   const answer = await liveRequest(projectPath(ref, 'stage3/planning/decide'), body);
@@ -229,17 +231,38 @@ async function wikiS3DecSave(app) {
   wikiS3Dec.busy.delete(ref);
  }
  if (outcome === 'refused' && wikiS3Dec.ref === ref) state.error = {code};
- if (outcome === 'unknown') wikiS3Dec.unknown = {ref, key, code};
+ // What the page saw before saving, so a size-marker re-read can still tell whether anything was written.
+ const rows = [...m.hd.records, ...(m.hd.history || [])];
+ const before = {count:m.hd.records.length, seq:rows.reduce((top, row) => Math.max(top, Number(row?.record?.sequence) || 0), 0)};
+ if (outcome === 'unknown') wikiS3Dec.unknown = {ref, key, code, pick, before};
  // Every outcome is followed by a read-only re-read; an unknown outcome is then looked up by its key.
  if (epoch === rt.epoch && ref === rt.ref) { await v93ReadSaved(app, basis); if (outcome === 'unknown') wikiS3DecSettle(ref); }
  livePaint();
 }
+// Settle an unknown save from the re-read (review P1-1). Only a full decision view can say "not saved" by key; a size
+// marker is judged by its count and latest sequence against what the page saw before saving; a damaged journal or
+// any other shape keeps the outcome unknown.
 function wikiS3DecSettle(ref) {
  const unknown = wikiS3Dec.unknown;
  if (!unknown || unknown.ref !== ref || !v93.view) return;
- const found = wikiS3DecFind(v93.view, unknown.key);
- if (found) { wikiS3Dec.unknown = null; wikiS3DecState().saved = found.receipt_sha256; wikiS3DecState().pick = ''; wikiS3DecState().text = ''; }
- else unknown.absent = true;
+ const hd = v93.view.host_decision, state = wikiS3DecState();
+ const done = () => { wikiS3Dec.unknown = null; state.pick = ''; state.text = ''; };
+ unknown.note = '';
+ if (hd?.kind === 'ProjectStage3PlanDecisionView' && Array.isArray(hd.records)) {
+  const found = wikiS3DecFind(v93.view, unknown.key);
+  if (found) { done(); state.saved = found.receipt_sha256; } else unknown.absent = true;
+  return;
+ }
+ const before = unknown.before;
+ if (hd?.omitted && before && Number.isSafeInteger(hd.count)) {
+  const seq = Number.isSafeInteger(hd.latest_sequence) ? hd.latest_sequence : 0;
+  if (hd.count === before.count && seq <= before.seq) { unknown.absent = true; return; } // nothing was written
+  if (seq > before.seq && hd.latest_decision === unknown.pick) { done(); state.summarySaved = {ref, seq, decision:unknown.pick}; return; }
+  unknown.note = '这次读取放不下决定详情，看到有新的写入但对不上这次的选择，还不能确认有没有保存；不会自动重发，稍后再点「只读核对」。';
+  return;
+ }
+ unknown.note = typeof hd?.error === 'string' ? '这次读取读不出决定记录（日志校验没有通过），还不能确认有没有保存；不会自动重发，稍后再点「只读核对」。'
+  : '这次读取看不到决定详情，还不能确认有没有保存；不会自动重发，稍后再点「只读核对」。';
 }
 async function wikiS3DecCheck(app) {
  const unknown = wikiS3Dec.unknown;
