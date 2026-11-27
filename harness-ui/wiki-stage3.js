@@ -379,23 +379,32 @@ function wikiS3MaterialsTab(view) {
  <p class="ws3-note">文件关联不等于已阅读、获准使用或科学接受。</p></section>`;
 }
 
+// DESIGN 8.13, Stage 3 state table. States shared with Stage 2 reuse its wording with "Stage 3".
+function wikiS3ConnectionLine(m) {
+ const line = (tone, tag, text, buttons = []) => ({tone, tag, text, buttons});
+ const reason = String(m.code || '');
+ if (m.phase === 'waiting') return line('run', '正在核对', '正在核对这个课题的接通记录');
+ if (!m.unknown && !m.connected && !v93Identity()) return line('warn', '缺正式选择', '还缺这个课题当前版本的正式选择和核对过的选择回执。请先在 Stage 2 选定方向', [{label:'前往 Stage 2', stage:2}]);
+ if (!m.unknown && m.action === 'connect') return line('wait', '可以接通', '这个课题还没有接通 Stage 3。可以登记当前配置，登记不会启动研究', [{label:'接通本课题', attr:'connect', primary:true}]);
+ if (!m.unknown && /profile-unavailable$/.test(reason)) return line('warn', '缺运行配置', '这次启动没有提供这一段的运行配置。请在原目录用核对过的配置重开', [{label:'去连接与设置', page:'settings'}]);
+ if (!m.unknown && typeof v9StaticStage3Read === 'function' && v9StaticStage3Read()) return line('idle', '只能看旧规划', '可以查看原配置下这个课题已保存的 Stage 3 规划，不能生成新的', [{label:'查看已保存的规划', read:true}]);
+ if (m.connected) return line('done', '已接通', '这个课题已接通');
+ const shared = wikiS2ConnectionLine(m);
+ return {...shared, text:String(shared.text).replace(/Stage 2/g, 'Stage 3')};
+}
+
 // DESIGN 8.13 connection block for Stage 3 (same component as Stage 2; one GET read via v9ConnectionModel).
 function wikiS3ConnBlock(app) {
  if (typeof v9ConnectionModel !== 'function' || typeof wikiS2ConnectionLine !== 'function') return '';
  const m = v9ConnectionModel(app);
  if (!m) return '';
- let row;
- if (!v93Identity() && !m.connected) row = {tone:'idle', tag:'缺正式选择', text:'Stage 3 要等 Stage 2 选定一个方向后才能请求生成计划。', buttons:[{label:'去 Stage 2', stage:2}]};
- else {
-  row = wikiS2ConnectionLine(m);
-  row = {...row, text:String(row.text).replace(/Stage 2/g, 'Stage 3')};
- }
+ const row = wikiS3ConnectionLine(m);
  const blocked = button => button.attr && button.attr !== 'read' ? (!m.canWrite || m.writing) : button.attr === 'read' ? (m.reading || m.writing) : false;
- const why = m.writing ? '正在保存，请稍等' : m.reading ? '正在读取保存记录' : '上次提交的结果还没确认，先核对';
+ const why = typeof wikiS2Why === 'function' ? wikiS2Why(m) : '现在还不能做这一步';
  const buttons = row.buttons.map(button => {
-  const data = button.attr ? `data-v9-connection="${button.attr}" data-connection-basis="${wikiS3Escape(m.token)}"` : button.stage ? `data-stage="${button.stage}"` : `data-page="${button.page}"`;
+  const data = button.attr ? `data-v9-connection="${button.attr}" data-connection-basis="${wikiS3Escape(m.token)}"` : button.read ? 'data-v93-read' : button.stage ? `data-stage="${button.stage}"` : `data-page="${button.page}"`;
   const off = blocked(button);
-  return `<span><button type="button" class="hs-button${button.primary ? ' hs-button-primary' : ''}" ${data} ${off ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${off ? `<small class="wiki-s2-reason">${why}</small>` : ''}</span>`;
+  return `<span><button type="button" class="hs-button${button.primary ? ' hs-button-primary' : ''}" ${data} ${off ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${off ? `<small class="wiki-s2-reason">${wikiS3Escape(why)}</small>` : ''}</span>`;
  }).join('');
  const detail = m.code ? `<details class="wiki-s2-tech"><summary>技术细节</summary><code>${wikiS3Escape(m.code)}</code></details>` : '';
  return `<section class="wiki-s2-conn" data-wiki-s3-conn aria-label="本课题的 Stage 3"><h2 tabindex="-1">本课题的 Stage 3</h2>
