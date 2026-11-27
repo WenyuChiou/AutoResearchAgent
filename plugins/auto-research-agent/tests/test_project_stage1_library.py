@@ -265,6 +265,8 @@ class ProjectStage1LibraryTests(Stage1LibraryFixture, unittest.TestCase):
             rows[self.work_by_name[name]]
             for name in ("retained", "excluded", "pending", "unscreened")
         )
+        for row in rows.values():
+            self.assertEqual(row["origin"], "search-result")
         self.assertEqual(retained["counts"]["discoveries"], 2)
         self.assertEqual(retained["counts"]["distinct_queries"], 2)
         self.assertEqual(retained["counts"]["recorded_rounds"], 1)

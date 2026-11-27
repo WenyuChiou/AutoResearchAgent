@@ -164,6 +164,11 @@ def _rows(candidates, claims, decisions, events, coverage, queries):
                     for q in sorted(query_ids, key=lambda value: int(value[1:]))
                 ],
                 current_decision=deepcopy(history[-1]) if history else None,
+                # Provenance of how the work entered the ledger: a researcher-provided saved
+                # material has no search lineage and must never read as a query result.
+                origin="provided-saved-material"
+                if any(d.get("provided") for d in observed)
+                else "search-result",
                 screening_status=history[-1]["new_decision"]
                 if history
                 else "not-screened",

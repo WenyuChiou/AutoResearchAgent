@@ -101,6 +101,7 @@ class ProvidedCandidateTests(unittest.TestCase):
         library = _project(self.ref, self.intake.binding(self.ref), run, ledger, report)
         row = library["rows"][0]
         self.assertEqual(row["screening_status"], "not-screened")
+        self.assertEqual(row["origin"], "provided-saved-material")
         self.assertEqual(row["counts"]["distinct_queries"], 0)
         self.assertEqual(row["counts"]["discovery_producing_backend_attempts"], 0)
         self.assertEqual(
