@@ -12,6 +12,7 @@ const wikiChatQuick = {
 };
 const wikiChatToolNames = {state:'读取课题状态', materials:'列出登记材料', read_material:'读取一份登记材料'};
 const wikiChatFallback = '对话许可没有通过核对，界面只读，发送关闭';
+const wikiChatAskPollMs = 10000;
 const wikiChatMaxBytes = 8192, wikiChatAnswerBytes = 4096, wikiChatWorking = ['starting', 'running', 'waiting', 'stop-requested'];
 
 function wikiChatBytes(text) { return new TextEncoder().encode(String(text)).length; }
@@ -259,7 +260,12 @@ async function wikiChatLoad(app, force) {
  if (state) { ctl.state = state; ctl.phase = 'ready'; ctl.error = ''; } else { ctl.phase = 'error'; ctl.error = error; }
  wikiChatPaint(app);
  clearTimeout(ctl.pollTimer);
- if (state && wikiChatWorkingTurn(state) && !wikiChatPendingCard(state)) ctl.pollTimer = setTimeout(() => wikiChatLoad(app), 2000);
+ // A running turn is re-read every 2 s; while it waits for a person, every 10 s, so a backend timeout still shows up.
+ // Polling stops as soon as the drawer is not on a stage page (node removed) or the project/stage changed.
+ if (state && wikiChatWorkingTurn(state) && ctl.root?.isConnected) {
+  const wait = wikiChatPendingCard(state) ? wikiChatAskPollMs : 2000;
+  ctl.pollTimer = setTimeout(() => { if (ctl.root?.isConnected && key === ctl.key) wikiChatLoad(app); }, wait);
+ }
 }
 
 async function wikiChatPost(route, body) {
@@ -412,6 +418,8 @@ function wikiChatMount(app) {
  if (typeof v1Page !== 'function') return;
  const page = v1Page(app), ctl = wikiChatCtl(app);
  if (!['s1', 's2', 's3', 'later'].includes(page) || !rt.ref) {
+  clearTimeout(ctl.pollTimer);
+  ctl.key = '';
   if (ctl.root?.isConnected) ctl.root.remove();
   return;
  }
