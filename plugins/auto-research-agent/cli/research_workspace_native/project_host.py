@@ -56,7 +56,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select|direction-intent)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|harness-record|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select|direction-intent)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -886,6 +886,14 @@ class ProjectHandler(AtlasHandler):
                     )
                     if operation == "stage1" and action in {None, "offers"}:
                         result = self.server.stage1_view(token, ref, automatic=True)
+                elif operation == "harness-record":
+                    if action or resolution:
+                        raise SessionApiError("invalid-project-read", 400)
+                    from .project_harness_record import harness_record
+
+                    result = harness_record(
+                        self.server, token, ref, check_deadline=self._remaining
+                    )
                 elif operation == "overview":
                     if action or resolution:
                         raise SessionApiError("invalid-project-read", 400)
