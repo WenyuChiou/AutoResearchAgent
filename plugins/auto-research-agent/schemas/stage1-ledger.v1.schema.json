@@ -649,7 +649,8 @@
         "schema_version": {
           "enum": [
             "1.0.0",
-            "1.1.0"
+            "1.1.0",
+            "1.2.0"
           ]
         },
         "event_id": {
@@ -758,9 +759,53 @@
               "pattern": "\\S"
             }
           }
+        },
+        "claim_type": {
+          "enum": [
+            "source_statement",
+            "project_interpretation"
+          ]
+        },
+        "basis_claim_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^e[0-9]{6,}$"
+          }
         }
       },
       "allOf": [
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
+                "const": "1.0.0"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "assessment"
+                  ]
+                },
+                {
+                  "required": [
+                    "claim_type"
+                  ]
+                },
+                {
+                  "required": [
+                    "basis_claim_ids"
+                  ]
+                }
+              ]
+            }
+          }
+        },
         {
           "if": {
             "properties": {
@@ -772,14 +817,36 @@
           "then": {
             "required": [
               "assessment"
-            ]
-          },
-          "else": {
+            ],
             "not": {
-              "required": [
-                "assessment"
+              "anyOf": [
+                {
+                  "required": [
+                    "claim_type"
+                  ]
+                },
+                {
+                  "required": [
+                    "basis_claim_ids"
+                  ]
+                }
               ]
             }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
+                "const": "1.2.0"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "claim_type",
+              "basis_claim_ids"
+            ]
           }
         }
       ]

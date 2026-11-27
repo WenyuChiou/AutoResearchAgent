@@ -58,6 +58,7 @@ def validate_run(root, *, verify_runtime=True):
     failed_extractions = set()
     comparisons = {}
     imports = {}
+    claims = {}
     sources = SourceReads()
     errors, pending = [], []
     state_sha256 = None
@@ -325,6 +326,9 @@ def validate_run(root, *, verify_runtime=True):
                 decisions[p["subject_id"]] = p
                 counts["decisions"] += 1
             elif kind == "ClaimEvidence":
+                from .claim_structure import check_structure
+
+                check_structure(p, claims)
                 work = works.get(p["work_id"])
                 require(
                     work and p["version_id"] in work["version_ids"],
@@ -332,6 +336,7 @@ def validate_run(root, *, verify_runtime=True):
                 )
                 claim_check(p, read_ref)
                 claim_binding(p, works, imports | sources.starts, sources.finishes)
+                claims[event_id] = p
                 counts["claims"] += 1
             elif kind == "IdentityComparison":
                 expected = comparison(

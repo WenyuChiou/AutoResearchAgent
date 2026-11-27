@@ -156,7 +156,10 @@ class HostReplayTests(unittest.TestCase):
         review_files = ("literature_review.md", "literature_review.docx")
         for name in review_files:
             self.assertNotEqual((self.output / name).read_bytes(), legacy[name])
-            (self.output / name).write_bytes(legacy[name])
+        # Reconstruct the entire old format, not new tables plus old prose.
+        (self.output / "claim_structure.json").unlink()
+        for name, raw in legacy.items():
+            (self.output / name).write_bytes(raw)
         manifest["files"] = inventory(self.output)
         write_json(manifest_path, manifest)
         original_manifest = manifest_path.read_bytes()
