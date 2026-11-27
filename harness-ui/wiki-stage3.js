@@ -387,7 +387,7 @@ function wikiS3ConnectionLine(m) {
  if (m.phase === 'waiting') return line('run', '正在核对', '正在核对这个课题的接通记录');
  // Before the selection check: a saved registration that lost its lease is not connected, so the selection read
  // (which needs a connected Stage 3) is unavailable too; the reconnect is the way back.
- if (!m.unknown && m.action === 'reconnect') return line('warn', '未接通', 'Stage 3 的规划登记已保存；上次如果是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。', [{label:'重新接通', attr:'reconnect', primary:true}]);
+ if (!m.unknown && m.action === 'reconnect') return line('warn', '未接通', 'Stage 3 的规划登记已保存；如果上次是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。', [{label:'重新接通', attr:'reconnect', primary:true}]);
  if (!m.unknown && !m.connected && !v93Identity()) return line('warn', '缺正式选择', '还缺这个课题当前版本的正式选择和核对过的选择回执。请先在 Stage 2 选定方向', [{label:'前往 Stage 2', stage:2}]);
  if (!m.unknown && m.action === 'connect') return line('wait', '可以接通', '这个课题还没有接通 Stage 3。可以登记当前配置，登记不会启动研究', [{label:'接通本课题', attr:'connect', primary:true}]);
  if (!m.unknown && /profile-unavailable$/.test(reason)) return line('warn', '缺运行配置', '这次启动没有提供这一段的运行配置。请在原目录用核对过的配置重开', [{label:'去连接与设置', page:'settings'}]);

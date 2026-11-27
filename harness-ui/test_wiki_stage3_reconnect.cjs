@@ -72,7 +72,7 @@ test('the button appears only for an unavailable Stage 3 registration with the l
  assert.equal(ctx.v9ConnectionAction(stage2), null, 'Stage 2 rows never get it');
  s.status = 'connected';
  assert.equal(ctx.v9ConnectionAction(await view(ctx)), null, 'nothing to do once connected');
- assert.match(ctx.v9ConnectionReason(reason), /Stage 3 的规划登记已保存；上次如果是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。/);
+ assert.match(ctx.v9ConnectionReason(reason), /Stage 3 的规划登记已保存；如果上次是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。/);
 });
 
 test('every reconnect uses a key never used before, even if the random source repeats', () => {
@@ -122,6 +122,6 @@ test('the Stage 3 connection block shows 重新接通 even though the selection 
  assert.equal(line.tag, '未接通');
  assert.equal(line.buttons[0].attr, 'reconnect');
  assert.equal(line.buttons[0].label, '重新接通');
- assert.match(line.text, /^Stage 3 的规划登记已保存；上次如果是强行关闭/);
+ assert.match(line.text, /^Stage 3 的规划登记已保存；如果上次是强行关闭/);
  assert.equal(ctx.wikiS3ConnectionLine({phase:'ready', unknown:false, connected:false, action:null, code:'x'}).tag, '缺正式选择');
 });

@@ -176,7 +176,7 @@ function v9ConnectionReason(code, http, stage) {
   if (code === 'stage2-controller-current-input-required')
     return rl('还缺本课题已接收的 Stage 2 输入包和接收回执。请先查看 Stage 1 交付。','The current Stage 2 input packet and receiving receipt are required. Check the Stage 1 delivery.');
   if (code === 'stage3-planning-resource-unavailable')
-    return rl('Stage 3 的规划登记已保存；上次如果是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。','The Stage 3 planning registration is saved. If the last session was force-closed, it first shows "not connected" after launch; choose "Reconnect" to restore it. No step is repeated and no record is added.','Stage 3 的規劃登記已儲存；上次如果是強行關閉，這次啟動後會先顯示『未接通』，點『重新接通』即可恢復，不會重複執行任何步驟，也不會新增紀錄。');
+    return rl('Stage 3 的规划登记已保存；如果上次是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。','The Stage 3 planning registration is saved. If the last session was force-closed, it first shows "not connected" after launch; choose "Reconnect" to restore it. No step is repeated and no record is added.','Stage 3 的規劃登記已儲存；如果上次是強行關閉，這次啟動後會先顯示『未接通』，點『重新接通』即可恢復，不會重複執行任何步驟，也不會新增紀錄。');
   if (code === 'stage3-current-selection-required')
     return rl('还缺本课题当前版本的正式选案和已核验的选案回执。','A verified formal selection and receipt for this version are required.');
   if (code === 'stage2-controller-profile-unavailable')
