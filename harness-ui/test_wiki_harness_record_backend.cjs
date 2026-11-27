@@ -70,7 +70,7 @@ const stage = (status, extra = {}) => { const one = {
  assert.match(html, /179 条记录 · 拦下 1 次/);
  assert.doesNotMatch(html, /按已保存交付统计|30 篇/);
  assert.match(html, /检索词 12 · 检索失败 1/);
- assert.match(html, /决定 40/);
+ assert.match(html, /决定数 40/);
  assert.match(html, /还没有：没有保存纳入、排除各多少/);
  assert.match(html, /还没有：还没有保存交付检查点/);
  assert.match(html, /检查点没有通过/);
@@ -99,7 +99,7 @@ const stage = (status, extra = {}) => { const one = {
  await tick(); await tick();
  html = wikiRecordBlock(2);
  assert.match(html, /推算 · 检索词 12/);
- assert.match(html, /决定 40（推算）/);
+ assert.match(html, /决定数 40（推算）/);
  assert.match(html, /179 条记录 · 拦下 1 次（推算）/);
  assert.doesNotMatch(wikiRecordBlock(1).replace(/推算/, ''), /推算 ·/); // stage 1 rows were not marked
 

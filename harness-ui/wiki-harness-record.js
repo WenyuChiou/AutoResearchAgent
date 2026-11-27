@@ -61,7 +61,7 @@ const wikiRecReasons = {
 };
 const wikiRecLabels = {
  queries:'检索词', backend_attempts:'检索尝试', backend_failures:'检索失败', success_empty:'成功但没有结果', discoveries:'发现',
- decisions:'筛选决定', works:'文献', claims:'证据', source_attempts:'原文获取尝试', acquired_full_text:'取得全文',
+ decisions:'决定数', works:'文献', claims:'证据', source_attempts:'原文获取尝试', acquired_full_text:'取得全文',
  full_text_acquisition_fraction:'全文获取比例', access_state_counts:'访问状态', rounds:'检索轮数', recent_complete:'最近一轮完整',
  consecutive_zero_yield_rounds:'连续零收获轮数', budget_exhausted:'额度用尽', blockers:'阻塞项', next_allowed_action:'下一步允许',
  event_id:'检查点编号', current:'是当前版本', status:'状态', gate:'检查结果', blocking_items:'阻塞项', candidates:'候选数',
