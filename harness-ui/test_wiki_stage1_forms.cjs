@@ -79,3 +79,20 @@ test('the Stage 1 after-render hook retires the old form copies on every paint',
  ctx.after({el});
  assert.deepEqual(seen, [], 'pages without the new Stage 1 panel are left alone');
 });
+
+// Re-review P2: a failed read is not described as a refused submission.
+test('the run page error line names refused submits, failed submits and failed reads differently', async () => {
+ const block = source.slice(source.indexOf('// Which request produced the last failure'));
+ const fail = (message, status) => Object.assign(new Error(message), {status});
+ const ctx = {liveRequest: async (path, body) => { throw body ? fail(body.code, body.status) : fail('no-source', 404); }};
+ vm.createContext(ctx);
+ vm.runInContext(block + ';this.request = liveRequest; this.text = wsErrorText;', ctx);
+ await ctx.request('/api/projects/p/overview').catch(() => {});
+ assert.match(ctx.text('no-source'), /这次读取没有完成/);
+ assert.doesNotMatch(ctx.text('no-source'), /拒绝/);
+ await ctx.request('/api/projects/p/confirm', {code:'scope-invalid', status:409}).catch(() => {});
+ assert.match(ctx.text('scope-invalid'), /服务拒绝了这次提交/);
+ await ctx.request('/api/projects/p/confirm', {code:'host-failed', status:503}).catch(() => {});
+ assert.match(ctx.text('host-failed'), /这次提交没有完成，结果还要核对/);
+ assert.doesNotMatch(ctx.text('other-code'), /拒绝|读取/);
+});

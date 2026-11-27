@@ -388,7 +388,7 @@ function wsRunTab(app) {
  if (!state.wsOpenInit) { state.wsOpenInit = true; const first = rows.find(r => r.kind === 'wait' || r.kind === 'block' || r.kind === 'run'); if (first) open.add(first.id); }
  const ro = wsReadonly();
  return `<section class="wiki-s1-card ws-run-tab" data-wiki-ops="run" aria-label="运行与操作">${wsQuota()}${wsAutoRow()}
- ${rt.error ? `<div class="live-error ws-err" role="alert">${wsTag('err', '出错')} ${esc(wsIsCode(rt.error) ? '这次操作没有完成，服务拒绝了这次提交；已保存的内容没有丢，原因见下面的技术细节。' : rt.error)}<details class="ws-tech"><summary>技术细节</summary><code>${esc(rt.error)}</code></details></div>` : ''}
+ ${rt.error ? `<div class="live-error ws-err" role="alert">${wsTag('err', '出错')} ${esc(wsIsCode(rt.error) ? wsErrorText(rt.error) : rt.error)}<details class="ws-tech"><summary>技术细节</summary><code>${esc(rt.error)}</code></details></div>` : ''}
  <div class="ws-ps-head"><h3>这一段的七步</h3><small>点一行看明细。按钮能不能点由服务当时给出的可用操作决定，不能点时写原因。</small></div>
  <div class="ws-ps" role="list">${rows.map((row, i) => `<details class="ws-ps-row" data-ws-row="${row.id}" ${open.has(row.id) ? 'open' : ''} role="listitem"><summary><span class="ws-dot">${i + 1}</span><b>${row.name}</b>${wsTag(row.kind, row.label)}<span class="ws-result">${esc(wsSummary(row))}</span></summary><div class="ws-detail">${wsRowDetail(app, row, consent)}</div></details>`).join('')}</div>
  <details class="ws-tech"><summary>技术细节：原始进度记录</summary><pre>${esc(JSON.stringify(rt.overview.stage1.progress ?? null, null, 2))}</pre></details></section>`;
@@ -713,3 +713,21 @@ document.addEventListener('change', event => {
  }
 });
 document.addEventListener('toggle', event => { if (event.target.matches?.('[data-ws-adv]') && event.target.isConnected) rt.wsAdvOpen = event.target.open; }, true);
+
+// Which request produced the last failure: only a submit (non-GET) refused with 4xx is "rejected" (re-review P2).
+let wsLastFailure = null;
+const wsPrevRequest = liveRequest;
+liveRequest = async function (path, body) {
+ try { return await wsPrevRequest(path, body); }
+ catch (error) {
+  wsLastFailure = {message:error.message, kind:!body ? 'read' : error.status >= 400 && error.status < 500 ? 'refused' : 'submit'};
+  throw error;
+ }
+};
+function wsErrorText(code) {
+ const kind = wsLastFailure?.message === code ? wsLastFailure.kind : 'unknown';
+ if (kind === 'refused') return '这次操作没有完成，服务拒绝了这次提交；已保存的内容没有丢，原因见下面的技术细节。';
+ if (kind === 'submit') return '这次提交没有完成，结果还要核对；不会自动重发，原因见下面的技术细节。';
+ if (kind === 'read') return '这次读取没有完成；已经读到的内容没有丢，原因见下面的技术细节。';
+ return '这次没有完成；已保存的内容没有丢，原因见下面的技术细节。';
+}
