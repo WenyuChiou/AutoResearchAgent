@@ -32,9 +32,9 @@
         <p class="controls-help">Use <kbd>←</kbd> and <kbd>→</kbd> or the toolbar to move one step at a time.</p>
     </div>
     <nav class="chapters" aria-label="Chapters"><a href="?trace=household_spending_case_study&amp;animate=1&amp;step=1">Introduction</a>
-<a href="?trace=household_spending_case_study&amp;animate=1&amp;step=28">Data and Methods</a>
-<a href="?trace=household_spending_case_study&amp;animate=1&amp;step=48">Results</a>
-<a href="?trace=household_spending_case_study&amp;animate=1&amp;step=76">Conclusion</a></nav>
+<a href="?trace=household_spending_case_study&amp;animate=1&amp;step=27">Data and Methods</a>
+<a href="?trace=household_spending_case_study&amp;animate=1&amp;step=46">Results</a>
+<a href="?trace=household_spending_case_study&amp;animate=1&amp;step=71">Conclusion</a></nav>
 </header>
 <main id="root" aria-label="Report playback"></main>
 <script>
@@ -61,9 +61,9 @@
         const block = cue?.dataset.block ?? "";
         if (figure.dataset.block === block) return;
         figure.dataset.block = block;
-        const caption = figure.querySelector(".workflow-cue");
+        const cueText = figure.querySelector(".workflow-cue");
         const words = cue ? Array.from(cue.childNodes, node => node.cloneNode(true)) : [];
-        caption.replaceChildren(...words);
+        cueText.replaceChildren(...words);
         if (!cue) return;
         workflowImage.decode().catch(() => {}).then(() => {
             requestAnimationFrame(() => {

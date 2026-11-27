@@ -23,7 +23,7 @@ RUNTIME = HERE / "runtime"
 WHEEL = RUNTIME / "edtrace-0.1.25-py3-none-any.whl"
 sys.path.insert(0, str(WHEEL))
 
-from edtrace import image, plot, text
+from edtrace import plot, text
 
 ENTRY = Path(__file__).stem
 STUDY_TITLE = 'A Large Language Model Simulation of U.S. Household Spending under Population Aging and Gasoline Price Feedback'
@@ -204,11 +204,38 @@ DATA_ROLES = [
 ]
 
 
-def workflow_cue(block: str, title: str, explanation: str) -> str:
+def figure_caption(label: str, description: str) -> str:
+    return f'<figcaption class="figure-caption"><strong>{escape(label)}</strong> {escape(description)}</figcaption>'
+
+
+def study_figure(path: str, alt: str, label: str, description: str) -> str:
+    image_path = escape(path)
     return (
-        f'<span class="workflow-step" data-block="{escape(block)}" hidden>'
-        f'<strong>{escape(title)}.</strong> {escape(explanation)}</span>'
+        '<figure class="study-figure">'
+        f'<a href="{image_path}" target="_blank" rel="noopener" title="Open the full-size figure">'
+        f'<img src="{image_path}" alt="{escape(alt)}"></a>'
+        f'{figure_caption(label, description)}</figure>'
     )
+
+
+def spending_prompt_table() -> str:
+    return f"""<div class="table-wrap">
+<table>
+<caption>Table S11. Recorded quarterly spending prompt (excerpt)</caption>
+<thead><tr><th scope="col">Prompt block</th><th scope="col">What the model sees or returns</th></tr></thead>
+<tbody>
+<tr><th scope="row">Household profile</th><td><strong>2026 Q1</strong> under the CBO central path. <strong>South</strong>, reference age <strong>76</strong> at sampling, <strong>2</strong> people, <strong>0</strong> earners, <strong>owner with mortgage</strong>, <strong>4</strong> vehicles.</td></tr>
+<tr><th scope="row">Prices and spending history</th><td>Income and price updates, the past four simulated quarters, and a price-adjusted reference for the same season. This household can spend up to <strong>$31,209</strong> this quarter.</td></tr>
+<tr><th scope="row">Model output</th><td>Eight whole-number adjustments, one per spending category, from −100% to +150%. Their implied spending must stay within the limit.</td></tr>
+</tbody>
+</table>
+</div>
+<p><a href="{escape(PROMPT_PDF)}">Read the full recorded prompt in Table S11</a>.</p>"""
+
+
+def workflow_cue(block: str, title: str = "", explanation: str = "") -> str:
+    cue = f'<strong>{escape(title)}.</strong> {escape(explanation)}' if title else ""
+    return f'<span class="workflow-step" data-block="{escape(block)}" hidden>{cue}</span>'
 
 
 def workflow_figure() -> str:
@@ -222,8 +249,19 @@ def workflow_figure() -> str:
         f'<a class="workflow-art" href="{WORKFLOW}" target="_blank" rel="noopener" '
         'title="Open the full-size workflow figure">'
         '<span class="workflow-focus" aria-hidden="true"></span></a>'
-        '<figcaption class="workflow-cue" aria-live="polite"></figcaption></figure>'
+        '<div class="workflow-cue" aria-live="polite"></div>'
+        + figure_caption(
+            "Figure 1. Forward simulation, 2026–2030.",
+            "The top return arrow carries spending into the next quarter. "
+            "The dashed arrow shows the two-quarter delay in gasoline price feedback.",
+        )
+        + '</figure>'
     )
+
+
+def show_aging_background() -> None:
+    plot(AGING_CHART)
+    text('<p class="figure-caption"><a href="https://www.census.gov/newsroom/press-releases/2025/older-adults-outnumber-children.html">Source: U.S. Census Bureau</a></p>')
 
 
 def main() -> None:
@@ -231,9 +269,8 @@ def main() -> None:
 
     text('### 1.1 Why Population Aging Matters')
     text('- **An older population can change what households buy.** The U.S. share aged 65 or older rose from 12.4% in 2004 to 18.0% in 2024.')
-    text('- **The shift matters for consumer demand.** Cravino et al. estimate that aging accounted for about one fifth of the rise in the U.S. spending share devoted to services from 1982 to 2016.')
-    plot(AGING_CHART)  # @stepover
-    text('[U.S. Census Bureau](https://www.census.gov/newsroom/press-releases/2025/older-adults-outnumber-children.html) · [Cravino et al.](https://doi.org/10.1257/mac.20200371)')
+    text('- **The shift matters for consumer demand.** Cravino et al. estimate that aging accounted for about one fifth of the rise in the U.S. spending share devoted to services from 1982 to 2016. [Cravino et al.](https://doi.org/10.1257/mac.20200371)')
+    show_aging_background()  # @stepover
 
     text('### 1.2 Conventional Approaches')
     text('Researchers study spending under population aging using **demographic reweighting**, **demand systems**, and **life-cycle simulations**.')
@@ -266,8 +303,7 @@ def main() -> None:
     text('### 2.1 Data Sources')
     text('Our historical benchmark comes from the U.S. Bureau of Labor Statistics (BLS). A **consumer unit** is a person who manages their own expenses or a group that shares major expenses. We measure spending in **dollars per consumer unit per quarter**. [BLS glossary](https://www.bls.gov/cex/csxgloss.htm)')
     text(table('Table 1. Data sources and their roles', DATA_ROLES))  # @stepover
-    image(OBSERVED, style={"width": "100%"})  # @stepover
-    text('**Figure 2. Observed BLS benchmark.** The lines show survey-weighted median spending by region from 2023 Q1 to 2025 Q2. Ages 45–54 are on the left and 65+ are on the right.')
+    text(study_figure(OBSERVED, "Observed quarterly spending by region and age group", "Figure 2. Observed BLS benchmark.", "The lines show survey-weighted median spending by region from 2023 Q1 to 2025 Q2. Ages 45–54 are on the left and 65+ are on the right."))  # @stepover
 
     text('### 2.2 Study Setup')
     text("- **Historical sample.** Draw 25 profiles per group using BLS survey weights, for **200** in total. The groups span the Northeast, Midwest, South, and West and two age bands, 45–54 and 65+. Age refers to the survey's household reference person.")
@@ -278,49 +314,45 @@ def main() -> None:
     text('### 2.3 Quarterly Simulation Workflow')
     text('- **Household inputs.** The LLM sees *the household profile, recent spending, a basket updated for prices, and a spending limit*.')
     text('- **Quarterly decision.** The model, **Gemma 4 12B**, proposes adjustments in **eight spending categories**. The program scales spending down if needed and saves *the dollar amounts* for next quarter. [Gemma model card](https://gemma.ai/models/gemma-4/model-card/)')
-    text(f"**Recorded prompt excerpt · CBO central path**\n\n> Decide spending for this US consumer unit in **2026 Q1**. Use the information below. Fixed profile: **South**, reference age **76** at sampling, **2** people, **0** earners, **owner with mortgage**, **4** vehicles.\n>\n> Maximum spending this quarter: **31209**. It is a separate hard limit.\n>\n> Return only eight integer percentage adjustments from -100 to 150 in the table order.\n\nBold values can change by household, quarter, or path. [Full recorded prompt in Table S11]({PROMPT_PDF})")
+    text(spending_prompt_table())  # @stepover
     text(workflow_figure())  # @stepover
     text(workflow_cue("spending", "Quarterly spending", "The LLM adjusts eight categories. The program checks the budget and carries the final spending into the next quarter."))  # @stepover
     text(workflow_cue("one-way", "One-way simulation", "Use the scenario prices and incomes, then apply age weights to compare spending across age mixes."))  # @stepover
     text(workflow_cue("feedback", "Two-way gasoline feedback", "Gemma estimates gallons at the pump price. Purchases change inventories, which can affect the price two quarters later."))  # @stepover
-    text('**Figure 1. Forward simulation, 2026–2030.** The top return arrow carries spending into the next quarter. The dashed arrow shows the two-quarter delay in gasoline price feedback.')
+    text(workflow_cue("overview"))  # @stepover
 
     text("## 03 · Results")
     text("### SQ1 · Historical Validation")
     text("- **What we compare.** We assess how closely the simulated spending levels and quarterly changes follow BLS across the eight region–age groups.")
-    image(SQ1_COMPARISON, style={"width": "100%"})  # @stepover
-    text("**Figure 3.** The quarterly lines show group medians. The blue band shows the middle half of spending in the calibrated replay.")
+    text(study_figure(SQ1_COMPARISON, "BLS spending and historical spending simulations by region and age", "Figure 3.", "The quarterly lines show group medians. The blue band shows the middle half of spending in the calibrated replay."))  # @stepover
     text("- **Two measures.** Scaled error compares the level errors with observed spending. Direction hits count the matches in quarter-to-quarter movement.")
     text(table("Original validation, 2023 Q1–2025 Q2 · v52 Table 2", SQ1_SCORES))  # @stepover
-    text("- **How close?** Gemma and the CPI basket match on scored spending levels. The seasonal ridge has **3.63 percentage points lower** scaled error and **3 more** direction hits than Gemma.")
-    text("- **Where it fits.** Gemma’s level error is **5.55%** for South 65+ and **35.57%** for Northeast 45–54. Its average absolute quarterly change is smaller than the survey’s in all eight groups.")
-    text("- **Calibrated replay.** The **14.61%** error and **51 of 80** direction hits describe fit to the historical period used for calibration.")
-    text("- **SQ1 takeaway.** The model is close to the price-only benchmark on spending levels. The muted swings limit what we can infer about quarterly changes.")
+    text("- **The benchmark matters.** The LLM and the CPI basket both have **15.99%** scaled error. The seasonal ridge reaches **12.36%** and gets **three more directions** right than Gemma. Much of the historical fit comes from the spending reference.")
+    text("- **Fit varies by group.** Level error ranges from **5.55% in South 65+** to **35.57% in Northeast 45–54**. A single national score would hide those differences.")
+    text("- **What the blue band means.** The calibrated replay has **14.61%** scaled error and matches **51 of 80** directions. Those scores show fit to the period used to calibrate the replay.")
+    text("- **What carries forward.** The LLM understates quarterly swings in all eight groups. The historical check supports typical spending levels more strongly than it supports short-term changes.")
 
     text("### SQ2 · Spending under Population Aging")
     text("- **Raise the 65+ share.** Compare a fixed age mix with increases of **5, 10, or 15 percentage points** by 2030. Every pair uses the same prices and incomes.")
     text("- **Change the weights.** The same simulated spending feeds each age mix. The weights determine how much each group contributes to the national average.")
-    image(AGING, style={"width": "100%"})  # @stepover
-    text("**Figure 4.** Left shows quarterly spending per consumer unit. Right shows each age mix minus the fixed mix on the same path. Shading spans five price and income paths.")
-    text("- **Spending rises over time.** On the central path, 2030 annual spending is **$67,218** per consumer unit with the fixed mix and **$64,921** with the +10-point mix.")
+    text(study_figure(AGING, "Quarterly spending and differences for the older age mixes", "Figure 4.", "Left shows quarterly spending per consumer unit. Right shows each age mix minus the fixed mix on the same path. Shading spans five price and income paths."))  # @stepover
+    text("- **Aging slows the rise.** On the central path, annual 2030 spending is **$67,218** per consumer unit for the fixed mix and **$64,921** for the +10-point mix. The **$2,297** gap is between two rising spending paths.")
     text(table("2030 annual gaps vs. the fixed mix on the central path · v52 Table S8", SQ2_SPENDING))  # @stepover
-    text("- **Age weights drive the gap.** Setting Gemma’s adjustments to zero changes the central +10-point gap by **$3.55 per consumer unit**.")
-    text("- **Scale of the estimate.** The historical mean with national weights was **27.2% below BLS**. The dollar gaps depend on the specified spending paths and age weights.")
+    text("- **Why the gap opens.** Setting the LLM’s adjustments to zero changes the central +10-point gap by only **$3.55 per consumer unit**. The spending difference comes mainly from giving older groups more weight.")
+    text("- **How to read the dollar amounts.** With national weights, historical mean spending was **27.2% below BLS**. That shortfall limits confidence in the absolute spending levels used for the scenarios.")
 
     text("### SQ3 · Spending with Gasoline Feedback")
     text("- **Change the gasoline price rule.** Keep the central price and income path and non-gasoline spending fixed. With feedback, fuel purchases change inventories and can affect pump prices two quarters later.")
     text("- **Compare the gaps.** Compute the **aging-minus-fixed** spending gap under both rules. Subtract the gap under prescribed gasoline prices from the gap with feedback.")
-    image(FEEDBACK, style={"width": "100%"})  # @stepover
-    text("**Figure 5.** Values below zero mean feedback widens the U.S. spending gap that quarter. Lines show the saved Gemma run. Shading spans four demand rules.")
+    text(study_figure(FEEDBACK, "Difference in national spending gaps with gasoline feedback", "Figure 5.", "Values below zero mean feedback widens the U.S. spending gap that quarter. Lines show the saved Gemma run. Shading spans four demand rules."))  # @stepover
     text(table("Additional 2030 U.S. spending reductions with feedback · v52 Table S9", SQ3_FEEDBACK))  # @stepover
-    text("- **At +10 points.** The price change adds **$10.513 billion** to the annual reduction. Changes in gallons bought offset **$0.667 billion**, leaving **$9.85 billion**.")
-    text("- **Inventory limit.** At least one paired inventory lies outside the historical seasonal range in **every quarter of 2030** in the +10-point case. The dollar estimate depends on how the price rule behaves there.")
+    text("- **Gasoline prices drive the +10-point result.** The price change adds **$10.513 billion** to the annual national spending reduction. Differences in gallons bought offset **$0.667 billion**, leaving **$9.85 billion**. The estimated gap responds chiefly to how the fuel market sets prices.")
+    text("- **Why the dollar effect can change.** At least one paired inventory is outside the historical range for that season in **all four quarters of 2030** for the +10-point case. The estimated size of the feedback effect depends on how the price rule behaves at those stock levels.")
 
     text("## 04 · Conclusion")
-    text("- **SQ1 · Historical fit.** The model is reasonably close to observed spending levels in some groups and understates quarterly swings.")
-    text("- **SQ2 · Age mix.** Under shared price and income paths, giving older households more weight lowers 2030 spending relative to the fixed age mix.")
-    text("- **SQ3 · Gasoline feedback.** Feedback widens that gap under the tested demand rules. The amount depends on the simulated inventory and price response.")
-    text(f"[Open the recorded quarterly spending prompt]({PROMPT_PDF})")
+    text("- **SQ1 · Historical fit.** The LLM matches the price-only benchmark on spending-level error and understates quarterly swings. The historical comparison gives the scenarios a check on typical spending levels, with weaker support for short-term changes.")
+    text("- **SQ2 · Population aging.** Spending rises more slowly with an older household mix on the central path. The age weights drive almost all of the +10-point gap, so the assumed household mix matters more for this comparison than the LLM’s adjustments.")
+    text("- **SQ3 · Gasoline feedback.** On the central path, demand-driven gasoline prices widen the aging-related spending gap under the tested rules. Comparing the two price rules shows how the market can change the estimate. In the +10-point case, inventories move outside their historical seasonal range in 2030, making the dollar effect sensitive to the price rule.")
 
 
 def record() -> bytes:
@@ -415,9 +447,9 @@ PLAYER = """<!doctype html>
         const block = cue?.dataset.block ?? "";
         if (figure.dataset.block === block) return;
         figure.dataset.block = block;
-        const caption = figure.querySelector(".workflow-cue");
+        const cueText = figure.querySelector(".workflow-cue");
         const words = cue ? Array.from(cue.childNodes, node => node.cloneNode(true)) : [];
-        caption.replaceChildren(...words);
+        cueText.replaceChildren(...words);
         if (!cue) return;
         workflowImage.decode().catch(() => {}).then(() => {
             requestAnimationFrame(() => {

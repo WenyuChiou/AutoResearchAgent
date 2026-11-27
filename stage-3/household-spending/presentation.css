@@ -313,6 +313,20 @@ kbd {
     border-radius: .4rem;
 }
 
+#root .study-figure {
+    margin: .38rem 0;
+}
+
+#root .study-figure img {
+    width: 100%;
+}
+
+#root .figure-caption {
+    margin-top: .45rem;
+    color: var(--ink);
+    font-size: .94em;
+}
+
 /* Play Figure 1 in place as the four workflow cues advance. */
 #root .line:has(.workflow-step):not(:has(.workflow-figure)) {
     display: none;
