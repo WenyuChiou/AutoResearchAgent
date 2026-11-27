@@ -32,7 +32,7 @@ function wikiHarnessRecord(record) {
   <div class="wiki-record-body">
    <p>这里只说做了哪些检查，不代表研究结论是对的。</p>${record?.source ? `<p class="wiki-record-gap">${esc(record.source)}</p>` : ''}
    <h3>这一段查了什么、留了什么</h3>
-   ${checks.length ? table(['事项', '结果', '原始记录'], checks.map(row => `<tr><th scope="row">${esc(row.name)}</th><td>${esc(row.result)}</td><td>${raw(row.raw)}</td></tr>`)) : missing}
+   ${checks.length ? table(['事项', '结果', '原始记录'], checks.map(row => `<tr><th scope="row">${esc(row.name)}</th><td>${esc(row.result)}</td><td>${raw(row.raw)}</td></tr>`)) : record?.checksNote ? `<p class="wiki-record-gap">${esc(record.checksNote)}</p>` : missing}
    <h3>被拦下的事</h3>
    ${recordedBlocks ? table(['事项', '结果'], blocked.map(([key, label]) => {
     const count = record.blocked[key];
@@ -97,8 +97,8 @@ function wikiRecRowText(row) {
  }
  return (wikiRecInferred(row) ? '推算 · ' : '') + text;
 }
-function wikiRecMap(stage) {
- const rows = Array.isArray(stage.rows) ? stage.rows : [];
+// Saved failed-action counts per class with the host's own reasons, as the record block expects them.
+function wikiRecBlockedPart(stage) {
  const blocked = {}, reasons = {};
  for (const cell of Array.isArray(stage.blocked) ? stage.blocked : []) {
   const key = wikiRecBlockedKeys[cell?.category];
@@ -106,6 +106,11 @@ function wikiRecMap(stage) {
   blocked[key] = cell.count;
   if (Array.isArray(cell.reasons) && cell.reasons.length) reasons[key] = cell.reasons.map(String);
  }
+ return {blocked, blockedReasons:reasons, blockedNote:wikiRecBlockedNote};
+}
+function wikiRecMap(stage) {
+ const rows = Array.isArray(stage.rows) ? stage.rows : [];
+ const {blocked, blockedReasons: reasons} = wikiRecBlockedPart(stage);
  const records = stage.summary?.records, shown = wikiRecordNumber(records) ? records : null;
  const summary = wikiRecordSummary({recordCount:shown, blockedCount:stage.blocked_total});
  const withData = stage.summary?.rows_with_data;
@@ -215,7 +220,12 @@ function wikiRecordBlock(stage) {
  } else if (entry.data.status === 'recorded') {
   html = wikiHarnessRecord(wikiRecMap(entry.data));
  } else if (entry.data.status === 'not-run') {
-  html = saved ? wikiHarnessRecord(basis(`后台说这一段没有保存的运行记录（${wikiRecReason(entry.data.reason)}）。`)) : wikiHarnessRecord();
+  // Run counts stay hidden for a stage that has not run, but a saved blocked count is never hidden (coordinator, 11-27).
+  const n = entry.data.blocked_total, part = wikiRecordNumber(n) && n > 0 ? wikiRecBlockedPart(entry.data) : null;
+  const stopped = part && {...part, chips:[[`被拦下 ${n} 次`, true]], checksNote:'这一段还没有运行，没有运行类计数。', reopenNote:'后台还没有提供这一块', timelineNote:'后台还没有提供这一块'};
+  html = saved ? wikiHarnessRecord({...basis(`后台说这一段没有保存的运行记录（${wikiRecReason(entry.data.reason)}）。`), ...(stopped ? {...part, chips:[...(saved.chips || []), ...stopped.chips]} : {})})
+   : stopped ? wikiHarnessRecord({summary:`这一段还没有运行 · 被拦下 ${n} 次`, source:'这一段还没有运行；下面只有已保存的失败记录。', ...stopped})
+   : wikiHarnessRecord();
  } else {
   html = saved ? wikiHarnessRecord(basis(`后台这一段的记录现在读不到（${wikiRecReason(entry.data.reason)}）。`))
    : wikiRecStrip('', '', '这一段的记录现在读不到：' + esc(wikiRecReason(entry.data.reason)) + '。');

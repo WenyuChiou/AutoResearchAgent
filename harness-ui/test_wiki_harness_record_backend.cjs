@@ -82,7 +82,7 @@ const stage = (status, extra = {}) => { const one = {
  assert.match(html, /data-wiki-record-stage="1"/);
 
  // Stage 3 request ends; nothing else is waiting.
- pending[1].resolve(stage('not-run'));
+ pending[1].resolve(stage('not-run', {blocked_total:0, blocked:[]}));
  await tick(); await tick();
 
  // Inferred values are labelled 推算, only when the host says so.
@@ -109,6 +109,7 @@ const stage = (status, extra = {}) => { const one = {
  assert.match(home.text, /358 条记录 · 拦下 2 次（推算）/);
  assert.equal(wikiRecHome('project-other'), null);
 
+ context.rt.ref = REF;
  // Not-run with no page data: the plain empty strip. Not-run with saved delivery: labelled fallback.
  html = wikiRecordBlock(3);
  assert.match(html, /这一段还没有运行，没有记录。/);
@@ -189,6 +190,34 @@ const stage = (status, extra = {}) => { const one = {
  await tick(); await tick();
  assert.match(wikiRecordBlock(1), /读取失败/);
  assert.match(wikiRecordBlock(1), /harness-record-shape-differs/);
+
+ // Not-run but with saved blocked actions: no run counts, yet 被拦下 n 次 stays visible and opens to the host's reasons.
+ const R7 = 'project-hhhh8888';
+ context.rt.ref = R7;
+ wikiRecordBlock(3); runTimer(0);
+ const stopped = stage('not-run', {reason:'no-ledger-saved', rows:[], summary:{records:null}});
+ stopped.project_ref = R7;
+ pending[pending.length - 1].resolve(stopped);
+ await tick(); await tick();
+ html = wikiRecordBlock(3);
+ assert.match(html, /<details/);
+ assert.match(html, /被拦下 1 次/);
+ assert.match(html, /没通过的检查<\/th><td>1 次 · bad&lt;b&gt;x&lt;\/b&gt;/);
+ assert.match(html, /这一段还没有运行，没有运行类计数/);
+ assert.doesNotMatch(html, /179|项有数据|<b>x<\/b>/);
+
+ // The same with saved page data (stage 1): the labelled fallback keeps the blocked count too.
+ context.rt.ref = 'project-iiii9999';
+ wikiRecordBlock(1); runTimer(0);
+ const stopped1 = stage('not-run', {reason:'no-ledger-saved', rows:[], summary:{records:null}});
+ stopped1.project_ref = 'project-iiii9999';
+ pending[pending.length - 1].resolve(stopped1);
+ await tick(); await tick();
+ html = wikiRecordBlock(1);
+ assert.match(html, /被拦下 1 次/);
+ assert.match(html, /bad&lt;b&gt;x&lt;\/b&gt;/);
+ assert.match(html, /不是后台的 Harness 记录汇总/);
+
 
  // Explicit retry button: restarts only when nothing is in flight, and sends one GET.
  const R6 = 'project-gggg7777';
