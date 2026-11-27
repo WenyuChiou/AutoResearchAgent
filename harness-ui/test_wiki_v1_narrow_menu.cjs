@@ -67,3 +67,15 @@ test('crossing the 900px breakpoint closes the menu and resets aria-expanded', (
  media.change();
  assert.equal(app.v1MenuOpen, false); assert.equal(side.open, false); assert.equal(button.attrs['aria-expanded'], 'false'); assert.equal(button.focused, 0);
 });
+
+test('focus leaving the sidebar closes the menu without taking focus back; focus moving inside keeps it', () => {
+ const { app, side, button, handlers, target } = setup();
+ handlers.click({ target: target(['[data-v1-menu]']) });
+ handlers.focusout({ relatedTarget: button });
+ assert.equal(app.v1MenuOpen, true, 'moving to another sidebar control keeps it open');
+ handlers.focusout({ relatedTarget: null });
+ assert.equal(app.v1MenuOpen, true, 'losing focus to nowhere (window blur) keeps it open');
+ handlers.focusout({ relatedTarget: { outside: true } });
+ assert.equal(app.v1MenuOpen, false); assert.equal(side.open, false); assert.equal(button.attrs['aria-expanded'], 'false');
+ assert.equal(button.focused, 0, 'focus is not pulled back to the button');
+});

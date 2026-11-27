@@ -315,6 +315,13 @@ window.addEventListener('keydown', event => {
  if (event.key === 'Escape' && app?.v1MenuOpen) v1MenuSet(app, false, app.el.querySelector('.v1-side')?.contains(document.activeElement));
 }, true);
 
+// Tabbing out of the menu area (focus moves to something outside the sidebar) closes it; focus is not pulled back to the button.
+window.addEventListener('focusout', event => {
+ const app = apps[0], to = event.relatedTarget;
+ if (!app?.v1MenuOpen || !to) return;
+ const side = app.el.querySelector?.('.v1-side');
+ if (side && !side.contains(to)) v1MenuSet(app, false);
+}, true);
 // Crossing the 900px breakpoint either way (a window dragged wide and back) must not leave the menu open or aria-expanded stale.
 window.matchMedia?.('(max-width: 900px)')?.addEventListener?.('change', () => v1MenuSet(apps[0], false));
 document.addEventListener('toggle', event => {
