@@ -56,7 +56,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select|direction-intent)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|harness-record|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select|direction-intent)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -886,6 +886,14 @@ class ProjectHandler(AtlasHandler):
                     )
                     if operation == "stage1" and action in {None, "offers"}:
                         result = self.server.stage1_view(token, ref, automatic=True)
+                elif operation == "harness-record":
+                    if action or resolution:
+                        raise SessionApiError("invalid-project-read", 400)
+                    from .project_harness_record import harness_record
+
+                    result = harness_record(
+                        self.server, token, ref, check_deadline=self._remaining
+                    )
                 elif operation == "overview":
                     if action or resolution:
                         raise SessionApiError("invalid-project-read", 400)
@@ -1181,12 +1189,15 @@ class ProjectHandler(AtlasHandler):
                         models=self.server.project_models is not None,
                         stage2=self.server.project_stage2 is not None,
                         stage2_selection_projects=(
-                            list(self.server.project_stage2_selection.bindings)
+                            # list(mapping) asks for len() first, and len() walks the
+                            # same discovery as iteration: every connected project's
+                            # full source verification ran twice per bootstrap.
+                            list(iter(self.server.project_stage2_selection.bindings))
                             if self.server.project_stage2_selection is not None
                             else []
                         ),
                         stage3_planning_projects=(
-                            list(self.server.project_stage3_http.service.bindings)
+                            list(iter(self.server.project_stage3_http.service.bindings))
                             if self.server.project_stage3_http is not None
                             else []
                         ),
