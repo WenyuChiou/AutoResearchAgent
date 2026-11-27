@@ -1,5 +1,9 @@
 """Own-account project portal with explicit UI or pinned saved-run consent.
 
+Compatibility only: day-to-day use belongs to the Research Wiki (harness-ui/run_v9.py, on Windows
+harness-ui/Start-Wiki.ps1). This file stays because run_v7/run_v9 load its parser and services and
+because the command-line whole-run request below exists only here.
+
 Bootstrap uses the externally pinned raw source helper before any owned import.
 No startup, GET, topic entry or budget declaration probes/starts Codex. Only an
 explicit --stage1-run-request can start a bounded run after original plan and
@@ -735,8 +739,22 @@ def run_requested_stage1(args, host, services):
     )
 
 
+COMPAT_NOTICE = (
+    "Note: this launcher is kept for compatibility only. Start the Research Wiki with "
+    "harness-ui/Start-Wiki.ps1 (or harness-ui/run_v9.py); see harness-ui/QUICKSTART.md."
+)
+
+
+def compat_notice(stream):
+    """One line on an interactive terminal only; scripts and tests see no extra output."""
+    isatty = getattr(stream, "isatty", None)
+    if callable(isatty) and isatty():
+        print(COMPAT_NOTICE, file=stream, flush=True)
+
+
 def main(argv=None):
     args = parser().parse_args(argv)
+    compat_notice(sys.stderr)
     checked = inspect_inputs(args)
     source, inventory = install_source(checked)
     checked.update(source=source, inventory=inventory)
