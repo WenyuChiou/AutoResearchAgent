@@ -26,6 +26,13 @@ from wiki_project_progression_http import run_grant_issuer
 
 ROUTE = re.compile(r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1-run-grant")
 CODE = re.compile(r"[a-z0-9][a-z0-9-]{0,127}")
+# Same table as the service's own check; the service stays the authority, this only
+# lets the route refuse first so a plain refusal never becomes a permanent record.
+LANES = (
+    ("query", "search_calls", "external_search"),
+    ("source", "source_reads", "public_source_read"),
+    ("analyze-full-paper", "model_calls", None),
+)
 LIMIT_KEYS = ("model_calls", "seconds", "search_calls", "source_reads", "rounds")
 MAX_BODY = 24576  # 8192 user bytes plus JSON escaping; the grant service re-bounds it
 CREATE_FIELDS = {
@@ -56,7 +63,7 @@ REASONS = {
     "stage1-run-limits-invalid": "max_seconds 或 max_actions 超出允许范围（秒数最长 3 小时，动作数最多 512）。",
     "stage1-run-budget-exceeded": "max_seconds 超过了课题保存的秒数额度。",
     "stage1-run-lane-not-consented": "选中的操作需要课题里已经勾选的同意项和大于 0 的额度（检索、取原文、模型阅读）。",
-    "stage1-run-grant-renewal-refused": "这个课题当前版本已经有运行许可，不会续期或重复创建。",
+    "stage1-run-grant-renewal-refused": "这个课题当前版本已经有运行许可（有效、已过期或已撤销都算），不会续期或重复创建。",
     "idempotency-payload-differs": "这个请求键已经用过，且内容不同；不会改动原许可。",
     "stale-revision": "课题刚被改动，请重新读取后再提交。",
     "intake-source-version-differs": "输入版本或范围说明哈希和课题当前保存的不一致。",
@@ -116,11 +123,38 @@ class Stage1RunGrantApi:
             and type(body["max_seconds"]) is int
             and body["max_seconds"] > 0
             and type(body["max_actions"]) is int
-            and body["max_actions"] > 0,
+            and body["max_actions"] > 0
+            and type(body["operations"]) is list
+            and all(type(x) is str for x in body["operations"]),
             "stage1-run-grant-fields-invalid",
             400,
         )
         return body
+
+    def _refuse_known(self, credential, ref, request):
+        """Refusals the service would keep as permanent failed records, made read-only."""
+        principal = self.intake._principal(credential)
+        with self.intake._lock:
+            state = self.intake._load(principal, ref)
+            binding = self.issuer._binding(
+                state
+            )  # plan-not-ready / imported refuse here
+            settings = self.intake.binding(ref)["settings"]
+            budgets, consent = settings["budgets"], settings["consent"]
+            for operation, counter, flag in LANES:
+                if operation in request["operations"]:
+                    _check(
+                        budgets[counter] > 0
+                        and (flag is None or consent[flag] is True),
+                        "stage1-run-lane-not-consented",
+                    )
+            grants = state.get(STORE, {})
+            _check(
+                not any(
+                    row["document"]["binding"] == binding for row in grants.values()
+                ),
+                "stage1-run-grant-renewal-refused",
+            )
 
     def _replay(self, credential, ref, key):
         try:
@@ -164,6 +198,7 @@ class Stage1RunGrantApi:
                 all(budgets[name] <= limit for name, limit in self.limits.items()),
                 "stage1-run-grant-over-launch-limits",
             )
+            self._refuse_known(credential, ref, request)
             # The service re-checks this inside its transaction (and would keep a
             # failed record); refuse the plain case first so nothing is written.
             _check(
@@ -368,6 +403,15 @@ class Stage1RunGrantApi:
         with self.intake._lock:
             state = self.intake._load(principal, ref)
             out["run_grant"] = self._grant_summary(principal, ref, state)
+        taken = {
+            "active": "stage1-run-grant-renewal-refused",
+            "expired": "stage1-run-grant-renewal-refused",
+            "revoked": "stage1-run-grant-renewal-refused",
+            "clock-regressed": "stage1-run-grant-renewal-refused",
+            "invalid": "stage1-run-grant-verification-required",
+        }.get(out["run_grant"]["status"])
+        if taken and out["grant_creation"]["available"]:
+            out["grant_creation"].update(available=False, reason=taken)
         return out
 
 

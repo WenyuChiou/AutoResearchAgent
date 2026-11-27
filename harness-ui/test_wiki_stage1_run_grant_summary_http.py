@@ -69,6 +69,19 @@ class RunGrantSummaryTests(Fixture, unittest.TestCase):
         _, summary = self.call("GET", self.url())
         self.assertEqual(summary["run_grant"]["actions_used"], 1)
 
+    def test_an_existing_grant_closes_creation_in_the_summary(self):
+        self.build()
+        self.create()
+        _, summary = self.call("GET", self.url())
+        self.assertFalse(summary["grant_creation"]["available"])
+        self.assertEqual(
+            summary["grant_creation"]["reason"], "stage1-run-grant-renewal-refused"
+        )
+        self.now[0] += 101  # an expired grant still counts: the service never renews
+        _, summary = self.call("GET", self.url())
+        self.assertEqual(summary["run_grant"]["status"], "expired")
+        self.assertFalse(summary["grant_creation"]["available"])
+
     def test_an_expired_grant_reads_as_expired_without_touching_the_lease(self):
         self.build()
         self.create()

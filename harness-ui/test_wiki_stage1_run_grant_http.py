@@ -274,9 +274,19 @@ class RunGrantHttpTests(Fixture, unittest.TestCase):
 
     def test_lanes_without_saved_consent_or_budget_are_refused(self):
         self.build(budgets=dict(BUDGETS, search_calls=0))
-        self.refuse(409, "stage1-run-lane-not-consented", recorded=True)
+        self.refuse(
+            409, "stage1-run-lane-not-consented"
+        )  # no failed record, no revision
         status, _ = self.create(key="run-grant-2", operations=["records", "delivery"])
         self.assertEqual(status, 201)
+
+    def test_missing_consent_flag_is_refused_without_a_record(self):
+        self.build(budgets=dict(BUDGETS, model_calls=0))
+        revision = self.intake.read(TOKEN, self.ref)["revision"]
+        self.refuse(
+            409, "stage1-run-lane-not-consented", operations=["analyze-full-paper"]
+        )
+        self.assertEqual(self.intake.read(TOKEN, self.ref)["revision"], revision)
 
     def test_project_version_scope_and_plan_must_match_the_saved_state(self):
         self.build()
@@ -321,17 +331,11 @@ class RunGrantHttpTests(Fixture, unittest.TestCase):
         self.assertEqual(self.state(), after)
         self.refuse(409, "idempotency-payload-differs", user_input="另一句话")
         self.assertEqual(self.state(), after)
-        before = self.state()
-        status, body = self.create(key="run-grant-2")
-        self.assertEqual(
-            (status, body["error"]), (409, "stage1-run-grant-renewal-refused")
-        )
-        self.assertEqual(self.state()[0][0], before[0][0] + 1)  # one failed record only
-        # Replaying the failed key reports the same recorded reason, not a new grant.
-        status, body = self.create(key="run-grant-2")
-        self.assertEqual(
-            (status, body["error"]), (409, "stage1-run-grant-renewal-refused")
-        )
+        # A second key for the same version is refused read-only: no failed record,
+        # no revision bump, no action slot used.
+        self.refuse(409, "stage1-run-grant-renewal-refused", key="run-grant-2")
+        self.refuse(409, "stage1-run-grant-renewal-refused", key="run-grant-2")
+        self.assertEqual(self.state(), after)
         # A reload that changes the project does not turn a saved replay into a new grant.
         self.assertEqual(self.create()[1]["grant_ref"], first["grant_ref"])
 
