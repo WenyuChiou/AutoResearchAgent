@@ -42,10 +42,18 @@ def pairs(items):
     return result
 
 
-def unlinked(path):
+def unlinked(path, checked=None):
+    """Refuse links and reparse points on the path and every ancestor.
+
+    ``checked`` is an optional set owned by ONE caller's single pass (see
+    inventory): a path already verified in that set is not lstat'ed again.
+    Nothing is stored on a module or object; without it every call re-checks all.
+    """
     path = Path(path)
     require(path.is_absolute(), "absolute path required")
     for parent in (path, *path.parents):
+        if checked is not None and parent in checked:
+            continue
         try:
             info = parent.lstat()
         except FileNotFoundError:
@@ -55,15 +63,17 @@ def unlinked(path):
             and not getattr(info, "st_file_attributes", 0) & 0x400,
             "links/reparse points refused",
         )
+        if checked is not None:
+            checked.add(parent)
     return path
 
 
-def read(path, maximum=256 * 1024, *, allow_empty=False):
+def read(path, maximum=256 * 1024, *, allow_empty=False, checked=None):
     require(
         type(maximum) is int and 0 <= maximum < sys.maxsize,
         "integer file bound required",
     )
-    path = unlinked(path)
+    path = unlinked(path, checked)
     require(stat.S_ISREG(path.stat().st_mode), "regular file required")
     chunks, remaining = [], maximum + 1
     with path.open("rb") as stream:
@@ -105,7 +115,11 @@ def decode(raw):
 
 
 def inventory(root):
-    root = unlinked(root)
+    # One pass: each ancestor is lstat'ed once and remembered only in this local
+    # set, which dies with the call. Every file is still opened, read and hashed
+    # in full on every pass; any failing ancestor or file fails the whole pass.
+    checked = set()
+    root = unlinked(root, checked)
     require(root.is_absolute() and root.is_dir(), "inventory root required")
     files = {}
     for base, directories, names in os.walk(root, followlinks=False):
@@ -127,7 +141,7 @@ def inventory(root):
             item = Path(base) / name
             require(len(files) < 4096, "inventory file bound exceeded")
             files[item.relative_to(root).as_posix()] = digest(
-                read(item, 32 * 1024 * 1024, allow_empty=True)
+                read(item, 32 * 1024 * 1024, allow_empty=True, checked=checked)
             )
     return files
 
