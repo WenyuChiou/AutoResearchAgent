@@ -10,10 +10,6 @@
 // returning cannot bring the grant card back. Only a read-only inspect settles it (review P1-2).
 const wikiS3Req = {busy:'', error:null, ref:null, check:false, inspected:null, unknown:null};
 
-function wikiS3ReqLimits() {
- const calls = rt.meta?.run_limits?.model_calls;
- return Number.isSafeInteger(calls) ? calls : null;
-}
 function wikiS3ReqLock() {
  if (rt.loading) return '正在读取保存记录';
  if (rt.busy || wikiS3Req.busy) return '正在保存，请稍等';
@@ -33,10 +29,12 @@ function wikiS3RequestLine(view) {
  const {job, error} = wikiS3ReqState(view);
  const read = {label:'查看保存状态', act:'read'};
  const lock = wikiS3ReqLock();
- const calls = wikiS3ReqLimits();
+ // Only what the planning view itself says decides the gate (review P1-3). Planning has its own profile; the run's
+ // run_limits do not bind it, so a "planning configured, all run limits 0" start must not lock this entry.
  const configured = view.planning_configured === true && view.dispatch_action === 'prepare-then-confirm-run' && view.default_request;
- const gate = lock || (!configured ? '这次启动没有提供规划配置，不能生成计划' : calls === 0 ? '这次启动的模型调用上限是 0，不能生成计划' : calls === null ? '读不到这次启动的模型调用上限' : '');
- const detail = [error?.code, view.submission_error?.code, job?.status, job?.outcome].filter(Boolean);
+ const blockers = Array.isArray(view.planning_blockers) ? view.planning_blockers : [];
+ const gate = lock || (view.dispatch_action === 'needs-information' ? '还缺规划需要的信息，原因在技术细节里' : !configured ? '这次启动没有提供规划配置，不能生成计划' : '');
+ const detail = [error?.code, view.submission_error?.code, job?.status, job?.outcome, ...blockers.map(item => typeof item === 'string' ? item : JSON.stringify(item))].filter(Boolean);
  // The saved job comes first (review P1-1): a submission_error next to an execution-unknown or completed job must
  // not turn an uncertain or finished result into "blocked", nor hide the read-only check.
  if (view.submission_in_progress || job?.status === 'dispatching') return {tone:'run', tag:'处理中', detail, text:'正在生成计划和评审。不需要你操作', buttons:[read]};
@@ -66,10 +64,9 @@ function wikiS3RequestMarkup(view) {
   const off = button.gate ? button.gate : '';
   return `<span><button type="button" class="hs-button${button.primary ? ' hs-button-primary' : ''}" data-s3-plan="${button.act}" ${off ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${off ? `<small class="wiki-s2-reason">${wikiS3Escape(off)}</small>` : ''}</span>`;
  }).join('');
- const calls = wikiS3ReqLimits();
  const grant = row.grant ? `<section class="ws-grant" data-s3-plan-grant><span class="ws-label">授权：生成研究计划</span>
   <p><b>会做：</b>按你选的方向调用一次模型，生成研究计划和评审，保存到这个课题。<b>不会做：</b>不检索、不读新的来源、不启动实验；失败不会自动重试。</p>
-  <p class="wiki-s1-muted">额度：这一步调用一次模型。这次启动的模型调用上限：${calls === null ? '读不到' : calls}；规划自己的时长上限后台没有返回给页面。</p>
+  <p class="wiki-s1-muted">额度：这一步调用一次模型；规划的调用和时长上限后台没有返回给页面。</p>
   <p class="wiki-s1-muted">授权理由：现在的规划接口没有理由这一项，页面不收集。</p>
   <label class="ws-check"><input type="checkbox" data-s3-plan-check ${wikiS3Req.check ? 'checked' : ''}> 我确认只授权这一次、这一件事</label>
   <span><button type="button" class="hs-button hs-button-primary" data-s3-plan="run" ${row.grant.gate ? 'disabled' : ''}>确认生成计划</button>${row.grant.gate ? `<small class="wiki-s2-reason">${wikiS3Escape(row.grant.gate)}</small>` : ''}</span></section>` : '';

@@ -35,8 +35,20 @@ test('not requested: one green button; gray with a reason for zero quota, no pla
  assert.match(row.text, /你选的方向已保存。可以请求生成研究计划/);
  assert.equal(row.buttons[0].act, 'prepare');
  assert.equal(row.buttons[0].gate, '');
- ({ctx} = load({calls:0}));
- assert.equal(line(ctx).buttons[0].gate, '这次启动的模型调用上限是 0，不能生成计划');
+ // Review P1-3: the run's model-call limit does not bind planning; zero or missing run limits leave it open.
+ for (const calls of [0, null]) {
+  ({ctx} = load({calls}));
+  assert.equal(line(ctx).buttons[0].gate, '', 'run_limits ' + calls);
+  assert.doesNotMatch(ctx.wikiS3RequestMarkup(ctx.v93.view), /模型调用上限是|读不到这次启动/);
+ }
+ ({ctx} = load({calls:0, view:{job:{status:'intent-recorded', request_sha256:'c'.repeat(64)}}}));
+ assert.doesNotMatch(ctx.wikiS3RequestMarkup(ctx.v93.view), /这次启动的模型调用上限/, 'the grant card does not quote the run limit');
+ assert.match(ctx.wikiS3RequestMarkup(ctx.v93.view), /规划的调用和时长上限后台没有返回给页面/);
+ // Review P2-4: missing planning information is its own reason, with the blockers in the technical details.
+ ({ctx} = load({view:{planning_configured:true, dispatch_action:'needs-information', default_request:null, planning_blockers:['direction-question-missing']}}));
+ row = line(ctx);
+ assert.equal(row.buttons[0].gate, '还缺规划需要的信息，原因在技术细节里');
+ assert.ok(row.detail.includes('direction-question-missing'));
  ({ctx} = load({view:{planning_configured:false, dispatch_action:'unavailable'}}));
  assert.equal(line(ctx).buttons[0].gate, '这次启动没有提供规划配置，不能生成计划');
  ({ctx} = load());
@@ -61,7 +73,7 @@ test('the 8.13 states map from the saved view', () => {
  assert.equal(line(load({view:{job:{status:'execution-unknown'}}}).ctx).buttons.map(b => b.act).join(), 'inspect,read', 'recover only with a trusted pin');
  const grant = line(load({view:{job:{status:'intent-recorded', request_sha256:'c'.repeat(64)}}}).ctx);
  assert.equal(grant.grant.gate, '请先勾选确认');
- assert.equal(line(load({calls:0, view:{job:{status:'intent-recorded', request_sha256:'c'.repeat(64)}}}).ctx).grant.gate, '这次启动的模型调用上限是 0，不能生成计划');
+ assert.equal(line(load({calls:0, view:{job:{status:'intent-recorded', request_sha256:'c'.repeat(64)}}}).ctx).grant.gate, '请先勾选确认', 'zero run limits do not lock the grant');
 });
 
 test('prepare sends the service request as given (fixed key), run adds request_sha256 and confirmed, then re-reads', async () => {
