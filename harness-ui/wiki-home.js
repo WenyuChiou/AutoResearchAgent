@@ -52,6 +52,20 @@ function wikiHomeProgress(row) {
  return `<span class="wiki-home-progress"><span aria-hidden="true">${bars}</span>Stage ${row.stage}</span>`;
 }
 
+// Harness record column (3.0, 3.1). The home roster carries no delivery counts, so: counts this tab already
+// read when the topic was opened (same wording as the Stage 1 page), otherwise what the roster status says.
+const wikiHomeRanStatuses = /^(query-|offline-ledger-active|owner-reopen-required|imported-verified-delivery)/;
+function wikiHomeRecordCell(row) {
+ if (row.origin === 'synthetic') return '演示数据，不计';
+ let seen = null;
+ try { seen = JSON.parse(sessionStorage.getItem('wiki-v1-record:' + row.ref) || 'null'); } catch (_) { seen = null; }
+ const n = value => Number.isSafeInteger(value) && value >= 0;
+ if (seen && n(seen.papers) && n(seen.checked) && n(seen.claims)) return `<span class="wiki-home-record">按已保存交付统计：${seen.papers} 篇文献 · 核对 ${seen.checked} / ${seen.claims}</span><small>本次打开课题时数的</small>`;
+ const project = rt.list.find(item => item.project_ref === row.ref);
+ const ran = row.origin === 'archive' || wikiHomeRanStatuses.test(project?.stage1_status || '') || project?.stage2_status === 'delivery-received';
+ return ran ? '有 Stage 1 记录，打开课题后可见' : '还没有运行';
+}
+
 function wikiHomeProjectTable(rows, ready, locked) {
  const filters = [['all', '全部'], ...Object.entries(wikiHomeOrigins)]
   .map(([key, label]) => [key, label, rows.filter(row => key === 'all' || row.origin === key).length])
@@ -59,7 +73,7 @@ function wikiHomeProjectTable(rows, ready, locked) {
  const tableRows = rows.map(row => `<tr data-wiki-home-origin="${row.origin}">
    <th scope="row">${esc(row.title)}</th><td><span class="wiki-home-origin ${row.origin}">${wikiHomeOrigins[row.origin]}</span></td>
    <td>${wikiHomeProgress(row)}</td><td>${row.waiting ? '<span class="wiki-home-wait">等你</span> ' : ''}${row.status}</td>
-   <td class="wiki-home-muted">${row.origin === 'synthetic' ? '演示数据，不计' : row.origin === 'archive' ? '归档没有保存记录汇总' : '还没有运行'}</td>
+   <td class="wiki-home-muted">${wikiHomeRecordCell(row)}</td>
    <td><button type="button" class="wiki-home-button" data-wiki-home-open="${esc(row.ref)}" aria-label="打开 ${esc(row.title)}" ${locked?'disabled':''}>打开</button></td>
   </tr>`).join('');
  return `<section aria-labelledby="wiki-home-projects"><div class="wiki-home-table-head">

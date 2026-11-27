@@ -358,6 +358,8 @@ function v1S1Record() {
  const checked = index.claims.filter(row => wikiS1Check(row) !== 'unchecked').length;
  const stopped = (index.coverage || []).filter(row => typeof row.stop_reason === 'string' && row.stop_reason).length;
  const groups = (index.coverage || []).length;
+ // Remember these counts for the home table (same wording, no extra request); cleared with the tab.
+ try { sessionStorage.setItem('wiki-v1-record:' + rt.ref, JSON.stringify({papers:index.papers.length, located, checked, claims:index.claims.length})); } catch (_) { /* Optional. */ }
  return {
   summary:`按已保存交付统计：记录了 ${index.papers.length} 篇文献的筛选决定和 ${located} 条证据的出处位置；核对了 ${checked} / ${index.claims.length} 条。`,
   source:'这些数字是页面按已保存的交付内容数出来的，不是后台的 Harness 记录汇总（后台还没有这个汇总）。',
