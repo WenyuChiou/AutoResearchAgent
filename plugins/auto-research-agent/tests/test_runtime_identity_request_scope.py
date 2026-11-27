@@ -4,11 +4,18 @@
 from pathlib import Path
 import sys
 import tempfile
+import threading
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path[:0] = [str(Path(__file__).resolve().parents[1] / "cli")]
 from stage1_retrieval import runtime_identity as ri
+from stage1_ledger.journal import LedgerError
+from research_workspace_native.project_host import ProjectHandler
+
+
+_FAKE_IDENTITY = None
 
 
 class RequestScopeTests(unittest.TestCase):
@@ -84,6 +91,64 @@ class RequestScopeTests(unittest.TestCase):
             with ri.request_scope():
                 self.assertEqual(
                     ri.tree_files(self.root, code_only=code_only), expected
+                )
+
+    def test_get_requests_reuse_and_post_requests_never_do(self):
+        calls = []
+
+        def stub(method):
+            def project(_method):
+                calls.append((method, ri._scope.trees is not None))
+                ri.tree_files(self.root)
+                ri.tree_files(self.root)
+
+            return SimpleNamespace(path="/api/projects/x", _project=project)
+
+        with patch.object(ri, "_tree_files", wraps=ri._tree_files) as real:
+            ProjectHandler.do_GET(stub("GET"))
+            self.assertEqual(real.call_count, 1)  # reused inside the GET
+            ProjectHandler.do_POST(stub("POST"))
+            self.assertEqual(real.call_count, 3)  # a POST re-reads every time
+            ProjectHandler.do_GET(stub("GET"))
+            self.assertEqual(real.call_count, 4)  # nothing kept between requests
+        self.assertEqual(calls, [("GET", True), ("POST", False), ("GET", True)])
+
+    def test_another_thread_does_not_see_this_threads_scope(self):
+        seen = []
+        with patch.object(ri, "_tree_files", wraps=ri._tree_files) as real:
+            with ri.request_scope():
+                ri.tree_files(self.root)
+                worker = threading.Thread(
+                    target=lambda: seen.append(
+                        (getattr(ri._scope, "trees", None), ri.tree_files(self.root))
+                    )
+                )
+                worker.start()
+                worker.join()
+            self.assertEqual(real.call_count, 2)
+        self.assertIsNone(seen[0][0])
+
+    def test_a_failed_read_in_any_chunk_fails_the_whole_result(self):
+        for index in range(150):
+            (self.root / f"f{index}.py").write_bytes(b"z")
+        target = self.root / "f130.py"
+        real_read = Path.read_bytes
+
+        def read(path):
+            if path == target:
+                raise OSError("synthetic read failure")
+            return real_read(path)
+
+        with patch.object(Path, "read_bytes", read):
+            with self.assertRaisesRegex(OSError, "synthetic read failure"):
+                ri._tree_files(self.root)
+
+    def test_probe_is_refused_inside_a_read_scope(self):
+        with ri.request_scope():
+            with self.assertRaisesRegex(LedgerError, "runtime-probe-inside-read-scope"):
+                ri.verify_identity(
+                    {"code_identity": _FAKE_IDENTITY, "argv_prefix": ["x", "-I", "-B"]},
+                    probe=True,
                 )
 
 
