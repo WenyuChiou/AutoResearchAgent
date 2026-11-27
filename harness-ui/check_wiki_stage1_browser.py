@@ -99,8 +99,9 @@ def stage1_browser(browser, url, fixture, evidence, design):
         ref, project["input_version"], project["revision"], delivery["manifest_sha256"])
     assert project["execution_authorized"] is False
     assert index["papers"] and index["claims"] and index["coverage"]
-    assert browser.js("""document.querySelector('[data-wiki-shell]').nextElementSibling
-        .querySelector('span').textContent === '这一段还没有记录'""")
+    # The Stage 1 record line now counts the saved delivery (3.0; no backend summary yet).
+    assert browser.js("""document.querySelector('[data-wiki-record]')?.textContent.includes('按已保存交付统计：记录了 '
+        + document.querySelectorAll('[data-s1-paper]').length + ' 篇文献')""")
     assert browser.js("document.querySelectorAll('[data-s1-paper]').length") == len(index["papers"])
     assert browser.js("document.documentElement.scrollWidth <= innerWidth")
 
