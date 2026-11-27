@@ -146,8 +146,14 @@ function wikiS3DecRecord(row, old) {
   <div class="ws3-muted">时间：${wikiS3DecTime(r.recorded_at)} · ${wikiS3DecHonest}</div></li>`;
 }
 
+// The plan version a confirmation was given for (review P2-1): parent plan plus the shown revision's receipt.
+function wikiS3DecVersion(hd) {
+ return hd?.binding ? JSON.stringify([hd.binding.parent_plan_sha256, hd.binding.plan_revision_receipt_sha256 ?? null]) : null;
+}
 function wikiS3DecMarkup(app) {
  const state = wikiS3DecState(), m = wikiS3DecModel(app), hd = m.hd;
+ // A confirmation given for another plan version is void: the plan changed while the panel was open.
+ if (state.confirming && state.confirmFor !== wikiS3DecVersion(hd)) { state.confirming = false; state.versionChanged = true; }
  const busy = wikiS3Dec.busy.has(rt.ref);
  const latest = hd?.latest;
  const tech = codes => codes.filter(Boolean).length ? `<details class="wiki-s2-tech"><summary>技术细节</summary>${codes.filter(Boolean).map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
@@ -160,6 +166,7 @@ function wikiS3DecMarkup(app) {
   `<div class="wiki-s2-actions"><button type="button" class="hs-button" data-s3-dec="check" ${v93.busy ? 'disabled' : ''}>${wikiS3Dec.unknown.absent ? '知道了' : '只读核对'}</button></div>`) + tech([wikiS3Dec.unknown.code]);
  else if (state.error) result = line('warn', '被拦下', (wikiS3DecCodes[state.error.code] || '服务拒绝了这次保存，原因代码在技术细节里。') + '没有留下任何记录。') + tech([state.error.code]);
  if (m.notice) result += line(m.notice.tone, m.notice.tag, m.notice.text) + tech([m.notice.code]);
+ if (state.versionChanged && !busy) result += line('warn', '计划已变', '计划已经变了，之前的确认作废；请看过当前这版再重新确认。');
  const summary = state.summarySaved?.ref === rt.ref && m.view?.host_decision?.omitted ? state.summarySaved : null;
  if (summary) result += line('done', '已保存', `按读取摘要判断已经写入：第 ${summary.seq} 次「${wikiS3DecLabels[summary.decision]}」。这次读取放不下详情，没能按编号逐条核对。`);
  let saved = '';
@@ -210,6 +217,7 @@ async function wikiS3DecSave(app) {
  const state = wikiS3DecState(), m = wikiS3DecModel(app), ref = rt.ref;
  // Same gate as the page, checked again at the moment of sending; a busy topic sends nothing (double click).
  if (!m.hd || wikiS3Dec.busy.has(ref) || !state.confirming || wikiS3DecGate(m, state)) return;
+ if (state.confirmFor !== wikiS3DecVersion(m.hd)) { state.confirming = false; state.versionChanged = true; livePaint(); return; }
  const pick = state.pick;
  const {project_ref, ...binding} = m.hd.binding;
  const key = wikiS3DecKey();
@@ -295,7 +303,7 @@ document.addEventListener('click', event => {
  if (!app) return;
  event.preventDefault();
  const state = wikiS3DecState(), act = button.dataset.s3Dec;
- if (act === 'confirm') { state.confirming = true; state.error = null; livePaint(); }
+ if (act === 'confirm') { state.confirming = true; state.confirmFor = wikiS3DecVersion(wikiS3DecView()?.host_decision); state.versionChanged = false; state.error = null; livePaint(); }
  else if (act === 'back') { state.confirming = false; livePaint(); }
  else if (act === 'save') wikiS3DecSave(app);
  else if (act === 'check') wikiS3DecCheck(app);
@@ -304,7 +312,7 @@ document.addEventListener('click', event => {
 document.addEventListener('change', event => {
  if (!event.target.matches?.('[data-s3-dec-pick]')) return;
  const state = wikiS3DecState();
- state.pick = event.target.value; state.confirming = false; state.error = null;
+ state.pick = event.target.value; state.confirming = false; state.versionChanged = false; state.error = null;
  livePaint();
 });
 // Typing updates the counter and the button in place (a repaint would move the caret).

@@ -297,3 +297,20 @@ test('review P1-1: after an unknown save, a size marker or a damaged journal in 
  assert.match(t.text(), /对不上这次的选择，还不能确认有没有保存/);
  assert.doesNotMatch(t.text(), /说明没有保存/);
 });
+
+test('review P2-1: a confirmation is bound to the shown plan version; a new version voids it', async () => {
+ const t = load();
+ t.pick('return-to-stage2');
+ t.click('confirm');
+ assert.match(t.html(), /data-s3-dec-confirm/);
+ // A re-read brings a revised plan (another tab saved a revision) while the panel is open.
+ t.ctx.v93.view = {...t.ctx.v93.view, host_decision:hdOf({binding:{...binding, plan_revision_receipt_sha256:H('9')}, has_manual_revision:true})};
+ await t.ctx.wikiS3DecSave(t.ctx.apps[0]);
+ assert.equal(t.posts.length, 0, 'nothing is saved against a version the user did not confirm');
+ assert.doesNotMatch(t.html(), /data-s3-dec-confirm/);
+ assert.match(t.text(), /计划已经变了，之前的确认作废/);
+ t.click('confirm');
+ await t.ctx.wikiS3DecSave(t.ctx.apps[0]);
+ assert.equal(t.posts.length, 1);
+ assert.equal(t.posts[0].body.plan_revision_receipt_sha256, H('9'));
+});
