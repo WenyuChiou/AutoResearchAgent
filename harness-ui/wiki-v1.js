@@ -437,7 +437,7 @@ function v1S3Plan() {
  return basis && v93Matches(v93.basis, basis) && v93.view?.plan ? v93.view : null;
 }
 v1StageStatus[3] = () => {
- if (v1S3Plan()) return ['等你做决定', 'wait'];
+ if (v1S3Plan()) return typeof wikiS3DecStatus === 'function' && wikiS3DecStatus() ? ['已保存决定', 'done'] : ['等你做决定', 'wait'];
  return ['还没有规划', ''];
 };
 v1PageStatus.s3 = app => {
@@ -446,6 +446,8 @@ v1PageStatus.s3 = app => {
  if (basis && v93.busy) return {tone:'run', now:['正在读取已保存的规划。', '不会重新生成。'], next:'读完后这里会写计划和评审的情况。', you:null};
  if (basis && v93Matches(v93.errorBasis, basis) && v93.error) return {tone:'err', now:['读取规划没有完成。', '没有读到已保存的规划，也没有重新生成。'], next:'重新读取；原因在读取详情里。', you:{text:'重新读取'}, button:{label:'重新读取', attrs:'data-v93-read', primary:false}};
  if (view) {
+  const decided = typeof wikiS3DecStatus === 'function' ? wikiS3DecStatus() : null;
+  if (decided) return decided;
   const review = typeof wikiS3Review === 'function' ? wikiS3Review(view) : null;
   return {tone:'wait', now:['计划写好了。', review?.findings?.length ? `评审给了 ${review.findings.length} 条意见。` : '还没有评审意见（后台读取不返回评审）。'],
    next:'看完计划和评审后做决定。', you:{wait:true, text:'对计划做决定'}, button:{label:'去做决定', attrs:'data-v1-goto="s3-decide"', primary:false}};

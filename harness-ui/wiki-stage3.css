@@ -84,3 +84,13 @@
 .ws3-files { padding-inline-start:18px; }
 .ws3-version { margin:0 0 12px; }
 @media (max-width:900px) { .ws3-guide,.ws3-cards,.ws3-summary { grid-template-columns:1fr; } .ws3-summary > div + div { border-inline-start:0; border-top:1px solid #dde5e2; } }
+
+/* Stage 3 「你的决定」 saved records, confirm panel, reason box */
+.ws3-dec-list { list-style:none; padding:0; margin:8px 0 12px; }
+.ws3-dec-record { border-top:1px solid #e3ebe8; padding:8px 0; }
+.ws3-dec-old { display:inline-block; background:#fdf3dc; color:#7a4f06; border-radius:4px; padding:0 6px; font-size:12px; }
+.ws3-dec-form { border:0; padding:0; margin:8px 0; }
+.ws3-dec-reason { display:flex; flex-direction:column; gap:4px; margin:8px 0 12px; }
+.ws3-dec-reason textarea { width:100%; box-sizing:border-box; }
+.ws3-dec-confirm { border:1px solid #2f7a70; border-radius:6px; background:#fffefa; padding:12px 16px; margin:8px 0; }
+.ws3-dec-saved { margin:8px 0; }
