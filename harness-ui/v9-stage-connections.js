@@ -156,6 +156,9 @@ function v9ConnectionAction(view) {
   if (!row || !Number.isSafeInteger(view.basis.input_version) || !v9ConnectionHash(row.profile_sha256) ||
       view.error || view.stage==='stage2-controller' && v9ContinuationConflict()) return null;
   if (row.status==='connectable') return 'connect';
+  // A saved Stage 3 registration whose planning lease was lost (the Host was force-stopped) reads "unavailable"
+  // with this reason; registering again with a never-used key returns the saved record (backend-fixes-1127-0630 §5).
+  if (view.stage==='stage3-planning' && row.status==='unavailable' && row.reason==='stage3-planning-resource-unavailable') return 'reconnect';
   if (view.stage==='stage2-controller' && row.status==='consent-required' &&
       row.reason==='stage2-continuation-activation-required') return row.proof?'activate':'publish';
   return null;
@@ -172,6 +175,8 @@ function v9ConnectionReason(code, http, stage) {
     return rl('还差本项目的 Stage 2 启用同意。请查看本版启用记录并确认原提议。','Stage 2 needs your consent. Review this version’s activation record and confirm its original offer.');
   if (code === 'stage2-controller-current-input-required')
     return rl('还缺本课题已接收的 Stage 2 输入包和接收回执。请先查看 Stage 1 交付。','The current Stage 2 input packet and receiving receipt are required. Check the Stage 1 delivery.');
+  if (code === 'stage3-planning-resource-unavailable')
+    return rl('Stage 3 的规划登记已保存；如果上次是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。','The Stage 3 planning registration is saved. If the last session was force-closed, it first shows "not connected" after launch; choose "Reconnect" to restore it. No step is repeated and no record is added.','Stage 3 的規劃登記已儲存；如果上次是強行關閉，這次啟動後會先顯示『未接通』，點『重新接通』即可恢復，不會重複執行任何步驟，也不會新增紀錄。');
   if (code === 'stage3-current-selection-required')
     return rl('还缺本课题当前版本的正式选案和已核验的选案回执。','A verified formal selection and receipt for this version are required.');
   if (code === 'stage2-controller-profile-unavailable')
@@ -221,7 +226,7 @@ function v9ConnectionPanel(app) {
   else if (row?.status === 'connectable') message = rl('本课题还没有接通。可以登记当前配置，登记不会启动研究。','This project is ready to connect. Registering the current configuration does not start research.');
   const token = rx(JSON.stringify([stage, view.epoch, ...Object.values(basis)]));
   const button = (action, label, disabled) => `<button type="button" class="hs-button" data-v9-connection="${action}" data-connection-basis="${token}" ${disabled?'disabled':''}>${label}</button>`;
-  const labels={connect:rl('接通本课题','Connect this project'),publish:rl('生成本课题的启用提议','Publish the project activation offer'),
+  const labels={connect:rl('接通本课题','Connect this project'),reconnect:rl('重新接通','Reconnect','重新接通'),publish:rl('生成本课题的启用提议','Publish the project activation offer'),
     activate:rl('同意这份提议并启用 Stage 2','Confirm this offer and activate Stage 2')};
   const controls=!unknown && action?button(action,labels[action],!v9ConnectionCanWrite()||v9ConnectionWriting):'';
   const lockHint = controls && (!v9ConnectionCanWrite() || v9ConnectionWriting)
@@ -259,7 +264,8 @@ function v9ConnectionModel(app) {
     token: JSON.stringify([stage, view.epoch, ...Object.values(basis)]),
     reading: !!view.reading, writing: v9ConnectionWriting, canWrite: v9ConnectionCanWrite(),
     noLocks: typeof globalThis.navigator?.locks?.request !== 'function',
-    connected: v9ConnectionConnected(stage), offerRef: row?.proof?.offer.offer_ref || null};
+    connected: v9ConnectionConnected(stage), offerRef: row?.proof?.offer.offer_ref || null,
+    reconnectError: v9ReconnectErrors.get(basis.project_ref) || null};
 }
 document.addEventListener('click', async event => {
   const button = event.target.closest?.('[data-v9-connection]'), view = v9ConnectionView;
@@ -280,13 +286,55 @@ document.addEventListener('click', async event => {
       if (action!==v9ConnectionAction(view)) return;
       if (fresh.profile_sha256!==row.profile_sha256 || fresh.proof?.offer.offer_sha256!==row.proof?.offer.offer_sha256)
         throw Error('stage-connection-profile-differs');
-      await v9RegisterStage(view,action);
+      if (action==='reconnect') await v9ReconnectStage(view); else await v9RegisterStage(view,action);
     });
   } catch (error) {
-    if (v9ConnectionCurrent(view)) {view.row=null;view.error=error.message||'project-lock-failed';view.http=error.status;}
+    // A failed reconnect keeps the row and its button; the reason is kept per project (v9ReconnectErrors) so the
+    // block can say the last attempt failed instead of losing the button (review P2-2).
+    if (v9ConnectionCurrent(view) && !(action==='reconnect' && v9ReconnectErrors.has(basis.project_ref))) {view.row=null;view.error=error.message||'project-lock-failed';view.http=error.status;}
   } finally {v9ConnectionWriting=false;livePaint();}
 });
 
+// Re-attach a saved Stage 3 registration. The service answers with the record it already saved (same
+// connection_id and the original receipt_id) and writes no new action, so nothing is retried automatically and
+// no unknown-outcome marker is kept: a lost answer is settled by reading the state again. Every click uses a new key.
+const v9UsedReconnectKeys=new Set(), v9ReconnectErrors=new Map();
+function v9ReconnectKey(){
+  let key;
+  do key=crypto.randomUUID(); while (v9UsedReconnectKeys.has(key));
+  v9UsedReconnectKeys.add(key);
+  return key;
+}
+async function v9ReconnectStage(view) {
+  const {basis,stage,row}=view, ref=basis.project_ref;
+  const body={revision:basis.revision,input_version:basis.input_version,brief_sha256:basis.brief_sha256,
+    stage,profile_sha256:row.profile_sha256,confirmed:true,key:v9ReconnectKey()};
+  rt.busy=true;livePaint();
+  let answered=false;
+  try {
+    const response=await liveRequest(projectPath(ref,'connections'),body);
+    answered=true;
+    if (!v9ConnectionCurrent(view)) return;
+    const result=v9ConnectionRow(response,basis,stage);
+    // The saved record carries the original receipt; this click's key coming back means a new registration was
+    // written, which a reconnect must never do (review P2-1).
+    if (Object.keys(response.connections).length!==1 || result.status!=='connected' || result.profile_sha256!==body.profile_sha256 ||
+        !v9ConnectionHash(result.connection_id) || typeof result.receipt_id!=='string' || !result.receipt_id || result.receipt_id===body.key)
+      throw Error('stage-connection-receipt-unverified');
+    const read=await v9ReadConnection(view,true);
+    if (read.status!=='connected' || read.connection_id!==result.connection_id || read.receipt_id!==result.receipt_id)
+      throw Error('stage-connection-receipt-unverified');
+    if (!v9ConnectionCurrent(view)) return;
+    v9ReconnectErrors.delete(ref);
+    await liveRefresh(ref,{list:true});
+  } catch (error) {
+    if (ref!==rt.ref) throw error; // the topic changed meanwhile; nothing is shown for it
+    v9ReconnectErrors.set(ref,{code:error.message||'stage-connection-receipt-unverified',http:error.status??null});
+    // After the service answered, read the project again so the page shows the real state (review P2-4).
+    if (answered) { try { await liveRefresh(ref,{list:true}); } catch (_) { /* The reason above stays on the page. */ } }
+    throw error;
+  } finally {rt.busy=false;}
+}
 async function v9RegisterStage(view, action) {
   const {basis,stage,row}=view, ref=basis.project_ref, activate=action==='activate';
   const fields=activate?{offer_ref:row.proof.offer.offer_ref,offer_sha256:row.proof.offer.offer_sha256}

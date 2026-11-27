@@ -439,6 +439,8 @@ v1PageStatus.s3 = app => {
  // Without a connected Stage 3 the saved-selection read (v93Identity) is unavailable; go by what /connections says.
  const conn = !basis && typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
  if (conn?.phase === 'ready' && !conn.unknown) {
+  if (conn.action === 'reconnect') return {tone:'wait', now:['Stage 3 未接通。', conn.reconnectError ? '上次点「重新接通」没有成功；规划登记仍然保存着。' : '规划登记已保存；如果上次是强行关闭，这次启动后会先显示未接通。'],
+  next:conn.reconnectError ? '可以再点一次下面的「重新接通」；原因代码在接通块的技术细节里。' : '点下面的「重新接通」恢复，不会重复执行任何步骤，也不会新增记录。', you:{wait:true, text:'重新接通'}};
   if (conn.action === 'connect') return {tone:'wait', now:['还没有规划。', 'Stage 3 还没有接通；接通只是登记，不会启动研究。'], next:'在下面的接通块点「接通本课题」。', you:{wait:true, text:'接通本课题'}};
   if (conn.code && conn.code !== 'stage3-current-selection-required') return {tone:'off', now:['还没有规划。', 'Stage 3 现在接不上，原因写在下面的接通块里。'], next:'按接通块里的说法处理。', you:null};
  }

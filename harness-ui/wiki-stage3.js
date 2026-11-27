@@ -389,6 +389,8 @@ function wikiS3ConnectionLine(m) {
  // which needs Stage 3 to be connected already, so a connectable topic always showed "缺正式选择".
  const shared = () => { const row = wikiS2ConnectionLine(m); return {...row, text:String(row.text).replace(/Stage 2/g, 'Stage 3')}; };
  if (m.unknown || (m.noLocks && m.action)) return shared();
+ // Saved registration whose lease was lost after a forced stop (8.13 「登记还在，这次启动没接回」).
+ if (m.action === 'reconnect') return line('warn', '未接通', (m.reconnectError ? '上次点「重新接通」没有成功，原因代码在技术细节里；可以再试一次。' : '') + 'Stage 3 的规划登记已保存；如果上次是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。', [{label:'重新接通', attr:'reconnect', primary:true}]);
  if (m.action === 'connect') return line('wait', '可以接通', '这个课题还没有接通 Stage 3。可以登记当前配置，登记不会启动研究', [{label:'接通本课题', attr:'connect', primary:true}]);
  if (reason === 'stage3-current-selection-required') return line('warn', '缺正式选择', '还缺这个课题当前版本的正式选择和核对过的选择回执。请先在 Stage 2 选定方向', [{label:'前往 Stage 2', stage:2}]);
  if (/profile-unavailable$/.test(reason)) return line('warn', '缺运行配置', '这次启动没有提供这一段的运行配置。请在原目录用核对过的配置重开', [{label:'去连接与设置', page:'settings'}]);
@@ -410,7 +412,8 @@ function wikiS3ConnBlock(app) {
   const off = blocked(button);
   return `<span><button type="button" class="hs-button${button.primary ? ' hs-button-primary' : ''}" ${data} ${off ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${off ? `<small class="wiki-s2-reason">${wikiS3Escape(why)}</small>` : ''}</span>`;
  }).join('');
- const detail = m.code ? `<details class="wiki-s2-tech"><summary>技术细节</summary><code>${wikiS3Escape(m.code)}</code></details>` : '';
+ const codes = [m.code, m.action === 'reconnect' && m.reconnectError?.code].filter(Boolean);
+ const detail = codes.length ? `<details class="wiki-s2-tech"><summary>技术细节</summary>${codes.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
  return `<section class="wiki-s2-conn" data-wiki-s3-conn aria-label="本课题的 Stage 3"><h2 tabindex="-1">本课题的 Stage 3</h2>
   <div class="wiki-s2-conn-row" data-tone="${row.tone}"><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${detail}</section>`;
 }
