@@ -9,13 +9,12 @@ the zero-allowance tests also patch ``subprocess.Popen`` itself.
 import hashlib
 import json
 from pathlib import Path
-import sqlite3
 import time
 import unittest
 from unittest.mock import patch
 
 from chat_test_fixtures import PRINCIPAL, ChatFixture, FakeRpc
-from harness_chat import ChatService, check_config, load_config
+from harness_chat import ChatService, load_config
 from harness_chat_tools import encoded
 
 CODES = lambda view: [r["code"] for r in view["connect_check"]["reasons"] + view["spend_check"]["reasons"]]  # noqa: E731
@@ -227,6 +226,7 @@ class Rule3NoDoubleCharge(Base):
         self.assertEqual(fx.rpcs[0].methods.count("turn/start"), 1)
         view = service.status(fx.ref, 1, PRINCIPAL)
         self.assertEqual((view["panel_state"], view["can_send"], view["reserved_turns"]), ("unknown-result", False, 1))
+        self.assertEqual(view["turns"][0]["error_reason"]["text"], "这一轮的结果还没确认")
         with self.assertRaisesRegex(ValueError, "unresolved"):
             fx.send(service, key="unique-request-0002")
         self.assertEqual(fx.send(service)["id"], turn["id"])

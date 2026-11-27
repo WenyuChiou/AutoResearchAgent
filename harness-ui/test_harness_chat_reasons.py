@@ -5,7 +5,7 @@ import re
 import tempfile
 import unittest
 
-from harness_chat_reasons import EXACT, FALLBACK, explain, explain_all
+from harness_chat_reasons import EXACT, FALLBACK, explain, explain_all, explain_turn_error
 from harness_chat_runtime import HERE, runtime_module_paths
 
 # Design 8.4 "错误码怎么写成人话": every row, by code.
@@ -63,6 +63,27 @@ class Reasons(unittest.TestCase):
             self.assertNotRegex(text, r"[a-z]+-[a-z]+-[a-z]+")
         both = explain_all(["codex-quota-below-15", "codex-quota-below-15", "codex-quota-unknown"])
         self.assertEqual([x["code"] for x in both], ["codex-quota-below-15", "codex-quota-unknown"])
+
+
+class TurnErrors(unittest.TestCase):
+    def test_failed_turn_reasons_follow_design_8_4(self):
+        cases = {
+            "chat-deadline-native-terminal-unconfirmed": "这一轮的结果还没确认",
+            "ValueError:chat-unsupported-native-request:item/x": "Codex 请求了对话里不允许的操作",
+            "ValueError:chat-event-thread-differs": "Codex 返回的内容和这一轮对不上",
+            "ValueError:chat-terminal-binding-differs": "Codex 返回的内容和这一轮对不上",
+            "ValueError:chat-response-too-large": "回答太长，没有保存",
+            "ValueError:chat-rpc-eof": "和 Codex 的连接断了，需要核对",
+            "TimeoutError:chat-rpc-reply-unknown:turn/start": "和 Codex 的连接断了，需要核对",
+            "host-restarted-native-terminal-unconfirmed": "连接断了（或服务重启过），这一轮需要核对",
+            "ValueError:codex-login-required": "还没登录 Codex",
+            "RuntimeError:something-new": "这一轮没有完成，原始错误见技术细节",
+        }
+        for error, text in cases.items():
+            self.assertEqual(explain_turn_error(error)["text"], text, error)
+            self.assertEqual(explain_turn_error(error)["code"], error)
+        self.assertIsNone(explain_turn_error(None))
+        self.assertIsNone(explain_turn_error(""))
 
 
 class Closure(unittest.TestCase):

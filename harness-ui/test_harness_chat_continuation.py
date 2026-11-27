@@ -1,17 +1,12 @@
 """Isolated synthetic mirrors and in-memory protocol only. Never real Codex."""
 from copy import deepcopy
-import hashlib
 import json
-import os
 from pathlib import Path
-import socket
 import sqlite3
-import subprocess
 import sys
 import tempfile
 import time
 import threading
-from http.client import HTTPConnection
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -20,7 +15,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.append(str(REPO / 'plugins/auto-research-agent/cli'))
 from harness_chat import ChatService, check_config, load_config
 from harness_chat_continuation import digest, encoded, load_continuation
-from harness_chat_stages import StageContextRegistry, attach_stage_availability, EVIDENCE_KIND, EVIDENCE_VERSION
+from harness_chat_stages import StageContextRegistry, EVIDENCE_KIND, EVIDENCE_VERSION
 from harness_chat_tools import HarnessChatTools
 BINDING = {'project_ref': 'project-fixture', 'project_id': 'pid-fixture', 'input_version': 1, 'brief_sha256': 'a' * 64}
 

@@ -45,6 +45,9 @@ EXACT = (
     ('chat-native-connection-lost-reconcile-required', 'connection-lost', '连接断了（或服务重启过），这一轮需要核对'),
     ('host-restarted-native-terminal-unconfirmed', 'connection-lost', '连接断了（或服务重启过），这一轮需要核对'),
     ('chat-response-too-large', 'response-too-large', '回答太长，没有保存'),
+    # 只读核对原任务之后的第④种结果（8.4）：Codex 那边找不到那一轮。
+    ('chat-native-turn-not-returned-no-replay', 'reconcile-not-found', '找不到那一轮的记录。保留原记录，不会重发；要继续请开新对话'),
+    ('chat-native-identity-incomplete', 'reconcile-not-found', '找不到那一轮的记录。保留原记录，不会重发；要继续请开新对话'),
     # Added by this backend (not in the 8.4 table; wording follows its 被拦下 rows).
     ('chat-money-cap-not-enforceable', 'money-cap', '服务无法执行金额上限，所以不发送'),
     ('chat-input-version-differs', 'stale-version', '课题输入已更新，这条对话绑定的是旧版本'),
@@ -83,3 +86,28 @@ def explain_all(codes):
             seen.add(item['code'])
             result.append(item)
     return result
+
+
+# A saved turn stores its failure as ``ExceptionName:code`` (or the bare code). 8.4 "本轮失败的原因".
+UNCONFIRMED = '这一轮的结果还没确认'
+TURN_FAILURES = (
+    (('chat-deadline-native-terminal-unconfirmed',), 'unconfirmed', UNCONFIRMED),
+    (('chat-unsupported-native-request', 'chat-unknown-tool'), 'forbidden-request', 'Codex 请求了对话里不允许的操作'),
+    (('chat-event-', 'chat-terminal-binding', 'chat-native-thread-differs', 'chat-native-policy', 'chat-native-effort',
+      'chat-duplicate-call-binding'), 'mismatched-reply', 'Codex 返回的内容和这一轮对不上'),
+    (('chat-response-too-large',), 'response-too-large', '回答太长，没有保存'),
+    (('chat-rpc-', 'native-', 'TimeoutError'), 'connection-lost', '和 Codex 的连接断了，需要核对'),
+)
+
+
+def explain_turn_error(error):
+    """Plain-Chinese reason for a failed or unconfirmed turn; the raw error stays in technical details."""
+    if not error:
+        return None
+    text = str(error)
+    code = text.split(':', 1)[1] if ':' in text and text.split(':', 1)[0].isidentifier() else text
+    for prefixes, group, words in TURN_FAILURES:
+        if code.startswith(prefixes) or text.startswith(prefixes):
+            return dict(code=text, group=group, text=words)
+    hit = explain(code)
+    return hit if hit['group'] != 'unknown' else dict(code=text, group='unknown', text='这一轮没有完成，原始错误见技术细节')

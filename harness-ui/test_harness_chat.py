@@ -126,7 +126,7 @@ class ChatServiceTests(unittest.TestCase):
     def test_material_rows_say_whether_each_file_can_be_read(self):
         fx = self.fx
         big = fx.register_text(fx.ref, 1, "big.txt", b"x" * (64 * 1024 + 1))
-        binary = fx.register_text(fx.ref, 1, "paper.pdf", b"%PDF-1.7 fixture")
+        fx.register_text(fx.ref, 1, "paper.pdf", b"%PDF-1.7 fixture")
         gone = fx.register_text(fx.ref, 1, "gone.txt", b"will be deleted")
         changed = fx.register_text(fx.ref, 1, "changed.txt", b"before")
         upload = fx.store.begin_upload(dict(project_ref=fx.ref, name="partial.txt", stage=1, bytes=10, sha256="c" * 64))

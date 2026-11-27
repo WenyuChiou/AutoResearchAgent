@@ -16,8 +16,8 @@ import uuid
 from harness_chat_tools import encoded, require
 from harness_chat_rpc import Rpc, preflight
 from harness_chat_stages import require_context_available
-from harness_chat_continuation import BINDING_FIELDS, normalize_bindings, require_money_cap_unset, verify_request_scope
-from harness_chat_reasons import explain, explain_all
+from harness_chat_continuation import normalize_bindings, require_money_cap_unset, verify_request_scope
+from harness_chat_reasons import explain, explain_all, explain_turn_error
 
 TERMINAL = {'completed', 'failed', 'interrupted'}
 
@@ -271,7 +271,8 @@ class ChatService:
             panel = 'ready'
         hidden = panel in {'not-configured', 'login-required'}
         shown_sessions = [] if hidden else [s for s in sessions if not s.get('content_cleared')]
-        shown_turns = [] if hidden else [t for t in turns if not t.get('content_cleared')]
+        shown_turns = [] if hidden else [dict(t, error_reason=explain_turn_error(t.get('error')))
+                                         for t in turns if not t.get('content_cleared')]
         remaining = max(0, min(spec['max_turns'] - used_turns, spec['max_calls'] - spec['previous_calls'] - used_turns,
                                (spec['max_seconds'] - spec['previous_seconds'] - used_seconds) // spec['turn_seconds'])) if spec else 0
         binding = context.get('binding')
