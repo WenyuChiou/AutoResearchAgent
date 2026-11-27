@@ -88,7 +88,7 @@ function v1gPreview(row) {
  if (row.file) {
   const file = rt.file?.file_ref === row.file.file_ref ? rt.file : null;
   const failed = v1gFileFailure(row.file);
-  text = file ? file.content : apps[0].v1gLoading === row.file.file_ref ? '正在读取这份文件…' : failed ? '这份文件这次没有读出来；保存的文件没有变，可以再点一次「打开」。' : '这份文件还没有读出来。';
+  text = file ? file.content : apps[0].v1gLoading === row.file.file_ref ? '正在读取这份文件…' : failed?.download ? '刚才下载没有成功；保存的文件没有变，可以再点一次「下载」。' : failed ? '这份文件这次没有读出来；保存的文件没有变，可以再点一次「打开」。' : '这份文件还没有读出来。';
   meta = `${row.file.path} · ${row.file.mime === 'application/x-bibtex' ? 'BibTeX' : 'Markdown'} 文本`;
  } else if (row.preview === 'papers') {
   text = (index.papers || []).map((paper, i) => `${i + 1}. ${paper.title || '标题未提供'}${paper.year ? '（' + paper.year + '）' : ''}`).join('\n');
@@ -154,6 +154,8 @@ document.addEventListener('click', async event => {
    const name = dot > 0 ? `${file.filename.slice(0, dot)}-v${version}${file.filename.slice(dot)}` : `${file.filename}-v${version}`;
    const blob = new Blob([file.content], {type:f.mime || 'text/plain'}), url = URL.createObjectURL(blob), a = document.createElement('a');
    a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+   // A later success clears this file's earlier failure note (review P2-a).
+   if (v1gFileFailure(f)) { app.v1gFileError = null; livePaint(); }
   } catch (error) {
    const f = rt.atlas?.files?.[Number(data.v1gDownload)];
    app.v1gFileError = {ref:rt.ref, file:f?.file_ref, code:error.message, download:true}; livePaint();
