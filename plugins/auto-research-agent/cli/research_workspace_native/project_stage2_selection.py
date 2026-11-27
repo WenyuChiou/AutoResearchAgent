@@ -116,7 +116,7 @@ class ProjectStage2SelectionService(
         principal = self.intake._principal(credential)
 
         def preflight():
-            """Every refusal that needs no Core write; shared by reserve and work.
+            """Every refusal that needs no Core write, verified once in reserve().
 
             Running it before the durable intent means an unconnected, stale or
             already-recorded request leaves no action, event or file behind.
@@ -140,8 +140,13 @@ class ProjectStage2SelectionService(
             )
             return binding, workflow, decision
 
+        checked = []
+
         def reserve(state, _request_hash, actor):
-            preflight()
+            # Verified once, here, under the same project lock as work(): the full
+            # source verification budget stays the same, and Core still re-verifies
+            # the exact head, manifest and snapshot hashes before any append.
+            checked[:] = [preflight()]
             rows = self.intake.db.execute(
                 "SELECT request_hash,receipt FROM intake_actions WHERE principal=? AND project=?",
                 (actor, project_ref),
@@ -191,7 +196,7 @@ class ProjectStage2SelectionService(
                     )
 
         def work(state, request_hash, actor):
-            binding, workflow, decision = preflight()
+            binding, workflow, decision = checked.pop() if checked else preflight()
             # _record verifies exact current recommendations before a workflow append.
             output = self.intake._path(project_ref, "stage2-choice-" + request_hash)
             _check(not output.exists(), "stage2-choice-requires-recovery")
