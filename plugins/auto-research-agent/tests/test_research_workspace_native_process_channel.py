@@ -35,6 +35,47 @@ class OwnedProcessTests(OwnedProcessCase):
             self.state()["process_channels"]["synthetic-epoch"]["authenticated_process"]
         )
 
+    def test_metered_verification_before_write_does_not_expire_writer_thread(self):
+        # Real child and real writer thread: the writer thread does not inherit
+        # the verification meter, so the Deadline must carry it explicitly.
+        from types import SimpleNamespace
+
+        from research_workspace_native import process_channel, process_deadline
+        from stage1_retrieval import verification_clock as vc
+
+        clock = SimpleNamespace(offset=0.0)
+
+        class ShiftedTime:
+            def __getattr__(self, name):
+                return getattr(time, name)
+
+            def monotonic(self):
+                return time.monotonic() + clock.offset
+
+        def verify():  # one metered local pass that "takes" 3 s
+            with vc.local_verification(1000):
+                clock.offset += 3
+            return True
+
+        shifted = ShiftedTime()
+        with (
+            patch.object(process_deadline, "time", shifted),
+            patch.object(process_channel, "time", shifted),
+            patch.object(vc, "time", shifted),
+            vc.metering(vc.Meter()),
+        ):
+            channel = self.channel(verify_binding=verify, lifetime=60)
+            verify()  # earlier handshake steps already excluded 3+ s
+            self.assertEqual(channel.write(b"hello\n", 2), 6)
+            self.assertEqual(channel.read(262144, 2), b"synthetic:hello\n")
+        events = [
+            row["last_event"]
+            for row in [self.state()["process_channels"]["synthetic-epoch"]]
+        ]
+        self.assertNotIn("late-write-count", events)
+        channel.close()
+        self.assertTrue(channel.reap()["leader_reaped"])
+
     def test_stdout_burst_survives_delayed_consumer_without_losing_binding(self):
         raw = b"x" * (4096 * 12)
         self.child.write_text(

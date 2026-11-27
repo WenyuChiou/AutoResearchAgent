@@ -157,6 +157,23 @@ class DeadlineTests(ClockCase):
                 deadline.guard(verify)
             self.assertEqual(deadline.left(), 0)
 
+    def test_plain_thread_reads_the_same_remaining_time(self):
+        seen = []
+        with vc.metering(self.meter()):
+            with vc.local_verification(4000):
+                self.clock.advance(15)  # excluded before the Deadline exists
+            deadline = Deadline(1, self.clock.now + 600)
+            thread = threading.Thread(target=lambda: seen.append(deadline.left()))
+            thread.start()
+            thread.join()
+            with vc.local_verification(4000):
+                self.clock.advance(5)  # excluded after: extends it
+            thread = threading.Thread(target=lambda: seen.append(deadline.left()))
+            thread.start()
+            thread.join()
+            seen.append(deadline.left())
+        self.assertEqual(seen, [1, 1, 1])
+
     def test_without_meter_deadline_is_unchanged(self):
         deadline = Deadline(30, self.clock.now + 5)
         self.assertEqual(deadline.left(), 5)
