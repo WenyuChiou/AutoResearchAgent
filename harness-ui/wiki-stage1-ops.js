@@ -417,6 +417,20 @@ wikiS1Results = function (app) {
  return html;
 };
 
+// The old handlers (real-runtime.js) find their fields with document.querySelector. The hidden old copies
+// stay in the document for those handlers, so their selectors are renamed: the handlers can then only reach
+// the fields on the new page, whatever the render order is (review P1-1..3, P2-1).
+const wsSharedSelectors = ['data-v7-reading-review', 'data-v7-coverage-form', 'data-real-plan', 'data-v7-screen', 'data-v7-screen-note',
+ 'data-v7-reading-consent', 'data-v7-claim-text', 'data-v7-claim-relation', 'data-v7-claim-level', 'data-v7-claim-section'];
+function wsRetireOldForms(root) {
+ for (const name of wsSharedSelectors) {
+  for (const node of root.querySelectorAll(`[${name}]`)) {
+   if (node.closest('[data-wiki-s1]')) continue;
+   node.setAttribute(name + '-retired', node.getAttribute(name));
+   node.removeAttribute(name);
+  }
+ }
+}
 const wsPrevAfter = v7AfterRender;
 v7AfterRender = function (app) {
  wsPrevAfter(app);
@@ -427,15 +441,7 @@ v7AfterRender = function (app) {
  // Old per-paper blocks live in the saved-output panel; the new paper card replaces them. Keep them mounted, hidden.
  for (const node of app.el.querySelectorAll('[data-v7-paper-review],[data-v7-reading-review]')) node.hidden = true;
  for (const node of app.el.querySelectorAll('[data-wiki-s1-output] section.live-files')) if (/^已保存的检索候选/.test(node.querySelector('h3')?.textContent || '')) node.hidden = true;
- // The old handlers find their form with document.querySelector. Retire the selectors on the hidden
- // old copies so the handlers read the form the user actually filled in on the new page (review P1-1..3).
- for (const [name, retired] of [['data-v7-reading-review', 'data-v7-reading-review-retired'], ['data-v7-coverage-form', 'data-v7-coverage-form-retired'], ['data-real-plan', 'data-real-plan-retired']]) {
-  for (const node of app.el.querySelectorAll(`[${name}]`)) {
-   if (node.closest('[data-wiki-s1]')) continue;
-   node.setAttribute(retired, node.getAttribute(name));
-   node.removeAttribute(name);
-  }
- }
+ wsRetireOldForms(app.el);
  const slot = app.el.querySelector('[data-ws-expansion-slot]'), expansion = app.el.querySelector('.lp-operations [data-v7-expansion-panel]');
  if (slot && expansion) slot.append(expansion);
  else if (expansion) expansion.hidden = true;
