@@ -142,4 +142,6 @@ assert.match(runtime, /user_input:words/);
 assert.doesNotMatch(runtime, /user_input:rl\(/, 'no fixed authorization sentence is left');
 for (const action of ['authorize-plan', 'query-authorize', 'followup-authorize']) assert.ok(runtime.includes("realResearcherWords('" + action + "')"), action);
 assert.ok(!runtime.includes('realResearcherWords()'), 'every authorization names its own card');
+assert.ok(runtime.includes('function realCanSend()') && (runtime.match(/realReasonDone\('[a-z-]+',ok\)/g) || []).length === 3, 'words are only cleared when the request was sent');
+assert.ok(runtime.includes('wsgClearReason(action);livePaint();'), 'clearing repaints so the box and button refresh');
 console.log('wiki stage1 grant tests passed');
