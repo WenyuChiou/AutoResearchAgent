@@ -437,13 +437,71 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
             side_effect=lambda value: (
                 (
                     "host_decision" not in value
-                    or value["host_decision"] == {"omitted": "response-bound"}
+                    or value["host_decision"].get("omitted") == "response-bound"
                 )
                 and real(value)
             ),
         ):
             view = self.transport.view("own", "authored-ref")
-        self.assertEqual(view["host_decision"], {"omitted": "response-bound"})
+        self.assertEqual(
+            view["host_decision"],
+            {
+                "omitted": "response-bound",
+                "count": 1,
+                "latest_decision": "accept",
+                "latest_sequence": 1,
+            },
+        )
+
+    def test_a_stale_snapshot_cannot_reuse_a_sequence(self):
+        from unittest.mock import patch
+
+        from research_workspace_native import project_stage3_decision as module
+
+        self.post(self.decision("one"))
+        journal = self.jobs.journal
+        real = journal.record_intent
+        state = {"done": False}
+
+        def racing(*args, **kwargs):
+            if not state["done"]:
+                state["done"] = True
+                # another writer appends between our snapshot and our append
+                real(
+                    self.jobs.project_id,
+                    self.jobs.owner,
+                    "intruder",
+                    "stage3/other",
+                    {"x": 1},
+                    expected_revision=journal.snapshot(self.jobs.project_id)[
+                        "revision"
+                    ],
+                )
+            return real(*args, **kwargs)
+
+        with patch.object(journal, "record_intent", racing):
+            with self.assertRaises(Exception):
+                module.record_decision(
+                    self.jobs,
+                    "authored-ref",
+                    self.view,
+                    self.decision("two", "return-to-stage2", "late"),
+                )
+        view = self.transport.view("own", "authored-ref")["host_decision"]
+        self.assertEqual([r["record"]["sequence"] for r in view["records"]], [1])
+
+    def test_a_damaged_decision_log_does_not_take_the_plan_view_down(self):
+        from unittest.mock import patch
+
+        with patch(
+            "research_workspace_native.project_stage3_http.read_decisions",
+            side_effect=SessionApiError("stage3-decision-record-differs", 409),
+        ):
+            view = self.transport.view("own", "authored-ref")
+        self.assertEqual(
+            view["host_decision"], {"error": "stage3-decision-record-differs"}
+        )
+        self.assertEqual(view["plan"], self.view["plan"])
 
     def test_credentials_and_origin_are_checked(self):
         before = self.journal_state()

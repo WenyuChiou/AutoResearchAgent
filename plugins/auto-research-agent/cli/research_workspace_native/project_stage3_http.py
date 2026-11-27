@@ -74,15 +74,28 @@ class ProjectStage3Http:
                     )
                     if fits_response(projected):
                         view = projected
-                    with_decision = dict(
-                        view,
-                        host_decision=read_decisions(configured["jobs"], ref, view),
-                    )
-                    omitted = dict(view, host_decision={"omitted": "response-bound"})
-                    if fits_response(with_decision):
-                        view = with_decision
-                    elif fits_response(omitted):
-                        view = omitted  # say so; never drop it silently
+                    try:
+                        decided = read_decisions(configured["jobs"], ref, view)
+                    except SessionApiError as error:
+                        # A damaged decision log must not take the whole plan page
+                        # down; say so in the field instead.
+                        decided = {"error": error.code}
+                    candidate = dict(view, host_decision=decided)
+                    if fits_response(candidate):
+                        view = candidate
+                    else:
+                        latest = (
+                            decided.get("latest") if "error" not in decided else None
+                        )
+                        summary = {
+                            "omitted": "response-bound",
+                            "count": len(decided.get("records", ())),
+                            "latest_decision": latest and latest["record"]["decision"],
+                            "latest_sequence": latest and latest["record"]["sequence"],
+                        }
+                        omitted = dict(view, host_decision=summary)
+                        if fits_response(omitted):
+                            view = omitted  # say so; never drop it silently
             return view
 
     def _view(self, credential, ref, *, check_deadline=None):

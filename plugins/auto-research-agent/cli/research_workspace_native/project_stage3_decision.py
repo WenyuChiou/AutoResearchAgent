@@ -91,9 +91,15 @@ def _key(binding, key):
     return "stage3-decision-" + digest([binding, key])
 
 
-def _rows(jobs, base):
-    """Every decision for this saved plan, across its manual revisions, in write order."""
-    state = jobs.journal.snapshot(jobs.project_id)
+def _rows(jobs, base, state=None):
+    """Every decision for this saved plan, across its manual revisions, in write order.
+
+    ``state`` lets the writer use one journal snapshot for the rows, the sequence
+    and the expected revision of the append, so the sequence is allocated in the
+    same atomic step as the write (a concurrent append is refused by the journal
+    instead of producing a duplicate sequence).
+    """
+    state = jobs.journal.snapshot(jobs.project_id) if state is None else state
     rows = []
     for item in state["intents"].values():
         if item["method"] != METHOD:
@@ -249,7 +255,8 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
         "stage3-decision-version-differs",
         409,
     )
-    rows = _rows(jobs, base)
+    state = jobs.journal.snapshot(jobs.project_id)
+    rows = _rows(jobs, base, state)
     existing = next(
         (
             row
@@ -310,7 +317,6 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
     )
     if check_deadline:
         check_deadline()
-    state = jobs.journal.snapshot(jobs.project_id)
     item = jobs.journal.record_intent(
         jobs.project_id,
         jobs.owner,
