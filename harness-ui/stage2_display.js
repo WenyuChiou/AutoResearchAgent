@@ -141,6 +141,7 @@ function wikiStage2RequestRow(state) {
     "request-saved": label("请求已保存。可查看处理状态。", "Request saved. You can check its status.", "請求已儲存。可查看處理狀態。"),
     running: label("正在处理此请求。", "This request is in progress.", "正在處理此請求。"),
     "candidate-ready": label("当前版本的候选已保存。", "Candidates saved for this version.", "目前版本的候選已儲存。"),
+    "selection-available": label("当前版本的候选已保存，可以查看选案。", "Candidates are saved for this version. The selection view is available.", "目前版本的候選已儲存，可以查看選案。"),
     "no-candidate": label("后台已经回执，候选交付还没有保存。", "The service acknowledged the request. Candidate delivery is pending.", "背景服務已回執，候選交付還沒有儲存。"),
     "execution-unknown": label("已有请求。请由操作者核对原运行记录。", "A request exists. Ask the operator to check the retained run.", "已有請求。請由操作者核對原執行紀錄。"),
     blocked: label("已保存的请求受阻。请由操作者检查交接。", "The saved request is blocked. Ask the operator to check the handoff.", "已儲存的請求受阻。請由操作者檢查交接。"),
@@ -158,7 +159,7 @@ function wikiStage2RequestRow(state) {
     ? label("正在读取请求状态。", "Checking request status.", "正在讀取請求狀態。")
     : descriptions[state.error || status] || (state.error
       ? label("暂时无法读取回执。请再查一次保存状态。", "The receipt could not be read. Check its saved status again.", "暫時無法讀取回執。請再查一次儲存狀態。")
-      : label("还没有候选请求记录。", "There is no saved candidate request yet.", "還沒有候選請求紀錄。"));
+      : label("候选请求状态待核对，原记录仍保留。", "The candidate request status needs checking. Original records are retained.", "候選請求狀態待核對，原紀錄仍保留。"));
   return `<div data-wiki-stage2-request-row><p role="status">${rx(message)}</p><div class="n9-page-actions">
       ${status === "ready" && mayRequest ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
       ${state && !pathConflict ? `<button type="button" class="hs-button" data-wiki-stage2-action="read" ${state.busy ? "disabled" : ""}>${label("查看保存状态", "Check saved status", "查看儲存狀態")}</button>` : ""}

@@ -296,6 +296,14 @@ async function exerciseUnreadyStage2() {
   probe(calls.filter(call=>call.tail==='stage2/continuation').length===before+1&&!posts().length,
     'the inline readback uses the existing read-only continuation request');
   probe(!app.el.innerText.includes('接收文献包'),'no manual literature intake action');
+  window.changes={status:'connected',selection:'selection-available'};
+  calls.length=0;await liveRefresh();await tick();
+  probe(!!app.el.querySelector('[data-v93-choice]')&&panel().textContent.includes('当前版本的候选已保存，可以查看选案')&&
+    !posts().length,'a verified saved selection is described accurately on readback');
+  window.changes={status:'connected',selection:'SYNTHETIC-unknown-status'};
+  calls.length=0;await liveRefresh();await tick();
+  probe(panel().textContent.includes('候选请求状态待核对')&&!continuation('request')&&!posts().length,
+    'an unrecognized status does not claim no request or allow a write');
   check(!errors.length,errors.join(' | '));
 }
 
