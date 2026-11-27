@@ -274,12 +274,7 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
                 dict(good, decision="approve"),
                 "stage3-decision-invalid",
             ),
-            ("empty text", dict(good, text="  "), "stage3-decision-text-required"),
-            (
-                "text too long",
-                dict(good, text="x" * 2100),
-                "stage3-decision-text-too-long",
-            ),
+            ("text not a string", dict(good, text=5), "stage3-decision-text-invalid"),
             ("missing key", {k: v for k, v in good.items() if k != "key"}, None),
         ):
             with self.subTest(label):
@@ -288,6 +283,28 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
                 if code:
                     self.assertEqual(reply["error"], code)
         self.assertEqual(self.journal_state(), before)
+
+    def test_reason_is_optional_and_limited_to_4096_utf8_bytes(self):
+        status, reply = self.post(self.decision("empty", "accept", ""))
+        self.assertEqual(status, 200, reply)
+        self.assertEqual(reply["record"]["text"], "")
+        edge = "資" * 1365  # 4095 bytes
+        status, reply = self.post(self.decision("edge", "revise-then-review", edge))
+        self.assertEqual(status, 200, reply)
+        before = self.journal_state()
+        for key, text in (("long-ascii", "x" * 4097), ("long-cjk", "資" * 1366)):
+            status, reply = self.post(self.decision(key, "revise-then-review", text))
+            self.assertEqual(
+                (status, reply["error"]), (413, "stage3-decision-text-too-long")
+            )
+        self.assertEqual(self.journal_state(), before)
+        # confirmed:true stays mandatory even with an empty reason
+        status, reply = self.post(
+            dict(self.decision("c", "accept", ""), confirmed=False)
+        )
+        self.assertEqual(
+            (status, reply["error"]), (400, "explicit-stage3-decision-required")
+        )
 
     def test_credentials_and_origin_are_checked(self):
         before = self.journal_state()

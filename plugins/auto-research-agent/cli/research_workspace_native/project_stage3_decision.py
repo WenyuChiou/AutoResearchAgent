@@ -6,6 +6,9 @@ never a native message, never a model call, never an execution grant. Every
 refusal that needs no write happens before the record is attempted, so a refused
 decision leaves nothing behind.
 
+The reason (``text``) is optional, at most 4096 UTF-8 bytes (413 beyond that);
+``confirmed: true`` is always required.
+
 Decisions: ``accept`` (the plan is accepted), ``revise-then-review`` (intent only:
 the researcher then uses comments and revisions and starts a new planning job
 explicitly), ``return-to-stage2`` (intent only: Stage 2's saved selection cannot
@@ -33,7 +36,7 @@ DECISIONS = ("accept", "revise-then-review", "return-to-stage2")
 STATUS = "recorded-by-local-host-ui"
 REVISION = "plan_revision_receipt_sha256"
 FIELDS = BINDING_FIELDS | {REVISION, "key", "decision", "text", "confirmed"}
-TEXT_BYTES = 2000
+TEXT_BYTES = 4096  # UTF-8 bytes; the reason is optional (may be empty)
 
 
 def _context(ref, view):
@@ -204,7 +207,12 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
     _check(body["confirmed"] is True, "explicit-stage3-decision-required", 400)
     _check(body["decision"] in DECISIONS, "stage3-decision-invalid", 400)
     _text(body["key"], "stage3-decision-key", 128)
-    _text(body["text"], "stage3-decision-text", TEXT_BYTES)
+    _check(type(body["text"]) is str, "stage3-decision-text-invalid", 400)
+    _check(
+        len(body["text"].encode("utf8")) <= TEXT_BYTES,
+        "stage3-decision-text-too-long",
+        413,
+    )
     base, binding, revised = _binding(jobs, ref, view)
     _check(
         all(
