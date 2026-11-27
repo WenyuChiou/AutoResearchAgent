@@ -298,7 +298,8 @@ function v1S1Record() {
  const stopped = (index.coverage || []).filter(row => typeof row.stop_reason === 'string' && row.stop_reason).length;
  const groups = (index.coverage || []).length;
  return {
-  summary:`记录了 ${index.papers.length} 篇文献的筛选决定和 ${located} 条证据的出处位置；核对了 ${checked} / ${index.claims.length} 条。`,
+  summary:`按已保存交付统计：记录了 ${index.papers.length} 篇文献的筛选决定和 ${located} 条证据的出处位置；核对了 ${checked} / ${index.claims.length} 条。`,
+  source:'这些数字是页面按已保存的交付内容数出来的，不是后台的 Harness 记录汇总（后台还没有这个汇总）。',
   chips:[[`${index.papers.length} 篇文献`], [`核对 ${checked} / ${index.claims.length}`, checked < index.claims.length]],
   checks:[
    {name:'筛选决定', result:`纳入 ${by('include')} · 排除 ${by('exclude')} · 待定 ${decisions.length - by('include') - by('exclude')}（共 ${decisions.length} 条决定）`, raw:{decisions:decisions.length, include:by('include'), exclude:by('exclude')}},

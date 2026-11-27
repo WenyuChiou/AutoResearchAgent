@@ -30,7 +30,7 @@ function wikiHarnessRecord(record) {
  return `<details class="wiki-record" data-wiki-record>
   <summary>${chip}<span>${summary === wikiRecordMissing ? '有已保存的明细' : summary}</span>${chips ? `<span class="wiki-record-counts">${chips}</span>` : ''}<span class="wiki-record-expand">展开明细</span><span class="wiki-record-collapse">收起明细</span></summary>
   <div class="wiki-record-body">
-   <p>这里只说做了哪些检查，不代表研究结论是对的。</p>
+   <p>这里只说做了哪些检查，不代表研究结论是对的。</p>${record?.source ? `<p class="wiki-record-gap">${esc(record.source)}</p>` : ''}
    <h3>这一段查了什么、留了什么</h3>
    ${checks.length ? table(['事项', '结果', '原始记录'], checks.map(row => `<tr><th scope="row">${esc(row.name)}</th><td>${esc(row.result)}</td><td>${raw(row.raw)}</td></tr>`)) : missing}
    <h3>被拦下的事</h3>
