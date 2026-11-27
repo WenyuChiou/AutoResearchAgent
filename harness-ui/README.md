@@ -1,11 +1,13 @@
-# V9 local Harness UI
+# V9 local Harness UI (the Research Wiki)
 
 This opt-in workbench keeps Stage1 and Stage2 separate. It runs on the repository's
 existing `ProjectHost`; it does not replace the default Wiki or change research rules.
 The result area uses saved, hash-bound artifacts. Imported inputs, local comparison
 choices, formal selections, and newly generated research have different states.
 
-## Start from a checkout
+The Research Wiki has a single entry point: `harness-ui/run_v9.py`. On Windows the easy way is `harness-ui/Start-Wiki.ps1` (see [QUICKSTART.md](QUICKSTART.md)); `python harness-ui/run_v9.py --help` lists every option. The old launcher `run-project-workspace.py` is kept for compatibility only.
+
+## Start from a checkout by hand
 
 Python 3.11+ and the existing Harness schema/document dependencies (`requirements.txt`)
 are required. The host imports editable-document helpers even when only reading a

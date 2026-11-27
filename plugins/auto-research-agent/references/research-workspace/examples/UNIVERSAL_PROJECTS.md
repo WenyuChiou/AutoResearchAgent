@@ -1,5 +1,7 @@
 # Own-account project workspace
 
+> **Compatibility only.** This page describes the old launcher `run-project-workspace.py`. The single entry point is the Research Wiki: `harness-ui/Start-Wiki.ps1` (or `harness-ui/run_v9.py`); see `harness-ui/QUICKSTART.md`.
+
 Each teammate runs this local portal on their own computer with their own Codex
 installation, login and model access. No shared account, saved bearer, fixed
 paper topic or private case path is included. The server listens on loopback;

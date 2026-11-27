@@ -41,7 +41,10 @@ Once it is open, type a title under "New research topic" on the home page and cl
 
 ## Limits
 
-- Zero-quota mode only. A real-run mode (connecting Codex) is not provided yet; `-Real` stops with an error. The script passes none of the Stage 2 or Stage 3 run configuration, so those stay off by default.
+- The one-click script has zero-quota mode only; `-Real` stops with an error. For a real Stage 1 run, pass options straight to `harness-ui/run_v9.py` (`python harness-ui/run_v9.py --help` lists them): the query runtime and materials root, public sources, and the content model with Codex. These options only register things, they authorize nothing; every step is still authorized in the page, and automatic searching spends quota once enabled.
+- At zero quota you can create a topic, write the scope and import an existing search plan, but you **cannot get literature**: without a search the ledger has no sources, and the "import a saved source package" entry does not exist yet.
+- The script passes none of the Stage 2 or Stage 3 run configuration, so those stay off by default.
+- The single entry point is `run_v9.py` (`Start-Wiki.ps1` is its one-click zero-quota start). The old launcher `run-project-workspace.py` is kept for compatibility only and is no longer recommended; options `run_v9.py` does not support are refused at start-up with an explanation.
 - All project data lives in the data directory, outside the Git checkout. The path must stay short: `<data directory>/projects` may not exceed 60 characters, and the self-check tells you when it does.
 - `Start-Wiki.ps1` uses `.venv` automatically when it exists; `-Python <path>` or the environment variable `ARA_PYTHON` selects another Python.
 - Tested only on an existing Windows account, not on a clean new Windows account.

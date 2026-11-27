@@ -41,7 +41,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File harness-ui\Start-Wiki.ps1 -O
 
 ## 现在的限制
 
-- 只有零额度模式。真实运行模式（接 Codex）尚未提供，`-Real` 会直接报错。Stage 2、Stage 3 需要的运行配置，这个脚本没有传，默认不启用。
+- 一键脚本只有零额度模式，`-Real` 会直接报错。要真实运行 Stage 1，直接给 `harness-ui/run_v9.py` 加参数（`python harness-ui/run_v9.py --help` 有完整说明）：查询运行时和材料根、公开来源、内容模型加 Codex。这些参数只是注册，不是授权，每一步仍要在页面里授权；开启后自动检索会花额度。
+- 零额度下可以新建课题、写范围、导入已有检索规划，但**拿不到文献**：没有检索，账本里就没有来源，「导入已保存的来源包」的入口还没有。
+- Stage 2、Stage 3 需要的运行配置，这个脚本没有传，默认不启用。
+- 唯一入口是 `run_v9.py`（`Start-Wiki.ps1` 是它的零额度一键启动）。旧启动器 `run-project-workspace.py` 只为兼容保留，不再推荐，不支持的参数 `run_v9.py` 会在启动时拒绝并说明。
 - 项目数据都在数据目录里，不在 Git 检出中。路径不能太长：`<数据目录>/projects` 不超过 60 个字符，超过时自检会提示换短路径。
 - `Start-Wiki.ps1` 在 `.venv` 存在时会自动用它；也可以用 `-Python <路径>` 或环境变量 `ARA_PYTHON` 指定别的 Python。
 - 只在已有的 Windows 账号上测过；没有在全新的干净 Windows 账号上测过。

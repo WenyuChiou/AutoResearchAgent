@@ -338,6 +338,8 @@ read-only acceptance fixture. Original30 receiving-only import retains its
 separate accepted a778 source and admission inputs.
 
 
+> **Compatibility only.** This page describes the old launcher `run-project-workspace.py`. The single entry point is the Research Wiki: `harness-ui/Start-Wiki.ps1` (or `harness-ui/run_v9.py`); see `harness-ui/QUICKSTART.md`.
+
 ### Explicit full-source launcher mode
 
 The existing trusted `run-project-workspace.py` launcher can select the reviewed

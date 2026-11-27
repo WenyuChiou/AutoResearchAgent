@@ -1,5 +1,7 @@
 # 本機 Stage1 工作台與明確授權接續
 
+> **仅兼容。** 本段描述的是旧启动器 `run-project-workspace.py`。唯一入口是 Research Wiki：`harness-ui/Start-Wiki.ps1`（或 `harness-ui/run_v9.py`），见 `harness-ui/QUICKSTART.zh-CN.md`。
+
 本入口使用同一份已確認的研究需求、計畫、資源與專案紀錄。預設開啟只顯示工作台；輸入主題、GET、重新整理、預算數字或載入舊交付物都不會自行呼叫模型或取得來源。
 
 ## 在本機開啟主 Wiki
