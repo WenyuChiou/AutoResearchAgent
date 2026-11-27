@@ -3,7 +3,7 @@
 # ruff: noqa: E402 -- exercise the plugin and ordinary Wiki composition together.
 
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from copy import deepcopy
 import json
 import os
@@ -23,6 +23,9 @@ sys.path[:0] = [
 from current_core_stage12_fixtures import current_core_stage1_case
 from test_project_stage2_current_evidence import authenticate, request, VIEWER
 from research_workspace_native.project_host import ProjectHost
+from research_workspace_native.project_stage1_delivery import (
+    ProjectStage1DeliveryService,
+)
 from research_workspace_native.http import SessionHandler
 from research_workspace_native.project_model import ProjectModelService
 from research_workspace_native.project_stage2 import ProjectStage2Service
@@ -103,8 +106,19 @@ class CurrentConnectionTests(unittest.TestCase):
     def test_current_native_package_has_a_reopenable_registration(self):
         with (
             patch("test_project_stage1_delivery.authenticate", authenticate),
-            current_core_stage1_case(screened=True) as data,
+            ExitStack() as fixture,
         ):
+            # Recreate the saved-but-unreceived package from before automatic
+            # handoff. Only its creation omits the new post-delivery hook.
+            with patch.object(
+                ProjectStage1DeliveryService,
+                "_receive_stage2_input",
+                autospec=True,
+                side_effect=lambda _service, _credential, _ref, receipt, _deadline: (
+                    receipt
+                ),
+            ):
+                data = fixture.enter_context(current_core_stage1_case(screened=True))
             case, ref = data["case"], data["project_ref"]
             source_files = {
                 p: (p.read_bytes(), p.stat().st_mtime_ns)
