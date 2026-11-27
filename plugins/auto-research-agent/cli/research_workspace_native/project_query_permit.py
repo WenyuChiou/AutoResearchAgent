@@ -191,12 +191,19 @@ def inspect_seal(intake, ref, authorization, config, *, ready=True, run_grants=N
     verified = []
 
     def runtime_digest():
-        # One inspect_seal needs the runtime verified at two points of the SAME
-        # call (the offer it recomputes, and the final binding comparison). Only
-        # intake database reads and pure comparisons lie between them, so the
-        # first verification is reused inside this call; the result lives on this
-        # call stack only. Brackets around callbacks are separate inspect_seal
-        # calls and each still verifies on its own.
+        # One inspect_seal verifies the runtime at two points of the SAME call:
+        # inside proposal() (the offer it recomputes) and in the final binding
+        # comparison. Between them there is no callback, no process, no write to
+        # the runtime and the intake lock is held; but a 1.1.0 seal also goes
+        # through run_adapter.check_seal, which writes one run-lease sqlite row,
+        # and reads the saved authorization. The first verification is reused for
+        # the second point. Cost of that choice: if a runtime file changes between
+        # the two points the old code refused immediately, this code lets this one
+        # call pass and leaves the refusal to the next check (the next _guard
+        # bracket or CoverageLedger.create's verify_identity(probe=True)), so the
+        # last confirmation inside a call is about one hash pass earlier. The
+        # digest lives on this call stack only. Brackets around callbacks are
+        # separate inspect_seal calls and each still verifies on its own.
         if not verified:
             verified.append(configured_pin(config["pin"]))
         return verified[0]
