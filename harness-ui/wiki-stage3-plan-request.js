@@ -35,15 +35,21 @@ function wikiS3RequestLine(view) {
  const configured = view.planning_configured === true && view.dispatch_action === 'prepare-then-confirm-run' && view.default_request;
  const gate = lock || (!configured ? '这次启动没有提供规划配置，不能生成计划' : calls === 0 ? '这次启动的模型调用上限是 0，不能生成计划' : calls === null ? '读不到这次启动的模型调用上限' : '');
  const detail = [error?.code, view.submission_error?.code, job?.status, job?.outcome].filter(Boolean);
- if (error) return {tone:error.refused ? 'warn' : 'err', tag:error.refused ? '被拦下' : '出错', detail,
-  text:(error.refused ? '请求被拒绝：服务没有接受这一步，原来的记录没有变。' : '这一步没有完成；已保存的内容没有丢。') + '原因代码在技术细节里，不会自动重发。', buttons:[read]};
+ // The saved job comes first (review P1-1): a submission_error next to an execution-unknown or completed job must
+ // not turn an uncertain or finished result into "blocked", nor hide the read-only check.
  if (view.submission_in_progress || job?.status === 'dispatching') return {tone:'run', tag:'处理中', detail, text:'正在生成计划和评审。不需要你操作', buttons:[read]};
- if (view.submission_error) return {tone:'warn', tag:'被拦下', detail, text:'上次生成没有完成，原因代码在技术细节里。原记录保留，不会自动重试', buttons:[read]};
+ const inspect = {label:'只读核对', act:'inspect', gate:lock};
  if (job?.status === 'execution-unknown') return {tone:'warn', tag:'结果未知', detail,
   text:'上次生成的结果还不清楚。原请求已保留，不会自动重发；先只读核对' + (view.recovery_pin_available ? '，也可以从已保存的结果恢复' : ''),
-  buttons:[{label:'只读核对', act:'inspect', gate:lock}, ...(view.recovery_pin_available ? [{label:'从已保存结果恢复', act:'recover', gate:lock}] : []), read]};
+  buttons:[inspect, ...(view.recovery_pin_available ? [{label:'从已保存结果恢复', act:'recover', gate:lock}] : []), read]};
  if (job?.status === 'completed' && job.outcome === 'failed') return {tone:'err', tag:'规划失败', detail, text:'规划已失败，原失败记录会保留', buttons:[{label:'看失败记录', act:'failure'}]};
  if (job?.status === 'completed' && job.outcome === 'saved') return {tone:'run', tag:'计划已保存', detail, text:'计划已保存，正在读取', buttons:[read]};
+ if (error) return {tone:error.refused ? 'warn' : 'err', tag:error.refused ? '被拦下' : '出错', detail,
+  text:(error.refused ? '请求被拒绝：服务没有接受这一步，原来的记录没有变。' : '这一步没有完成；已保存的内容没有丢。') + '原因代码在技术细节里，不会自动重发。', buttons:[read]};
+ // A timeout or I/O failure after the run was accepted is an unknown outcome (DESIGN 8.0), never "blocked".
+ if (view.submission_error && /deadline-or-io-failed$/.test(String(view.submission_error.code || ''))) return {tone:'warn', tag:'结果未知', detail,
+  text:'上次生成的结果还不清楚：模型可能已经调用过。原请求已保留，不会自动重发；先只读核对', buttons:[...(job?.request_sha256 ? [inspect] : []), read]};
+ if (view.submission_error) return {tone:'warn', tag:'被拦下', detail, text:'上次生成没有完成，原因代码在技术细节里。原记录保留，不会自动重试', buttons:[read]};
  if (job?.status === 'intent-recorded') return {tone:'wait', tag:'等你授权', detail, text:'请求已保存，还没有调用模型。看过下面的授权，确认后才生成计划',
   buttons:[read], grant:{gate:gate || (wikiS3Req.check ? '' : '请先勾选确认')}};
  return {tone:'plain', tag:'还没请求', detail, text:'你选的方向已保存。可以请求生成研究计划', buttons:[{label:'请求生成计划', act:'prepare', primary:true, gate}, read]};

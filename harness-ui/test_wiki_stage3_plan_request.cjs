@@ -51,7 +51,8 @@ test('the 8.13 states map from the saved view', () => {
   [{submission_in_progress:true}, '处理中'],
   [{job:{status:'execution-unknown'}}, '结果未知'],
   [{job:{status:'completed', outcome:'failed'}}, '规划失败'],
-  [{submission_error:{code:'stage3-planning-deadline-or-io-failed'}}, '被拦下']
+  [{submission_error:{code:'stage3-planning-deadline-or-io-failed'}}, '结果未知'],
+  [{submission_error:{code:'stage3-planning-input-rejected'}}, '被拦下']
  ];
  for (const [view, tag] of states) assert.equal(line(load({view}).ctx).tag, tag, JSON.stringify(view));
  assert.equal(line(load({view:{plan:{kind:'plan'}}}).ctx), null, 'a saved plan has no request row');
@@ -91,13 +92,32 @@ test('a refused run is reported as blocked, a failure as an error; neither is re
 });
 
 test('inspect is read-only and its answer is shown; a receipt for another key is refused', async () => {
- const {ctx, posts} = load({view:{job:{status:'execution-unknown', request_sha256:'c'.repeat(64)}}});
+ let {ctx, posts} = load({view:{job:{status:'execution-unknown', request_sha256:'c'.repeat(64)}}});
  ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:body.request_sha256, status:'completed', outcome:'failed'});
  await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
  assert.equal(posts[0].p, '/api/projects/project-p/stage3/planning/inspect');
  assert.equal(posts[0].body.confirmed, undefined);
  assert.equal(line(ctx).tag, '规划失败');
+ ({ctx} = load({view:{job:{status:'execution-unknown', request_sha256:'c'.repeat(64)}}}));
  ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:'other', status:'completed'});
  await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
- assert.equal(line(ctx).tag, '出错');
+ const row = line(ctx);
+ assert.equal(row.tag, '结果未知', 'a refused receipt does not settle the unknown job');
+ assert.ok(row.detail.includes('stage3-planning-receipt-differs'), 'the reason is in the technical details');
+});
+
+test('review P1-1: a submission error next to an unknown or finished job keeps the job state and the read-only check', () => {
+ const err = {code:'stage3-planning-deadline-or-io-failed'}, sha = 'c'.repeat(64);
+ let row = line(load({view:{submission_error:err, job:{status:'execution-unknown', request_sha256:sha}}}).ctx);
+ assert.equal(row.tag, '结果未知');
+ assert.ok(row.buttons.some(b => b.act === 'inspect'), 'the read-only check stays');
+ assert.doesNotMatch(row.text, /没有完成/);
+ row = line(load({view:{submission_error:err, job:{status:'completed', outcome:'failed', request_sha256:sha}}}).ctx);
+ assert.equal(row.tag, '规划失败');
+ row = line(load({view:{submission_error:err, job:{status:'intent-recorded', request_sha256:sha}}}).ctx);
+ assert.equal(row.tag, '结果未知', 'a timeout is never written as blocked');
+ assert.ok(row.buttons.some(b => b.act === 'inspect'));
+ assert.equal(row.grant, undefined, 'no grant card, so no resend');
+ row = line(load({view:{submission_error:{code:'stage3-planning-input-rejected'}}}).ctx);
+ assert.equal(row.tag, '被拦下', 'other submission errors are still blocked');
 });
