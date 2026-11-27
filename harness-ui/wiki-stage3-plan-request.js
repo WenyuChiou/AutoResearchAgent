@@ -7,10 +7,11 @@
 // The request key is fixed by the service, so a repeated prepare or run returns the saved job instead of a second
 // dispatch; nothing here retries on its own.
 // unknown: a run sent from this page whose answer never came back (network, timeout); kept per topic so leaving and
-// returning cannot bring the grant card back. Only a read-only inspect settles it (review P1-2).
+// returning cannot bring the grant card back. Only a read-only inspect settles it (review P1-2). A Map by topic, so an
+// unknown outcome on one topic does not replace another topic's (review P2-10).
 // check: the request_sha256 of the prepared job the user ticked for; a different prepare voids it (review P2-2).
 // busy: requests in flight, per topic (review P2-3), so leaving and coming back does not forget one.
-const wikiS3Req = {busy:new Map(), error:null, ref:null, check:null, inspected:null, unknown:null};
+const wikiS3Req = {busy:new Map(), error:null, ref:null, check:null, inspected:null, unknown:new Map()};
 function wikiS3ReqTicked(job) { return !!job?.request_sha256 && wikiS3Req.check === job.request_sha256; }
 
 function wikiS3ReqLock() {
@@ -47,7 +48,8 @@ function wikiS3RequestLine(view) {
   buttons:[inspect, ...(view.recovery_pin_available ? [{label:'从已保存结果恢复', act:'recover', gate:lock}] : []), read]};
  if (job?.status === 'completed' && job.outcome === 'failed') return {tone:'err', tag:'规划失败', detail, text:'规划已失败，原失败记录会保留', buttons:[{label:'看失败记录', act:'failure'}]};
  if (job?.status === 'completed' && job.outcome === 'saved') return {tone:'run', tag:'计划已保存', detail, text:'计划已保存，正在读取', buttons:[read]};
- const unknown = wikiS3Req.unknown?.ref === rt.ref && (!job || job.status === 'intent-recorded') && job?.request_sha256 === wikiS3Req.unknown.sha ? wikiS3Req.unknown : null;
+ const mine = wikiS3Req.unknown.get(rt.ref);
+ const unknown = mine && (!job || job.status === 'intent-recorded') && job?.request_sha256 === mine.sha ? mine : null;
  if (unknown) return {tone:'warn', tag:'结果未知', detail:[unknown.code, ...detail],
   text:'刚才的生成请求没有收到回答，结果还不清楚：模型可能已经调用过。不会重发；先只读核对', buttons:[inspect, read]};
  if (error) return {tone:error.refused ? 'warn' : 'err', tag:error.refused ? '被拦下' : '出错', detail,
@@ -97,12 +99,12 @@ async function wikiS3PlanAction(app, act) {
   const returned = answer?.kind === 'ProjectStage3PlanningSubmission' ? answer.job : answer;
   if (!returned || returned.project_ref !== ref || returned.key !== request.key) throw Error('stage3-planning-receipt-differs');
   if (act === 'inspect' || act === 'recover') wikiS3Req.inspected = returned;
-  if (act === 'inspect' && wikiS3Req.unknown?.ref === ref) wikiS3Req.unknown = null; // the read-only check answered
+  if (act === 'inspect') wikiS3Req.unknown.delete(ref); // the read-only check answered
   wikiS3Req.check = null;
  } catch (error) {
   const code = String(error.message || error), refused = Number.isInteger(error.status) && error.status >= 400 && error.status < 500;
   // A run without a clear refusal may have reached the model: unknown outcome, the tick is cleared, no resend.
-  if (act === 'run') { wikiS3Req.check = null; if (!refused) wikiS3Req.unknown = {ref, sha:body.request_sha256, code}; }
+  if (act === 'run') { wikiS3Req.check = null; if (!refused) wikiS3Req.unknown.set(ref, {sha:body.request_sha256, code}); }
   if (epoch !== rt.epoch || ref !== rt.ref) return;
   if (!(act === 'run' && !refused)) wikiS3Req.error = {code, refused};
  } finally {

@@ -16,7 +16,7 @@ function load({calls = 1, view = {}} = {}) {
   rt:{ref:'project-p', epoch:1, loading:false, busy:false, pending:null, controlHeld:false, meta:{run_limits:{model_calls:calls}}},
   v93:{busy:false, basis, view:{...basis, plan:null, planning_configured:true, dispatch_action:'prepare-then-confirm-run', default_request:request, job:null, ...view}},
   apps:[{el:{contains:() => true}}],
-  v93Identity:() => basis, v93Matches:(a, b) => !!a && !!b && a.project_ref === b.project_ref,
+  v93Identity:() => ctx.v93.basis, v93Matches:(a, b) => !!a && !!b && a.project_ref === b.project_ref,
   wikiS3Escape:value => String(value), projectPath:(ref, tail) => `/api/projects/${ref}/${tail}`, livePaint:() => {},
   v93ReadSaved:async () => { reads.push(1); },
   liveRequest:async (p, body) => { posts.push({p, body:JSON.parse(JSON.stringify(body))}); return ctx.answer(p, body); },
@@ -200,4 +200,23 @@ test('review P2-3: a request in flight stays busy when the user leaves the topic
  assert.equal(posts.length, 1, 'no second POST while the first is in flight');
  release(); await first;
  assert.equal(vm.runInContext('wikiS3Req.busy.size', ctx), 0);
+});
+
+test('review P2-10: an unknown run outcome is kept per topic; another topic unknown does not replace it', async () => {
+ const sha = 'c'.repeat(64);
+ const {ctx} = load({view:{job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ ctx.answer = () => { throw Error('Failed to fetch'); };
+ const runOn = async topic => {
+  ctx.rt.ref = topic; ctx.v93.basis = {...basis, project_ref:topic}; line(ctx);
+  vm.runInContext(`wikiS3Req.check = '${sha}'`, ctx);
+  await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
+ };
+ await runOn('project-p');
+ assert.equal(line(ctx).tag, '结果未知');
+ await runOn('project-b');
+ assert.equal(line(ctx).tag, '结果未知');
+ ctx.rt.ref = 'project-p'; ctx.v93.basis = {...basis};
+ const row = line(ctx);
+ assert.equal(row.tag, '结果未知', 'back on the first topic its unknown outcome is still there');
+ assert.equal(row.grant, undefined);
 });
