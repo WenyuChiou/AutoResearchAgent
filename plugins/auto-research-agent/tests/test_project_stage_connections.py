@@ -241,6 +241,14 @@ class CurrentConnectionTests(unittest.TestCase):
                 self.assertTrue(accepted["connection_id"])
                 self.assertTrue(accepted["receipt_id"])
                 self.assertEqual(overview["stage2"]["offers"], [accepted["offer"]])
+                status, listed = request(origin, route + "/stage2/offers")
+                self.assertEqual(status, 200, listed)
+                self.assertEqual(listed["offers"], [accepted["offer"]])
+                self.assertEqual(listed["current_evidence"], accepted)
+                status, contract = request(origin, route + "/contract")
+                self.assertEqual(status, 200, contract)
+                self.assertEqual(contract["stages"]["2"]["offers"], [accepted["offer"]])
+                self.assertEqual(snapshot(), registered)
                 self.assertEqual(accepted["offer"]["status"], "receiving-only")
                 offer = accepted["offer"]
                 denied = dict(

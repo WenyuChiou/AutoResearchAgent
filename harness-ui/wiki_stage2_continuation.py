@@ -33,7 +33,9 @@ from stage2_workflow.ui_submission import valid_input_version
 
 ROUTE = re.compile(r"/api/projects/([A-Za-z0-9_-]{1,64})/stage2/continuation")
 CONNECTION_ROUTE = re.compile(r"/api/projects/([A-Za-z0-9_-]{1,64})/connections")
-INPUT_VIEW_ROUTE = re.compile(r"/api/projects/[A-Za-z0-9_-]{1,64}/(overview|stage2)")
+INPUT_VIEW_ROUTE = re.compile(
+    r"/api/projects/[A-Za-z0-9_-]{1,64}/(overview|stage2(?:/offers)?)"
+)
 REQUEST_KEY = re.compile(r"[A-Za-z0-9_-]{1,128}")
 IDENTITY = ("project_ref", "project_id", "input_version", "brief_sha256")
 # The HTTP server has sixteen slots shared with ordinary reads. Only one

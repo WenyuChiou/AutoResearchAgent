@@ -75,7 +75,13 @@ def project_view(
     }
     identity["plan_manifest_sha256"] = (view.get("plan") or {}).get("manifest_sha256")
     model = models.read(credential, ref) if models is not None else None
-    second = stage2.read(credential, ref) if stage2 is not None else None
+    # The historical contract projects saved offers without revalidating the
+    # current evidence. Wiki intake views verify what they offer separately.
+    second = (
+        stage2.read(credential, ref, registered_only=False)
+        if stage2 is not None
+        else None
+    )
     stages = {}
     for number, (name, outputs) in STAGES.items():
         stages[number] = dict(
