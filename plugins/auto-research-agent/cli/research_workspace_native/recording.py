@@ -13,7 +13,13 @@ import math
 import time
 
 from stage1_deliverable.common import canonical, sha
+from stage1_retrieval import verification_clock
 from .store import JournalError, _require
+
+
+def _now():
+    """Business monotonic time: metered local verification is not counted."""
+    return time.monotonic() - verification_clock.excluded()
 
 
 class RecordingError(JournalError):
@@ -222,7 +228,7 @@ class RecordingChannel:
             type(timeout) in (int, float) and math.isfinite(timeout) and timeout >= 0,
             "finite nonnegative timeout required",
         )
-        deadline = time.monotonic() + timeout
+        deadline = _now() + timeout
         with self.store._lock:
             try:
                 seq = self._begin(
@@ -236,7 +242,7 @@ class RecordingChannel:
                 raise RecordingError(self.failure) from error
             try:
                 value = getattr(self.channel, operation)(
-                    argument, max(0, deadline - time.monotonic())
+                    argument, max(0, deadline - _now())
                 )
             except BaseException as error:
                 idle = operation == "read" and isinstance(error, TimeoutError)

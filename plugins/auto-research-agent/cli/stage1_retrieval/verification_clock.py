@@ -155,13 +155,3 @@ def excluded():
     """Seconds the active meter lets a business clock skip (0 without one)."""
     meter = _METER.get()
     return 0.0 if meter is None else meter.excluded()
-
-
-def monotonic():
-    """Business monotonic time: raw time minus allowed local verification."""
-    return time.monotonic() - excluded()
-
-
-def wall():
-    """Business Unix time for comparing saved business ``deadline_unix`` values."""
-    return time.time() - excluded()

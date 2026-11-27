@@ -9,11 +9,17 @@ from pathlib import Path
 import time
 
 from stage1_deliverable.common import canonical, sha
+from stage1_retrieval import verification_clock
 from .frame_journal import FrameJournal, _validated
 from .recording import RecordingChannel, records
 from .store import _require, _invalidate
 from .transport import JsonRpcTransport, _key, _encode
 from .runtime_spec import _thread_config
+
+
+def _now():
+    """Business monotonic time: metered local verification is not counted."""
+    return time.monotonic() - verification_clock.excluded()
 
 
 def _rpc_id(value):
@@ -350,26 +356,29 @@ class BootstrapContext:
                 message=message, raw_utf8=(_encode(message) + b"\n").decode(), step=step
             )
         if rpc_id is None:
-            self.transport.notify(method, timeout=max(0, deadline - time.monotonic()))
+            self.transport.notify(method, timeout=max(0, deadline - _now()))
         else:
             self.transport.send_request(
                 method,
                 params,
                 request_id=rpc_id,
-                timeout=max(0, deadline - time.monotonic()),
+                timeout=max(0, deadline - _now()),
             )
         self._written(first)
         if rpc_id is not None:
             reply = self.transport.wait_response(
-                rpc_id, timeout=max(0, deadline - time.monotonic())
+                rpc_id, timeout=max(0, deadline - _now())
             )
-            _require(time.monotonic() < deadline, "bootstrap RPC deadline expired")
+            _require(
+                _now() < deadline,
+                "bootstrap RPC deadline expired",
+            )
             _require(
                 "error" not in reply and isinstance(reply.get("result"), dict),
                 "bootstrap RPC rejected",
             )
             return reply["result"]
-        _require(time.monotonic() < deadline, "bootstrap RPC deadline expired")
+        _require(_now() < deadline, "bootstrap RPC deadline expired")
 
     def _fail(self, error):
         self.failure = "bootstrap failed; no automatic resend"

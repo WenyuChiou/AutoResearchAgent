@@ -29,13 +29,16 @@ class Deadline:
             raise TimeoutError("owned process lifetime expired")
         # The I/O timeout is a business bound (metered local verification is
         # excluded); the owned process lease stays a hard raw-clock bound.
-        self.until, self.lease = verification_clock.monotonic() + timeout, lease
+        self.until, self.lease = (
+            (time.monotonic() - verification_clock.excluded()) + timeout,
+            lease,
+        )
 
     def left(self):
         return max(
             0,
             min(
-                self.until - verification_clock.monotonic(),
+                self.until - (time.monotonic() - verification_clock.excluded()),
                 self.lease - time.monotonic(),
             ),
         )

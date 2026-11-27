@@ -17,6 +17,7 @@ import time
 import tomllib
 
 from stage1_deliverable.common import canonical, private_output, sha
+from stage1_retrieval.verification_clock import local_verification
 from .bootstrap import _account
 from .frame_journal import _validated
 from .process_deadline import SessionLeaseExpired
@@ -175,7 +176,11 @@ class StageModel:
         scope = (
             verification_pass() if callable(verification_pass) else nullcontext(source)
         )
-        with scope as checked_source:
+        manifest = self.context["manifest"]
+        files = len(manifest["plugin_files"]) + len(manifest["source_files"])
+        # Pure local origin/byte/inventory checks: excluded from business
+        # deadlines, bounded by their own budget (verification_clock).
+        with local_verification(files + len(self.pins)), scope as checked_source:
             return self._check_source_bytes(checked_source)
 
     def _check_source_bytes(self, source):

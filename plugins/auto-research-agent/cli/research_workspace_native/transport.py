@@ -3,7 +3,10 @@
 from copy import deepcopy
 import json
 import math
+
 import time
+
+from stage1_retrieval import verification_clock
 
 PROTOCOL_COMMIT = "b5d805789d4033c911868f49118a264a7ab3d067"
 SERVER_METHODS = {
@@ -11,6 +14,11 @@ SERVER_METHODS = {
     "item/commandExecution/requestApproval",
     "item/fileChange/requestApproval",
 }
+
+
+def _now():
+    """Business monotonic time: metered local verification is not counted."""
+    return time.monotonic() - verification_clock.excluded()
 
 
 class TransportError(ValueError):
@@ -47,7 +55,7 @@ def _deadline(timeout):
         type(timeout) in (int, float) and math.isfinite(timeout) and timeout >= 0,
         "finite nonnegative timeout required",
     )
-    return time.monotonic() + timeout
+    return _now() + timeout
 
 
 def _decode(raw):
@@ -201,7 +209,7 @@ class JsonRpcTransport:
                 raise TransportError(
                     "runtime binding failed before dispatch"
                 ) from error
-            remaining = deadline - time.monotonic()
+            remaining = deadline - _now()
             if remaining <= 0:
                 self._fail("write timeout; dispatch outcome unknown")
             try:
@@ -259,13 +267,13 @@ class JsonRpcTransport:
                 )
                 size = min(4096, self.max_message_bytes - len(self.buffer))
                 try:
-                    chunk = self.channel.read(size, max(0, deadline - time.monotonic()))
+                    chunk = self.channel.read(size, max(0, deadline - _now()))
                 except TimeoutError:
                     return None
                 _require(isinstance(chunk, bytes) and chunk, "connection ended")
                 _require(len(chunk) <= size, "channel exceeded read bound")
                 self.buffer += chunk
-                if time.monotonic() > deadline and b"\n" not in self.buffer:
+                if _now() > deadline and b"\n" not in self.buffer:
                     return None
             raw, self.buffer = self.buffer.split(b"\n", 1)
             _require(
@@ -356,7 +364,7 @@ class JsonRpcTransport:
         key, deadline = _key(request_id), _deadline(timeout)
         _require(key in self.pending or key in self.responses, "unknown client request")
         while key not in self.responses:
-            remaining = deadline - time.monotonic()
+            remaining = deadline - _now()
             if remaining <= 0:
                 self._fail("response timeout; dispatch outcome unknown")
             self.poll(remaining)
@@ -365,9 +373,7 @@ class JsonRpcTransport:
     def request(self, method, params, *, request_id, timeout=10):
         deadline = _deadline(timeout)
         self.send_request(method, params, request_id=request_id, timeout=timeout)
-        return self.wait_response(
-            request_id, timeout=max(0, deadline - time.monotonic())
-        )
+        return self.wait_response(request_id, timeout=max(0, deadline - _now()))
 
     def initialize(self, client_info, *, request_id, timeout=10):
         _require(not self.initialized, "already initialized")
