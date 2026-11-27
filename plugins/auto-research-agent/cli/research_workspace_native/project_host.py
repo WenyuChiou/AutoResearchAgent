@@ -1181,7 +1181,9 @@ class ProjectHandler(AtlasHandler):
                         models=self.server.project_models is not None,
                         stage2=self.server.project_stage2 is not None,
                         stage2_selection_projects=(
-                            list(self.server.project_stage2_selection.bindings)
+                            # list(mapping) also invokes the length hint, which
+                            # repeats discovery of the same controller bindings.
+                            list(iter(self.server.project_stage2_selection.bindings))
                             if self.server.project_stage2_selection is not None
                             else []
                         ),
