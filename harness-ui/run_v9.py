@@ -9,6 +9,7 @@ from build_v7 import canonical, sha
 from materials_http import install_materials
 from display_translations import load_translations, translation_script
 from review_reading import load_review_sources
+from current_chat_host import add_arguments as add_chat_arguments, install_wiki_chat, validate_options as validate_chat_options
 
 HERE = Path(__file__).resolve().parent
 MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage-connections.js', 'v9-stage3-bridge.js', 'v9-research-guide-contract.js', 'v9-research-guide-view.js', 'v9-research-guide.js', 'v9-stage3-materials.js', 'v9-stage3-feedback.js', 'v9-quantitative-contract.js', 'v9-quantitative-view.js', 'v9-quantitative-guide.js')
@@ -31,7 +32,9 @@ def main(argv=None):
     selection.add_argument('--display-translations', type=Path)
     selection.add_argument('--review-sources', type=Path)
     selection.add_argument('--review-sources-sha256')
+    add_chat_arguments(selection)
     selected, rest = selection.parse_known_args(sys.argv[1:] if argv is None else argv)
+    validate_chat_options(selected)
     state = private_directory(selected.ui_state_root)
     incoming = private_directory(selected.incoming_root)
     if not incoming.is_dir() or state.is_relative_to(incoming) or incoming.is_relative_to(state):
@@ -42,7 +45,14 @@ def main(argv=None):
 
     def install(host, assets, meta, project_handler, atlas_handler):
         original(host, assets, meta, project_handler, atlas_handler)
+        # Grant creation/reading is a Wiki route, so it also exists without a consent file.
+        from wiki_stage1_run_grant_http import install_stage1_run_grant
+
+        install_stage1_run_grant(
+            host, limits=meta['run_limits'], runtime_sha256=meta['harness_inventory_sha256'])
         install_materials(host, host.projects, state, incoming, review_sources=review_sources)
+        # Codex chat routes: off unless the operator passed --chat-config; never starts Codex by itself.
+        chat = install_wiki_chat(host, host.materials, selected)
         app = host._assets['/app.js']
         at = app.rfind(b'})();')
         if at < 0:
@@ -76,7 +86,9 @@ def main(argv=None):
             current_delivery_selection_configured=bool(host.project_stage2_selection and host.project_stage2_selection.bindings),
             stage3_planning_configured=bool(host.project_stage3_http and host.project_stage3_http.service.bindings),
             configuration_is_not_selection=True,
-            active_stage1='existing-bound-project-operations', model_permission='unchanged'))
+            active_stage1='existing-bound-project-operations', model_permission='unchanged'),
+            chat=dict(configured=chat.spec is not None, disabled_reason=getattr(chat, 'reason', None),
+                      read_only=True, research_execution=False, formal_selection=False))
         host.host_binding['served_files'] = {k:sha(v) for k,v in host._assets.items() if k != '/host-binding.json'}
         host._assets['/host-binding.json'] = canonical(host.host_binding)
 
