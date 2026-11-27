@@ -15,6 +15,7 @@ import time
 from stage1_coverage.run import CoverageLedger
 from stage1_deliverable.common import canonical, sha
 from stage1_ledger.validation import validate_run
+from stage1_retrieval import verification_clock
 from stage1_retrieval.runner import execute as execute_backend
 from .planned_queries import PlannedQueryService
 from .planned_query_contract import HASH, KEY, require, tree_sha
@@ -34,6 +35,19 @@ from .project_query_versions import archived_versions, current_budget
 from . import project_query_run as run_adapter
 
 FIELDS = BOUND_FIELDS | {"offer_ref", "offer_sha256", "confirmed"}
+
+
+def _bootstrap_live(deadline_unix, permit):
+    """Saved business deadline minus metered local verification; expiry is hard.
+
+    ``deadline_unix`` bounds the probe/I-O work (``bootstrap_probe_seconds``);
+    pure local integrity passes inside the worker's meter do not consume it.
+    The permit's ``expires_at_unix`` is compared with the raw clock.
+    """
+    return (
+        time.time() - verification_clock.excluded() < deadline_unix
+        and time.time() < permit["expires_at_unix"]
+    )
 
 
 class ProjectStage1QueryService:
@@ -464,7 +478,10 @@ class ProjectStage1QueryService:
                     )
                     run_adapter.check_job(self, principal, ref, job, permit)
                     deadline = job["deadline_unix"]
-                    require(time.time() < deadline, "project-query-bootstrap-expired")
+                    require(
+                        _bootstrap_live(deadline, permit),
+                        "project-query-bootstrap-expired",
+                    )
                 state["stage1_query_jobs"][key].update(deepcopy(change))
                 if run is not None:
                     state.setdefault("stage1_runs", {})[run["run_ref"]] = run
@@ -477,7 +494,7 @@ class ProjectStage1QueryService:
                 )
                 if deadline is not None:
                     require(
-                        not self.closing and time.time() < deadline,
+                        not self.closing and _bootstrap_live(deadline, permit),
                         "project-query-bootstrap-expired",
                     )
                 self.intake.db.commit()
@@ -664,6 +681,12 @@ class ProjectStage1QueryService:
         )
 
     def _bootstrap_worker(self, credential, ref, request_hash):
+        # Local integrity passes get their own file-count budget and do not
+        # consume the saved probe deadline; see stage1_retrieval.verification_clock.
+        with verification_clock.metering(verification_clock.Meter()):
+            self._bootstrap_attempt(credential, ref, request_hash)
+
+    def _bootstrap_attempt(self, credential, ref, request_hash):
         entered, service = False, None
         principal = self.intake._principal(credential)
         try:
@@ -678,7 +701,7 @@ class ProjectStage1QueryService:
                     "project-query-bootstrap-dispatch-unobserved",
                 )
                 require(
-                    time.time() < job["deadline_unix"],
+                    _bootstrap_live(job["deadline_unix"], authorization["permit"]),
                     "project-query-bootstrap-expired",
                 )
                 binding, permit = self._inspect_seal(
@@ -698,7 +721,8 @@ class ProjectStage1QueryService:
                 "project-query-bootstrap-output-exists",
             )
             require(
-                time.time() < job["deadline_unix"], "project-query-bootstrap-expired"
+                _bootstrap_live(job["deadline_unix"], permit),
+                "project-query-bootstrap-expired",
             )
             seed = CoverageLedger.create(
                 parent,
@@ -718,7 +742,7 @@ class ProjectStage1QueryService:
             seed.open_round()
             report = validate_run(parent)
             require(
-                report["valid"] and time.time() < job["deadline_unix"],
+                report["valid"] and _bootstrap_live(job["deadline_unix"], permit),
                 "project-query-bootstrap-replay-or-deadline",
             )
             parent_hash = tree_sha(parent)
