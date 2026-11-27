@@ -57,6 +57,35 @@ class RequestScopeTests(unittest.TestCase):
                 ri.tree_files(self.root)
             self.assertEqual(real.call_count, 1)
 
+    def test_chunked_hashing_matches_a_plain_per_file_reference_byte_for_byte(self):
+        import hashlib
+        import json
+
+        for index in range(150):  # more than two chunks of 64
+            folder = self.root / f"d{index % 7}"
+            folder.mkdir(exist_ok=True)
+            (folder / f"f{index}.py").write_bytes(b"x" * index)
+            (folder / f"g{index}.txt").write_bytes(b"y" * index)
+        for code_only in (False, True):
+            suffixes = {".py", ".pyw", ".pyc", ".pyd", ".so", ".dll", ".zip", ".pth"}
+            expected = {}
+            for path in sorted(self.root.rglob("*")):
+                if path.is_file() and (
+                    not code_only or path.suffix.lower() in suffixes
+                ):
+                    expected[str(path.resolve())] = hashlib.sha256(
+                        path.read_bytes()
+                    ).hexdigest()
+            actual = ri._tree_files(self.root, code_only=code_only)
+            self.assertEqual(actual, expected)
+            self.assertEqual(
+                json.dumps(sorted(actual.items())), json.dumps(sorted(expected.items()))
+            )
+            with ri.request_scope():
+                self.assertEqual(
+                    ri.tree_files(self.root, code_only=code_only), expected
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
