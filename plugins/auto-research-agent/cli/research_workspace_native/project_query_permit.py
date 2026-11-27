@@ -39,7 +39,7 @@ def project_basis(intake, ref):
     return binding, dict(_basis(binding), plan_sha256=tree_sha(binding["plan_root"]))
 
 
-def proposal(intake, ref, principal, config):
+def proposal(intake, ref, principal, config, *, runtime_digest=None):
     binding, basis = project_basis(intake, ref)
     settings = binding["settings"]
     require(
@@ -72,7 +72,11 @@ def proposal(intake, ref, principal, config):
         project_ref=ref,
         principal=principal,
         binding=basis,
-        runtime_sha256=configured_pin(config["pin"]),
+        runtime_sha256=(
+            configured_pin(config["pin"])
+            if runtime_digest is None
+            else runtime_digest()
+        ),
         execution_source_sha256=config["execution_source_sha256"],
         server_configuration_sha256=configuration_sha(config),
         limits=dict(
@@ -184,7 +188,22 @@ def inspect_seal(intake, ref, authorization, config, *, ready=True, run_grants=N
     )
     binding, basis = project_basis(intake, ref)
     principal = permit["principals"][0]
-    _, offered, _ = proposal(intake, ref, principal, config)
+    verified = []
+
+    def runtime_digest():
+        # One inspect_seal needs the runtime verified at two points of the SAME
+        # call (the offer it recomputes, and the final binding comparison). Only
+        # intake database reads and pure comparisons lie between them, so the
+        # first verification is reused inside this call; the result lives on this
+        # call stack only. Brackets around callbacks are separate inspect_seal
+        # calls and each still verifies on its own.
+        if not verified:
+            verified.append(configured_pin(config["pin"]))
+        return verified[0]
+
+    _, offered, _ = proposal(
+        intake, ref, principal, config, runtime_digest=runtime_digest
+    )
     require(
         decode(snapshot_raw, "query input snapshot")
         == {**offered, "kind": "ProjectQueryInputSnapshot"},
@@ -240,7 +259,7 @@ def inspect_seal(intake, ref, authorization, config, *, ready=True, run_grants=N
         type(binding["input_version"]) is int
         and permit["binding"]["project_input_version"] == binding["input_version"]
         and permit["binding"]["input_bytes_sha256"] == binding["brief_sha256"]
-        and configured_pin(config["pin"]) == permit["binding"]["runtime_sha256"]
+        and runtime_digest() == permit["binding"]["runtime_sha256"]
         and config["execution_source_root"]
         == permit["binding"]["execution_source_root"]
         and config["execution_source_sha256"]
