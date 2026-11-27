@@ -13,7 +13,14 @@ import sys
 import tempfile
 
 from stage1_deliverable.common import private_output, reject_links, safe_path
-from stage1_ledger.journal import LedgerError, canonical, decode, digest, utc_now
+from stage1_ledger.journal import (
+    MAX_MANIFEST_BYTES,
+    LedgerError,
+    canonical,
+    decode,
+    digest,
+    utc_now,
+)
 
 
 LOCK = ".writer-lock"
@@ -149,7 +156,7 @@ def _run_identity(root):
         "directory_file_id": info.st_ino,
         "physical_path_sha256": digest(os.path.normcase(str(root)).encode("utf-8")),
         "manifest_sha256": digest(
-            _read_file(safe_path(root, "run_manifest.json"), 262144)
+            _read_file(safe_path(root, "run_manifest.json"), MAX_MANIFEST_BYTES)
         ),
     }
 
@@ -506,7 +513,10 @@ def recover_writer_lock(run, expected_sha256):
     from stage1_ledger.contracts import check_manifest
 
     check_manifest(
-        decode(_read_file(safe_path(root, "run_manifest.json"), 262144), "manifest")
+        decode(
+            _read_file(safe_path(root, "run_manifest.json"), MAX_MANIFEST_BYTES),
+            "manifest",
+        )
     )
     lock = safe_path(root, LOCK)
     audit = safe_path(root.parent, f".{root.name}.writer-lock-recovery")
