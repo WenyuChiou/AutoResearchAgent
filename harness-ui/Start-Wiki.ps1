@@ -413,9 +413,17 @@ function Start-WikiMain {
         $proc = [System.Diagnostics.Process]::Start($psi)
         $procInfo = Get-ProcInfo $proc.Id
         if (-not $procInfo -or -not $procInfo.Created) {
-            # Cannot prove who this process is, so it cannot be recorded or safely stopped by id.
-            Write-Host '启动后读不到新进程的信息，无法登记它，按失败处理。' -ForegroundColor Red
-            Write-Host ('若任务管理器里有刚启动的 Wiki 进程（进程号 ' + $proc.Id + '），请手工结束它和它的子进程；日志：' + $StateDir)
+            # Its identity cannot be read back, so it cannot be recorded. It is the process this
+            # script just started and $proc is still open (so the id cannot have been reused),
+            # which makes it safe to end it right here instead of leaving it behind.
+            Write-Host '启动后读不到新进程的信息，无法登记它，按失败处理，并结束刚启动的这个进程。' -ForegroundColor Red
+            $res = Stop-Tree $proc.Id 0
+            if ($res.Ok) {
+                Write-Host '已结束它（没有留下记录）。再运行一次试试；日志：' -NoNewline
+                Write-Host $StateDir
+            } else {
+                Write-Host ('没能结束它（taskkill 退出码 ' + $res.Code + '）。请在任务管理器里手工结束进程号 ' + $proc.Id + ' 和它的子进程；日志：' + $StateDir) -ForegroundColor Red
+            }
             return 1
         }
         # Record the instance right away (before readiness), so an interrupted start leaves
