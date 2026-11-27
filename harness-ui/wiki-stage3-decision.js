@@ -118,7 +118,11 @@ function wikiS3DecModel(app) {
  if (wikiS3Dec.busy.has(rt.ref)) { out.why = '正在保存，请稍等'; return out; }
  if (rt.loading || v93.busy) { out.why = '正在读取保存记录'; return out; }
  if (rt.busy || rt.pending || rt.controlHeld) { out.why = rt.pending || rt.controlHeld ? '有一次提交的结果还没确认，先核对' : '正在保存，请稍等'; return out; }
- out.acceptWhy = wikiS3DecAcceptWhy(view, local && !local.ambiguous ? local : null);
+ // Judge 「接受」 on the plan version actually shown (review P2-3): when the binding names a revision the page does not
+ // hold, the parent plan says nothing about it, so the backend decides.
+ const revisionReceipt = hd.binding.plan_revision_receipt_sha256;
+ const shown = local && !local.ambiguous && local.receipt_sha256 === revisionReceipt ? local : null;
+ out.acceptWhy = revisionReceipt && !shown ? '' : wikiS3DecAcceptWhy(view, shown);
  return out;
 }
 

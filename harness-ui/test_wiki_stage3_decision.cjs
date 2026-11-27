@@ -325,3 +325,19 @@ test('review P2-2: a reason code that names an Object prototype member gets the 
   assert.doesNotMatch(t.text(), /native code|function/, code);
  }
 });
+
+test('review P2-3: 「接受」 is judged on the shown revision, not the parent plan', () => {
+ const incomplete = {...fullPlan, question_plans:[{method:'x'}]};
+ const revised = {...binding, plan_revision_receipt_sha256:H('9')};
+ // After a reload the page does not hold the revision: no client verdict from the (incomplete) parent plan.
+ let t = load({view:{plan:incomplete, host_decision:hdOf({binding:revised, has_manual_revision:true})}});
+ assert.doesNotMatch(t.html(), /value="accept" data-s3-dec-pick  disabled/);
+ assert.doesNotMatch(t.html(), /计划还有未填完的内容/);
+ // The page holds that revision: its plan is judged (complete here), not the parent's.
+ t = load({view:{plan:incomplete, host_decision:hdOf({binding:revised, has_manual_revision:true})}});
+ t.ctx.v94fContext = () => ({});
+ t.ctx.v94fState = () => ({records:[{receipt_sha256:H('9'), record:{kind:'revision', revision_number:2, plan:fullPlan}}]});
+ assert.doesNotMatch(t.html(), /value="accept" data-s3-dec-pick  disabled/);
+ t.ctx.v94fState = () => ({records:[{receipt_sha256:H('9'), record:{kind:'revision', revision_number:2, plan:incomplete}}]});
+ assert.match(t.html(), /value="accept" data-s3-dec-pick  disabled/, 'an incomplete shown revision is still grayed');
+});
