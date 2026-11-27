@@ -18,6 +18,7 @@ from research_workspace_native.project_stage2_controller_connections import (
 from research_workspace_native.project_stage_connections import (
     BindingTable,
     CONTROLLER_STAGE,
+    INPUT_STAGE,
     PLANNING_STAGE,
     SELECTION_STAGE,
 )
@@ -32,6 +33,7 @@ from stage2_workflow.ui_submission import valid_input_version
 
 ROUTE = re.compile(r"/api/projects/([A-Za-z0-9_-]{1,64})/stage2/continuation")
 CONNECTION_ROUTE = re.compile(r"/api/projects/([A-Za-z0-9_-]{1,64})/connections")
+INPUT_VIEW_ROUTE = re.compile(r"/api/projects/[A-Za-z0-9_-]{1,64}/(overview|stage2)")
 REQUEST_KEY = re.compile(r"[A-Za-z0-9_-]{1,128}")
 IDENTITY = ("project_ref", "project_id", "input_version", "brief_sha256")
 # The HTTP server has sixteen slots shared with ordinary reads. Only one
@@ -62,6 +64,35 @@ class WikiStage2Continuation:
         selection = host.project_stage2_selection
         if selection is not None and isinstance(selection.bindings, BindingTable):
             selection.bindings.controllers = self.connections
+
+    def register_input(self, credential, ref, body, check_deadline):
+        self.host.projects.read(credential, ref)
+        delivery = self.host.project_stage1_delivery
+        stage2 = self.host.project_stage2
+        _check(delivery is not None and stage2 is not None, "stage2-input-unconnected")
+        evidence = stage2.register_current(
+            ref,
+            credential=credential,
+            delivery=delivery,
+            check_deadline=check_deadline,
+            intent=body,
+        )
+        _check(
+            evidence["status"] == "received",
+            evidence.get("reason") or "stage2-input-unconnected",
+        )
+        return {
+            "project_ref": ref,
+            "connections": {
+                INPUT_STAGE: {
+                    "status": "connected",
+                    "reason": None,
+                    "connection_id": evidence["connection_id"],
+                    "receipt_id": evidence["receipt_id"],
+                }
+            },
+            "execution_authorized": False,
+        }
 
     def register_selection(self, credential, ref, body, check_deadline):
         self.host.projects.read(credential, ref)
@@ -400,6 +431,25 @@ def install_stage2_continuation(host, profile=None, *, planning_resources=None):
     inherited = host.RequestHandlerClass
 
     class Stage2ContinuationHandler(inherited):
+        def _reply(self, status, value):
+            match = (
+                INPUT_VIEW_ROUTE.fullmatch(self.path) if self.command == "GET" else None
+            )
+            if status == 200 and match:
+                stage2 = value.get("stage2") if match[1] == "overview" else value
+                if stage2 is not None:
+                    evidence = stage2.get("current_evidence", {})
+                    offer = evidence.get("offer")
+                    if (
+                        evidence.get("status") == "received"
+                        and offer is not None
+                        and offer not in stage2["offers"]
+                    ):
+                        # The base Host already authenticated and verified this read.
+                        # Keep its existing receiving-only offer presentation.
+                        stage2["offers"].append(offer)
+            return super()._reply(status, value)
+
         def do_GET(self):
             match = CONNECTION_ROUTE.fullmatch(self.path)
             if match:
@@ -453,32 +503,46 @@ def install_stage2_continuation(host, profile=None, *, planning_resources=None):
                         body = _decode(raw.decode("utf-8"))
                     except (ValueError, UnicodeError, RecursionError):
                         raise SessionApiError("invalid-json", 400) from None
+                    fields = {
+                        "key",
+                        "revision",
+                        "input_version",
+                        "brief_sha256",
+                        "stage",
+                        "confirmed",
+                    }
+                    input_stage = (
+                        type(body) is dict and body.get("stage") == INPUT_STAGE
+                    )
+                    if not input_stage:
+                        fields.add("profile_sha256")
                     _check(
                         type(body) is dict
-                        and set(body)
-                        == {
-                            "key",
-                            "revision",
-                            "input_version",
-                            "brief_sha256",
-                            "stage",
-                            "profile_sha256",
-                            "confirmed",
-                        }
+                        and set(body) == fields
                         and type(body["key"]) is str
                         and REQUEST_KEY.fullmatch(body["key"]) is not None
                         and type(body["revision"]) is int
                         and body["revision"] >= 0
                         and valid_input_version(body["input_version"])
                         and _hash(body["brief_sha256"])
-                        and body["stage"]
-                        in (CONTROLLER_STAGE, SELECTION_STAGE, PLANNING_STAGE)
-                        and _hash(body["profile_sha256"])
+                        and (
+                            type(body["input_version"]) is int
+                            if input_stage
+                            else (
+                                body["stage"]
+                                in (CONTROLLER_STAGE, SELECTION_STAGE, PLANNING_STAGE)
+                                and _hash(body["profile_sha256"])
+                            )
+                        )
                         and body["confirmed"] is True,
                         "stage2-controller-connection-intent-required",
                         400,
                     )
-                    if body["stage"] == SELECTION_STAGE:
+                    if input_stage:
+                        result = service.register_input(
+                            token, ref, body, self._remaining
+                        )
+                    elif body["stage"] == SELECTION_STAGE:
                         result = service.register_selection(
                             token, ref, body, self._remaining
                         )

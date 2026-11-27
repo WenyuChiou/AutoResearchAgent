@@ -53,7 +53,7 @@ from wiki_stage2_continuation import install_stage2_continuation
 
 
 @contextmanager
-def wiki(case, controllers=None):
+def wiki(case, controllers=None, *, connections=False):
     services = dict(
         projects=case.intake,
         credential=VIEWER,
@@ -79,6 +79,8 @@ def wiki(case, controllers=None):
         views=[],
         port=0,
     ) as host:
+        if connections:
+            install_stage2_continuation(host, services["stage2_controller_profile"])
         thread = threading.Thread(target=host.serve_forever)
         thread.start()
         try:
@@ -140,19 +142,77 @@ class CurrentConnectionTests(unittest.TestCase):
             )
             self.assertFalse(list((case.intake.root / ref).glob("s2r-*")))
             self.assertEqual(counts(case.intake), before)
-            legacy = current_evidence(
-                case.delivery,
-                VIEWER,
-                case.stage1.read(VIEWER, ref),
-                case.intake.read(VIEWER, ref),
-            )
-            self.assertEqual(legacy["status"], "received")
-            resources = (
-                case.intake._path(ref, "s2r-" + legacy["source_descriptor_sha256"][:32])
-                / "resources.txt"
-            )
-            original_resources = resources.read_bytes()
-            with wiki(case) as origin:
+
+            def snapshot():
+                state = case.intake._load(case.intake._principal(VIEWER), ref)
+                root = case.intake.root / ref
+                return (
+                    counts(case.intake),
+                    state["revision"],
+                    state.get("stage_connections", {}).get("stage2-input"),
+                    state.get("stage_connections", {}).get("stage2-selection"),
+                    {
+                        file.relative_to(root): file.read_bytes()
+                        for file in root.rglob("*")
+                        if file.is_file()
+                    },
+                )
+
+            initial = snapshot()
+            self.assertEqual(initial[2:4], (None, None))
+            with wiki(case, connections=True) as origin:
+                for _ in range(2):
+                    status, overview = request(origin, route + "/overview")
+                    self.assertEqual(status, 200, overview)
+                    self.assertEqual(overview["stage2"]["offers"], [])
+                    self.assertIsNone(
+                        overview["stage2"]["current_evidence"]["receipt_id"]
+                    )
+                    self.assertEqual(snapshot(), initial)
+            case.reopen()
+            service = ProjectStage2Service(case.intake)
+            with wiki(case, connections=True) as origin:
+                status, overview = request(origin, route + "/overview")
+                self.assertEqual(status, 200, overview)
+                self.assertEqual(snapshot(), initial)
+                intent = dict(
+                    key="confirm-current-input",
+                    revision=overview["project"]["revision"],
+                    input_version=overview["project"]["input_version"],
+                    brief_sha256=overview["project"]["brief_sha256"],
+                    stage="stage2-input",
+                    confirmed=True,
+                )
+                for target, body, expected_status in (
+                    (route, dict(intent, confirmed=False), 400),
+                    (route, dict(intent, input_version=True), 400),
+                    (route, dict(intent, input_version=2), 409),
+                    (route, dict(intent, revision=intent["revision"] - 1), 409),
+                    ("/api/projects/project-" + "0" * 32, intent, 404),
+                ):
+                    status, rejected = request(
+                        origin, target + "/connections", body=body
+                    )
+                    self.assertEqual(status, expected_status, rejected)
+                    self.assertEqual(snapshot(), initial)
+
+                status, explicit = request(origin, route + "/connections", body=intent)
+                self.assertEqual(status, 200, explicit)
+                self.assertFalse(explicit["execution_authorized"])
+                self.assertEqual(
+                    explicit["connections"]["stage2-input"]["receipt_id"], intent["key"]
+                )
+                registered = snapshot()
+                self.assertIsNotNone(registered[2])
+                self.assertIsNone(registered[3])
+                self.assertEqual(
+                    request(origin, route + "/connections", body=intent),
+                    (200, explicit),
+                )
+                self.assertEqual(snapshot(), registered)
+                [receiver] = list((case.intake.root / ref).glob("s2r-*"))
+                resources = receiver / "resources.txt"
+                original_resources = resources.read_bytes()
                 try:
                     resources.write_bytes(original_resources + b"tampered")
                     rejected = request(origin, route + "/stage2")[1]
@@ -162,13 +222,17 @@ class CurrentConnectionTests(unittest.TestCase):
                     )
                     self.assertIsNone(rejected["current_evidence"]["receipt_id"])
                     self.assertEqual(rejected["offers"], [])
-                    self.assertEqual(counts(case.intake), before)
+                    self.assertEqual(counts(case.intake), registered[0])
                 finally:
                     resources.write_bytes(original_resources)
                 status, overview = request(origin, route + "/overview")
                 self.assertEqual(status, 200, overview)
                 accepted = overview["stage2"]["current_evidence"]
                 self.assertEqual(accepted["status"], "received", accepted)
+                self.assertEqual(
+                    accepted["connection_id"],
+                    explicit["connections"]["stage2-input"]["connection_id"],
+                )
                 self.assertIs(type(accepted["input_version"]), int)
                 self.assertFalse(accepted["activation_allowed"])
                 self.assertEqual(

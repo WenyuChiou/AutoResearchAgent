@@ -113,7 +113,7 @@ def configure_services(services, args):
             bindings, ConnectionStore(projects, token), services["stage2_controllers"]
         ),
     )
-    stage2.receive_current = True
+    stage2.registered_only = True
     if getattr(args, "stage2_reading_config", None):
         from research_workspace_native.project_stage2_reading import (
             Stage2ReadingRegistry,

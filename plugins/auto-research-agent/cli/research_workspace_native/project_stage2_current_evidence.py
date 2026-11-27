@@ -18,7 +18,9 @@ RECEIVER = "stage2-current-project-receiver"
 
 
 def _blocked(view, reason):
-    return {**view, "status": "blocked", "reason": reason}
+    return dict(
+        view, status="blocked", reason=reason, connection_id=None, receipt_id=None
+    )
 
 
 def _reference(view, bound, binding, brief, native_run_id):
@@ -164,7 +166,7 @@ def current_evidence(
     *,
     check_deadline=None,
     on_received=None,
-    allow_publish=True,
+    allow_publish=False,
 ):
     """Return the current project's verified Stage 2 input or its actual blockers."""
     ref = project["project_ref"]
@@ -250,13 +252,22 @@ def current_evidence(
                         check_owner,
                         allow_publish=allow_publish,
                     )
-                    if result["status"] == "received" and on_received is not None:
-                        # The trusted connection writer uses its own intake
-                        # transactions. Keep the source owner and ledger locked
-                        # through that handoff; do not verify the package twice.
+                    if result["status"] != "received":
+                        return result
+                    if on_received is None:
+                        from .project_stage_connections import (
+                            ConnectionStore,
+                            verified_current_input,
+                        )
+
+                        return verified_current_input(
+                            ConnectionStore(intake, credential), result, binding, bound
+                        )
+                    if allow_publish:
+                        # A trusted writer uses its own intake transactions.
+                        # Keep the verified source protected through that handoff.
                         intake.db.rollback()
-                        return on_received(result, binding, bound)
-                    return result
+                    return on_received(result, binding, bound)
             finally:
                 intake.db.rollback()
     except SessionApiError as error:

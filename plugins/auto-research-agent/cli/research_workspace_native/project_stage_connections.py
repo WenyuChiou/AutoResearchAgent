@@ -11,6 +11,7 @@ from .project_intake import MAX_ACTIONS
 from .session_api import SessionApiError, _check
 
 
+INPUT_STAGE = "stage2-input"
 CONTROLLER_STAGE = "stage2-controller"
 SELECTION_STAGE = "stage2-selection"
 PLANNING_STAGE = "stage3-planning"
@@ -156,8 +157,7 @@ class ConnectionStore:
     ):
         """Trusted producer only; callers must verify the source before recording."""
         _check(
-            stage
-            in {"stage2-input", SELECTION_STAGE, CONTROLLER_STAGE, PLANNING_STAGE},
+            stage in {INPUT_STAGE, SELECTION_STAGE, CONTROLLER_STAGE, PLANNING_STAGE},
             "stage-connection-kind",
         )
         with self.intake._lock:
@@ -474,77 +474,142 @@ class BindingTable(Mapping):
         return sum(1 for _ in self)
 
 
-def register_current(
-    service, ref, *, credential, delivery, stage1=None, check_deadline=None
+def current_input(
+    service, ref, *, credential, delivery, stage1, check_deadline, intent=None
 ):
-    """Consume #524's verification while its source locks are still held."""
+    """Register the verified current input or replay an explicit saved request."""
     from .project_stage2_current_evidence import current_evidence
 
     intake = service.intake
     _check(delivery.intake is intake, "stage-connection-store-differs")
     with intake._lock:
         project = intake.read(credential, ref)
+        store = ConnectionStore(intake, credential)
+        principal = intake._principal(credential)
+        request_key = None
+        register = True
+        if intent is not None:
+            _check(
+                intent["confirmed"] is True
+                and type(project["input_version"]) is int
+                and type(intent["input_version"]) is int
+                and project["input_version"] == intent["input_version"]
+                and project["brief_sha256"] == intent["brief_sha256"],
+                "stage2-input-project-stale",
+            )
+            request_key = intent["key"]
+            previous = intake.db.execute(
+                "SELECT 1 FROM intake_actions WHERE principal=? AND project=? AND key=?",
+                (principal, ref, request_key),
+            ).fetchone()
+            if previous is None:
+                _check(project["revision"] == intent["revision"], "stale-revision")
+            else:
+                saved = store.resolve(ref, INPUT_STAGE)
+                _check(
+                    saved is not None and saved["receipt_id"] == request_key,
+                    "idempotency-payload-differs",
+                )
+                # A recognized retry may read the original outcome only.
+                register = False
         if stage1 is None:
             stage1 = delivery.stage1.read(credential, ref)
 
         def receive(evidence, binding, bound):
-            _check(
-                type(evidence["input_version"]) is int,
-                "stage-connection-integer-version-required",
-            )
-            source = evidence["source"]
-            root = intake._path(ref, "s2r-" + evidence["source_descriptor_sha256"][:32])
-            row = {
-                key: evidence[key]
-                for key in ("packet_id", "packet_sha256", "receipt_sha256")
-            }
-            offer = _current_offer(binding, bound, evidence, root)
-            row["offer_ref"] = offer["offer_ref"]
-            expected = {
-                key: binding[key]
-                for key in (
-                    "project_id",
-                    "input_version",
-                    "brief_sha256",
-                    "plan_manifest_sha256",
-                )
-            }
-            expected["settings_sha256"] = canonical_hash(binding["settings"])
-            record = ConnectionStore(intake, credential).record(
-                ref,
-                "stage2-input",
-                row,
-                derived_from=source,
-                check_deadline=check_deadline,
-                offer=offer,
-                expected_identity=expected,
-                expected_revision=evidence["revision"],
-            )
-            revision = intake.read(credential, ref)["revision"]
-            return dict(
+            return verified_current_input(
+                store,
                 evidence,
-                revision=revision,
-                stage1_atlas_url=(
-                    f"/api/projects/{ref}/stage1/atlas/{source['input_version']}/"
-                    f"{revision}/{source['artifact_ref']}/{source['manifest_sha256']}"
-                ),
-                connection_id=record["connection_id"],
-                receipt_id=record["receipt_id"],
-                activation_allowed=False,
-                offer=_public(offer),
+                binding,
+                bound,
+                register=register,
+                check_deadline=check_deadline,
+                request_key=request_key,
             )
 
-        result = current_evidence(
+        return current_evidence(
             delivery,
             credential,
             stage1,
             project,
             check_deadline=check_deadline,
             on_received=receive,
+            allow_publish=register,
         )
-        if result["status"] != "received":
-            return dict(result, connection_id=None, receipt_id=None)
-        return result
+
+
+def verified_current_input(
+    store,
+    evidence,
+    binding,
+    bound,
+    *,
+    register=False,
+    check_deadline=None,
+    request_key=None,
+):
+    """Bind the verified packet and offer to the original receiving-only connection."""
+    intake = store.intake
+    ref = evidence["project_ref"]
+    _check(
+        type(evidence["input_version"]) is int,
+        "stage-connection-integer-version-required",
+    )
+    source = evidence["source"]
+    root = intake._path(ref, "s2r-" + evidence["source_descriptor_sha256"][:32])
+    row = {
+        key: evidence[key] for key in ("packet_id", "packet_sha256", "receipt_sha256")
+    }
+    offer = _current_offer(binding, bound, evidence, root)
+    row["offer_ref"] = offer["offer_ref"]
+    if register:
+        expected = {
+            key: binding[key]
+            for key in (
+                "project_id",
+                "input_version",
+                "brief_sha256",
+                "plan_manifest_sha256",
+            )
+        }
+        expected["settings_sha256"] = canonical_hash(binding["settings"])
+        record = store.record(
+            ref,
+            INPUT_STAGE,
+            row,
+            derived_from=source,
+            check_deadline=check_deadline,
+            offer=offer,
+            expected_identity=expected,
+            expected_revision=evidence["revision"],
+            request_key=request_key,
+        )
+    else:
+        record = store.resolve(ref, INPUT_STAGE)
+        _check(record is not None, "stage2-current-input-registration-required")
+        state = intake._load(intake._principal(store.credential), ref)
+        _check(
+            canonical_hash(record["row"]) == canonical_hash(row)
+            and canonical_hash(record["derived_from"]) == canonical_hash(source),
+            "stage2-current-input-binding-differs",
+        )
+        _check(
+            canonical_hash(state.get("stage2_offers", {}).get(offer["offer_ref"]))
+            == canonical_hash(offer),
+            "stage-connection-offer-differs",
+        )
+    revision = intake.read(store.credential, ref)["revision"]
+    return dict(
+        evidence,
+        revision=revision,
+        stage1_atlas_url=(
+            f"/api/projects/{ref}/stage1/atlas/{source['input_version']}/"
+            f"{revision}/{source['artifact_ref']}/{source['manifest_sha256']}"
+        ),
+        connection_id=record["connection_id"],
+        receipt_id=record["receipt_id"],
+        activation_allowed=False,
+        offer=_public(offer),
+    )
 
 
 def _current_offer(binding, bound, evidence, root):
