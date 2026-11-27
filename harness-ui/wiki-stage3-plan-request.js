@@ -6,7 +6,9 @@
 // …/recover needs a recovery pin trusted by the Host (recovery_pin_available) and never dispatches again.
 // The request key is fixed by the service, so a repeated prepare or run returns the saved job instead of a second
 // dispatch; nothing here retries on its own.
-const wikiS3Req = {busy:'', error:null, ref:null, check:false, inspected:null};
+// unknown: a run sent from this page whose answer never came back (network, timeout); kept per topic so leaving and
+// returning cannot bring the grant card back. Only a read-only inspect settles it (review P1-2).
+const wikiS3Req = {busy:'', error:null, ref:null, check:false, inspected:null, unknown:null};
 
 function wikiS3ReqLimits() {
  const calls = rt.meta?.run_limits?.model_calls;
@@ -44,6 +46,9 @@ function wikiS3RequestLine(view) {
   buttons:[inspect, ...(view.recovery_pin_available ? [{label:'从已保存结果恢复', act:'recover', gate:lock}] : []), read]};
  if (job?.status === 'completed' && job.outcome === 'failed') return {tone:'err', tag:'规划失败', detail, text:'规划已失败，原失败记录会保留', buttons:[{label:'看失败记录', act:'failure'}]};
  if (job?.status === 'completed' && job.outcome === 'saved') return {tone:'run', tag:'计划已保存', detail, text:'计划已保存，正在读取', buttons:[read]};
+ const unknown = wikiS3Req.unknown?.ref === rt.ref && (!job || job.status === 'intent-recorded') && job?.request_sha256 === wikiS3Req.unknown.sha ? wikiS3Req.unknown : null;
+ if (unknown) return {tone:'warn', tag:'结果未知', detail:[unknown.code, ...detail],
+  text:'刚才的生成请求没有收到回答，结果还不清楚：模型可能已经调用过。不会重发；先只读核对', buttons:[inspect, read]};
  if (error) return {tone:error.refused ? 'warn' : 'err', tag:error.refused ? '被拦下' : '出错', detail,
   text:(error.refused ? '请求被拒绝：服务没有接受这一步，原来的记录没有变。' : '这一步没有完成；已保存的内容没有丢。') + '原因代码在技术细节里，不会自动重发。', buttons:[read]};
  // A timeout or I/O failure after the run was accepted is an unknown outcome (DESIGN 8.0), never "blocked".
@@ -88,10 +93,14 @@ async function wikiS3PlanAction(app, act) {
   const returned = answer?.kind === 'ProjectStage3PlanningSubmission' ? answer.job : answer;
   if (!returned || returned.project_ref !== ref || returned.key !== request.key) throw Error('stage3-planning-receipt-differs');
   if (act === 'inspect' || act === 'recover') wikiS3Req.inspected = returned;
+  if (act === 'inspect' && wikiS3Req.unknown?.ref === ref) wikiS3Req.unknown = null; // the read-only check answered
   wikiS3Req.check = false;
  } catch (error) {
+  const code = String(error.message || error), refused = Number.isInteger(error.status) && error.status >= 400 && error.status < 500;
+  // A run without a clear refusal may have reached the model: unknown outcome, the tick is cleared, no resend.
+  if (act === 'run') { wikiS3Req.check = false; if (!refused) wikiS3Req.unknown = {ref, sha:body.request_sha256, code}; }
   if (epoch !== rt.epoch || ref !== rt.ref) return;
-  wikiS3Req.error = {code:String(error.message || error), refused:Number.isInteger(error.status) && error.status >= 400 && error.status < 500};
+  if (!(act === 'run' && !refused)) wikiS3Req.error = {code, refused};
  } finally {
   if (wikiS3Req.ref === ref) wikiS3Req.busy = '';
  }

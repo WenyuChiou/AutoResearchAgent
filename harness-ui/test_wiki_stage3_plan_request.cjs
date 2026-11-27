@@ -86,9 +86,30 @@ test('a refused run is reported as blocked, a failure as an error; neither is re
  let row = line(ctx);
  assert.equal(row.tag, '被拦下');
  assert.match(row.text, /不会自动重发/);
- ctx.answer = () => { throw Error('Failed to fetch'); };
- await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
- assert.equal(line(ctx).tag, '出错');
+});
+
+test('review P1-2: a run with no answer (network, 5xx) is an unknown outcome: tick cleared, only the read-only check, no resend', async () => {
+ for (const failure of [Error('Failed to fetch'), Object.assign(Error('HTTP 502'), {status:502})]) {
+  const sha = 'c'.repeat(64);
+  const {ctx, posts} = load({view:{job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+  vm.runInContext('wikiS3Req.check = true', ctx);
+  ctx.answer = () => { throw failure; };
+  await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
+  // The re-read still says intent-recorded (the service may not have written yet).
+  let row = line(ctx);
+  assert.equal(row.tag, '结果未知', failure.message);
+  assert.equal(row.grant, undefined, 'no grant card, so no one-click resend');
+  assert.equal(row.buttons.map(b => b.act).join(), 'inspect,read');
+  assert.equal(vm.runInContext('wikiS3Req.check', ctx), false, 'the tick is cleared');
+  assert.doesNotMatch(ctx.wikiS3RequestMarkup(ctx.v93.view), /data-s3-plan="run"/, 'no run button on the page');
+  // The read-only check answers intent-recorded: the grant card comes back, unticked.
+  ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'intent-recorded'});
+  await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
+  assert.equal(posts[1].p, '/api/projects/project-p/stage3/planning/inspect');
+  row = line(ctx);
+  assert.equal(row.tag, '等你授权');
+  assert.equal(row.grant.gate, '请先勾选确认');
+ }
 });
 
 test('inspect is read-only and its answer is shown; a receipt for another key is refused', async () => {
