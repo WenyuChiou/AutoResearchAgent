@@ -305,7 +305,7 @@ assert.match(fold, /我已审阅这条证据/);
 // names files as the project files page does and sends downloads there (checked download, 8.1). No invented files.
 rt.atlas = null;
 let materials = ctx.wsMaterialsTab({});
-assert.match(materials, /不会自动标记为已读、已纳入或已批准/);
+assert.doesNotMatch(materials, /ws-strip/, 'the 加入文件 card carries this sentence; no second copy above it');
 assert.match(materials, /data-ws-materials-slot/);
 assert.match(ctx.wsMaterialsDownloads(), /文献包还没有生成，这里还没有可下载的文件/);
 rt.atlas = {files:[{path:'references.bib', sha256:'a'.repeat(64)}, {path:'wiki/' + 'b'.repeat(64) + '.md', sha256:'c'.repeat(64)}]};
@@ -315,4 +315,21 @@ assert.match(downloads, /逐篇笔记 1/);
 assert.doesNotMatch(downloads, /bbbbbbbb/, 'no stored path in the text');
 assert.match(downloads, /data-page="files">去项目文件下载/);
 assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里改/);
+// Review P2-3: the saved-materials header only says "saved with original bytes" when there is something saved.
+{
+ const block = fs.readFileSync(path.join(__dirname,'wiki-stage1-materials.js'),'utf8');
+ const v1 = block.slice(block.indexOf('// ---------- Wiki V1 materials panel'));
+ const app = {lang:'zh', page:'workspace', stage:1};
+ const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '',
+  wsTag:(k, l) => `<tag>${l}</tag>`, wsBtn:(l, a, r) => `<button ${a}>${l}</button>${r || ''}`, wsMaterialsDownloads:() => '',
+  m9:{catalog:{materials:[], operations:[], drafts:[]}, busy:false, error:'', status:'', target:{}, notes:{}, sourcePath:'', importPath:'', packetHash:''},
+  m9Current:() => mc.m9.catalog.materials, m9Draft:() => null});
+ vm.runInContext(v1, mc);
+ assert.match(mc.m9Panel(app), /还没有登记材料。/);
+ assert.match(mc.m9Panel(app), /不会自动标记为已读、已纳入或已批准/);
+ assert.doesNotMatch(mc.m9Panel(app), /已按原始字节保存/);
+ mc.m9.catalog.materials.push({id:'file-1', kind:'manual-file', status:'registered', name:'a.pdf', stage:1, bytes:2048, registered_at:'2026-11-27T08:00:00Z'});
+ assert.match(mc.m9Panel(app), /1 份。文件已按原始字节保存，没有启动研究。/);
+ assert.match(mc.m9Panel(app), /data-n9-file="file-1"/);
+}
 console.log('PASS Stage 1 ops: scope page, auto-advance states, run table, delivery decision, paper card, evidence review, materials.');

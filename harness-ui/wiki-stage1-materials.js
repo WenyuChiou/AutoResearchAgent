@@ -18,7 +18,6 @@ function wsMaterialsDownloads() {
 function wsMaterialsTab(app) {
  if (wsReadonly()) return `<section class="wiki-s1-card" data-wiki-ops="materials"><h2>材料</h2>${wsArchiveNote}</section>`;
  return `<section class="wiki-s1-card ws-materials" data-wiki-ops="materials" aria-label="材料">
- <p class="ws-strip">手动登记的材料保留原件、版本和所属阶段。登记后可以恢复、核验、准备接续；<b>不会自动标记为已读、已纳入或已批准</b>。</p>
  <div data-ws-materials-slot></div></section>`;
 }
 const wsMaterialsPrevResults = wikiS1Results;
@@ -123,7 +122,7 @@ m9Panel = function (app) {
   <section class="ws-m9-card"><div class="ws-m9-head"><h3>加入文件</h3><label class="ws-m9-pick ${m9.busy ? 'off' : ''}">选择阶段材料<input type="file" multiple data-n9-upload aria-label="选择阶段材料" accept="${wsM9Accept}" ${m9.busy ? 'disabled' : ''}></label></div>
    <p class="wiki-s1-muted">你自己登记的材料保留原件、版本和所属阶段。登记后可以恢复、核验、准备接续；不会自动标记为已读、已纳入或已批准。每个文件最多 128 MiB；压缩包按原样保存，不解包、不执行。</p>
    ${m9.busy ? '<small class="ws-why">正在保存，请稍等</small>' : ''}${progress}</section>
-  <section class="ws-m9-card ws-m9-flush"><div class="ws-m9-head"><h3>已保存的材料</h3><small class="wiki-s1-muted">${materials.length} 份。文件已按原始字节保存，没有启动研究。</small></div>${table}
+  <section class="ws-m9-card ws-m9-flush"><div class="ws-m9-head"><h3>已保存的材料</h3><small class="wiki-s1-muted">${materials.length ? materials.length + ' 份。文件已按原始字节保存，没有启动研究。' : '还没有登记材料。'}</small></div>${table}
    <p class="wiki-s1-muted ws-m9-foot">同名同内容再传一次会写「已经登记过，没有重复」；超过 128 MiB 写「超过 128 MiB」；别的课题的材料不会出现在这里。</p></section>
   ${importFold}
   <div class="ws-m9-two"><section class="ws-m9-card"><h3>${app.stage === 1 ? '文献包里的文件' : '这一段的交付文件'}</h3>${files}</section>
