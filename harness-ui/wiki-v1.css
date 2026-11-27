@@ -201,3 +201,51 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-v1]) { padding:0; backgrou
 #harness-trace-workbench-v6 [data-v1] .ws-m9-draft :is(select,textarea), #harness-trace-workbench-v6 [data-v1] .ws-m9-fields input { font:inherit; font-size:15px; font-weight:400; min-height:44px; padding:8px 12px; border:1px solid var(--v1-line2); border-radius:8px; background:#fff; }
 #harness-trace-workbench-v6 [data-v1] .ws-m9-import > summary { min-height:44px; display:flex; align-items:center; font-weight:700; cursor:pointer; }
 #harness-trace-workbench-v6 [data-v1] .ws-m9-fields { display:grid; gap:10px; max-width:640px; }
+
+/* Narrow screens (<= 900px, same breakpoint the stage CSS files already use): the 232px sidebar folds into a sticky
+   top bar with a menu button, the main column takes the full width, and anything wide scrolls inside its own box.
+   No separate mobile design (DESIGN 11 leaves it open); this only keeps everything readable and operable.
+   The button is hidden above 900px, so desktop rendering is unchanged. */
+#harness-trace-workbench-v6 [data-v1] .v1-menu-btn { display:none; }
+@media (max-width:900px) {
+ #harness-trace-workbench-v6 .hs-product[data-v1] .hs-shell { display:block; background:#f7f6f1; }
+ #harness-trace-workbench-v6 [data-v1] .v1-side { position:sticky; top:0; z-index:40; height:auto; max-height:100vh; flex-direction:row; flex-wrap:wrap; align-items:center; gap:4px; padding:8px 16px; }
+ #harness-trace-workbench-v6 [data-v1] .v1-side > * { flex:1 0 100%; }
+ #harness-trace-workbench-v6 [data-v1] .v1-side > .v1-brand { flex:1 1 auto; padding:0; min-width:0; }
+ #harness-trace-workbench-v6 [data-v1] .v1-menu-btn { display:inline-flex; flex:none; align-items:center; justify-content:center; gap:8px; min-height:44px; min-width:44px; padding:0 16px; border:1px solid #3c5a70; border-radius:8px; background:var(--v1-navy2); color:#fff; font:inherit; font-size:16px; cursor:pointer; }
+ #harness-trace-workbench-v6 [data-v1] .v1-menu-btn:focus-visible { outline:3px solid #9cc3f0; outline-offset:2px; }
+ #harness-trace-workbench-v6 [data-v1] .v1-menu-btn::after { content:"▾"; font-size:14px; }
+ #harness-trace-workbench-v6 [data-v1] .v1-menu-btn[aria-expanded="true"]::after { content:"▴"; }
+ #harness-trace-workbench-v6 [data-v1] .v1-side:not([data-open]) > :not(.v1-brand,.v1-menu-btn) { display:none; }
+ #harness-trace-workbench-v6 [data-v1] .v1-side[data-open] { overflow:auto; }
+ #harness-trace-workbench-v6 [data-v1] .v1-side[data-open] > .v1-foot { margin-top:0; }
+ #harness-trace-workbench-v6 .hs-product[data-v1] .hs-main { padding:0 16px 32px; }
+ #harness-trace-workbench-v6 [data-v1] .hs-topbar { position:relative; flex-wrap:wrap; gap:8px 12px; margin-bottom:16px; }
+ #harness-trace-workbench-v6 [data-v1] .v1-crumb { flex-wrap:wrap; flex:1 1 220px; }
+ #harness-trace-workbench-v6 [data-v1] .v1-switch { position:static; min-width:0; max-width:100%; }
+ #harness-trace-workbench-v6 [data-v1] .v1-switch > summary { max-width:100%; }
+ #harness-trace-workbench-v6 [data-v1] .v1-menu { left:0; right:0; width:auto; top:100%; }
+ #harness-trace-workbench-v6 [data-v1] .v1-top-right { flex-wrap:wrap; gap:8px; }
+ #harness-trace-workbench-v6 [data-v1] .v1-status { grid-template-columns:minmax(0,1fr); }
+ #harness-trace-workbench-v6 [data-v1] .v1-status > div { padding:12px 16px; }
+ #harness-trace-workbench-v6 [data-v1] .v1-status > div + div { border-left:0; border-top:1px solid var(--v1-line); }
+ #harness-trace-workbench-v6 [data-v1] .v1-you { border-radius:0 0 8px 0; }
+ #harness-trace-workbench-v6 [data-v1] .v1-panel, #harness-trace-workbench-v6 [data-v1] .ws-m9-card { padding:16px; }
+ #harness-trace-workbench-v6 [data-v1] :is(.v1-two,.ws-m9-two) { grid-template-columns:minmax(0,1fr); }
+ #harness-trace-workbench-v6 [data-v1] .hs-heading h1, #harness-trace-workbench-v6 [data-v1] .v1-head h1 { font-size:24px; overflow-wrap:anywhere; }
+ #harness-trace-workbench-v6 [data-v1] details.wiki-record > summary { grid-template-columns:minmax(0,1fr); gap:6px; }
+ #harness-trace-workbench-v6 [data-v1] .wiki-record { flex-wrap:wrap; }
+ #harness-trace-workbench-v6 [data-v1] .wiki-record-counts { justify-content:flex-start; }
+ #harness-trace-workbench-v6 [data-v1] .v1-kv tbody th, #harness-trace-workbench-v6 [data-v1] .v1-kv td:nth-child(2) { width:auto; }
+ #harness-trace-workbench-v6 [data-v1] .hs-main :is(p,li,td,th,dd,dt,label,summary) { font-size:max(16px,1em); }
+ #harness-trace-workbench-v6 [data-v1] .hs-main :is(.v1-link,.v1-btn.sm,.v1-switch > summary,select,input:not([type="checkbox"],[type="radio"])) { min-height:44px; }
+ #harness-trace-workbench-v6 [data-v1] .hs-main table:not(.v1-table,.ws-m9-table,.wiki-home-table) { display:block; max-width:100%; overflow-x:auto; }
+ #harness-trace-workbench-v6 [data-v1] .hs-main table thead th { white-space:nowrap; }
+ #harness-trace-workbench-v6 [data-v1] .hs-main :is(img,svg,canvas,iframe,video,pre) { max-width:100%; }
+ #harness-trace-workbench-v6 [data-v1] .hs-main pre { overflow-x:auto; }
+ #harness-trace-workbench-v6 .hs-product[data-v1] .hs-main { padding-bottom:80px; }
+ /* The Codex chat tab is a fixed strip on the right edge on desktop; on a narrow screen it would sit on the text, so it
+    becomes a small pill in the bottom corner (the main column keeps room for it). */
+ #harness-trace-workbench-v6 [data-v1] .wc-tab { top:auto; bottom:12px; right:12px; transform:none; min-height:44px; padding:0 16px; border:1px solid var(--v1-line2); border-radius:22px; flex-direction:row; box-shadow:0 4px 14px rgba(25,47,64,.16); }
+ #harness-trace-workbench-v6 [data-v1] .wc-tab :is(span,small) { writing-mode:horizontal-tb; letter-spacing:0; }
+}
