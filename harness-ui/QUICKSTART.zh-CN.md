@@ -41,7 +41,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File harness-ui\Start-Wiki.ps1 -O
 
 ## 现在的限制
 
-- 一键脚本只有零额度模式，`-Real` 会直接报错。要真实运行 Stage 1，直接给 `harness-ui/run_v9.py` 加参数（`python harness-ui/run_v9.py --help` 有完整说明）：查询运行时和材料根、公开来源、内容模型加 Codex。这些参数只是注册，不是授权，每一步仍要在页面里授权；开启后自动检索会花额度。
+- 一键脚本只有零额度模式，`-Real` 会直接报错。要真实运行 Stage 1，直接给 `harness-ui/run_v9.py` 加参数（`python harness-ui/run_v9.py --help` 有完整说明）：查询运行时和材料根、公开来源、内容模型加 Codex。这些参数只是注册，不是授权，每一步仍要在页面里授权；开启后自动检索会花额度。要让整轮自动推进，再加 `--enable-stage1-run`（需要内容模型和公开来源），然后在 Stage 1 页的「运行许可与授权理由」里写下你的理由并确认，创建运行许可；命令行的 `--stage1-run-request` 不再支持，启动时会被拒绝。
 - 零额度下可以新建课题、写范围、导入已有检索规划，但**拿不到文献**：没有检索，账本里就没有来源，「导入已保存的来源包」的入口还没有。
 - Stage 2、Stage 3 需要的运行配置，这个脚本没有传，默认不启用。
 - 唯一入口是 `run_v9.py`（`Start-Wiki.ps1` 是它的零额度一键启动）。旧启动器 `run-project-workspace.py` 只为兼容保留，不再推荐，不支持的参数 `run_v9.py` 会在启动时拒绝并说明。
