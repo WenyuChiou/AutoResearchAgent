@@ -50,7 +50,7 @@ function Add-Result {
 
 # Run a native program with a timeout; never throws for a non-zero exit code.
 function Invoke-Native {
-    param([string]$File, [string[]]$ArgList = @(), [int]$TimeoutMs = 20000)
+    param([string]$File, [string[]]$ArgList = @(), [int]$TimeoutMs = 20000, [string]$WorkDir = '')
     $parts = @()
     foreach ($a in $ArgList) {
         if ($a -match '[\s"]' -or $a -eq '') { $parts += ('"' + ($a -replace '"', '\"') + '"') } else { $parts += $a }
@@ -67,6 +67,7 @@ function Invoke-Native {
     $psi.CreateNoWindow = $true
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
+    if ($WorkDir) { $psi.WorkingDirectory = $WorkDir }
     try {
         $proc = [System.Diagnostics.Process]::Start($psi)
     } catch {
@@ -108,9 +109,14 @@ for m in ('jsonschema', 'docx', 'openpyxl', 'sqlite3'):
         miss.append(m)
 print(json.dumps({'v': list(sys.version_info[:3]), 'exe': sys.executable, 'missing': miss}))
 "@
+# The import test uses the same rules as Start-Wiki.ps1 (no -I): packages installed
+# for the current user count, exactly as they will when the Wiki starts. It runs in a
+# neutral directory so nothing in the current folder can shadow a module.
 $candidates = New-Object System.Collections.ArrayList
 if ($Python) { [void]$candidates.Add(@($Python)) }
 if ($env:ARA_PYTHON) { [void]$candidates.Add(@($env:ARA_PYTHON)) }
+$repoVenv = Join-Path $script:Repo '.venv\Scripts\python.exe'
+if (Test-Path -LiteralPath $repoVenv -PathType Leaf) { [void]$candidates.Add(@($repoVenv)) }
 $pyLauncher = Get-Command py -ErrorAction SilentlyContinue
 if ($pyLauncher) {
     foreach ($ver in @('-3.12', '-3.11', '-3')) { [void]$candidates.Add(@($pyLauncher.Source, $ver)) }
@@ -125,7 +131,7 @@ foreach ($cand in $candidates) {
     $file = $cand[0]
     $pre = @()
     if ($cand.Count -gt 1) { $pre = @($cand[1..($cand.Count - 1)]) }
-    $r = Invoke-Native $file ($pre + @('-I', '-c', $probe))
+    $r = Invoke-Native $file ($pre + @('-c', $probe)) 20000 ([System.IO.Path]::GetTempPath())
     if ($r.Started -and $r.Code -eq 0) {
         try { $info = $r.Out | ConvertFrom-Json } catch { continue }
         if ($seen.ContainsKey($info.exe)) { continue }
@@ -152,25 +158,46 @@ if ($found.Count -eq 0) {
         Add-Result 'python-modules' 'Python 模块（jsonschema、docx、openpyxl、sqlite3）' '必需' $true '全部可导入' '' $good.exe
     } else {
         $req = Join-Path $script:Repo 'harness-ui\requirements.txt'
-        Add-Result 'python-modules' 'Python 模块（jsonschema、docx、openpyxl、sqlite3）' '必需' $false ('缺少：' + (@($pick.missing) -join '、')) ('建议先建虚拟环境，再运行：& "' + $pick.exe + '" -m pip install -r "' + $req + '"（本脚本不会替你安装）')
+        Add-Result 'python-modules' 'Python 模块（jsonschema、docx、openpyxl、sqlite3）' '必需' $false ('缺少：' + (@($pick.missing) -join '、')) ('在仓库根目录依次运行这两行（建专用虚拟环境，并用同一个 Python 安装；本脚本不会替你装，装好后 doctor 和 Start-Wiki 会自动用 .venv）：& "' + $pick.exe + '" -m venv .venv ; .\.venv\Scripts\python.exe -m pip install -r "' + $req + '"')
     }
 }
 
 # ---- 4. Frontend vendor file -------------------------------------------------
 $vendor = Join-Path $script:Repo 'harness-ui\renderer\vendor\three.core.js'
+$vendorFix = '在仓库根目录运行一句：python harness-ui\setup_vendor.py （联网下载并校验固定哈希；没有网络时加 --from-file <已有的 three.core.js>）'
 if (Test-Path -LiteralPath $vendor -PathType Leaf) {
-    Add-Result 'vendor' '前端依赖 three.core.js' '必需' $true $vendor
+    $wantSha = $null
+    try { $wantSha = ((Get-Content -LiteralPath (Join-Path $script:Repo 'harness-ui\renderer\vendor\three.core.provenance.json') -Raw -Encoding UTF8) | ConvertFrom-Json).archive_member_sha256 } catch { }
+    $haveSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $vendor).Hash.ToLower()
+    if ($wantSha -and $haveSha -ne $wantSha) {
+        Add-Result 'vendor' '前端依赖 three.core.js' '必需' $false '文件存在，但哈希和仓库记录的不一致（文件损坏或版本不对）' $vendorFix
+    } else {
+        Add-Result 'vendor' '前端依赖 three.core.js' '必需' $true $vendor
+    }
 } else {
-    Add-Result 'vendor' '前端依赖 three.core.js' '必需' $false '文件不存在，没有它 Wiki 启动会失败' ('在仓库根目录运行：python harness-ui\setup_vendor.py（联网下载并校验固定哈希）；没有网络时用 --from-file <已有的 three.core.js> 复制，脚本同样校验哈希')
+    Add-Result 'vendor' '前端依赖 three.core.js' '必需' $false '文件不存在（它被 Git 忽略，克隆后默认没有），没有它 Wiki 起不来' $vendorFix
 }
 
 # ---- 5. Node (frontend tests only) ----------------------------------------------
-$node = Get-Command node -ErrorAction SilentlyContinue
-if ($node) {
-    $nv = Invoke-Native $node.Source @('--version')
-    Add-Result 'node' 'Node.js' '仅前端测试' $true $nv.Out
+$nodeExe = $null
+$nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+if ($nodeCmd) { $nodeExe = $nodeCmd.Source }
+if (-not $nodeExe -and $env:ARA_NODE -and (Test-Path -LiteralPath $env:ARA_NODE -PathType Leaf)) { $nodeExe = $env:ARA_NODE }
+if (-not $nodeExe) {
+    foreach ($base in @($env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:LOCALAPPDATA)) {
+        if ($base) {
+            $guess = Join-Path $base 'nodejs\node.exe'
+            if (Test-Path -LiteralPath $guess -PathType Leaf) { $nodeExe = $guess; break }
+        }
+    }
+}
+if ($nodeExe) {
+    $nv = Invoke-Native $nodeExe @('--version')
+    $where = ''
+    if (-not $nodeCmd) { $where = '（不在 PATH 里，用完整路径调用：& "' + $nodeExe + '" harness-ui\test_xxx.cjs）' }
+    Add-Result 'node' 'Node.js' '仅前端测试' $true ($nv.Out + $where) '' $nodeExe
 } else {
-    Add-Result 'node' 'Node.js' '仅前端测试' $false '找不到 node（只有跑前端测试 harness-ui\test_*.cjs 时才需要，启动 Wiki 不需要）' '需要时安装 Node.js 22（winget install OpenJS.NodeJS.LTS）'
+    Add-Result 'node' 'Node.js' '仅前端测试' $false '找不到 node（只有跑前端测试 harness-ui\test_*.cjs 时才需要，启动 Wiki 不需要）' '需要时安装 Node.js 22（winget install OpenJS.NodeJS.LTS），或设置环境变量 ARA_NODE 指向已有的 node.exe'
 }
 
 # ---- 6. Data directory ----------------------------------------------------------
@@ -211,11 +238,15 @@ if ($len -le 60) {
 }
 
 $probeDir = $dataFull
+$blockingFile = $null
 while ($probeDir -and -not (Test-Path -LiteralPath $probeDir -PathType Container)) {
+    if (Test-Path -LiteralPath $probeDir -PathType Leaf) { $blockingFile = $probeDir; break }
     $parent = [System.IO.Directory]::GetParent($probeDir)
     if ($parent) { $probeDir = $parent.FullName } else { $probeDir = $null }
 }
-if (-not $probeDir) {
+if ($blockingFile) {
+    Add-Result 'data-writable' '数据目录可写' '必需' $false ('路径里已经有一个同名的普通文件：' + $blockingFile + '，不能再当目录用') '用 -DataDir 另选一个目录（或先把这个文件移走），例如 C:/ara'
+} elseif (-not $probeDir) {
     Add-Result 'data-writable' '数据目录可写' '必需' $false '找不到任何已存在的上级目录' '换一个 -DataDir'
 } else {
     $probePath = Join-Path $probeDir ('.ara-doctor-' + [guid]::NewGuid().ToString('N') + '.tmp')
