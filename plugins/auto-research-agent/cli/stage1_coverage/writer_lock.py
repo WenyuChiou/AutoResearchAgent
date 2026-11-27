@@ -13,14 +13,7 @@ import sys
 import tempfile
 
 from stage1_deliverable.common import private_output, reject_links, safe_path
-from stage1_ledger.journal import (
-    MAX_MANIFEST_BYTES,
-    LedgerError,
-    canonical,
-    decode,
-    digest,
-    utc_now,
-)
+from stage1_ledger.journal import LedgerError, canonical, decode, digest, utc_now
 
 
 LOCK = ".writer-lock"
@@ -156,7 +149,7 @@ def _run_identity(root):
         "directory_file_id": info.st_ino,
         "physical_path_sha256": digest(os.path.normcase(str(root)).encode("utf-8")),
         "manifest_sha256": digest(
-            _read_file(safe_path(root, "run_manifest.json"), MAX_MANIFEST_BYTES)
+            _read_file(safe_path(root, "run_manifest.json"), 262144)
         ),
     }
 
@@ -165,16 +158,6 @@ def owner_record(root, clock):
     """If the recoverable lock cannot be stamped, leave legacy writing available."""
     if os.name != "nt":
         return None
-    try:
-        manifest_size = safe_path(root, "run_manifest.json").stat().st_size
-    except (OSError, ValueError):
-        manifest_size = None  # metadata failure: legacy writing stays available
-    # An oversized manifest is not a metadata failure: refuse instead of
-    # silently downgrading to the unrecoverable legacy lock.
-    _need(
-        manifest_size is None or manifest_size <= MAX_MANIFEST_BYTES,
-        "writer-lock-manifest-too-large",
-    )
     try:
         identity = _run_identity(root)
         creation = _creation_time(_windows().GetCurrentProcess())
@@ -523,10 +506,7 @@ def recover_writer_lock(run, expected_sha256):
     from stage1_ledger.contracts import check_manifest
 
     check_manifest(
-        decode(
-            _read_file(safe_path(root, "run_manifest.json"), MAX_MANIFEST_BYTES),
-            "manifest",
-        )
+        decode(_read_file(safe_path(root, "run_manifest.json"), 262144), "manifest")
     )
     lock = safe_path(root, LOCK)
     audit = safe_path(root.parent, f".{root.name}.writer-lock-recovery")

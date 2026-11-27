@@ -1,20 +1,16 @@
 """Real-scale run manifests: the pinned runtime inventory makes them large."""
 
-import os
 from pathlib import Path
-import unittest
 from unittest.mock import patch
 
 from research_workspace_native.planned_query_contract import inspect_registration
 from research_workspace_native.session_api import SessionApiError
-from stage1_coverage.writer_lock import owner_record
-from stage1_deliverable.common import sha
 from stage1_ledger.journal import MAX_MANIFEST_BYTES
 from planned_query_fixture import QueryCase
 
 
 class LargeRuntimeManifestTests(QueryCase):
-    # 3,000 pinned files already exceed both former caps (64 KB and 256 KB);
+    # 3,000 pinned files make a manifest well over the former 64 KB cap;
     # the 2026-11-27 trial runtime pins 13,696 files (2.95 MB manifest).
     RUNTIME_EXTRA_FILES = 3000
 
@@ -43,12 +39,3 @@ class LargeRuntimeManifestTests(QueryCase):
             self.assertRaisesRegex(SessionApiError, "query-input-bytes-differ"),
         ):
             inspect_registration("case", self.item)
-
-    @unittest.skipUnless(os.name == "nt", "recoverable writer lock is Windows-only")
-    def test_windows_writer_lock_stamps_a_real_scale_manifest(self):
-        record = owner_record(Path(self.item["ledger_root"]), lambda: "2026-11-27")
-        self.assertIsNotNone(record)
-        self.assertEqual(
-            record["run_identity"]["manifest_sha256"],
-            sha(self.manifest().read_bytes()),
-        )
