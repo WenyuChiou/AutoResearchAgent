@@ -629,6 +629,13 @@ def check_plan(plan, *, intake=None):
         "blocked_questions": sorted(blocked),
         "execution_authorized": False,
     }
-    if plan["schema_version"] == "1.1.0":
+    if plan["schema_version"] in {"1.1.0", "1.2.0"}:
         result["resolution_schedule"] = conditions["resolution_schedule"]
+    if plan["schema_version"] == "1.2.0":
+        from .step_content import step_diagnostics
+
+        steps = step_diagnostics(plan)
+        result["issues"].extend(steps["issues"])
+        result["structural_valid"] = not result["issues"]
+        result["step_warnings"] = steps["warnings"]
     return result
