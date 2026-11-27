@@ -24,6 +24,9 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
                 raise SessionApiError("project-not-found", 404)
             return dict(deepcopy(self.view), planning_mode="direction-intent")
 
+        self.view["job"]["planning_status"] = "draft"
+        self.view["plan"]["planning_status"] = "draft"
+        self.rebind()
         self.service = SimpleNamespace(
             intake=SimpleNamespace(_lock=threading.RLock()),
             bindings={"authored-ref": {"jobs": self.jobs}},
@@ -71,7 +74,8 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
         self.assertIs(record["execution_authorized"], False)
         self.assertIs(record["stage2_selection_change_required"], False)
         self.assertEqual(
-            record["accept_condition"], "every-question-plan-has-all-content-fields"
+            record["accept_condition"],
+            "job-planning-status-draft-or-ready+plan-planning-status-present-and-not-needs-information+every-question-plan-has-all-content-fields",
         )
         self.assertFalse(reply["replayed"])
         before = self.journal_state()
@@ -214,7 +218,7 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
         self.assertEqual(status, 200, reply)
         self.assertEqual(
             reply["record"]["accept_condition"],
-            "job-planning-status-draft+every-question-plan-has-all-content-fields",
+            "job-planning-status-draft-or-ready+plan-planning-status-present-and-not-needs-information+every-question-plan-has-all-content-fields",
         )
         # intent-only decisions are never gated by the review status
         self.view["job"]["planning_status"] = "needs-information"
@@ -256,8 +260,44 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
                 if expected == 200:
                     self.assertEqual(
                         reply["record"]["accept_condition"],
-                        "structurally-valid-with-no-blocked-question",
+                        "job-planning-status-draft-or-ready+structurally-valid-with-no-blocked-question",
                     )
+
+    def test_accept_is_refused_when_the_saved_status_is_missing(self):
+        before = self.journal_state()
+        for label, mutate in (
+            ("job status", lambda: self.view["job"].pop("planning_status")),
+            ("plan status", lambda: self.view["plan"].pop("planning_status")),
+        ):
+            with self.subTest(label):
+                mutate()
+                self.rebind()
+                status, reply = self.post(
+                    self.decision("missing-" + label.replace(" ", "-"))
+                )
+                self.assertEqual(
+                    (status, reply["error"]),
+                    (409, "stage3-decision-planning-status-missing"),
+                )
+                self.assertEqual(self.journal_state(), before)
+                self.view["job"]["planning_status"] = "draft"
+                self.view["plan"]["planning_status"] = "draft"
+                self.rebind()
+        # intent-only decisions do not need it
+        self.view["job"].pop("planning_status")
+        status, reply = self.post(self.decision("intent", "revise-then-review", "x"))
+        self.assertEqual(status, 200, reply)
+
+    def test_ready_for_plan_review_and_unknown_job_statuses(self):
+        for key, value, expected in (
+            ("ready", "ready-for-plan-review", 200),
+            ("failed", "failed", 409),
+            ("odd", "something-new", 409),
+        ):
+            with self.subTest(value):
+                self.view["job"]["planning_status"] = value
+                status, reply = self.post(self.decision(key))
+                self.assertEqual(status, expected, reply)
 
     def test_bad_shapes_are_refused_before_any_write(self):
         before = self.journal_state()

@@ -157,31 +157,41 @@ def read_decisions(jobs, ref, view):
     }
 
 
+READY_STATUSES = ("draft", "ready-for-plan-review")
+
+
 def accept_condition(plan, job=None):
     """The strongest readiness test this build can make from the saved views.
 
-    Returns ``(ok, name)``; ``name`` lists every signal used. Signals:
-    - ``job.planning_status`` (saved with the plan; it is ``needs-information``
-      when the plan says so or when the independent design review found any
-      question not adequately answerable): anything but ``draft`` refuses;
-    - the plan's own ``planning_status`` (``needs-information`` refuses);
-    - a direction plan needs every content field filled in every question plan; a
-      full plan must pass ``check_plan`` with no blocked question.
+    Returns ``(ok, name, reason)``; ``name`` lists every signal used and
+    ``reason`` is the refusal code when ``ok`` is false. Signals:
+    - ``job.planning_status`` MUST be present (it is saved with the plan and is
+      ``needs-information`` when the plan says so or when the independent design
+      review found a question not adequately answerable) and must be ``draft`` or
+      ``ready-for-plan-review``; a missing status refuses;
+    - a direction plan carries its own ``planning_status``: it must be present
+      and not ``needs-information``; every question plan must have all content
+      fields filled;
+    - a full plan must pass ``check_plan`` with no blocked question.
     A saved human-readable review file is not read by this build, so none is
     required or claimed.
     """
-    used = []
-    ok = True
+    used = ["job-planning-status-draft-or-ready"]
     status = (job or {}).get("planning_status")
-    if status is not None:
-        used.append("job-planning-status-draft")
-        ok = ok and status == "draft"
-    if plan.get("planning_status") is not None:
-        used.append("plan-planning-status-not-needs-information")
-        ok = ok and plan["planning_status"] != "needs-information"
+    if status is None:
+        return False, "+".join(used), "stage3-decision-planning-status-missing"
+    if status not in READY_STATUSES:
+        return False, "+".join(used), "stage3-decision-plan-not-ready"
     if plan.get("kind") == "Stage3DirectionPlanningResult":
+        own = plan.get("planning_status")
+        used.append("plan-planning-status-present-and-not-needs-information")
+        if own is None:
+            return False, "+".join(used), "stage3-decision-planning-status-missing"
+        if own == "needs-information":
+            return False, "+".join(used), "stage3-decision-plan-not-ready"
         plans = plan.get("question_plans")
-        ok = ok and (
+        used.append("every-question-plan-has-all-content-fields")
+        ok = (
             type(plans) is list
             and bool(plans)
             and all(
@@ -193,12 +203,11 @@ def accept_condition(plan, job=None):
                 for row in plans
             )
         )
-        used.append("every-question-plan-has-all-content-fields")
     else:
         check = check_plan(plan)
-        ok = ok and bool(check["structural_valid"]) and not check["blocked_questions"]
         used.append("structurally-valid-with-no-blocked-question")
-    return ok, "+".join(used)
+        ok = bool(check["structural_valid"]) and not check["blocked_questions"]
+    return ok, "+".join(used), None if ok else "stage3-decision-plan-not-ready"
 
 
 def check_shape(body):
@@ -267,8 +276,8 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
         **POLICY,
     }
     if body["decision"] == "accept":
-        ok, name = accept_condition(revised or view["plan"], view.get("job"))
-        _check(ok, "stage3-decision-plan-not-ready", 409)
+        ok, name, reason = accept_condition(revised or view["plan"], view.get("job"))
+        _check(ok, reason, 409)
         record["accept_condition"] = name
         record["independent_review_required_by_this_build"] = False
     pending = {
