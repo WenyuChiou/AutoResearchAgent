@@ -164,7 +164,7 @@ function wikiS3DecMarkup(app) {
    ? '核对时没有找到这次的记录，说明没有保存。原请求不会重发；如果还要保存，请重新确认（会用新的编号）。'
    : wikiS3Dec.unknown.note || '保存的结果还不清楚。不会自动重发；先只读核对。',
   `<div class="wiki-s2-actions"><button type="button" class="hs-button" data-s3-dec="check" ${v93.busy ? 'disabled' : ''}>${wikiS3Dec.unknown.absent ? '知道了' : '只读核对'}</button></div>`) + tech([wikiS3Dec.unknown.code]);
- else if (state.error) result = line('warn', '被拦下', (wikiS3DecCodes[state.error.code] || '服务拒绝了这次保存，原因代码在技术细节里。') + '没有留下任何记录。') + tech([state.error.code]);
+ else if (state.error) result = line('warn', '被拦下', (Object.hasOwn(wikiS3DecCodes, state.error.code) ? wikiS3DecCodes[state.error.code] : '服务拒绝了这次保存，原因代码在技术细节里。') + '没有留下任何记录。') + tech([state.error.code]);
  if (m.notice) result += line(m.notice.tone, m.notice.tag, m.notice.text) + tech([m.notice.code]);
  if (state.versionChanged && !busy) result += line('warn', '计划已变', '计划已经变了，之前的确认作废；请看过当前这版再重新确认。');
  const summary = state.summarySaved?.ref === rt.ref && m.view?.host_decision?.omitted ? state.summarySaved : null;

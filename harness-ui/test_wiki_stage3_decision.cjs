@@ -314,3 +314,14 @@ test('review P2-1: a confirmation is bound to the shown plan version; a new vers
  assert.equal(t.posts.length, 1);
  assert.equal(t.posts[0].body.plan_revision_receipt_sha256, H('9'));
 });
+
+test('review P2-2: a reason code that names an Object prototype member gets the generic wording', async () => {
+ for (const code of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+  const t = load();
+  t.ctx.answer = () => { throw Object.assign(Error(code), {status:409}); };
+  t.pick('return-to-stage2');
+  await t.save();
+  assert.match(t.text(), /服务拒绝了这次保存，原因代码在技术细节里。没有留下任何记录。/, code);
+  assert.doesNotMatch(t.text(), /native code|function/, code);
+ }
+});
