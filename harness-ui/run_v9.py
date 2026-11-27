@@ -11,8 +11,7 @@ from display_translations import load_translations, translation_script
 from review_reading import load_review_sources
 
 HERE = Path(__file__).resolve().parent
-MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage-connections.js', 'v9-stage3-bridge.js', 'v9-research-guide-contract.js', 'v9-research-guide-view.js', 'v9-research-guide.js', 'v9-stage3-materials.js', 'v9-stage3-feedback.js', 'v9-quantitative-contract.js', 'v9-quantitative-view.js', 'v9-quantitative-guide.js',
-           'wiki-harness-record.js', 'wiki-home.js', 'wiki-stage1.js', 'wiki-stage1-ops.js', 'wiki-stage1-materials.js', 'wiki-stage2.js', 'wiki-stage3.js', 'wiki-v1.js')
+MODULES = ('stage2_display.js', 'v9-i18n.js', 'v9-route-language.js', 'v9-workbench.js', 'v9-materials.js', 'v9-review-reading.js', 'v9-continuation.js', 'v9-stage-connections.js', 'v9-stage3-bridge.js', 'v9-research-guide-contract.js', 'v9-research-guide-view.js', 'v9-research-guide.js', 'v9-stage3-materials.js', 'v9-stage3-feedback.js', 'v9-quantitative-contract.js', 'v9-quantitative-view.js', 'v9-quantitative-guide.js', 'wiki-harness-record.js', 'wiki-home.js', 'wiki-stage1.js', 'wiki-stage1-ops.js', 'wiki-stage1-materials.js', 'wiki-stage2.js', 'wiki-stage3.js', 'wiki-v1.js')
 
 
 def private_directory(path):
