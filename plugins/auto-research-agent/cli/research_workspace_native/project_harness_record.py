@@ -45,8 +45,13 @@ _READ_ERRORS = (
     RecursionError,
 )
 TEMPORARY_FILES = (
-    "While reading, Stage 1 verification may create and remove a .writer-lock file "
-    "inside the Stage 1 ledger folder; no other file is created and nothing remains."
+    "Reading leaves no persistent write, but reading Stage 2 briefly holds the Stage 1 "
+    "writer lock: it takes a SQLite write transaction and exclusively creates "
+    ".writer-lock in the Stage 1 ledger folder, removed when the read ends. A "
+    "concurrent write request is refused while it is held, and a process killed in "
+    "the middle of the read can leave the lock behind. Stage 1 and Stage 3 reads do "
+    "not create it. Requests for the three stages queue on the same intake lock, so "
+    "a page should read them one at a time, not in parallel."
 )
 
 

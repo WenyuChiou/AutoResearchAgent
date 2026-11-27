@@ -1,6 +1,7 @@
 """The Harness record summary is read-only and never invents a number."""
 
 # ruff: noqa: E402 -- exercise the plugin and ordinary Wiki composition together.
+import contextlib
 from contextlib import ExitStack
 from pathlib import Path
 import sys
@@ -148,12 +149,80 @@ class HarnessRecordTests(unittest.TestCase):
                     all(name == ".writer-lock" for name in created), created
                 )
                 self.assertFalse(
-                    list((case.intake.root).rglob(".writer-lock")),
+                    (Path(data["ledger"].root) / ".writer-lock").exists(),
                     "the temporary lock must be gone after the read",
                 )
                 status, _ = request(origin, route + "/stage-9")
                 self.assertGreaterEqual(status, 400)
                 _ = _json
+
+    def test_stage_two_read_holds_the_writer_lock_and_blocks_a_concurrent_writer(self):
+        import pathlib
+        import threading
+
+        from stage1_coverage.run import CoverageLedger
+        from stage1_ledger.journal import LedgerError
+
+        with (
+            patch("test_project_stage1_delivery.authenticate", authenticate),
+            ExitStack() as fixture,
+        ):
+            data = fixture.enter_context(current_core_stage1_case(screened=True))
+            case, ref = data["case"], data["project_ref"]
+            ledger = data["ledger"]
+            route = f"/api/projects/{ref}/harness-record"
+            held, release = threading.Event(), threading.Event()
+            real_writing = CoverageLedger.writing
+
+            @contextlib.contextmanager
+            def hold(self_, *args, **kwargs):
+                with real_writing(self_, *args, **kwargs):
+                    held.set()
+                    release.wait(60)
+                    yield
+
+            created = []
+            real_open = pathlib.Path.open
+
+            def watching(self_, mode="r", *args, **kwargs):
+                if any(flag in mode for flag in "xwa"):
+                    created.append(self_.name)
+                return real_open(self_, mode, *args, **kwargs)
+
+            reply = []
+            with wiki(case, connections=True) as origin:
+                with (
+                    patch.object(CoverageLedger, "writing", hold),
+                    patch.object(pathlib.Path, "open", watching),
+                ):
+                    reader = threading.Thread(
+                        target=lambda: reply.append(request(origin, route + "/stage-2"))
+                    )
+                    reader.start()
+                    try:
+                        self.assertTrue(
+                            held.wait(120), "Stage 2 read never took the lock"
+                        )
+                        self.assertTrue(
+                            (Path(ledger.root) / ".writer-lock").exists(),
+                            "lock must exist during the read",
+                        )
+                        # A concurrent writer is refused with an explicit reason.
+                        with self.assertRaisesRegex(LedgerError, "writer-locked"):
+                            with real_writing(ledger):
+                                pass
+                    finally:
+                        release.set()
+                        reader.join(180)
+                self.assertEqual(reply[0][0], 200, reply)
+                self.assertIn(".writer-lock", created)
+                self.assertFalse(
+                    (Path(ledger.root) / ".writer-lock").exists(),
+                    "the lock must be gone after the read",
+                )
+                # and afterwards a writer is admitted again
+                with real_writing(ledger):
+                    pass
 
     def test_failure_classes_and_scope(self):
         self.assertEqual(_classify("project-unavailable"), "wrong-project")
