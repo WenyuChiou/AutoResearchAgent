@@ -161,4 +161,12 @@ assert.match(draw(base({panel_state:'other-turn', can_send:false, other_turn:{pr
 const archive = draw(null, {archive:true, phase:'idle'});
 assert.match(archive, /这是历史归档（或合成样例），不能在这里改/); assert.doesNotMatch(archive, /data-wc-send/);
 
+// 9. A state value from the service never reaches an attribute unescaped (review P2-1).
+{
+ const hostile = draw(base({panel_state:'x" onmouseover="alert(1)', can_send:false}));
+ assert.doesNotMatch(hostile, /" onmouseover="/);
+ assert.match(hostile, /data-wc-state="x&quot; onmouseover=&quot;alert\(1\)"/);
+ assert.match(hostile, /对话许可没有通过核对，界面只读，发送关闭/, 'an unknown state is read-only and says why');
+}
+
 console.log('PASS Wiki chat drawer: 11 states, byte limit, quota, readable rows, turn endings, ask card, gray reasons.');

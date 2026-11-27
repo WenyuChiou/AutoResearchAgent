@@ -200,7 +200,7 @@ function wikiChatMarkup(c, p, ctl, state) {
  const toolFold = `<details class="wc-fold"><summary>本阶段的 Harness 工具声明</summary><p class="wc-grey">V1 的对话只读。列出的工具只代表声明，不代表已连接；任何会写入的操作（登记交付、保存评审）都不在对话里做。</p>${tools.length ? `<ul>${tools.map(t => `<li>${esc(wikiChatToolNames[t] || '只读工具')}</li>`).join('')}</ul>` : ''}</details>`;
  const rows = wikiChatTechRows(state, ctl);
  const tech = `<details class="wc-fold wc-tech" data-wc-techfold ${rows.length && ctl.techOpen ? 'open' : ''}><summary>技术细节</summary>${rows.length ? `<table>${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td><code class="${ctl.notice?.code === v ? 'wc-mark' : ''}">${esc(v)}</code></td></tr>`).join('')}</table>` : '<p class="wc-grey">没有原始记录。</p>'}</details>`;
- return `<aside class="wc-drawer" data-wc-drawer data-wc-state="${p.key}" aria-label="Codex 对话" ${ctl.open ? '' : 'hidden'}>
+ return `<aside class="wc-drawer" data-wc-drawer data-wc-state="${esc(p.key)}" aria-label="Codex 对话" ${ctl.open ? '' : 'hidden'}>
   <header class="wc-head"><div><h2>${esc(wikiChatAssistants[c.stage])}</h2><p class="wc-where">${title} · Stage ${c.stage}</p><p class="wc-sub">${esc(subtitle)}</p></div><button type="button" class="wc-btn sm" data-wc-close>收起</button></header>
   <div class="wc-state" role="status"><i class="wc-dot ${p.dot}"></i><b>${esc(p.label)}</b></div>
   ${p.note ? `<p class="wc-note">${esc(p.note)}</p>` : ''}${where}${recheck || settings ? `<div class="wc-actions">${recheck}${settings}</div>` : ''}${notice}${quota}
