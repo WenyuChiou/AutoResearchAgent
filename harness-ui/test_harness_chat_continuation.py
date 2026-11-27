@@ -123,7 +123,8 @@ class ContinuationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="continuation-fixture-")
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        # Resolved so a system temp folder behind a link (macOS /var -> /private/var) is not refused as a linked path.
+        self.root = Path(self.temp.name).resolve()
         self.chat = self.root / "original-owner"
         self.chat.mkdir()
         self.owner = self.chat / "conversations.sqlite3"

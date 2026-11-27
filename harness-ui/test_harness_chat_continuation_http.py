@@ -8,6 +8,7 @@ budget ledger, and a ``--chat-root`` that must never be created.
 # ruff: noqa: E402 -- the plugin and Wiki use repository-local imports.
 import hashlib
 import hmac
+import os
 from pathlib import Path
 import sqlite3
 import sys
@@ -130,6 +131,8 @@ class ContinuationHttp(unittest.TestCase):
         private.mkdir()
         key = b"0123456789abcdef0123456789abcdef"
         (private / "synthetic.key").write_bytes(key)
+        if os.name != "nt":
+            (private / "synthetic.key").chmod(0o600)
         request = dict(
             kind="V9ChatContinuationPermissionCheck",
             contract_sha256=pin,

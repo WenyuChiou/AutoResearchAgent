@@ -11,7 +11,12 @@ import time
 import unittest
 from unittest.mock import patch
 
-from harness_chat_permit import PermitError, canonical, load_permit_verifier
+from harness_chat_permit import (
+    PermitError,
+    _private_key_path,
+    canonical,
+    load_permit_verifier,
+)
 
 
 TEMP_ROOT = Path(tempfile.gettempdir()) / "ara-chat-tests"
@@ -267,9 +272,12 @@ class PermitTests(unittest.TestCase):
                 self.rejects_load(code)
 
     def test_key_must_be_in_explicit_private_directory(self):
-        other = self.root / "public.key"
-        other.write_bytes(self.key)
-        self.rejects_load("chat-permit-private-key-directory-required", key_path=other)
+        # A synthetic path: a real temp folder may itself sit under a "private" component
+        # (macOS resolves /var to /private/var), which would satisfy the directory rule.
+        with self.assertRaisesRegex(
+            PermitError, "^chat-permit-private-key-directory-required$"
+        ):
+            _private_key_path(Path("/opt/keys/public.key"))
 
     def test_key_cannot_live_in_git_checkout(self):
         (self.root / ".git").write_text("gitdir: elsewhere", encoding="utf-8")
