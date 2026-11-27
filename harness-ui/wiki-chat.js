@@ -326,30 +326,49 @@ async function wikiChatAnswer(app, turnId) {
   if (!text || wikiChatBytes(text) > wikiChatAnswerBytes) { ctl.notice = {tone:'warn', text:'每个问题都要回答，每个答复最多 4096 字节', code:''}; wikiChatPaint(app); return; }
   value[q.id] = text;
  }
+ const key = ctl.key;
  ctl.sending = true; ctl.notice = null; wikiChatPaint(app);
- try { await wikiChatPost('answer', {turn_id:turnId, request_id:pending.id, request_sha256:pending.sha256, value}); }
- catch (exception) { wikiChatFail(app, exception, '答复 Codex 的结果还没确认，不会自动重发。'); }
+ try {
+  await wikiChatPost('answer', {turn_id:turnId, request_id:pending.id, request_sha256:pending.sha256, value});
+  // Until the re-read comes back the card must not accept a second click.
+  if (key === ctl.key) pending.answer = value;
+ } catch (exception) { if (key !== ctl.key) return; wikiChatFail(app, exception, '答复 Codex 的结果还没确认，不会自动重发。'); }
+ if (key !== ctl.key) return;
  ctl.sending = false; wikiChatPaint(app); wikiChatLoad(app, true);
 }
 
 async function wikiChatDecline(app, turnId) {
  const ctl = wikiChatCtl(app), pending = wikiChatTurns(ctl.state).find(t => t.id === turnId)?.pending;
  if (!pending || ctl.sending) return;
+ const key = ctl.key;
  ctl.sending = true; wikiChatPaint(app);
- try { await wikiChatPost('answer', {turn_id:turnId, request_id:pending.id, request_sha256:pending.sha256, value:false}); }
- catch (exception) { wikiChatFail(app, exception, '拒绝请求的结果还没确认，不会自动重发。'); }
+ try {
+  await wikiChatPost('answer', {turn_id:turnId, request_id:pending.id, request_sha256:pending.sha256, value:false});
+  if (key === ctl.key) pending.answer = false;
+ } catch (exception) { if (key !== ctl.key) return; wikiChatFail(app, exception, '拒绝请求的结果还没确认，不会自动重发。'); }
+ if (key !== ctl.key) return;
  ctl.sending = false; wikiChatPaint(app); wikiChatLoad(app, true);
 }
 
 async function wikiChatSimple(app, route, turnId, done) {
  const ctl = wikiChatCtl(app);
  if (ctl.sending || !turnId) return;
+ const key = ctl.key;
  ctl.sending = true; ctl.notice = null; wikiChatPaint(app);
- try { done(await wikiChatPost(route, {turn_id:turnId})); }
- catch (exception) {
+ try {
+  const value = await wikiChatPost(route, {turn_id:turnId});
+  if (key !== ctl.key) return;
+  // Show the saved result at once; the re-read below confirms it.
+  const turns = wikiChatTurns(ctl.state), at = turns.findIndex(t => t.id === turnId);
+  if (at >= 0 && route === 'stop' && value?.status) turns[at] = Object.assign({}, turns[at], {status:value.status});
+  if (at >= 0 && route === 'reconcile' && value?.id === turnId && value.status) turns[at] = value;
+  done(value);
+ } catch (exception) {
+  if (key !== ctl.key) return;
   if (route === 'reconcile' && /native-turn-not-returned/.test(exception.code || '')) ctl.reconciled[turnId] = '找不到那一轮的记录。保留原记录，不会重发；要继续请开新对话。';
   else wikiChatFail(app, exception, route === 'stop' ? '中断请求的结果还没确认，不会自动重发。' : '核对没有成功，原提交仍未确认。');
  }
+ if (key !== ctl.key) return;
  ctl.sending = false; wikiChatPaint(app); wikiChatLoad(app, true);
 }
 
@@ -385,7 +404,7 @@ function wikiChatSync(app) {
  }
  const stop = root.querySelector('[data-wc-stop]'), stopNote = root.querySelector('[data-wc-stop-note]');
  if (stop) {
-  stop.hidden = p.key !== 'sending'; stop.disabled = !!c.stopReason || ctl.sending;
+  stop.hidden = p.key !== 'sending'; stop.disabled = !!c.stopReason || ctl.sending || c.stopTurn?.status === 'stop-requested';
   if (stopNote) { stopNote.hidden = p.key !== 'sending'; stopNote.textContent = c.stopReason || '只停这一次对话，不代表整个研究停了；选方向和进入下一段仍要 Harness 放行。'; }
  }
  const rec = root.querySelector('[data-wc-reconcile]'), recWhy = root.querySelector('[data-wc-reconcile-reason]');
