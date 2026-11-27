@@ -195,11 +195,27 @@ class Stage2ControllerRegistrationHttpTests(unittest.TestCase):
 
         with patch.object(driver_module, "run_controller", side_effect=run):
             with wiki(case, path, digest) as (origin, host):
+                receipts = ConnectionStore(case.intake, VIEWER)
+                automatic = receipts.resolve(ref, "stage2-input")
+                self.assertIsNotNone(
+                    automatic, "The saved delivery must transfer first"
+                )
+                self.assertEqual(automatic["derived_from"]["project_ref"], ref)
+                self.assertIs(type(automatic["identity"]["input_version"]), int)
+                self.assertEqual(
+                    automatic["derived_from"]["manifest_sha256"],
+                    fixture["manifest_sha256"],
+                )
+                before_read = counts(case.intake, ref)
                 code, data = request(origin, route + "/stage2")
                 self.assertEqual(code, 200, data)
                 evidence = data["current_evidence"]
                 self.assertEqual(evidence["status"], "received", evidence)
                 self.assertIs(type(evidence["input_version"]), int)
+                self.assertEqual(evidence["connection_id"], automatic["connection_id"])
+                self.assertEqual(evidence["receipt_id"], automatic["receipt_id"])
+                self.assertEqual(counts(case.intake, ref), before_read)
+                self.assertEqual(calls, [])
                 print(
                     json.dumps(
                         {

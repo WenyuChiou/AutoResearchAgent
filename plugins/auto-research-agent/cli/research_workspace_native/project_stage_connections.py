@@ -475,7 +475,15 @@ class BindingTable(Mapping):
 
 
 def current_input(
-    service, ref, *, credential, delivery, stage1, check_deadline, intent=None
+    service,
+    ref,
+    *,
+    credential,
+    delivery,
+    stage1,
+    check_deadline,
+    intent=None,
+    expected_artifact_ref=None,
 ):
     """Register the verified current input or replay an explicit saved request."""
     from .project_stage2_current_evidence import current_evidence
@@ -534,6 +542,7 @@ def current_input(
             check_deadline=check_deadline,
             on_received=receive,
             allow_publish=register,
+            expected_artifact_ref=expected_artifact_ref,
         )
 
 

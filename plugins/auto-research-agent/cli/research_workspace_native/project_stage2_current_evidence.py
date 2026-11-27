@@ -167,6 +167,7 @@ def current_evidence(
     check_deadline=None,
     on_received=None,
     allow_publish=False,
+    expected_artifact_ref=None,
 ):
     """Return the current project's verified Stage 2 input or its actual blockers."""
     ref = project["project_ref"]
@@ -225,6 +226,15 @@ def current_evidence(
                 with guard as check_owner, ledger.writing(repair=False):
                     bound = delivery.binding(ref)
                     bound_version = bound["binding"]["input_version"]
+                    _check(
+                        expected_artifact_ref is None
+                        or bound["artifact_ref"] == expected_artifact_ref,
+                        "stage2-current-delivery-artifact-differs",
+                    )
+                    _check(
+                        not allow_publish or type(view["input_version"]) is int,
+                        "stage-connection-integer-version-required",
+                    )
                     _check(
                         bound["project_ref"] == bound["binding"]["project_id"] == ref
                         and type(bound_version) is type(view["input_version"])

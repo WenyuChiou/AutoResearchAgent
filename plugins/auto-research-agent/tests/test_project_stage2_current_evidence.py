@@ -20,6 +20,8 @@ from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage1 import ProjectStage1Service
 from research_workspace_native.project_stage2 import ProjectStage2Service
 from research_workspace_native.project_stage2_current_evidence import current_evidence
+from research_workspace_native.project_stage_connections import current_input
+from research_workspace_native.session_api import SessionApiError
 from stage1_ledger.journal import canonical
 import project_stage1_query_cases as owned_fixture
 import test_project_stage1_delivery as delivery_fixture
@@ -304,6 +306,36 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
             database = case.intake_root / "project-intake.sqlite"
             case.reopen()
             sha_before = sha256(database.read_bytes()).hexdigest()
+            [receiver] = list((case.intake_root / ref).glob("s2r-*"))
+            self.assertTrue((receiver / "receipt.json").is_file())
+            original = case.intake.action(VIEWER, "deliver", project_ref=ref)
+            self.assertEqual(original["status"], "saved")
+            project = case.intake.read(VIEWER, ref)
+            replay = dict(original["request"], revision=project["revision"])
+            self.assertEqual(case.delivery.deliver(VIEWER, ref, replay), original)
+            with self.assertRaisesRegex(
+                SessionApiError, "intake-source-version-differs"
+            ):
+                case.delivery.deliver(
+                    VIEWER, ref, dict(replay, key="wrong-version", input_version=2)
+                )
+            wrong_artifact = current_input(
+                ProjectStage2Service(case.intake),
+                ref,
+                credential=VIEWER,
+                delivery=case.delivery,
+                stage1=None,
+                check_deadline=None,
+                expected_artifact_ref="stage1-canonical-" + "0" * 32,
+            )
+            self.assertEqual(
+                (wrong_artifact["status"], wrong_artifact["reason"]),
+                ("blocked", "stage2-current-delivery-artifact-differs"),
+            )
+            self.assertEqual(
+                case.intake.read(VIEWER, ref)["revision"], project["revision"]
+            )
+            self.assertEqual(list((case.intake_root / ref).glob("s2r-*")), [receiver])
             with serve(case) as origin:
                 status, initial = request(origin, route + "/stage2")
                 self.assertEqual(status, 200)
@@ -323,8 +355,10 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
                 self.assertEqual(accepted["packet_schema_version"], "2.7.0")
                 self.assertEqual(
                     (initial["offers"], initial["activation"], initial["frontier"]),
-                    ([], None, None),
+                    ([accepted["offer"]], None, None),
                 )
+                self.assertEqual(accepted["offer"]["status"], "receiving-only")
+                self.assertIs(accepted["activation_allowed"], False)
                 self.assertEqual(
                     request(origin, route + "/stage2/selection"),
                     (409, {"error": "stage2-selection-unconnected"}),
@@ -342,7 +376,6 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
                     request(origin, route + "/stage2", token=None),
                     (401, {"error": "credential-required"}),
                 )
-            [receiver] = list((case.intake_root / ref).glob("s2r-*"))
             self.assertEqual(
                 sha256((receiver / "receipt.json").read_bytes()).hexdigest(),
                 accepted["receipt_sha256"],
