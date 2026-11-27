@@ -76,8 +76,8 @@ function wikiS2ArchiveModel() {
   evidenceIds:Array.isArray(row.evidence_ids) ? row.evidence_ids : null, value:row.value, raw:row
  }, index));
  const literature = view.literature.map(row => ({key:wikiS2Key(row.work_id, row.version_id), title:row.title || row.work_id,
-  tag:row.evidence_level, workId:row.work_id, versionId:row.version_id,
-  rows:{author:row.authors ?? null, level:row.evidence_level, role:null,
+  tag:wikiS2Level(row.evidence_level), workId:row.work_id, versionId:row.version_id,
+  rows:{author:row.authors ?? null, level:wikiS2Level(row.evidence_level), role:null,
    notes:[row.cells?.findings?.text, row.cells?.limitations?.text].filter(Boolean).join('；') || null,
    method:row.cells?.method?.text ?? null, title:row.title, access:row.work_id + ' · ' + row.version_id}, raw:row}));
  return {origin:'archive', routes, literature, evidence:view.evidence, comparisonText:typeof view.comparison === 'string' ? view.comparison : null,
@@ -96,9 +96,9 @@ function wikiS2ImportModel() {
   checks:route.assessment?.checks && typeof route.assessment.checks === 'object' ? route.assessment.checks : null,
   evidenceIds:Array.isArray(route.candidate.evidence_ids) ? route.candidate.evidence_ids : null, value:route.candidate.value, raw:route
  }, index));
- const literature = model.sources.map(source => ({key:wikiS2Key(source.work_id, source.version_id), title:source.title, tag:source.evidence_level,
+ const literature = model.sources.map(source => ({key:wikiS2Key(source.work_id, source.version_id), title:source.title, tag:wikiS2Level(source.evidence_level),
   workId:source.work_id, versionId:source.version_id,
-  rows:{author:source.authors, level:source.evidence_level, role:source.parsed.fields.role ?? null, notes:source.parsed.notes,
+  rows:{author:source.authors, level:wikiS2Level(source.evidence_level), role:source.parsed.fields.role ?? null, notes:source.parsed.notes,
    excerpt:source.parsed.excerpts, method:source.parsed.fields.method || source.parsed.fields.data || null, title:source.title,
    access:source.version_id}, raw:source.card}));
  return {origin:'import', routes, literature, evidence:model.packet.evidence, comparisonText:model.packet.comparison || null,
@@ -361,7 +361,13 @@ function wikiS2CompareTab(app, model, state) {
 }
 
 // --- Literature and evidence tab (8.15, 8.17) ----------------------------------------------
-const wikiS2LitRows = [['author','作者／机构'],['level','阅读层级（原记录）'],['role','在本报告里的用途'],['notes','来源卡说明与限制'],
+// Saved reading levels are codes (full-text, abstract…); the page shows their words (2.6). Unknown codes stay as saved.
+function wikiS2Level(value) {
+ const own = {abstract:'摘要', metadata:'仅书目', 'title-only':'仅标题'};
+ if (typeof value !== 'string') return value;
+ return own[value] || (typeof n9UiLabel === 'function' ? n9UiLabel(value) : value);
+}
+const wikiS2LitRows = [['author','作者／机构'],['level','阅读层级'],['role','在本报告里的用途'],['notes','来源卡说明与限制'],
  ['excerpt','原文摘录／保存的证据'],['title','题名'],['access','访问与版本'],['method','研究方法与样本']];
 
 function wikiS2Metrics(model) {
