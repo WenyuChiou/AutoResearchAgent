@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Study · A Large Language Model Simulation of U.S. Household Spending under Population Aging and Gasoline Price Feedback</title>
+<script>
+    const pageURL = new URL(location.href);
+    if (pageURL.pathname.endsWith("/index.html")) {
+        pageURL.pathname = pageURL.pathname.slice(0, -"index.html".length);
+    }
+    if (!pageURL.pathname.endsWith("/")) pageURL.pathname += "/";
+    pageURL.searchParams.set("trace", "household_spending_case_study");
+    if (!pageURL.searchParams.has("animate")) pageURL.searchParams.set("animate", "1");
+    if (pageURL.href !== location.href) history.replaceState(history.state, "", pageURL);
+
+    // Keep report assets in this directory when the viewer updates the URL.
+    const reportBase = document.createElement("base");
+    reportBase.href = new URL("./", pageURL).href;
+    document.head.append(reportBase);
+</script>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="runtime/player.css">
+<link rel="stylesheet" href="presentation.css">
+<script type="module" src="runtime/viewer-pages.js"></script>
+</head>
+<body>
+<header class="report-header">
+    <div class="study-heading">
+        <p class="report-kind">Case Study</p>
+        <h1>A Large Language Model Simulation of U.S. Household Spending under Population Aging and Gasoline Price Feedback</h1>
+        <p class="controls-help">Use <kbd>←</kbd> and <kbd>→</kbd> or the toolbar to move one step at a time.</p>
+    </div>
+    <nav class="chapters" aria-label="Chapters"><a href="?trace=household_spending_case_study&amp;animate=1&amp;step=1">Introduction</a>
+<a href="?trace=household_spending_case_study&amp;animate=1&amp;step=28">Data and Methods</a>
+<a href="?trace=household_spending_case_study&amp;animate=1&amp;step=48">Results</a>
+<a href="?trace=household_spending_case_study&amp;animate=1&amp;step=76">Conclusion</a></nav>
+</header>
+<main id="root" aria-label="Report playback"></main>
+<script>
+    const titleElement = document.querySelector("title");
+    const studyTitle = titleElement.textContent;
+    const keepStudyTitle = new MutationObserver(() => {
+        if (titleElement.textContent !== studyTitle) {
+            titleElement.textContent = studyTitle;
+        }
+    });
+    keepStudyTitle.observe(titleElement, {childList: true, characterData: true, subtree: true});
+
+    const root = document.getElementById("root");
+    const workflowImage = document.createElement("img");
+    workflowImage.alt = "Household setup, quarterly household spending, and the one-way and gasoline feedback paths.";
+    const activeWorkflowCue = () => root.querySelector(".line.current-line .workflow-step");
+    const syncWorkflow = () => {
+        const figure = root.querySelector(".workflow-figure");
+        if (!figure) return;
+        const art = figure.querySelector(".workflow-art");
+        if (!workflowImage.hasAttribute("src")) workflowImage.src = art.getAttribute("href");
+        if (workflowImage.parentElement !== art) art.prepend(workflowImage);
+        const cue = activeWorkflowCue();
+        const block = cue?.dataset.block ?? "";
+        if (figure.dataset.block === block) return;
+        figure.dataset.block = block;
+        const caption = figure.querySelector(".workflow-cue");
+        const words = cue ? Array.from(cue.childNodes, node => node.cloneNode(true)) : [];
+        caption.replaceChildren(...words);
+        if (!cue) return;
+        workflowImage.decode().catch(() => {}).then(() => {
+            requestAnimationFrame(() => {
+                if (activeWorkflowCue()?.dataset.block === block && figure.isConnected) {
+                    figure.scrollIntoView({block: "start", behavior: "instant"});
+                }
+            });
+        });
+    };
+    const workflowObserver = new MutationObserver(syncWorkflow);
+    workflowObserver.observe(root, {childList: true, subtree: true, attributes: true, attributeFilter: ["class"]});
+
+    const requestedStep = new URLSearchParams(location.search).get("step");
+    const opensChapter = [...document.querySelectorAll(".chapters a")].some(
+        link => new URL(link.href).searchParams.get("step") === requestedStep
+    );
+    if (opensChapter) {
+        const locateChapter = new MutationObserver(() => {
+            const chapter = root.querySelector(".line.current-line:has(h2)");
+            if (!chapter) return;
+            locateChapter.disconnect();
+            const images = [...root.querySelectorAll(".renderings img")];
+            Promise.allSettled(images.map(image => image.decode())).then(() => {
+                requestAnimationFrame(() => {
+                    if (chapter.matches(".current-line")) {
+                        chapter.scrollIntoView({block: "start", behavior: "instant"});
+                    }
+                });
+            });
+        });
+        locateChapter.observe(root, {childList: true, subtree: true});
+    }
+</script>
+</body>
+</html>

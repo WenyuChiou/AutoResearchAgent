@@ -1,0 +1,469 @@
+:root {
+    color-scheme: light;
+    --page: #eef3f6;
+    --paper: #ffffff;
+    --ink: #172e3b;
+    --muted: #506575;
+    --accent: #12605b;
+    --rule: #d8e4e9;
+    --active: #e7f3ef;
+    --report-width: 72rem;
+    --page-gutter: clamp(.65rem, 3vw, 2rem);
+    --text-future: .21;
+    --figure-future: .14;
+    background: var(--page);
+    color: var(--ink);
+    font-family: "Segoe UI", Arial, sans-serif;
+    scroll-padding-top: 5.5rem;
+}
+
+body {
+    display: block;
+    margin: 0;
+    min-width: 0;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: .17em;
+}
+
+a:hover {
+    color: #0a4843;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+.report-header,
+#root {
+    box-sizing: border-box;
+    width: min(var(--report-width), calc(100% - 2 * var(--page-gutter)));
+    margin-inline: auto;
+}
+
+.report-header {
+    margin-block: clamp(.7rem, 3vw, 2.1rem) .9rem;
+    overflow: hidden;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: .7rem;
+}
+
+.study-heading {
+    border-inline-start: .3rem solid var(--accent);
+    padding: clamp(.95rem, 2.5vw, 1.7rem) clamp(.85rem, 3.25vw, 2.35rem);
+}
+
+.report-kind {
+    color: var(--accent);
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 .35rem;
+}
+
+.study-heading h1 {
+    max-width: 25ch;
+    margin: 0;
+    font: 600 clamp(1.8rem, 3.8vw, 3.1rem)/1.07 Georgia, "Times New Roman", serif;
+    letter-spacing: -.018em;
+    text-wrap: balance;
+}
+
+.controls-help {
+    color: var(--muted);
+    font-size: .9rem;
+    margin: .8rem 0 0;
+}
+
+kbd {
+    background: var(--page);
+    border: 1px solid var(--rule);
+    border-radius: .2rem;
+    color: var(--ink);
+    font: 600 .86em/1.25 "Segoe UI", sans-serif;
+    padding: .05rem .25rem .12rem;
+}
+
+.chapters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .12rem .4rem;
+    padding: .4rem clamp(.75rem, 3vw, 2.05rem);
+    border-top: 1px solid var(--rule);
+}
+
+.chapters a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2rem;
+    padding-inline: .6rem;
+    border-radius: .22rem;
+    color: var(--ink);
+    font-size: .88rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.chapters a:hover {
+    background: var(--active);
+    color: var(--accent);
+}
+
+#root {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: .7rem;
+    padding: 0 0 2.5rem;
+}
+
+#root .trace-viewer-container {
+    display: block;
+}
+
+#root .lines-panel {
+    min-width: 0;
+    overflow: visible;
+}
+
+#root .header {
+    background: var(--paper);
+    border-radius: .7rem .7rem 0 0;
+    border-bottom: 1px solid var(--rule);
+    padding: .65rem clamp(.75rem, 2.5vw, 1.45rem) .45rem;
+}
+
+#root .header-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .45rem .9rem;
+}
+
+#root .header-title > span:first-child {
+    color: var(--muted);
+    font-size: .84rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+#root .icon-buttons {
+    float: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .22rem;
+}
+
+#root .icon-buttons button {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.15rem;
+    min-height: 2.15rem;
+    background: var(--page);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: .38rem;
+    font-size: .95rem;
+    padding: .2rem;
+}
+
+#root .icon-buttons button:hover {
+    background: var(--active);
+}
+
+#root .icon-buttons button:is([title^="Step backward (into"], [title^="Step forward (into"]) {
+    background: var(--accent);
+    color: white;
+    font-size: 0;
+}
+
+#root .icon-buttons button:is([title^="Step backward (into"], [title^="Step forward (into"])::before {
+    font: 650 1.15rem/1 "Segoe UI", sans-serif;
+}
+
+#root .icon-buttons button[title^="Step backward (into"]::before {
+    content: "←";
+}
+
+#root .icon-buttons button[title^="Step forward (into"]::before {
+    content: "→";
+}
+
+#root .header > div:last-child {
+    background: var(--rule) !important;
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+#root .header > div:last-child > div {
+    background: var(--accent) !important;
+}
+
+#root .line {
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    gap: .65rem;
+    padding: .22rem clamp(.65rem, 2.25vw, 1.3rem);
+    border-inline-start: 3px solid transparent;
+    font-size: clamp(1rem, 1.25vw, 1.13rem);
+    line-height: 1.55;
+    opacity: 1;
+    transition: opacity .16s ease-out, background-color .16s ease-out;
+    scroll-margin-block: .85rem;
+}
+
+#root .line.current-line {
+    background: var(--active);
+    border-inline-start-color: var(--accent);
+}
+
+#root .line.cloaked {
+    opacity: var(--text-future);
+}
+
+#root .line.cloaked:has(img, table, .vega-embed) {
+    opacity: var(--figure-future);
+}
+
+#root .line:has(> span:nth-child(2) > .code-container:empty):not(.current-line) {
+    display: none;
+}
+
+#root .line-number {
+    color: var(--muted);
+    font: 400 .72rem/1.8 ui-monospace, Consolas, monospace;
+    min-width: 0;
+    padding: .25rem .4rem 0 0;
+    opacity: .7;
+}
+
+#root .current-line .line-number {
+    color: var(--accent);
+    opacity: 1;
+}
+
+#root .line > span:nth-child(2) {
+    min-width: 0;
+}
+
+#root .line > span:has(> .renderings) > .code-container {
+    display: none;
+}
+
+#root .renderings {
+    display: block;
+    max-width: 62rem;
+    width: 100%;
+    overflow-wrap: anywhere;
+}
+
+#root .line:has(.markdown h2) {
+    margin-top: 1.14rem;
+    padding-block: .9rem .42rem;
+    border-top: 1px solid var(--rule);
+}
+
+#root .markdown h2 {
+    display: block;
+    font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+    font-weight: 680;
+    line-height: 1.18;
+}
+
+#root .markdown h3 {
+    margin: .85rem 0 .2rem;
+    color: var(--accent);
+    font-size: 1.12rem;
+    line-height: 1.35;
+}
+
+#root .markdown p,
+#root .markdown ul {
+    max-width: 77ch;
+    margin-block: .1rem;
+}
+
+#root .markdown ul {
+    display: block;
+    padding-inline-start: 1.2rem;
+    list-style-position: outside;
+}
+
+#root .markdown li::marker {
+    color: var(--accent);
+}
+
+#root .vega-embed svg.marks {
+    max-width: 100%;
+    height: auto;
+}
+
+#root .renderings img {
+    display: block;
+    box-sizing: border-box;
+    max-width: 100%;
+    height: auto;
+    margin-block: .38rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: .4rem;
+}
+
+/* Play Figure 1 in place as the four workflow cues advance. */
+#root .line:has(.workflow-step):not(:has(.workflow-figure)) {
+    display: none;
+}
+
+#root .line:has(.workflow-figure[data-block]:not([data-block=""])) {
+    background: var(--active);
+    border-inline-start-color: var(--accent);
+}
+
+#root .workflow-figure {
+    width: min(100%, calc((100svh - 10rem) * 1.44));
+    margin: .38rem auto;
+}
+
+#root .workflow-art {
+    display: block;
+    position: relative;
+    aspect-ratio: 2593 / 1801;
+    overflow: hidden;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: .4rem;
+}
+
+#root .workflow-art img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+}
+
+.workflow-focus {
+    display: none;
+    position: absolute;
+    box-sizing: border-box;
+    border: 2px solid var(--accent);
+    border-radius: .35rem;
+    box-shadow: 0 0 0 100vmax rgb(248 251 250 / .68);
+    pointer-events: none;
+}
+
+.workflow-figure[data-block="households"] .workflow-focus {
+    display: block;
+    inset: 1.5% 77.5% 65.7% 1%;
+}
+
+.workflow-figure[data-block="spending"] .workflow-focus {
+    display: block;
+    inset: 1.5% 1% 65.7% 23.2%;
+}
+
+.workflow-figure[data-block="one-way"] .workflow-focus {
+    display: block;
+    inset: 44.5% 2.6% 41.1% 2.6%;
+}
+
+.workflow-figure[data-block="feedback"] .workflow-focus {
+    display: block;
+    inset: 59.9% 2.6% 3.4% 2.6%;
+}
+
+.workflow-cue {
+    margin-top: .55rem;
+    color: var(--ink);
+}
+
+.workflow-cue:empty {
+    display: none;
+}
+
+.table-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+    margin-block: .38rem;
+}
+
+#root .markdown table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--paper);
+    font-size: .93em;
+    font-variant-numeric: tabular-nums;
+}
+
+#root .markdown caption {
+    padding: .45rem 0 .55rem;
+    color: var(--muted);
+    font-weight: 650;
+    text-align: left;
+}
+
+#root .markdown th,
+#root .markdown td {
+    padding: .48rem .65rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+#root .markdown tbody th {
+    font-weight: 500;
+}
+
+#root .markdown thead {
+    background: var(--page);
+    border-block: 1px solid var(--rule);
+}
+
+#root .markdown tbody {
+    border-bottom: 1px solid var(--rule);
+}
+
+@media (max-width: 600px) {
+    :root {
+        scroll-padding-top: 7.25rem;
+    }
+
+    .chapters a {
+        padding-inline: .45rem;
+        font-size: .81rem;
+    }
+
+    #root .header {
+        padding-inline: .6rem;
+    }
+
+    #root .icon-buttons button {
+        min-height: 2.25rem;
+    }
+
+    #root .line {
+        grid-template-columns: 1.55rem minmax(0, 1fr);
+        gap: .38rem;
+        padding-inline: .35rem .65rem;
+    }
+
+    #root .line-number {
+        padding-right: .12rem;
+    }
+
+    #root .markdown th,
+    #root .markdown td {
+        padding-inline: .38rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #root .line,
+    #root .header > div:last-child > div {
+        transition: none !important;
+    }
+}
