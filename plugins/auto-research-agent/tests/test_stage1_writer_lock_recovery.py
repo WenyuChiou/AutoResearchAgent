@@ -245,6 +245,46 @@ class WindowsWriterLockRecoveryTests(unittest.TestCase):
         self.assertEqual(code, 0, replay)
         self.assertEqual(replay["status"], "already-recovered")
 
+    def test_distinct_run_acl_refuses_new_and_existing_audit_without_writes(self):
+        def change_fixture_acl(operation, principal):
+            # The null SID never matches the test process. Change only the
+            # temporary run's ACL to model an independently protected run.
+            result = subprocess.run(
+                ["icacls.exe", str(self.root), operation, principal],
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(
+                result.returncode, 0,
+                (result.stdout + result.stderr).decode(errors="replace"),
+            )
+
+        self.assertEqual(
+            writer_lock._effective_acl(writer_lock._acl_descriptor(self.root))[1],
+            writer_lock._effective_acl(writer_lock._acl_descriptor(self.root.parent))[1],
+        )
+        raw = self.interrupt_release()
+        pin = digest(raw)
+        change_fixture_acl("/deny", "*S-1-0-0:(OI)(CI)(R)")
+        self.assertNotEqual(
+            writer_lock._acl_descriptor(self.root), writer_lock._acl_descriptor(self.root.parent)
+        )
+        code, outcome = self.recover_cli(pin)
+        self.assertEqual((code, outcome["error"]), (1, "writer-lock-audit-acl-differs"))
+        self.assertEqual(self.lock.read_bytes(), raw)
+        self.assertFalse(self.audit.exists())
+        self.assertEqual(list(self.root.parent.glob(".writer-lock-audit-*")), [])
+
+        change_fixture_acl("/remove:d", "*S-1-0-0")
+        self.assertEqual(self.recover_cli(pin)[0], 0)
+        before = _tree(self.audit)
+        raw = self.interrupt_release()
+        change_fixture_acl("/deny", "*S-1-0-0:(OI)(CI)(R)")
+        code, outcome = self.recover_cli(digest(raw))
+        self.assertEqual((code, outcome["error"]), (1, "writer-lock-audit-acl-differs"))
+        self.assertEqual(self.lock.read_bytes(), raw)
+        self.assertEqual(_tree(self.audit), before)
+
     def test_open_recovery_reader_does_not_block_offline_archive(self):
         raw = self.interrupt_release()
         pin = digest(raw)

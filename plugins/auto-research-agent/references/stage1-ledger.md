@@ -205,6 +205,10 @@ Successful recovery moves the original lock byte-for-byte to the sibling
 `.<run-name>.writer-lock-recovery` directory and retains a separate JSON receipt
 there. Its `owner.json` binds the archive to the physical run. An existing
 directory with a missing or different owner record causes recovery to refuse.
+The audit directory must have the same Windows owner, group and discretionary
+ACL as the run. The receipt and archived lock must also match the run's
+effective discretionary access rules. If these checks cannot establish an
+equivalent boundary, recovery refuses and leaves the original lock in place.
 The `.lock` archive is the completion marker. If only the receipt JSON exists,
 the rename has not completed. Rerun with the same expected digest to recheck
 the owner and finish, or obtain `already-recovered` without affecting a later

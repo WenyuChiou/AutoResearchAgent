@@ -250,8 +250,10 @@ def _open_read_lock(path):
         os.close(descriptor)
 
 
-def _read_lock(path):
+def _read_lock(path, *, access=None):
     with _open_read_lock(path) as stream:
+        if access is not None:
+            _verify_audit_file(access, fd=stream.fileno())
         contents = stream.read(MAX_RECORD_BYTES + 1)
     _need(0 < len(contents) <= MAX_RECORD_BYTES, "writer-lock-record-size-invalid")
     return contents
@@ -315,15 +317,103 @@ def _owner_exited(record):
         kernel.CloseHandle(handle)
 
 
-def _verify_audit_owner(audit, identity):
+@lru_cache(maxsize=1)
+def _windows_security():
+    import ctypes
+    from ctypes import wintypes
+
+    api = ctypes.WinDLL("advapi32", use_last_error=True)
+    pointer = ctypes.c_void_p
+    out_pointer = ctypes.POINTER(pointer)
+    common = [wintypes.DWORD, wintypes.DWORD] + [out_pointer] * 5
+    api.GetNamedSecurityInfoW.argtypes = [wintypes.LPCWSTR, *common]
+    api.GetSecurityInfo.argtypes = [wintypes.HANDLE, *common]
+    api.GetNamedSecurityInfoW.restype = api.GetSecurityInfo.restype = wintypes.DWORD
+    convert = api.ConvertSecurityDescriptorToStringSecurityDescriptorW
+    convert.argtypes = [pointer, wintypes.DWORD, wintypes.DWORD, out_pointer,
+                        ctypes.POINTER(wintypes.ULONG)]
+    convert.restype = wintypes.BOOL
+    free = ctypes.WinDLL("kernel32").LocalFree
+    free.argtypes = [pointer]
+    free.restype = pointer
+    return api, convert, free
+
+
+def _acl_descriptor(path=None, *, fd=None):
+    """Read the owner, group, and DACL without changing an ACL."""
+    import ctypes
+
+    api, convert, free = _windows_security()
+    if fd is None:
+        reject_links(path)
+        source, object_id = api.GetNamedSecurityInfoW, str(path)
+    else:
+        import msvcrt
+
+        source, object_id = api.GetSecurityInfo, msvcrt.get_osfhandle(fd)
+    file_object = 1
+    owner_group_dacl = 0x7
+    descriptor = ctypes.c_void_p()
+    dacl = ctypes.c_void_p()
+    sddl = ctypes.c_void_p()
+    try:
+        status = source(object_id, file_object, owner_group_dacl, None, None,
+                        ctypes.byref(dacl), None, ctypes.byref(descriptor))
+        _need(status == 0 and dacl.value is not None,
+              "writer-lock-audit-acl-unverifiable")
+        _need(convert(descriptor, 1, owner_group_dacl, ctypes.byref(sddl), None),
+              "writer-lock-audit-acl-unverifiable")
+        return ctypes.wstring_at(sddl)
+    finally:
+        if sddl:
+            free(sddl)
+        if descriptor:
+            free(descriptor)
+
+
+def _effective_acl(descriptor):
+    """Compare ordered, ordinary access ACEs across directories and files."""
+    parts = re.fullmatch(r"(O:[^:]+G:[^:]+)D:(?:P|AR|AI)*((?:\([^()]*\))*)",
+                         descriptor)
+    _need(parts is not None, "writer-lock-audit-acl-unverifiable")
+    owner_group, aces = parts.groups()
+    effective = []
+    for ace in re.findall(r"\(([^()]*)\)", aces):
+        fields = re.fullmatch(
+            r"(A|D);((?:OI|CI|NP|IO|ID)*);([A-Z0-9a-fx]+);;;([A-Z0-9-]+)",
+            ace, re.IGNORECASE,
+        )
+        _need(fields is not None, "writer-lock-audit-acl-unverifiable")
+        kind, flags, rights, sid = fields.groups()
+        if "IO" not in re.findall(r"..", flags):
+            # Windows expands generic rights for effective NTFS ACEs. Do not
+            # assume equivalent access for a descriptor retaining generic bits.
+            _need(not re.search(r"G[ARWX]", rights),
+                  "writer-lock-audit-acl-unverifiable")
+            effective.append((kind, rights, sid))
+    return owner_group, tuple(effective)
+
+
+def _verify_audit_file(access, *, fd):
+    actual = _effective_acl(_acl_descriptor(fd=fd))
+    _need(actual == access, "writer-lock-audit-acl-differs")
+
+
+def _verify_audit_directory(audit, root):
+    _need(_acl_descriptor(audit) == _acl_descriptor(root),
+          "writer-lock-audit-acl-differs")
+
+
+def _verify_audit_owner(audit, root, identity, access):
     reject_links(audit)
     _need(
         audit.is_dir() and audit.stat().st_dev == identity["volume"],
         "writer-lock-audit-volume-differs",
     )
+    _verify_audit_directory(audit, root)
     marker = safe_path(audit, "owner.json")
     try:
-        actual = _read_file(marker)
+        actual = _read_lock(marker, access=access)
     except FileNotFoundError:
         raise LedgerError("writer-lock-audit-owner-differs") from None
     _need(actual == _audit_owner(identity), "writer-lock-audit-owner-differs")
@@ -347,14 +437,16 @@ def _audit_owner(identity):
     )
 
 
-def _ensure_audit(audit, identity):
+def _ensure_audit(audit, root, identity, access):
     if not audit.exists():
         # Publish a fully identified directory in one Windows no-replace step.
         # A conflicting name is never adopted or written into implicitly.
         with tempfile.TemporaryDirectory(
             prefix=".writer-lock-audit-", dir=audit.parent
         ) as staging:
+            _verify_audit_directory(Path(staging), root)
             with (Path(staging) / "owner.json").open("xb") as stream:
+                _verify_audit_file(access, fd=stream.fileno())
                 stream.write(_audit_owner(identity))
                 stream.flush()
                 os.fsync(stream.fileno())
@@ -362,16 +454,17 @@ def _ensure_audit(audit, identity):
                 os.rename(staging, audit)
             except FileExistsError:
                 pass
-    _verify_audit_owner(audit, identity)
+    _verify_audit_owner(audit, root, identity, access)
 
 
-def _publish_proof(path, proof):
+def _publish_proof(path, proof, access):
     # Fsync before publishing. A crash before publication leaves at most an
     # unused temporary audit file, outside the ledger and distinct from a lock.
     descriptor, temporary = tempfile.mkstemp(prefix=".proof-", dir=path.parent)
     temporary = Path(temporary)
     try:
         with os.fdopen(descriptor, "wb") as stream:
+            _verify_audit_file(access, fd=stream.fileno())
             stream.write(canonical(proof))
             stream.flush()
             os.fsync(stream.fileno())
@@ -402,6 +495,8 @@ def recover_writer_lock(run, expected_sha256):
     retired = safe_path(audit, expected_sha256 + ".lock")
     receipt = safe_path(audit, expected_sha256 + ".json")
 
+    access = _effective_acl(_acl_descriptor(root))
+
     def proof_basis(record):
         return {
             "kind": PROOF_KIND,
@@ -411,7 +506,7 @@ def recover_writer_lock(run, expected_sha256):
         }
 
     def verified_proof(record):
-        raw = _read_file(receipt)
+        raw = _read_lock(receipt, access=access)
         proof = decode(raw, "writer-lock recovery receipt")
         basis = proof_basis(record)
         _need(
@@ -429,9 +524,9 @@ def recover_writer_lock(run, expected_sha256):
     def archived(status):
         if not audit.exists():
             return None
-        _verify_audit_owner(audit, identity)
+        _verify_audit_owner(audit, root, identity, access)
         try:
-            raw = _read_file(retired)
+            raw = _read_lock(retired, access=access)
         except FileNotFoundError:
             return None
         _need(digest(raw) == expected_sha256, "writer-lock-recovery-archive-differs")
@@ -449,7 +544,7 @@ def recover_writer_lock(run, expected_sha256):
     if previous is not None:
         return previous
     try:
-        raw = _read_lock(lock)
+        raw = _read_lock(lock, access=access)
     except (OSError, LedgerError) as error:
         previous = archived("already-recovered")
         if previous is not None:
@@ -464,7 +559,7 @@ def recover_writer_lock(run, expected_sha256):
         raise LedgerError("writer-lock-sha256-differs")
     record = _decoded_owner(raw, identity)
     evidence = _owner_exited(record)
-    _ensure_audit(audit, identity)
+    _ensure_audit(audit, root, identity, access)
     if not receipt.exists():
         _publish_proof(
             receipt,
@@ -473,6 +568,7 @@ def recover_writer_lock(run, expected_sha256):
                 "owner_exit_evidence": evidence,
                 "verified_at": utc_now(),
             },
+            access,
         )
     verified_proof(record)
     _owner_exited(record)
@@ -480,7 +576,10 @@ def recover_writer_lock(run, expected_sha256):
     # this SHA targets the same archive, so a delayed contender cannot move a
     # subsequent generation even if it inspected the old lock before a winner.
     try:
-        _need(_read_lock(lock) == raw, "writer-lock-sha256-differs")
+        _verify_audit_directory(audit, root)
+        _need(_effective_acl(_acl_descriptor(root)) == access,
+              "writer-lock-audit-acl-differs")
+        _need(_read_lock(lock, access=access) == raw, "writer-lock-sha256-differs")
         os.rename(lock, retired)
     except (OSError, LedgerError):
         previous = archived("already-recovered")
