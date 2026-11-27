@@ -114,7 +114,7 @@ function wikiS3DecModel(app) {
  if (local && !local.ambiguous && local.receipt_sha256 !== hd.binding.plan_revision_receipt_sha256) {
   out.why = '计划刚被修订过，页面先要重新读取这一版才能决定。'; out.stale = true; return out;
  }
- if (wikiS3Dec.unknown?.ref === rt.ref) { out.why = '上次保存的结果还没确认，先只读核对。'; return out; }
+ if (wikiS3Dec.unknown?.ref === rt.ref) { out.why = wikiS3Dec.unknown.absent ? '核对完了：这次没有保存。点上面的「知道了」后可以重新决定。' : '上次保存的结果还没确认，先只读核对。'; return out; }
  if (wikiS3Dec.busy.has(rt.ref)) { out.why = '正在保存，请稍等'; return out; }
  if (rt.loading || v93.busy) { out.why = '正在读取保存记录'; return out; }
  if (rt.busy || rt.pending || rt.controlHeld) { out.why = rt.pending || rt.controlHeld ? '有一次提交的结果还没确认，先核对' : '正在保存，请稍等'; return out; }

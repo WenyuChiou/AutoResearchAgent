@@ -196,6 +196,8 @@ test('unknown outcome: no resend; the re-read finds the record by key, or says n
  assert.match(t.text(), /结果未知/);
  assert.match(t.text(), /核对时没有找到这次的记录，说明没有保存。原请求不会重发/);
  assert.match(t.html(), /data-s3-dec="confirm" disabled/, 'no save while unknown');
+ assert.doesNotMatch(t.text(), /先只读核对/, 'after the check the gate does not ask for another check');
+ assert.match(t.text(), /点上面的「知道了」后可以重新决定/);
  await t.ctx.wikiS3DecSave(t.ctx.apps[0]);
  assert.equal(t.posts.length, 1, 'never resent');
  await t.ctx.wikiS3DecCheck(t.ctx.apps[0]); // 「知道了」
