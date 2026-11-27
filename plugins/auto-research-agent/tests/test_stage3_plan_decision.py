@@ -134,9 +134,11 @@ class Stage3DecisionTests(unittest.TestCase):
             )
 
     def test_structural_coverage_does_not_imply_semantic_acceptance(self):
+        from test_stage3_review_content import actionable_review
+
         self.assertEqual(plan_status(self.plan, self.intake), "draft")
         reviewer = Mock(
-            return_value=semantic_review(
+            return_value=actionable_review(
                 self.plan, self.intake, status="needs-revision"
             )
         )

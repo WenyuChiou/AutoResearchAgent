@@ -20,6 +20,7 @@ from stage3_plan.preparation import prepare_ab, file_binding  # noqa: E402
 from stage3_plan.workflow import advance_workflow, inspect_workflow, start_workflow  # noqa: E402
 from stage3_plan_fixtures import make_intake, make_plan  # noqa: E402
 from test_stage3_plan_decision import semantic_review  # noqa: E402
+from test_stage3_review_content import actionable_review  # noqa: E402
 
 
 class Stage3WorkflowTests(unittest.TestCase):
@@ -183,7 +184,7 @@ class Stage3WorkflowTests(unittest.TestCase):
         original = self.current
         original_bytes = original.read_bytes()
         self.assertEqual(self.attach_plan()["planning_status"], "draft")
-        review = semantic_review(self.plan, self.intake)
+        review = actionable_review(self.plan, self.intake, kind="human-record")
         status = self.transition("attach-review", self.file_ref("review.json", review))
         self.assertEqual(status["planning_status"], "ready-for-plan-review")
         self.assertFalse(status["execution_authorized"])
@@ -200,10 +201,50 @@ class Stage3WorkflowTests(unittest.TestCase):
         status = self.transition(
             "attach-review",
             self.file_ref(
-                "review.json", semantic_review(self.plan, self.intake, status="unknown")
+                "review.json",
+                actionable_review(self.plan, self.intake, status="unknown"),
             ),
         )
         self.assertEqual(status["planning_status"], "needs-information")
+
+    def test_new_attachment_rejects_old_weak_review_without_checkpoint_write(self):
+        self.attach_plan()
+        previous = self.current.read_bytes()
+        legacy = semantic_review(self.plan, self.intake, status="needs-revision")
+        for finding in legacy["findings"]:
+            finding["reason"] = "Needs work."
+        ref = self.file_ref("legacy-review.json", legacy)
+        with self.assertRaisesRegex(Stage3Error, "stage3-semantic-v2"):
+            self.transition("attach-review", ref)
+        self.assertEqual(self.current.read_bytes(), previous)
+        self.assertFalse((self.root / "checkpoint-3.json").exists())
+        self.native_call.assert_not_called()
+
+    def test_actionable_revision_is_saved_and_reopened_without_calls(self):
+        self.attach_plan()
+        value = actionable_review(self.plan, self.intake, status="needs-revision")
+        ref = self.file_ref("actionable-review.json", value)
+        before = Path(ref["path"]).read_bytes()
+        status = self.transition("attach-review", ref)
+        self.assertEqual(status["planning_status"], "needs-revision")
+        saved = inspect_workflow(
+            self.current, expected_checkpoint_sha256=self.saved["checkpoint_sha256"]
+        )
+        self.assertEqual(saved["checkpoint"], self.saved["checkpoint"])
+        self.assertEqual(Path(ref["path"]).read_bytes(), before)
+        self.assertEqual(self.callback.call_count, 1)
+        self.native_call.assert_not_called()
+
+    def test_malformed_new_content_is_rejected_before_checkpoint_write(self):
+        self.attach_plan()
+        for status in ("needs-revision", "unknown"):
+            value = actionable_review(self.plan, self.intake, status=status)
+            value["findings"][0][
+                "revision" if status == "needs-revision" else "missing_information"
+            ] = None
+            with self.subTest(status=status), self.assertRaises(Stage3Error):
+                self.transition("attach-review", self.file_ref(status + ".json", value))
+            self.assertFalse((self.root / "checkpoint-3.json").exists())
 
     def test_failed_planning_attempt_is_retained_as_failed(self):
         status = self.attach_plan(failed=True)
@@ -228,7 +269,7 @@ class Stage3WorkflowTests(unittest.TestCase):
 
     def test_stale_source_or_review_is_not_reused(self):
         self.attach_plan()
-        review = semantic_review(self.plan, self.intake)
+        review = actionable_review(self.plan, self.intake)
         review["plan_sha256"] = "b" * 64
         with self.assertRaisesRegex(Stage3Error, "review binding"):
             self.transition("attach-review", self.file_ref("wrong-review.json", review))
