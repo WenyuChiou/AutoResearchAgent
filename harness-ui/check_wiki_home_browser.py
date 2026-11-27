@@ -99,6 +99,11 @@ class Browser:
         self.cdp("Page.navigate", url=url)
         wait(lambda: self.js(f"location.href === {json.dumps(url)} && document.readyState === 'complete'"))
 
+    def go_home(self):
+        # DESIGN 8.1: "工作台" stays on the open topic; the home table is "全部项目…" in the topic menu.
+        self.click(".v1-switch > summary")
+        self.click("[data-v1-home]")
+
     def home(self):
         self.see('[data-wiki-home] input:not(:disabled)')
         assert self.js("innerWidth === 1440 && document.documentElement.scrollWidth <= innerWidth")
@@ -147,15 +152,20 @@ def check(browser, url, evidence):
             state = browser.js("""({hash:location.hash, topic:document.querySelector('#wiki-home-topic')?.value,
                 alert:document.querySelector('[role=alert]')?.textContent})""")
             raise AssertionError((state, browser.writes, [item["text"] for item in browser.errors])) from error
-        browser.click('[data-page="workspace"]')
-        browser.home()
+        browser.go_home()
+        try:
+            browser.home()
+        except AssertionError as error:
+            raise AssertionError(browser.js("""({hash:location.hash, home:!!document.querySelector('[data-wiki-home]'),
+                alert:document.querySelector('[data-v1-alert],[role=alert],.wiki-home-message')?.innerText,
+                input:document.querySelector('#wiki-home-topic')?.disabled})""")) from error
     rows = browser.get("/api/projects")
     assert [row["topic"] for row in rows] == titles, rows
     assert all(row["execution_authorized"] is False for row in rows)
     assert all(row["revision"] == 2 and row["input_version"] == 1 for row in rows), rows
     assert browser.js("[...document.querySelectorAll('.hs-stage-nav button')].slice(3).every(node => !node.getClientRects().length)")
     assert browser.js("document.querySelectorAll('[data-wiki-home-origin]').length") == len(titles)
-    assert browser.js("[...document.querySelectorAll('[data-wiki-home-origin]')].every(row => row.textContent.includes('这一段还没有记录'))")
+    assert browser.js("[...document.querySelectorAll('[data-wiki-home-origin]')].every(row => row.textContent.includes('还没有运行'))")
     browser.click('[data-wiki-home-filter="local"]')
     assert browser.js("document.querySelector('[data-wiki-home-filter=local]').getAttribute('aria-pressed')") == "true"
     browser.click('[data-wiki-home-filter="all"]')
@@ -168,7 +178,7 @@ def check(browser, url, evidence):
     browser.cdp("Page.reload")
     browser.see("[data-live-project-identity]")
     wait(lambda: browser.js(f"document.querySelector('[data-live-project-identity]')?.textContent.includes('{first}')"))
-    browser.click('[data-page="workspace"]')
+    browser.go_home()
     browser.home()
     browser.screenshot(evidence / "home-projects-1440.png")
     assert browser.js("document.querySelector('.wiki-home-resume h3').textContent") == titles[0]
@@ -206,7 +216,7 @@ def check_legacy(browser, url, cases):
         browser.cdp("Page.reload")
         wait(lambda: browser.js(f"document.querySelector('[data-live-project-identity]')?.textContent.includes('{ref}')"))
         if language != "zh":
-            assert browser.js("document.querySelector('[data-language]').value") == language
+            assert browser.js("document.querySelector('[data-language]').value") == language, (language, browser.js("[document.querySelector('[data-language]').value, location.hash]"))
     assert browser.writes[initial_writes:] == [("POST", "/api/projects")] * len(cases)
     assert not browser.external and not browser.errors
 
@@ -267,8 +277,11 @@ def check_review_paths(browser):
             decodeURIComponent(location.hash).includes('#view:independent?stage={stage}&lang={tag}') &&
             document.querySelector('[data-language]')?.value === '{lang}' &&
             document.documentElement.lang === '{tag}' &&
-            document.querySelector('.hs-eyebrow')?.textContent === 'STAGE 0{stage} / 06' &&
-            document.querySelector('.hs-project-name')?.textContent.includes('独审归档')"""))
+            (document.querySelector('[data-v1]')
+              ? document.querySelector('.v1-crumb')?.textContent.includes('独审归档') &&
+                document.querySelector('.v1-flow [data-stage="{stage}"]')?.getAttribute('aria-current') === 'page'
+              : document.querySelector('.hs-eyebrow')?.textContent === 'STAGE 0{stage} / 06' &&
+                document.querySelector('.hs-project-name')?.textContent.includes('独审归档'))"""))
 
     def reload_archive(stage, lang, tag):
         browser.js("window.wikiHomeBeforeReload = true")
