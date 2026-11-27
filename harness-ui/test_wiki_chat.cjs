@@ -73,7 +73,7 @@ assert.equal(wikiChatBytes('中'), 3);
 
 // 3. Quota bar and expiry.
 const ready = draw(base());
-assert.match(ready, /已预留 1 轮，每轮最多 120 秒 · 剩余 2 轮 · 有效到 \d{4}-/);
+assert.match(ready, /已预留 1 轮，每轮最多 120 秒 · 剩余 2 轮 · 有效到 \d{4}年\d{1,2}月\d{1,2}日 \d{2}:\d{2}/);
 assert.match(ready, /width:33%/);
 assert.match(draw(base({max_turns:0, reserved_turns:0, remaining_turns:0})), /已预留 0 轮.*剩余 0 轮/);
 assert.doesNotMatch(draw(base({panel_state:'no-permit', can_send:false})), /已预留/, 'no permit: reason instead of a quota bar');

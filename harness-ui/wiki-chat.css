@@ -9,15 +9,22 @@
  display:flex; flex-direction:column; align-items:center; gap:10px; box-shadow:-4px 4px 14px rgba(25,47,64,.1);
 }
 #harness-trace-workbench-v6 [data-v1] .wc-tab span { writing-mode:vertical-rl; letter-spacing:.14em; }
-#harness-trace-workbench-v6 [data-v1] .wc-tab small { writing-mode:vertical-rl; font-size:12px; font-weight:500; color:var(--v1-sub); }
+#harness-trace-workbench-v6 [data-v1] .wc-tab small { writing-mode:vertical-rl; white-space:nowrap; font-size:12px; font-weight:500; color:var(--v1-sub); }
 #harness-trace-workbench-v6 [data-v1] .wc-tab:hover { background:var(--v1-teal-soft); }
 #harness-trace-workbench-v6 [data-v1] .wc-tab:focus-visible, #harness-trace-workbench-v6 [data-v1] .wc-root :is(button, textarea, summary):focus-visible { outline:3px solid #9cc2ee; outline-offset:2px; }
 
 /* Expanded: 380px, over the right part of the page, not pushing it. */
 #harness-trace-workbench-v6 [data-v1] .wc-drawer {
  position:fixed; inset:0 0 0 auto; width:380px; max-width:100vw; background:#fbfbf8; border-left:1px solid var(--v1-line2); box-shadow:-12px 0 32px rgba(25,47,64,.16);
- overflow-y:auto; padding:16px 16px 28px; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.55; color:var(--v1-text);
+ overflow:hidden; padding:16px 16px 12px; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.55; color:var(--v1-text);
 }
+#harness-trace-workbench-v6 [data-v1] .wc-drawer > * { flex:none; }
+#harness-trace-workbench-v6 [data-v1] .wc-scroll { flex:1 1 auto; min-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:2px 2px 8px; }
+#harness-trace-workbench-v6 [data-v1] .wc-drawer > .wc-note { font-size:13.5px; }
+#harness-trace-workbench-v6 [data-v1] .wc-scroll > * { flex:none; }
+#harness-trace-workbench-v6 [data-v1] .wc-foot { display:grid; gap:8px; border-top:1px solid var(--v1-line); padding-top:10px; max-height:46%; overflow-y:auto; }
+#harness-trace-workbench-v6 [data-v1] .wc-head > div { min-width:0; }
+#harness-trace-workbench-v6 [data-v1] .wc-head .wc-btn { white-space:nowrap; flex:none; }
 #harness-trace-workbench-v6 [data-v1] .wc-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
 #harness-trace-workbench-v6 [data-v1] .wc-head h2 { margin:0; font-size:18px; line-height:1.3; }
 #harness-trace-workbench-v6 [data-v1] .wc-where { margin:2px 0 0; color:var(--v1-teal-dark); font-weight:600; font-size:13px; overflow-wrap:anywhere; }
@@ -58,7 +65,7 @@
 #harness-trace-workbench-v6 [data-v1] .wc-expect { border:1px dashed var(--v1-line2); border-radius:8px; padding:8px 12px; background:#fff; }
 #harness-trace-workbench-v6 [data-v1] .wc-expect ul { margin:4px 0 0; padding-left:18px; }
 
-#harness-trace-workbench-v6 [data-v1] .wc-messages { display:flex; flex-direction:column; gap:12px; max-height:340px; overflow-y:auto; padding:2px; }
+#harness-trace-workbench-v6 [data-v1] .wc-messages { display:flex; flex-direction:column; gap:12px; padding:2px; }
 #harness-trace-workbench-v6 [data-v1] .wc-turn { display:flex; flex-direction:column; gap:6px; }
 #harness-trace-workbench-v6 [data-v1] .wc-bubble { padding:8px 12px; border-radius:10px; white-space:pre-wrap; overflow-wrap:anywhere; max-width:92%; }
 #harness-trace-workbench-v6 [data-v1] .wc-user { align-self:flex-end; background:var(--v1-teal-soft); border:1px solid #bcd9d2; }

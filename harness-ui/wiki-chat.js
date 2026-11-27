@@ -26,7 +26,7 @@ function wikiChatDraftReason(text) {
 function wikiChatTime(seconds) {
  if (typeof seconds !== 'number' || !isFinite(seconds)) return '';
  const d = new Date(seconds * 1000), p = n => String(n).padStart(2, '0');
- return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+ return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 function wikiChatTurns(state) { return Array.isArray(state?.turns) ? state.turns : []; }
@@ -203,7 +203,9 @@ function wikiChatMarkup(c, p, ctl, state) {
  return `<aside class="wc-drawer" data-wc-drawer data-wc-state="${p.key}" aria-label="Codex 对话" ${ctl.open ? '' : 'hidden'}>
   <header class="wc-head"><div><h2>${esc(wikiChatAssistants[c.stage])}</h2><p class="wc-where">${title} · Stage ${c.stage}</p><p class="wc-sub">${esc(subtitle)}</p></div><button type="button" class="wc-btn sm" data-wc-close>收起</button></header>
   <div class="wc-state" role="status"><i class="wc-dot ${p.dot}"></i><b>${esc(p.label)}</b></div>
-  ${p.note ? `<p class="wc-note">${esc(p.note)}</p>` : ''}${where}${recheck}${settings}${notice}${quota}${materials}${messages}${chips}${composer}${secondary}${toolFold}${tech}
+  ${p.note ? `<p class="wc-note">${esc(p.note)}</p>` : ''}${where}${recheck || settings ? `<div class="wc-actions">${recheck}${settings}</div>` : ''}${notice}${quota}
+  <div class="wc-scroll" data-wc-scroll>${materials}${messages}${chips}${toolFold}${tech}</div>
+  <div class="wc-foot">${composer}${secondary}</div>
  </aside>`;
 }
 
@@ -390,14 +392,14 @@ function wikiChatPaint(app) {
  const p = wikiChatPanel(c);
  ctl.panel = p;
  const markup = wikiChatTabMarkup(c, p, ctl) + wikiChatMarkup(c, p, ctl, ctl.state);
- const keep = ctl.root.querySelector('[data-wc-messages]');
+ const keep = ctl.root.querySelector('[data-wc-scroll]');
  const scroll = keep ? keep.scrollTop : 0, atEnd = keep ? keep.scrollHeight - keep.scrollTop - keep.clientHeight < 40 : true;
  if (ctl.root.v1Markup !== markup) {
   ctl.root.innerHTML = markup;
   ctl.root.v1Markup = markup;
   for (const area of ctl.root.querySelectorAll('[data-wc-ans]')) area.value = ctl.answers[area.dataset.wcAns] || '';
-  const list = ctl.root.querySelector('[data-wc-messages]');
-  if (list) list.scrollTop = atEnd ? list.scrollHeight : scroll;
+  const list = ctl.root.querySelector('[data-wc-scroll]');
+  if (list) list.scrollTop = atEnd && ctl.stickBottom !== false ? list.scrollHeight : scroll;
  }
  wikiChatSync(app);
  if (ctl.focus && ctl.open) {
