@@ -296,17 +296,22 @@ async function wikiChatSend(app) {
  const session = ctl.forceNew ? '' : (ctl.state?.sessions || []).slice(-1)[0]?.id || '';
  // The same words keep the same key, so a repeated click replays the saved turn instead of a new one.
  if (!ctl.pendingSend || ctl.pendingSend.text !== draft) ctl.pendingSend = {text:draft, key:'wc-' + (crypto.randomUUID ? crypto.randomUUID().replaceAll('-', '') : Math.random().toString(16).slice(2).padEnd(24, '0'))};
+ const key = ctl.key;
  ctl.sending = true; ctl.notice = null; wikiChatPaint(app);
  try {
   const turn = await wikiChatPost('send', {project_ref:here.ref, stage:here.stage, text:draft, key:ctl.pendingSend.key, session_id:session, input_version:project.input_version, brief_sha256:project.brief_sha256});
-  ctl.pendingSend = null; ctl.drafts[ctl.key] = ''; ctl.forceNew = false;
+  // The person may have moved to another project or stage while this was in flight: touch nothing there.
+  if (key !== ctl.key) return;
+  ctl.pendingSend = null; ctl.drafts[key] = ''; ctl.forceNew = false;
   if (ctl.state) { ctl.state.turns = [...wikiChatTurns(ctl.state).filter(t => t.id !== turn.id), turn]; ctl.state.panel_state = 'sending'; }
  } catch (exception) {
+  if (key !== ctl.key) return;
   if (wikiChatFail(app, exception, '这条消息的结果还没确认，不会自动重发。再点「发送给 Codex」只会重送同一条（编号和内容不变）。')) {
    ctl.pendingSend = null;
    if (/session-content-cleared|project-changed/.test(exception.code)) { ctl.forceNew = true; ctl.notice.text = '对话记录已清空（或课题已变），请开新对话'; }
   }
  }
+ if (key !== ctl.key) return;
  ctl.sending = false;
  wikiChatPaint(app);
  wikiChatLoad(app);
