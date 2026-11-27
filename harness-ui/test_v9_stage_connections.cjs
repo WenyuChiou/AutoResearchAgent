@@ -396,7 +396,7 @@ async function exerciseStaticPlanningRead() {
   if (defects.length) throw Error(defects.join(' | '));
 }
 
-function runChromeExercise(exercise) {
+function runChromeExercise(exercise, runtimeHooks='') {
   const chrome=[process.env.CHROME_BIN, process.env.CHROME_PATH,
     'C:/Program Files/Google/Chrome/Application/chrome.exe','/usr/bin/google-chrome','/usr/bin/chromium',
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p=>p&&existsSync(p));
@@ -405,7 +405,7 @@ function runChromeExercise(exercise) {
   try {
     const runtime=source('renderer/src/runtime.js');
     const actions=runtime.slice(runtime.indexOf('async function liveReceiptBound('),runtime.indexOf('const liveDisabled='));
-    const scripts=[`(${browserFixture})();`, actions, ...['stage2_display.js','v9-stage-connections.js','v9-stage3-bridge.js'].map(source),
+    const scripts=[`(${browserFixture})();`, actions, runtimeHooks, ...['stage2_display.js','v9-stage-connections.js','v9-stage3-bridge.js'].map(source),
       `(${exercise})().then(()=>document.title='SYNTHETIC_PASS',e=>document.title='FAIL '+e.stack);`];
     const html=join(temp,'fixture.html');
     writeFileSync(html,'<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'"><title>RUNNING</title><main></main>'+
@@ -416,6 +416,8 @@ function runChromeExercise(exercise) {
     assert.equal(run.stdout.match(/<title>([^<]*)<\/title>/)?.[1],'SYNTHETIC_PASS');
   } finally { rmSync(temp,{recursive:true,force:true,maxRetries:8,retryDelay:100}); }
 }
+module.exports = {runChromeExercise};
+if (require.main === module) {
 test('SYNTHETIC stage connections through the served renderer functions and real button clicks',
   ()=>runChromeExercise(exercise));
 test('SYNTHETIC ordinary Stage 2 unified request controls and original not-connected 409',
@@ -424,3 +426,4 @@ test('SYNTHETIC Stage 2 keeps the connection heading focused during discovery re
   ()=>runChromeExercise(exerciseStage2ConnectionFocus));
 test('SYNTHETIC Stage 3 static saved planning on the Stage 2-only Host contract',
   ()=>runChromeExercise(exerciseStaticPlanningRead));
+}
