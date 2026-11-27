@@ -274,9 +274,9 @@ document.addEventListener('change',event=>{
  const path=event.composedPath(),app=apps.find(item=>path.includes(item.el));
  if(app)v93SyncLanguageRoute(app,true);
 });
-document.addEventListener('click',async event=>{
- const button=event.target.closest('[data-v93-read]');if(!button||v93.busy)return;
- const app=apps.find(a=>a.el.contains(button)),basis=v93Identity();if(!app||app.stage!==3||!basis)return;
+// Reading is GET-only (projectPath .../stage3/planning, no body). It never starts planning.
+async function v93ReadSaved(app,basis){
+ if(v93.busy||!app||app.stage!==3||!basis)return;
  const epoch=rt.epoch,sequence=++v93.sequence;v93.busy=true;v93.error='';v93.errorBasis=null;v93.view=null;v93.basis=null;livePaint();
  try{
   const view=await liveRequest(projectPath(basis.project_ref,'stage3/planning'));
@@ -285,4 +285,8 @@ document.addEventListener('click',async event=>{
   v93.view=view;v93.basis=basis;
  }catch(error){if(sequence===v93.sequence&&epoch===rt.epoch&&v93Matches(basis,v93Identity())){v93.error=String(error.message||error);v93.errorBasis=basis;}}
  finally{if(sequence===v93.sequence){v93.busy=false;livePaint();}}
+}
+document.addEventListener('click',event=>{
+ const button=event.target.closest('[data-v93-read]');if(!button||v93.busy)return;
+ const app=apps.find(a=>a.el.contains(button));return v93ReadSaved(app,v93Identity());
 });
