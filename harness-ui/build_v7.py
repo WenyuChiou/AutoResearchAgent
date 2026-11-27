@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SOURCE_NAMES = ("base.js", "shell.html", "runtime.js", "control-intent.js", "retirement-ui.js", "real-runtime.js", "expansion-ui.js", "query-feedback.js", "canonical-stage2.js", "canonical-runs.js", "native-case-ui.js", "runtime.css")
+SOURCE_NAMES = ("base.js", "shell.html", "runtime.js", "control-intent.js", "retirement-ui.js", "connection-diagnostics.js", "real-runtime.js", "expansion-ui.js", "query-feedback.js", "canonical-stage2.js", "canonical-runs.js", "native-case-ui.js", "runtime.css")
 LOCAL_VENDORS = ("atlas-spatial.js", "three.core.js", "three-LICENSE.txt", "three.core.provenance.json")
 SHARED_VENDORS = {
     "3d-force-graph-1.80.1.min.js": "vendor/3d-force-graph-1.80.1.min.js",
@@ -42,7 +42,7 @@ def snapshot(repo, package=HERE):
         raise ValueError("expected one V7 runtime insertion marker")
     if b'/project-bootstrap.js' not in inputs["shell.html"]:
         raise ValueError("production ProjectHost bootstrap required")
-    modules = ('runtime.js', 'control-intent.js', 'retirement-ui.js', 'real-runtime.js',
+    modules = ('runtime.js', 'control-intent.js', 'retirement-ui.js', 'connection-diagnostics.js', 'real-runtime.js',
                'expansion-ui.js', 'query-feedback.js', 'canonical-stage2.js',
                'canonical-runs.js', 'native-case-ui.js')
     app = inputs["base.js"].replace(marker, b'\n'.join(inputs[name] for name in modules))
