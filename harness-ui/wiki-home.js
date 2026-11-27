@@ -330,6 +330,18 @@ window.addEventListener('popstate', () => {
  if (apps[0].lang === 'zh' && !location.hash && apps[0].page !== 'home' && !rt.busy) wikiHomeShow();
 });
 
+// A topic link carries its language (lang=en|zh-TW|zh-CN). Use it from the first paint: the runtime applies it
+// only after the project read finishes, so a slow machine first showed the topic in the default language and
+// then repainted (which also closed any menu opened in between).
+(() => {
+ let mapped;
+ try {
+  const raw = location.hash.slice(1), at = raw.indexOf('?');
+  mapped = at < 0 ? null : {en:'en', 'zh-TW':'tw', 'zh-CN':'zh'}[new URLSearchParams(raw.slice(at + 1)).get('lang')];
+ } catch (_) { mapped = null; }
+ if (mapped && apps[0] && apps[0].lang !== mapped) { apps[0].lang = mapped; livePaint(); }
+})();
+
 if (apps[0].lang === 'zh' && !location.hash) {
  apps[0].page = 'home';
  livePaint();
