@@ -13,15 +13,19 @@ const WSG_REASONS = {
  'stage1-run-grant-verification-required': '已保存的运行许可没有通过核对，暂时不能创建新的。'};
 const WSG_STATUS = {active: ['done', '有效'], expired: ['block', '已过期'], revoked: ['err', '已撤销'], stale: ['block', '绑定的是旧版本'],
  invalid: ['err', '记录核对不通过'], 'clock-regressed': ['err', '时钟倒退，已停用'], none: ['idle', '还没有']};
-const wsgForm = {ref: null};
+const WSG_MAX_BYTES = 4096; // what the service accepts for an authorization reason
+const WSG_LEASE = {open: '未用完', expired: '已过期', revoked: '已撤销', unreadable: '读不到租约记录', 'clock-regressed': '时钟倒退，已停用'};
+const WSG_GRANT_REASONS = {'stage1-run-grant-ambiguous': '有不止一份许可对得上当前版本，服务没有选其中一份', 'stage1-run-grant-verification-required': '已保存的运行许可没有通过核对'};
+const wsgForms = new Map();
 
 function wsgFormFor(ref) {
- if (wsgForm.ref !== ref) {
-  for (const name of Object.keys(wsgForm)) delete wsgForm[name];
-  Object.assign(wsgForm, {ref, words: '', confirmed: false, ops: null, seconds: '', actions: '64', search: false, source: false,
-   key: null, busy: false, result: null});
+ let form = wsgForms.get(ref);
+ if (!form) {
+  form = {ref, words: '', confirmed: false, ops: null, seconds: '', actions: '64', search: false, source: false,
+   key: null, busy: false, result: null, reasons: {}};
+  wsgForms.set(ref, form);
  }
- return wsgForm;
+ return form;
 }
 function wsgLimits() { return rt.meta?.run_limits || null; }
 function wsgPositive(value) { return Number.isSafeInteger(value) && value > 0; }
@@ -30,11 +34,36 @@ function wsgZero() {
  return !limits || !wsgPositive(limits.seconds) || !Object.values(limits).some(wsgPositive);
 }
 function wsgBytes(text) { return new TextEncoder().encode(text || '').length; }
-// The researcher's own words for plan / query authorization and the run grant. Empty means "not written".
-function wsgWords() {
+// Every authorization card has its own reason box and its own confirmation: one reason is never reused.
+const WSG_REASON_BUTTONS = {
+ 'authorize-plan': '[data-real-action="authorize-plan"]',
+ 'query-authorize': '[data-real-action="query-authorize"]',
+ 'followup-authorize': '[data-v7-workflow="followup-authorize"]'};
+const WSG_REASON_TITLES = {
+ 'authorize-plan': '只授权这一次检索规划（Codex 规划查询，不检索）',
+ 'query-authorize': '只授权这一次已保存查询',
+ 'followup-authorize': '只授权这一次内容问答'};
+function wsgReasonFor(action) {
  const form = wsgFormFor(rt.ref);
- return form.words.trim() ? form.words : '';
+ return form.reasons[action] || (form.reasons[action] = {words: '', confirmed: false});
 }
+function wsgReasonGate(action) {
+ const reason = wsgReasonFor(action);
+ if (!reason.words.trim()) return '先写下你的授权理由（原话）';
+ if (wsgBytes(reason.words) > WSG_MAX_BYTES) return `授权理由超过 ${WSG_MAX_BYTES} 字节`;
+ if (!reason.noConfirm && !reason.confirmed) return '先勾选「我确认只授权这一件事」';
+ return '';
+}
+// The words for one authorization, verbatim; empty unless written and confirmed on that card.
+function wsgActionWords(action) {
+ return wsgReasonGate(action) ? '' : wsgReasonFor(action).words;
+}
+function wsgClearReason(action) {
+ delete wsgFormFor(rt.ref).reasons[action];
+}
+function wsgLang(app) { return app?.lang || 'zh'; }
+function wsgText(app, zh, en, tw) { return ({zh, en, tw})[wsgLang(app)] || zh; }
+
 // What the researcher ticked at scope confirmation. A lane is only consented when ticked and the launch allows it.
 function wsgScopeConsent() {
  const form = wsgFormFor(rt.ref), limits = wsgLimits() || {};
@@ -97,7 +126,7 @@ function wsgSubmitGate(summary, project) {
  if (form.busy) return '正在提交，请稍等';
  if (!summary.grant_creation?.available) return WSG_REASONS[summary.grant_creation?.reason] || '现在不能创建运行许可';
  if (!form.words.trim()) return '请先写下你的授权理由（原话）';
- if (wsgBytes(form.words) > 8192) return '授权理由超过 8192 字节';
+ if (wsgBytes(form.words) > WSG_MAX_BYTES) return `授权理由超过 ${WSG_MAX_BYTES} 字节`;
  if (!wsgSelectedOps(project).length) return '至少选一项要做的操作';
  const max = summary.grant_creation.max_seconds, seconds = Number(form.seconds || max);
  if (!Number.isSafeInteger(seconds) || seconds < 1 || seconds > max) return `最长秒数要是 1 到 ${max} 的整数`;
@@ -120,11 +149,12 @@ function wsgExisting(run) {
  if (run.operations) facts.push(['能做的操作', run.operations.map(id => (WSG_OPS.find(o => o[0] === id) || [id, id])[1]).join('、')]);
  if (run.max_actions != null) facts.push(['动作数', `${run.actions_used ?? 0} / ${run.max_actions}`]);
  if (run.expires_at != null) facts.push(['有效到', wsgFmtTime(run.expires_at) + (run.status === 'active' ? `（还剩 ${wsgDuration(run.remaining_seconds)}）` : '')]);
- if (run.lease?.state) facts.push(['许可租约', run.lease.state === 'open' ? '未用完' : run.lease.state]);
+ if (run.lease?.state) facts.push(['许可租约', WSG_LEASE[run.lease.state] || '服务给了没见过的状态（原值见下方）']);
  if (run.user_input) facts.push(['你当时写的理由', run.user_input]);
  if (run.status === 'stale') facts.push(['说明', `这个课题换了版本，旧版本的 ${run.stale_count ?? ''} 份许可不再适用，不会续期`]);
- if (run.reason) facts.push(['说明', run.reason]);
- return `<p>${wsTag(kind, label)}</p>${rows.join('')}<dl class="ws-grant-facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+ if (run.reason) facts.push(['说明', WSG_GRANT_REASONS[run.reason] || wsPlain(run.reason)]);
+ const raw = wsRaw([run.reason, run.lease?.state && !WSG_LEASE[run.lease.state] ? run.lease.state : null]);
+ return `<p>${wsTag(kind, label)}</p>${rows.join('')}<dl class="ws-grant-facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${raw}`;
 }
 function wsgResultNote(form) {
  const result = form.result;
@@ -136,7 +166,10 @@ function wsgResultNote(form) {
 function wsgFormHtml(summary, project) {
  const form = wsgFormFor(rt.ref), allowed = wsgOpsAllowed(project), chosen = new Set(wsgSelectedOps(project));
  const max = summary.grant_creation.max_seconds, gate = wsgSubmitGate(summary, project);
+ const bytes = wsgBytes(form.words);
  return `<div class="ws-grant-form">
+ <label class="ws-wide ws-grant-words">只用于创建这份运行许可的授权理由（原话，必填，原样保存）<textarea data-wsg-words rows="3" placeholder="例如：我授权这一轮 Stage 1 只在上限内检索和读取，到上限就停。">${esc(form.words)}</textarea>
+ <small data-wsg-count>${bytes > WSG_MAX_BYTES ? `超过 ${WSG_MAX_BYTES} 字节` : `${bytes} / ${WSG_MAX_BYTES} 字节。这句话只用于创建许可，不会用到别的授权。`}</small></label>
  <fieldset class="ws-grant-ops"><legend>这份许可允许做什么</legend>${WSG_OPS.map(([id, name]) => `<label class="ws-check"><input type="checkbox" data-wsg-op="${id}" ${chosen.has(id) ? 'checked' : ''} ${allowed[id] ? 'disabled' : ''}> <span>${esc(name)}${allowed[id] ? `<small class="ws-why" role="note">${esc(allowed[id])}</small>` : ''}</span></label>`).join('')}</fieldset>
  <div class="ws-grid"><label>最长总秒数（最多 ${esc(max)}）<input data-wsg-seconds type="number" min="1" max="${esc(max)}" value="${esc(form.seconds || max)}"></label>
  <label>动作数上限（最多 512）<input data-wsg-actions type="number" min="1" max="512" value="${esc(form.actions)}"></label></div>
@@ -159,15 +192,12 @@ function wsgCardHtml() {
  else {
   const summary = cache.value, form = wsgFormFor(rt.ref);
   const consent = summary.consent || {}, stage1 = consent.stages?.stage1;
-  const line = !consent.present ? '这次启动没有带同意书（逐步授权照常可用）' : consent.valid ? `同意书有效${stage1?.covered ? '，覆盖 Stage 1' : '，但没覆盖 Stage 1'}，有效到 ${wsgFmtTime(consent.expires_at)}` : `同意书用不了：${consent.reason}`;
-  body = `<p class="wiki-s1-muted" data-wsg-state="read">${esc(line)}</p>${wsgExisting(summary.run_grant || {status: 'none'})}${wsgResultNote(form)}
+  const line = !consent.present ? '这次启动没有带同意书（逐步授权照常可用）' : consent.valid ? `同意书有效${stage1?.covered ? '，覆盖 Stage 1' : '，但没覆盖 Stage 1'}，有效到 ${wsgFmtTime(consent.expires_at)}` : `同意书用不了：${(typeof wsConsentBlocks === 'object' && wsConsentBlocks[consent.reason]?.[1]) || wsPlain(consent.reason)}`;
+  body = `<p class="wiki-s1-muted" data-wsg-state="read">${esc(line)}</p>${consent.reason && !consent.valid && consent.present ? wsRaw(consent.reason) : ''}${wsgExisting(summary.run_grant || {status: 'none'})}${wsgResultNote(form)}
   ${summary.grant_creation?.available ? wsgFormHtml(summary, project) : `<div class="ws-quota ws-quota-gray"><b>现在不能创建</b><span>${esc(WSG_REASONS[summary.grant_creation?.reason] || summary.grant_creation?.reason || '服务没有给出原因')}</span></div>
   <div class="ws-actions">${wsBtn('创建 Stage 1 运行许可', 'data-wsg-submit', WSG_REASONS[summary.grant_creation?.reason] || '现在不能创建运行许可', 'hs-button-primary')}</div>`}`;
  }
- const form = wsgFormFor(rt.ref), bytes = wsgBytes(form.words);
- const words = `<label class="ws-wide ws-grant-words">你的授权理由（原话，必填，原样保存）<textarea data-wsg-words rows="3" maxlength="4000" placeholder="例如：我授权这一轮 Stage 1 只在上限内检索和读取，到上限就停。">${esc(form.words)}</textarea>
- <small>${bytes > 8192 ? '超过 8192 字节' : '授权检索规划、授权查询和创建运行许可都用这一句，会原样存进授权记录；不写就不能提交这些授权。'}</small></label>`;
- return `<section class="wiki-s1-card ws-grant" data-wsg-card aria-label="运行许可">${head}${launch}${words}${body}</section>`;
+ return `<section class="wiki-s1-card ws-rungrant" data-wsg-card aria-label="运行许可">${head}${launch}${body}</section>`;
 }
 
 // ---------- hooks into the existing Stage 1 page (nothing in wiki-stage1-ops.js is edited) ----------
@@ -234,24 +264,99 @@ function wsgPatchSubmit(app) {
  const why = button.parentElement.querySelector('.ws-why');
  if (why) { why.textContent = reason; why.hidden = !reason; }
 }
+function wsgBoxHtml(app, action, needsConfirm) {
+ const reason = wsgReasonFor(action), bytes = wsgBytes(reason.words);
+ return `<div class="ws-reason" data-wsg-reason="${action}"><label>你的授权理由（原话，必填）<textarea data-wsg-reason-words="${action}" rows="2">${esc(reason.words)}</textarea>
+ <small data-wsg-reason-count="${action}">${bytes > WSG_MAX_BYTES ? `超过 ${WSG_MAX_BYTES} 字节` : `${bytes} / ${WSG_MAX_BYTES} 字节`}</small></label>
+ ${needsConfirm ? `<label class="ws-check"><input type="checkbox" data-wsg-reason-confirm="${action}" ${reason.confirmed ? 'checked' : ''}> <span>我确认：${esc(WSG_REASON_TITLES[action])}。理由只用于这一次，提交后清空。</span></label>` : '<small>理由只用于这一次，提交后清空。</small>'}
+ <small class="ws-why" data-wsg-reason-why="${action}" role="note"></small></div>`;
+}
+function wsgApplyReasonGate(root, action) {
+ for (const box of root.querySelectorAll(`[data-wsg-reason="${action}"]`)) {
+  const button = box.parentElement.querySelector(WSG_REASON_BUTTONS[action]);
+  if (!button) continue;
+  const reason = wsgReasonGate(action);
+  button.disabled = button.dataset.wsgBase === '1' || !!reason;
+  const why = box.querySelector(`[data-wsg-reason-why="${action}"]`);
+  why.textContent = reason; why.hidden = !reason;
+  const count = box.querySelector(`[data-wsg-reason-count="${action}"]`), bytes = wsgBytes(wsgReasonFor(action).words);
+  count.textContent = bytes > WSG_MAX_BYTES ? `超过 ${WSG_MAX_BYTES} 字节` : `${bytes} / ${WSG_MAX_BYTES} 字节`;
+  const field = box.querySelector('[data-wsg-reason-words]');
+  if (field && field !== document.activeElement && field.value !== wsgReasonFor(action).words) field.value = wsgReasonFor(action).words;
+  const tick = box.querySelector('[data-wsg-reason-confirm]');
+  if (tick) tick.checked = wsgReasonFor(action).confirmed;
+ }
+}
+function wsgInjectReasons(app) {
+ if (typeof wsReadonly === 'function' && wsReadonly()) return;
+ // The plan card used to say the authorization has no reason item; it does now, and the box below collects it.
+ for (const line of app.el.querySelectorAll('[data-ws-grant="plan"] p.wiki-s1-muted')) if (line.textContent.includes('授权理由：现在的授权接口没有理由')) line.hidden = true;
+ for (const [action, selector] of Object.entries(WSG_REASON_BUTTONS)) {
+  for (const button of app.el.querySelectorAll(selector)) {
+   if (button.dataset.wsgPrepared === '1' || button.closest('[hidden]')) continue; // retired old controls stay untouched
+   button.dataset.wsgPrepared = '1';
+   const anchor = button.closest('.ws-actions') || button.closest('.ws-btn') || button;
+   if (wsgLang(app) !== 'zh') {
+    // The reason box lives on the Simplified Chinese page; here the button is off and says so (no fake entry).
+    button.disabled = true;
+    const note = document.createElement('small');
+    note.className = 'ws-why';
+    note.dataset.wsgLangNote = action;
+    note.textContent = wsgText(app, '', 'Authorizing needs a reason box that only the Simplified Chinese page has. Switch the language to Simplified Chinese to authorize.', '授權需要填寫理由，理由框只在簡體中文頁面。請切換到簡體中文再授權。');
+    anchor.after(note);
+    continue;
+   }
+   button.dataset.wsgBase = button.disabled ? '1' : '0';
+   // The plan card already has its own confirmation box; do not ask twice.
+   const needsConfirm = !button.closest('[data-ws-grant]');
+   wsgReasonFor(action).noConfirm = !needsConfirm;
+   anchor.insertAdjacentHTML('beforebegin', wsgBoxHtml(app, action, needsConfirm));
+   wsgApplyReasonGate(app.el, action);
+  }
+ }
+ if (wsgLang(app) !== 'zh') {
+  for (const button of app.el.querySelectorAll('[data-live-action="confirm"]')) {
+   if (button.dataset.wsgPrepared === '1') continue;
+   button.dataset.wsgPrepared = '1';
+   const note = document.createElement('small');
+   note.className = 'ws-why';
+   note.textContent = wsgText(app, '', 'External search and public source consent can only be given on the Simplified Chinese page. Saving the scope here gives no search consent.', '外部檢索與公開來源的同意只能在簡體中文頁面勾選。在這裡保存範圍不會給出任何檢索同意。');
+   (button.closest('.ws-btn') || button).after(note);
+  }
+ }
+}
 const wsgPrevAfter = v7AfterRender;
 v7AfterRender = function (app) {
  wsgPrevAfter(app);
+ wsgInjectReasons(app);
  if (!wsOpsActive(app) || !app.el.querySelector('[data-wiki-s1]')) return;
  if (app.el.querySelector('[data-wsg-card]')) wsgLoad();
 };
 document.addEventListener('input', event => {
  const target = event.target, app = apps[0];
+ if (app && target.matches?.('[data-wsg-reason-words]')) {
+  wsgReasonFor(target.dataset.wsgReasonWords).words = target.value;
+  wsgApplyReasonGate(app.el, target.dataset.wsgReasonWords);
+  return;
+ }
  if (!app || !target.closest?.('[data-wsg-card]')) return;
  const form = wsgFormFor(rt.ref);
- if (target.matches('[data-wsg-words]')) form.words = target.value;
- else if (target.matches('[data-wsg-seconds]')) form.seconds = target.value;
+ if (target.matches('[data-wsg-words]')) {
+  form.words = target.value;
+  const count = target.parentElement.querySelector('[data-wsg-count]'), bytes = wsgBytes(form.words);
+  if (count) count.textContent = bytes > WSG_MAX_BYTES ? `超过 ${WSG_MAX_BYTES} 字节` : `${bytes} / ${WSG_MAX_BYTES} 字节。这句话只用于创建许可，不会用到别的授权。`;
+ } else if (target.matches('[data-wsg-seconds]')) form.seconds = target.value;
  else if (target.matches('[data-wsg-actions]')) form.actions = target.value;
  else return;
  wsgPatchSubmit(app);
 });
 document.addEventListener('change', event => {
  const target = event.target, form = wsgFormFor(rt.ref);
+ if (target.matches?.('[data-wsg-reason-confirm]') && apps[0]) {
+  wsgReasonFor(target.dataset.wsgReasonConfirm).confirmed = target.checked;
+  wsgApplyReasonGate(apps[0].el, target.dataset.wsgReasonConfirm);
+  return;
+ }
  if (target.matches?.('[data-wsg-consent]')) {
   form[target.dataset.wsgConsent === 'external_search' ? 'search' : 'source'] = target.checked;
   livePaint();

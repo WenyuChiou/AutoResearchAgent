@@ -30,17 +30,16 @@ let html = ctx.wsgCardHtml();
 assert.match(html, /data-wsg-state="zero"/);
 assert.match(html, /运行上限是 0/);
 assert.match(buttonOf(html), /disabled/);
-assert.match(html, /data-wsg-words/);
-assert.equal(ctx.wsgWords(), '');
+assert.doesNotMatch(html, /data-wsg-words/, 'nothing to write when nothing can be submitted');
 
-// Words are required, kept verbatim (not trimmed), and shared by every authorization.
+// Words are required and kept verbatim (not trimmed).
 ctx = load(LIMITS);
 ctx.rt.wsg = read({status:'none'});
 let form = ctx.wsgFormFor('project-a');
 const summary = ctx.rt.wsg.value, p = ctx.rt.overview.project;
 assert.equal(ctx.wsgSubmitGate(summary, p), '请先写下你的授权理由（原话）');
 form.words = '  我授权这一轮，到上限就停。  ';
-assert.equal(ctx.wsgWords(), '  我授权这一轮，到上限就停。  ');
+assert.equal(form.words, '  我授权这一轮，到上限就停。  ');
 assert.equal(ctx.wsgSubmitGate(summary, p), '请先勾选确认');
 form.confirmed = true;
 assert.equal(ctx.wsgSubmitGate(summary, p), '');
@@ -73,6 +72,48 @@ assert.match(buttonOf(html), /disabled/);
 assert.match(html, /已经有运行许可/);
 assert.doesNotMatch(html, /data-wsg-confirm/);
 
+// Each authorization has its own reason and confirmation; nothing is shared or reused.
+ctx = load(LIMITS);
+form = ctx.wsgFormFor('project-a');
+assert.equal(ctx.wsgActionWords('authorize-plan'), '');
+assert.match(ctx.wsgReasonGate('authorize-plan'), /先写下/);
+ctx.wsgReasonFor('authorize-plan').words = '  只授权规划  ';
+assert.match(ctx.wsgReasonGate('authorize-plan'), /先勾选/);
+ctx.wsgReasonFor('authorize-plan').confirmed = true;
+assert.equal(ctx.wsgActionWords('authorize-plan'), '  只授权规划  ');
+assert.equal(ctx.wsgActionWords('query-authorize'), '', 'the plan reason is not usable for the query');
+assert.equal(ctx.wsgActionWords('followup-authorize'), '');
+form.words = '创建许可的话'; form.confirmed = true;
+assert.equal(ctx.wsgActionWords('query-authorize'), '', 'the grant words are not usable for authorizations');
+ctx.wsgClearReason('authorize-plan');
+assert.equal(ctx.wsgActionWords('authorize-plan'), '');
+ctx.wsgReasonFor('query-authorize').words = 'x'.repeat(4097); ctx.wsgReasonFor('query-authorize').confirmed = true;
+assert.match(ctx.wsgReasonGate('query-authorize'), /超过 4096 字节/);
+ctx.wsgReasonFor('query-authorize').words = '汉'.repeat(1366);  // 4098 bytes
+assert.match(ctx.wsgReasonGate('query-authorize'), /超过 4096 字节/, 'bytes, not characters');
+
+// Forms belong to a project: a late result for one never shows on another.
+ctx = load(LIMITS);
+const a = ctx.wsgFormFor('project-a'), b = ctx.wsgFormFor('project-b');
+a.result = {ok:true, expires_at:'2030-01-01T00:00:00Z'};
+assert.equal(b.result, null);
+assert.notEqual(a, b);
+assert.equal(ctx.wsgFormFor('project-a'), a);
+
+// Backend codes never appear as body text; the raw value goes to the technical details.
+ctx = load(LIMITS);
+ctx.rt.wsg = read({status:'invalid', reason:'stage1-run-grant-ambiguous', lease:{state:'clock-regressed'}},
+ {available:false, reason:'stage1-run-grant-verification-required', max_seconds:120});
+html = ctx.wsgCardHtml();
+assert.doesNotMatch(html.replace(/<details[\s\S]*?<\/details>/g, ''), /stage1-run-grant-ambiguous|clock-regressed/);
+assert.match(html, /不止一份许可对得上/);
+assert.match(html, /时钟倒退，已停用/);
+ctx.rt.wsg = {key:null, state:'read', value:{grant_creation:{available:false, reason:'stage1-run-grant-renewal-refused'}, run_grant:{status:'none'},
+ consent:{present:true, valid:false, reason:'stage-progression-consent-binding-differs'}}};
+html = ctx.wsgCardHtml();
+assert.doesNotMatch(html.replace(/<details[\s\S]*?<\/details>/g, ''), /stage-progression-consent-binding-differs/);
+assert.match(html, /<code>stage-progression-consent-binding-differs<\/code>/);
+
 // A server refusal is shown in plain words with whether anything was recorded.
 form = ctx.wsgFormFor('project-a');
 form.result = {ok:false, reason:'这个课题当前版本已经有运行许可', recorded:false};
@@ -98,4 +139,7 @@ assert.doesNotMatch(runtime, /用户要求在本地 V7/);
 assert.doesNotMatch(runtime, /本地 V7 限定链路验收/);
 assert.doesNotMatch(runtime, /positive\(limits\?\.seconds\)&&positive\(limits\?\.search_calls\)/);
 assert.match(runtime, /user_input:words/);
+assert.doesNotMatch(runtime, /user_input:rl\(/, 'no fixed authorization sentence is left');
+for (const action of ['authorize-plan', 'query-authorize', 'followup-authorize']) assert.ok(runtime.includes("realResearcherWords('" + action + "')"), action);
+assert.ok(!runtime.includes('realResearcherWords()'), 'every authorization names its own card');
 console.log('wiki stage1 grant tests passed');
