@@ -105,6 +105,18 @@ class ContractMemoTests(unittest.TestCase):
         self.assertEqual(len(contracts._valid), 7)
         self.assertGreaterEqual(type(validator).calls, 7)
 
+    def test_too_deeply_nested_value_is_never_remembered(self):
+        validator = self.fake([])
+        deep = current = {}
+        for _ in range(5000):
+            current["x"] = {}
+            current = current["x"]
+        with patch.object(contracts, "validator", return_value=validator):
+            contracts.check(deep, "Anything")
+            contracts.check(deep, "Anything")
+        self.assertEqual(type(validator).calls, 2)
+        self.assertEqual(len(contracts._valid), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
