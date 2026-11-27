@@ -428,6 +428,16 @@ kbd {
     vertical-align: top;
 }
 
+#root .markdown .table-wrap-compact :is(th, td) {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+@media (max-width: 520px) {
+    #root .markdown .table-wrap-compact :is(th, td) {
+        padding: .35rem .25rem;
+    }
+}
+
 #root .markdown tbody th {
     font-weight: 500;
 }
