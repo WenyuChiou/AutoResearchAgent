@@ -202,7 +202,7 @@ class ProjectStage2SelectionView:
     def read(self, credential, project_ref, *, check_deadline=None):
         from .project_stage_connections import BindingTable
 
-        with self.intake._lock:
+        with self.intake._lock, verified_selection_read(self.intake):
             self.intake.read(credential, project_ref)
             if isinstance(self.bindings, BindingTable):
                 if check_deadline is not None:
