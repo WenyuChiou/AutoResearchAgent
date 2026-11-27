@@ -207,8 +207,7 @@ function wsScopePage(app) {
  }
  const note = rt.error ? `<div class="live-error ws-err" role="alert">${wsTag('err','出错')} 没有保存：${esc(rt.error)}，表单内容保留。</div>` : '';
  const busy = rt.busy ? `<p class="ws-run" role="status">${wsTag('run','进行中')} 正在保存范围</p>` : '';
- return `<section data-wiki-ops="scope" aria-label="确认范围">${note}${busy}${form}${card}
- <p class="wiki-s1-muted">范围表单里的「初始化」不再是单独的按钮：保存范围后页面会接着建立本课题的本地记录。</p></section>`;
+ return `<section data-wiki-ops="scope" aria-label="确认范围">${note}${busy}${form}${card}</section>`;
 }
 
 // ---------- run tab: seven-row process table (8.7) ----------
@@ -427,6 +426,7 @@ v7AfterRender = function (app) {
  for (const node of app.el.querySelectorAll('[data-wiki-s1-output] section.live-files')) if (/^已保存的检索候选/.test(node.querySelector('h3')?.textContent || '')) node.hidden = true;
  const slot = app.el.querySelector('[data-ws-expansion-slot]'), expansion = app.el.querySelector('.lp-operations [data-v7-expansion-panel]');
  if (slot && expansion) slot.append(expansion);
+ else if (expansion) expansion.hidden = true;
  for (const box of app.el.querySelectorAll('.lp-operations')) box.hidden = ![...box.querySelectorAll('.lp-ops-body > *')].some(node => !node.hidden);
  const scopePage = app.el.querySelector('[data-wiki-ops="scope"]'), shell = app.el.querySelector('[data-wiki-shell]');
  if (scopePage && shell) {

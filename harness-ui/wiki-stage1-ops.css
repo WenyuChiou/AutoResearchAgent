@@ -90,3 +90,4 @@ p.ws-run { background:none; padding:0; }
 .wiki-s1-claim > .ws-tag { grid-column:1 / -1; justify-self:start; }
 .ws-materials h3 { margin:20px 0 8px; }
 .lp-operations[hidden] { display:none !important; }
+.ws-step:empty { display:none; }
