@@ -244,8 +244,14 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-v1]) { padding:0; backgrou
  #harness-trace-workbench-v6 [data-v1] .hs-main :is(img,svg,canvas,iframe,video,pre) { max-width:100%; }
  #harness-trace-workbench-v6 [data-v1] .hs-main pre { overflow-x:auto; }
  #harness-trace-workbench-v6 .hs-product[data-v1] .hs-main { padding-bottom:80px; }
+ /* The Stage 3 flow diagram and the Stage 1 map keep a readable size and scroll or clip inside their own box. */
+ #harness-trace-workbench-v6 [data-v1] .ws3-graph { overflow-x:auto; }
+ #harness-trace-workbench-v6 [data-v1] .ws3-board { min-width:520px; }
+ #harness-trace-workbench-v6 [data-v1] .wiki-s1-atlas { max-width:100%; overflow:hidden; }
+ /* Decorative "Codex chat not open" strip from wiki-v1-global.css: it sits on the text on a narrow screen and the real chat button is the pill below. */
+ #harness-trace-workbench-v6 [data-v1] .v1-drawer-tab.v1-drawer-tab { display:none; }
  /* The Codex chat tab is a fixed strip on the right edge on desktop; on a narrow screen it would sit on the text, so it
     becomes a small pill in the bottom corner (the main column keeps room for it). */
- #harness-trace-workbench-v6 [data-v1] .wc-tab { top:auto; bottom:12px; right:12px; transform:none; min-height:44px; padding:0 16px; border:1px solid var(--v1-line2); border-radius:22px; flex-direction:row; box-shadow:0 4px 14px rgba(25,47,64,.16); }
- #harness-trace-workbench-v6 [data-v1] .wc-tab :is(span,small) { writing-mode:horizontal-tb; letter-spacing:0; }
+ #harness-trace-workbench-v6 [data-v1] .wc-tab.wc-tab { top:auto; bottom:12px; right:12px; transform:none; min-height:44px; padding:0 16px; border:1px solid var(--v1-line2); border-radius:22px; flex-direction:row; box-shadow:0 4px 14px rgba(25,47,64,.16); }
+ #harness-trace-workbench-v6 [data-v1] .wc-tab.wc-tab :is(span,small) { writing-mode:horizontal-tb; letter-spacing:0; }
 }
