@@ -517,6 +517,73 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
         )
         self.assertEqual(self.journal_state(), before)
 
+    def test_every_record_has_a_server_write_time_the_client_cannot_set(self):
+        from datetime import datetime, timedelta, timezone
+
+        sent = []
+        for index in range(3):
+            status, reply = self.post(self.decision("t-" + str(index)))
+            self.assertEqual(status, 200, reply)
+            sent.append(reply["record"]["recorded_at"])
+        now = datetime.now(timezone.utc)
+        parsed = [datetime.fromisoformat(value) for value in sent]
+        for value in parsed:
+            self.assertEqual(value.utcoffset(), timedelta(0))
+            self.assertLess(abs((now - value).total_seconds()), 60)
+        self.assertEqual(parsed, sorted(parsed))  # follows the write order
+        view = self.transport.view("own", "authored-ref")["host_decision"]
+        self.assertEqual([r["record"]["recorded_at"] for r in view["records"]], sent)
+        self.assertEqual(view["latest"]["record"]["recorded_at"], sent[-1])
+        # a client-supplied time is an unknown field and is refused
+        status, reply = self.post(
+            dict(self.decision("forged"), recorded_at="2001-01-01T00:00:00+00:00")
+        )
+        self.assertEqual(status, 400)
+        # replay returns the stored time, not a new one
+        status, replay = self.post(self.decision("t-0"))
+        self.assertEqual(replay["record"]["recorded_at"], sent[0])
+
+    def test_records_written_before_the_field_existed_show_null_and_history_has_it(
+        self,
+    ):
+        from copy import deepcopy
+        from research_workspace_native.project_stage3_decision import (
+            _key,
+        )
+        from stage3_plan.contracts import digest
+
+        status, first = self.post(self.decision("modern"))
+        record = deepcopy(first["record"])
+        request = dict(record["request"], key="legacy")
+        record.update(
+            request=request,
+            request_sha256=digest(request),
+            sequence=2,
+        )
+        del record["recorded_at"]
+        state = self.journal_state()
+        self.jobs.journal.record_intent(
+            self.jobs.project_id,
+            self.jobs.owner,
+            _key(record["binding"], "legacy"),
+            "stage3/project-host-decision/1",
+            record,
+            expected_revision=state["revision"],
+        )
+        view = self.transport.view("own", "authored-ref")["host_decision"]
+        self.assertEqual(
+            [r["record"]["recorded_at"] is None for r in view["records"]],
+            [False, True],
+        )
+        # after a manual revision they move to history and keep their time field
+        self.revision(self.comment())
+        view = self.transport.view("own", "authored-ref")["host_decision"]
+        self.assertEqual(len(view["history"]), 2)
+        self.assertTrue(all("recorded_at" in r["record"] for r in view["history"]))
+        self.assertEqual(
+            sum(r["record"]["recorded_at"] is None for r in view["history"]), 1
+        )
+
     def test_credentials_and_origin_are_checked(self):
         before = self.journal_state()
         status, _ = self.post(self.decision(), credential="wrong")

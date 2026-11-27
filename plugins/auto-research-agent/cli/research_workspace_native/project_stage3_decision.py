@@ -20,6 +20,7 @@ The record is honest about its origin: ``decision_status`` is always
 """
 
 from copy import deepcopy
+from datetime import datetime, timezone
 
 from stage3_plan.contracts import digest
 from stage3_plan.jobs import POLICY
@@ -87,6 +88,11 @@ def _binding(jobs, ref, view):
     return base, {**base, REVISION: receipt}, plan, ambiguous
 
 
+def _now():
+    """Server write time (UTC, ISO 8601). Never taken from the client."""
+    return datetime.now(timezone.utc).isoformat()
+
+
 def _key(binding, key):
     return "stage3-decision-" + digest([binding, key])
 
@@ -123,9 +129,11 @@ def _rows(jobs, base, state=None):
             "stage3-decision-record-differs",
             409,
         )
-        rows.append(
-            {"receipt_sha256": item["record_sha256"], "record": deepcopy(record)}
-        )
+        shown = deepcopy(record)
+        shown.setdefault(
+            "recorded_at", None
+        )  # records written before the field existed
+        rows.append({"receipt_sha256": item["record_sha256"], "record": shown})
     _check(len(rows) <= MAX_RECORDS, "stage3-decision-record-bound", 409)
     # The journal stores intents sorted by their (hashed) key, so file order is
     # random. The server-assigned sequence, taken inside the locked write path,
@@ -283,6 +291,7 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
         "decision": body["decision"],
         "text": body["text"],
         "sequence": len(rows) + 1,
+        "recorded_at": _now(),
         "decision_status": STATUS,
         "identity_authenticated": False,
         "input_source": "project-host-user-submission",
