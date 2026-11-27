@@ -113,3 +113,4 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-wiki-home-shell="true"]) {
 .wiki-home-guide-codex span { color:#566772; }
 .wiki-home-link { border:0; background:none; color:#235d56; font:inherit; font-size:14px; text-decoration:underline; cursor:pointer; padding:6px 0; min-height:36px; }
 @media (max-width:900px) { .wiki-home-guide ol { grid-template-columns:1fr; } }
+.wiki-home-table [data-wiki-home-open] { white-space:nowrap; }
