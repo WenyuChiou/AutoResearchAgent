@@ -147,7 +147,54 @@ class LocalLauncherTests(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 source.unlinked(path)
 
-    def test_ancestor_is_rechecked_for_next_file_without_cached_grant(self):
+    # SEMANTIC CHANGE (needs the repository owner's decision at merge time).
+    # The previous test, test_ancestor_is_rechecked_for_next_file_without_cached_grant,
+    # required every file to re-lstat every ancestor, so a root swapped for a link
+    # right after file A was opened was refused when file B was read. On Windows that
+    # walk (about ten lstat calls per file) was 4 of the 5 seconds of one plugin-tree
+    # pass and exhausted the 30 s handshake step. Now each ancestor is lstat'ed once
+    # PER inventory() PASS, held only in that call's local memo; nothing is kept on an
+    # object or module, so every new pass (every I/O check) re-checks every ancestor.
+    # GIVEN UP: an ancestor swapped for a link in the middle of one pass, after it
+    # was checked but before a later file of the same pass is read, is no longer
+    # caught by that pass. It is caught by the next pass, i.e. the next I/O check.
+    def test_each_ancestor_is_checked_once_per_pass(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            for name in ("a.txt", "b.txt", "c.txt"):
+                (root / name).write_bytes(b"x")
+            calls, original = [], Path.lstat
+
+            def counted(value):
+                calls.append(value)
+                return original(value)
+
+            with patch.object(Path, "lstat", counted):
+                source.inventory(root)
+            self.assertEqual(calls.count(root), 1)
+            self.assertEqual(len(calls), len(set(calls)))
+
+    def test_ancestor_swapped_between_passes_is_refused_by_next_pass(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            (root / "a.txt").write_bytes(b"a")
+            first = source.inventory(root)
+            self.assertEqual(first, {"a.txt": source.digest(b"a")})
+            original = Path.lstat
+
+            def linked(value):
+                if value == root:
+                    return SimpleNamespace(
+                        st_mode=stat.S_IFDIR, st_file_attributes=0x400
+                    )
+                return original(value)
+
+            with patch.object(Path, "lstat", linked):
+                with self.assertRaisesRegex(source.LauncherError, "links/reparse"):
+                    source.inventory(root)
+
+    def test_ancestor_swapped_inside_one_pass_is_not_detected_by_that_pass(self):
+        # Documents the guarantee given up above; see the comment block.
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder).resolve()
             first, second = root / "a.txt", root / "b.txt"
@@ -172,8 +219,10 @@ class LocalLauncherTests(unittest.TestCase):
                 patch.object(Path, "lstat", observed),
                 patch.object(Path, "open", opened),
             ):
-                with self.assertRaisesRegex(source.LauncherError, "links/reparse"):
-                    source.inventory(root)
+                self.assertEqual(
+                    source.inventory(root),
+                    {"a.txt": source.digest(b"a"), "b.txt": source.digest(b"b")},
+                )
 
     def test_duplicates_nonfinite_and_symbolic_inventory_rejected(self):
         for raw in (b'{"x":1,"x":2}', b'{"x":NaN}', b'{"x":1e1000}'):
