@@ -18,6 +18,13 @@ HOST_KEYS = ("projects", "models", "stage1", "stage2", "credential", "files", "v
              "stage1_materials_root", "stage1_sources", "stage1_source_dispatcher",
              "stage2_selection", "stage3_planning", "stage3_recovery_pins", "stage2_readings",
              "stage2_controllers")
+RUN_REQUEST_REFUSAL = (
+    "--stage1-run-request and --stage1-run-request-sha256 are not supported by the Wiki "
+    "(run_v7/run_v9): the Wiki would ignore them and nothing would run. In the Wiki use the "
+    "progression API (run_v9_progression.py with a stage progression consent, then create a "
+    "Stage 1 run grant), or use the old launcher run-project-workspace.py for a command-line "
+    "whole-run request."
+)
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
        "connect-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; "
        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
@@ -161,6 +168,10 @@ def main(argv=None):
         parser.add_argument('--' + stem + '-config', type=Path)
         parser.add_argument('--' + stem + '-sha256')
     args = parser.parse_args(argv)
+    if args.stage1_run_request is not None or args.stage1_run_request_sha256 is not None:
+        # The Wiki host never runs a command-line request: dropping it silently would
+        # let an operator believe a whole-run grant had started.
+        raise ValueError(RUN_REQUEST_REFUSAL)
     args.repo = repo
     from wiki_stage23_services import configure_services, validate_args
     validate_args(args)
