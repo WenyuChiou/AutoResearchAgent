@@ -151,3 +151,4 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-v1]) { padding:0; backgrou
 #harness-trace-workbench-v6 [data-v1] .wiki-record-gap { color:var(--v1-amber); }
 #harness-trace-workbench-v6 [data-v1] .wiki-s2-conn:has(> .wiki-s2-conn-row[data-tone="wait"]) { border-left-color:#c9962e; }
 #harness-trace-workbench-v6 [data-v1] .wiki-s2-name { display:block; font-weight:700; margin:4px 0; }
+#harness-trace-workbench-v6 [data-v1] .v1-later-why { color:#9fb3bf; font-size:13px; padding:2px 10px; }

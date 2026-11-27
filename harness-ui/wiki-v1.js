@@ -59,9 +59,12 @@ sidebar = function(app) {
  const flow = [1, 2, 3].map(stage => {
   const [line, tone] = home ? (recent && stage <= (recent.stage || 0) ? ['有记录', 'done'] : ['还没开始', '']) : opened ? v1StageLine(stage) : ['未打开课题', ''];
   const disabled = home ? (locked || !recent || stage > (recent.stage || 0)) : (!opened || locked);
-  return `<button type="button" class="v1-flow-item" data-stage="${stage}" aria-current="${page === 's' + stage ? 'page' : 'false'}" ${disabled ? 'disabled' : ''}><span class="v1-flow-num">${stage}</span><span class="v1-flow-body"><b>${v1StageNames[stage - 1]}</b><small><i class="v1-dot ${tone}"></i>${line}</small></span></button>`;
+  // A greyed item says why in its status line (review P2-10).
+  const why = !disabled ? null : locked ? '上次提交还没确认' : home && !recent ? '先新建或打开课题' : home ? '这个课题还没到这一段' : '先打开一个课题';
+  const [shownLine, shownTone] = why ? [why, ''] : [line, tone];
+  return `<button type="button" class="v1-flow-item" data-stage="${stage}" aria-current="${page === 's' + stage ? 'page' : 'false'}" ${disabled ? 'disabled' : ''}><span class="v1-flow-num">${stage}</span><span class="v1-flow-body"><b>${v1StageNames[stage - 1]}</b><small><i class="v1-dot ${shownTone}"></i>${shownLine}</small></span></button>`;
  }).join('');
- const later = [4, 5, 6].map(stage => `<button type="button" class="v1-later-item" data-stage="${stage}" aria-current="${page === 'later' && app.stage === stage ? 'page' : 'false'}" ${!opened || locked ? 'disabled' : ''}>${stage} ${v1LaterNames[stage]}</button>`).join('');
+ const later = [4, 5, 6].map(stage => `<button type="button" class="v1-later-item" data-stage="${stage}" aria-current="${page === 'later' && app.stage === stage ? 'page' : 'false'}" ${!opened || locked ? 'disabled' : ''}>${stage} ${v1LaterNames[stage]}</button>`).join('') + (!opened || locked ? `<small class="v1-later-why">${locked ? '上次提交还没确认' : '先打开一个课题'}</small>` : '');
  return `<aside class="hs-sidebar v1-side">
   <div class="hs-brand v1-brand"><span class="hs-logo">h</span><div><strong>Wiki V1</strong><small>RESEARCH WIKI</small></div></div>
   <nav class="v1-nav" aria-label="全局">${nav('workspace', '工作台')}${nav('files', '项目文件')}${nav('history', '操作历史')}${nav('settings', '连接与设置')}</nav>

@@ -348,12 +348,13 @@ function wikiS3Table(model, review, state) {
 }
 
 function wikiS3Decision(noPlan = false) {
+ const why = noPlan === true ? '现在还不能做这一步：还没有计划。' : typeof noPlan === 'string' ? noPlan : null;
  const choices = [['accept', '接受计划'], ['revise', '按建议修改后再评审'], ['back', '退回 Stage 2 重选']];
  return `<section class="ws3-decide" data-s3-decision><span class="ws3-label">你的决定</span><h2>这份计划怎么处理？</h2>
  <p class="ws3-note">接受也不会启动实验。系统的评审不是你的选择。</p>
  ${choices.map(([key, label]) => `<label class="ws3-choice"><input type="radio" name="s3-decision" value="${key}" disabled> ${label}</label>`).join('')}
  <button type="button" class="hs-button" disabled>确认</button>
- <p class="ws3-why-off">${noPlan ? '现在还不能做这一步：还没有计划。' : '现在还不能做这一步：页面读不到对计划的正式决定入口，Stage 3 交接和决定还没有接通。想改计划，用上面的「评语与修订」。'}</p></section>`;
+ <p class="ws3-why-off">${why ? why : '现在还不能做这一步：页面读不到对计划的正式决定入口，Stage 3 交接和决定还没有接通。想改计划，用上面的「评语与修订」。'}</p></section>`;
 }
 
 function wikiS3TechDetails(view) {
@@ -426,7 +427,11 @@ function wikiS3Page(app, base) {
   `<button type="button" role="tab" id="ws3-tab-${key}" aria-selected="${key === state.tab}" tabindex="${key === state.tab ? 0 : -1}" data-s3-tab="${key}">${label}</button>`).join('')}</div>`;
  let body;
  if (state.tab === 'materials') body = wikiS3MaterialsTab(view);
- else if (!model) body = wikiS3ReadLine(app, model) + wikiS3Decision(true);
+ else if (!model) {
+  const basis = v93Identity();
+  const reason = basis && v93.busy ? '正在读取保存记录' : basis && v93Matches(v93.errorBasis, basis) && v93.error ? '现在还不能做这一步：已保存的规划没有读到，先重新读取。' : '现在还不能做这一步：还没有计划。';
+  body = wikiS3ReadLine(app, model) + wikiS3Decision(reason);
+ }
  else {
   const panelHtml = feedback && feedbackState ? v94fHtml(feedback, feedbackState) : '';
   body = `${wikiS3ReadLine(app, model)}${wikiS3SummaryRow(app, model, revision?.record.revision_number)}${wikiS3DraftLine(revision?.record.revision_number)}
