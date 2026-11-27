@@ -311,7 +311,10 @@ class ProjectStage2CurrentEvidenceTests(unittest.TestCase):
             original = case.intake.action(VIEWER, "deliver", project_ref=ref)
             self.assertEqual(original["status"], "saved")
             project = case.intake.read(VIEWER, ref)
-            replay = dict(original["request"], revision=project["revision"])
+            principal = case.intake._principal(VIEWER)
+            state = case.intake._load(principal, ref)
+            offer = state["stage1_delivery_offers"][original["offer_ref"]]
+            replay = case.body(data["fixture"], offer)
             self.assertEqual(case.delivery.deliver(VIEWER, ref, replay), original)
             with self.assertRaisesRegex(
                 SessionApiError, "intake-source-version-differs"
