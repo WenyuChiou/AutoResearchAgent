@@ -102,8 +102,17 @@ class Browser:
 
     def go_home(self):
         # DESIGN 8.1: "工作台" stays on the open topic; the home table is "全部项目…" in the topic menu.
-        self.click(".v1-switch > summary")
-        self.click("[data-v1-home]")
+        # The page repaints the whole shell when each read returns; on a slow machine a click can fall between
+        # two repaints and be lost (mouse down and up on different elements), so try again a few times.
+        for attempt in range(3):
+            if not self.js("!!document.querySelector('[data-v1-switch]')?.open"):
+                self.click(".v1-switch > summary")
+            self.click("[data-v1-home]")
+            try:
+                return wait(lambda: self.js("!!document.querySelector('[data-wiki-home]')"), timeout=8)
+            except AssertionError:
+                if attempt == 2:
+                    raise
 
     def home(self):
         self.see('[data-wiki-home] input:not(:disabled)')
