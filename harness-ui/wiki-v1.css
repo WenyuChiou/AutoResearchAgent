@@ -148,3 +148,4 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-v1]) { padding:0; backgrou
 #harness-trace-workbench-v6 [data-v1] [data-ws-materials-slot] .n9-materials > p.n2-hint:first-of-type { display:none; }
 #harness-trace-workbench-v6 [data-v1] input[data-n9-upload] { font:inherit; font-size:14px; padding:10px; border:1px dashed var(--v1-line2); border-radius:8px; background:#fafaf6; width:100%; max-width:560px; min-height:44px; }
 #harness-trace-workbench-v6 [data-v1] input[data-n9-upload]::file-selector-button { min-height:40px; padding:0 16px; margin-right:12px; border-radius:8px; border:1px solid var(--v1-teal); background:var(--v1-teal); color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+#harness-trace-workbench-v6 [data-v1] .wiki-record-gap { color:var(--v1-amber); }

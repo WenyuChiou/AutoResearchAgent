@@ -224,7 +224,8 @@ test('literature compare: three at most, hide identical rows, evidence matrix, m
   assert.match(html, /空格表示没有保存绑定，不等于不相关/);
   assert.match(html, /文献之间的关系：未提供/);
   assert.match(html, /不画效果排名/); assert.match(html, /指标甲：测准确率/); assert.match(html, /<td>未提供<\/td><td><span class="wiki-s2-opinion" data-tone="none">待验证/);
-  assert.match(html, /现在还不能做这一步：保存比较清单要先接入一份候选包材料/);
+  // DESIGN 8.0: archives offer no save buttons at all.
+  assert.doesNotMatch(html, /保存当前文献与路线比较/);
 });
 
 test('independent review fold: says so when the archive saved none', () => {

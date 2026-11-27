@@ -21,7 +21,7 @@ function wikiHarnessRecord(record) {
  const summary = typeof record?.summary === 'string' && record.summary ? record.summary : wikiRecordSummary(record);
  const raw = value => `<details><summary>看原始记录</summary><pre>${esc(JSON.stringify(value, null, 2))}</pre></details>`;
  const table = (headers, rows) => `<table><thead><tr>${headers.map(name => `<th scope="col">${name}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
- const missing = `<p>${wikiRecordMissing}</p>`;
+ const missing = record?.summary ? '<p class="wiki-record-gap">这份交付没有保存这一项。</p>' : `<p>${wikiRecordMissing}</p>`;
  const chip = '<strong class="wiki-record-chip">Harness 记录</strong>';
  const chips = (record?.chips || []).map(([text, warn]) => `<span class="wiki-record-count${warn ? ' warn' : ''}">${esc(text)}</span>`).join('');
  if (summary === wikiRecordMissing && !checks.length && !timeline.length && !recordedBlocks && resume?.raw == null) {

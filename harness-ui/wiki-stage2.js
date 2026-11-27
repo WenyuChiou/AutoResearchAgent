@@ -419,7 +419,7 @@ function wikiS2SaveRow(model) {
 
 function wikiS2LiteratureTab(model, state) {
  if (!model || model.blocked || !model.routes.length) return '<section class="wiki-s2-card"><p>这个课题还没有 Stage 2 候选包，这里暂时是空的。</p></section>';
- return `${wikiS2SaveRow(model)}${wikiS2Literature(model, state)}${model.literature ? wikiS2Matrix(model, state) : ''}${wikiS2Metrics(model)}`;
+ return `${model.origin === 'archive' ? '' : wikiS2SaveRow(model)}${wikiS2Literature(model, state)}${model.literature ? wikiS2Matrix(model, state) : ''}${wikiS2Metrics(model)}`;
 }
 
 // --- Materials tab (8.14) -------------------------------------------------------------------
