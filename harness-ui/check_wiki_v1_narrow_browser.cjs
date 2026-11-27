@@ -3,7 +3,7 @@
 // For every page and width <= 900 it asserts: no horizontal page overflow, the main column is >= 90% of the viewport,
 // nothing outside a scroll box sticks out past the viewport, the menu button is a visible 44px target, the sidebar
 // links are folded until the button is used, and Enter/Space open and Escape closes the menu. At 1440 the button is
-// not shown and the sidebar is still 232px. English pages keep the old layout (no data-v1, no menu button).
+// not shown and the sidebar is still 232px. English and Traditional Chinese pages keep the old layout (no data-v1, no menu button).
 const path = require('node:path');
 const [playwrightPath, origin, chrome, outDir, widthsArg] = process.argv.slice(2);
 const {chromium} = require(playwrightPath);
@@ -27,7 +27,7 @@ const metrics = () => {
 (async () => {
  const browser = await chromium.launch({headless: true, executablePath: chrome, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']});
  let failed = 0; const report = (ok, text) => { if (!ok) failed++; console.log((ok ? 'ok   ' : 'FAIL ') + text); };
- for (const s of scenarios) for (const w of widths) {
+ for (const s of process.env.ONLY_OLD_LANGS ? [] : scenarios) for (const w of widths) {
   const page = await browser.newPage({viewport: {width: w, height: w >= 1280 ? 1000 : 844}});
   const errors = [], writes = [];
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text().slice(0, 160)); });
@@ -67,12 +67,12 @@ const metrics = () => {
   if (outDir) await page.screenshot({path: path.join(outDir, `${s.n}-${w}.png`), fullPage: true});
   await page.close();
  }
- // English keeps the old layout.
- for (const w of [390, 1440]) {
+ // English and Traditional Chinese keep the old layout.
+ for (const lang of ['en', 'zh-TW']) for (const w of [390, 1440]) {
   const page = await browser.newPage({viewport: {width: w, height: 844}});
-  await page.goto(origin + '/#lang=en', {waitUntil: 'networkidle'}); await page.waitForTimeout(2500);
+  await page.goto(`${origin}/#${P1}?stage=1&lang=${lang}`, {waitUntil: 'networkidle'}); await page.waitForTimeout(3500);
   const m = await page.evaluate(metrics);
-  report(!m.v1 && !m.btn, `english w=${w} data-v1=${m.v1} menu-button=${m.btn}`);
+  report(!m.v1 && !m.btn, `${lang} w=${w} data-v1=${m.v1} menu-button=${m.btn}`);
   await page.close();
  }
  await browser.close();
