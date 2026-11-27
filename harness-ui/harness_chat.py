@@ -278,6 +278,8 @@ class ChatService:
         if hidden:
             context = dict(project_ref=project, stage=stage, binding=binding, materials=[], content_hidden=True)
         shown_reason = failures[0] if failures and panel not in {'ready', 'sending', 'unknown-result'} else None
+        if panel == 'login-required':
+            shown_reason = 'codex-login-required'
         return dict(kind='V9HarnessConversation', project_ref=project, stage=stage, context=context,
                     binding=binding, panel_state=panel, content_hidden=hidden,
                     panel_reason=explain(shown_reason) if shown_reason else None,
@@ -320,6 +322,7 @@ class ChatService:
         context = self.tools.context(body['project_ref'], body['stage'])
         connect = self._connect_failures(context, principal, expected=(body['input_version'], body['brief_sha256']))
         require(not connect, connect[0] if connect else '')
+        require_money_cap_unset(self.spec.get('money_cap_usd'))
         with self.lock, self.db() as db:
             row = db.execute('SELECT body FROM turns WHERE id=?', (identity,)).fetchone()
             if row:
@@ -512,31 +515,40 @@ class ChatService:
                             require(calls[call_id][0] == binding, 'chat-duplicate-call-binding-differs')
                             rpc.send(dict(id=frame['id'], result=calls[call_id][1]))
                             continue
-                        self.tools.validate(session, args)
-                        allowed = not self.tools.writes(args)
-                        proposal_pin = None
-                        if not allowed:
-                            proposal_pin = self.tools.proposal_pin(session, args)
-                            allowed = self.wait_answer(turn, control, frame, 'harness-approval', deadline, arguments=args, state_sha256=proposal_pin)
-                        if allowed and not control['stop'].is_set():
-                            check_config(self.spec)
-                            self.event(turn['id'], 'intent', {'tool': 'harness', 'arguments': args, 'call_id': params['callId']})
-                            try:
-                                if proposal_pin:
-                                    require(self.tools.proposal_pin(session, args) == proposal_pin, 'chat-confirmation-state-changed')
-                                value = self.tools.call(session, args)
-                                raw = encoded(value)
-                                output = dict(call_id=params['callId'], action=args['action'], value=value, sha256=sha(raw))
-                                outputs.append(output)
-                                self.update(turn['id'], outputs=outputs)
-                                # Never inject an unbounded full paper into Codex context.
-                                shown = model_preview(value, sha(raw))
-                                response = dict(success=True, contentItems=[dict(type='inputText', text=encoded(shown).decode())])
-                            except (ValueError, KeyError, OSError) as exc:
-                                response = dict(success=False, contentItems=[dict(type='inputText', text='Harness rejected: '+str(exc)[:1000])])
+                        # A tool the grant or the Wiki does not offer is answered, not fatal to the turn.
+                        try:
+                            self.tools.validate(session, args)
+                            invalid = None
+                        except (ValueError, KeyError, OSError) as exc:
+                            invalid = str(exc)[:1000]
+                        if invalid is not None:
+                            response = dict(success=False, contentItems=[dict(type='inputText', text='Harness rejected: ' + invalid)])
+                            calls[call_id] = (binding, response)
                         else:
-                            response = dict(success=False, contentItems=[dict(type='inputText', text='Human declined or interrupted; no operation executed.')])
-                        calls[call_id] = (binding, response)
+                            allowed = not self.tools.writes(args)
+                            proposal_pin = None
+                            if not allowed:
+                                proposal_pin = self.tools.proposal_pin(session, args)
+                                allowed = self.wait_answer(turn, control, frame, 'harness-approval', deadline, arguments=args, state_sha256=proposal_pin)
+                            if allowed and not control['stop'].is_set():
+                                check_config(self.spec)
+                                self.event(turn['id'], 'intent', {'tool': 'harness', 'arguments': args, 'call_id': params['callId']})
+                                try:
+                                    if proposal_pin:
+                                        require(self.tools.proposal_pin(session, args) == proposal_pin, 'chat-confirmation-state-changed')
+                                    value = self.tools.call(session, args)
+                                    raw = encoded(value)
+                                    output = dict(call_id=params['callId'], action=args['action'], value=value, sha256=sha(raw))
+                                    outputs.append(output)
+                                    self.update(turn['id'], outputs=outputs)
+                                    # Never inject an unbounded full paper into Codex context.
+                                    shown = model_preview(value, sha(raw))
+                                    response = dict(success=True, contentItems=[dict(type='inputText', text=encoded(shown).decode())])
+                                except (ValueError, KeyError, OSError) as exc:
+                                    response = dict(success=False, contentItems=[dict(type='inputText', text='Harness rejected: '+str(exc)[:1000])])
+                            else:
+                                response = dict(success=False, contentItems=[dict(type='inputText', text='Human declined or interrupted; no operation executed.')])
+                            calls[call_id] = (binding, response)
                     elif method == 'item/tool/requestUserInput':
                         questions = params.get('questions')
                         require(isinstance(questions, list) and 1 <= len(questions) <= 3, 'chat-questions-invalid')
