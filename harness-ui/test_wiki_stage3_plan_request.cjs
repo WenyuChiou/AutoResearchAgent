@@ -133,6 +133,7 @@ test('inspect is read-only and its answer is shown; a receipt for another key is
  await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
  assert.equal(posts[0].p, '/api/projects/project-p/stage3/planning/inspect');
  assert.equal(posts[0].body.confirmed, undefined);
+ ctx.v93.view.job = {status:'completed', outcome:'failed', request_sha256:'c'.repeat(64)}; // the re-read that follows
  assert.equal(line(ctx).tag, '规划失败');
  ({ctx} = load({view:{job:{status:'execution-unknown', request_sha256:'c'.repeat(64)}}}));
  ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:'other', status:'completed'});
@@ -244,4 +245,17 @@ test('review P2-9: a timed-out submission that the read-only check finds never d
  await other.ctx.wikiS3PlanAction(other.ctx.apps[0], 'inspect');
  assert.equal(line(other.ctx).tag, '结果未知');
  assert.equal(line(other.ctx).grant, undefined);
+});
+
+test('review P2-4: after the read-only check the latest read decides; a later execution-unknown brings no grant', async () => {
+ const sha = 'c'.repeat(64), timeout = {key:request.key, request_sha256:sha, code:'stage3-planning-deadline-or-io-failed'};
+ const {ctx} = load({view:{submission_error:timeout, job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'intent-recorded'});
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
+ assert.equal(line(ctx).tag, '等你授权');
+ // Another tab ran it meanwhile: the latest read says execution-unknown.
+ ctx.v93.view = {...ctx.v93.view, submission_error:null, job:{status:'execution-unknown', request_sha256:sha, key:request.key}};
+ const row = line(ctx);
+ assert.equal(row.tag, '结果未知');
+ assert.equal(row.grant, undefined);
 });

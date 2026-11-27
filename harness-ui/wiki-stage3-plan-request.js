@@ -25,7 +25,9 @@ function wikiS3ReqLock() {
 }
 function wikiS3ReqState(view) {
  if (wikiS3Req.ref !== rt.ref) Object.assign(wikiS3Req, {error:null, ref:rt.ref, check:null, inspected:null});
- const job = wikiS3Req.inspected?.key === view?.default_request?.key ? wikiS3Req.inspected : view?.job;
+ // The latest read always wins (review P2-4): the answer of a read-only inspect is a snapshot and is used only while
+ // the read has not brought a job back. Otherwise a state that changed after the check could bring back the grant.
+ const job = view?.job || (wikiS3Req.inspected?.key === view?.default_request?.key ? wikiS3Req.inspected : null);
  return {job, error:wikiS3Req.error};
 }
 // Returns {tone, tag, text, buttons, grant, detail} for the lower row, or null when there is nothing to request.
