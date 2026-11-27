@@ -1,0 +1,5 @@
+{"kind":"Stage3SemanticReview","reviewer":{"kind":"native-model"},"findings":[
+ {"question_ref":"q1","axis":"answerability","status":"adequate","reason":"问题写得清楚，能检验。","plan_locations":["/question_plans/0/method"],"revision":null,"missing_information":null},
+ {"question_ref":"q1","axis":"resource-fit","status":"needs-revision","reason":"没有写数据许可。","plan_locations":["/question_plans/0/materials"],"revision":{"location":"/question_plans/0/materials","action":"写明数据许可条款"},"missing_information":null},
+ {"question_ref":"q1","axis":"feasibility","status":"unknown","reason":"留出年份还没定。","plan_locations":["/question_plans/0/design"],"revision":null,"missing_information":{"needed":"留出年份","owner":"数据负责人"}},
+ {"question_ref":"q1","axis":"result-interpretation","status":"adequate","reason":"通过线写清楚了。","plan_locations":["/question_plans/0/interpretation"]}]}
