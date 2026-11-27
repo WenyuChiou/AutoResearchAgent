@@ -156,10 +156,17 @@ async function exercise() {
   const stale=document.createElement('button');stale.dataset.wikiStage2Action='request';app.el.append(stale);stale.click();await tick();
   probe(!posts().length,'old request delegated handler blocked');
   await reset({status:'consent-required',reason:'stage2-continuation-activation-required',afterPost:'consent-required',afterReason:'stage2-continuation-activation-required'});
-  const publish=button('publish');probe(!!publish,'initial consent can publish original offer');
+  const publish=button('publish');probe(publish?.textContent==='生成本课题的启用提议' && status().includes('等你 · 第 1 步'), 'initial consent names step one');
   if(publish){
-    publish.click();await tick();probe(posts().length===1&&!!button('activate')&&!button('publish')&&status().includes(changes.offer.offer_ref),'original offer verified and retained');
-    button('read').click();await tick();probe(posts().length===1&&!!button('activate'),'offer survives readback without autopost');
+    publish.click();await tick();
+    const panel=app.el.querySelector('[data-v9-connection-panel]');
+    probe(posts().length===1&&button('activate')?.textContent==='同意这份提议并启用 Stage 2'&&
+      !button('publish')&&panel.querySelector('p[role="status"]').textContent.includes('等你 · 第 2 步')&&
+      !panel.querySelector('p[role="status"]').textContent.includes(changes.offer.offer_ref)&&
+      panel.querySelector('details').textContent.includes(changes.offer.offer_ref),'verified offer ID lives only in technical details');
+    await liveRefresh();await tick();probe(posts().length===1&&!!button('activate'),'offer survives refresh without autopost');
+    v9ConnectionView=null;wikiStage2State=undefined;sessionStorage.clear();
+    await liveRefresh();await tick();probe(posts().length===1&&!!button('activate'),'offer survives cold reopen from backend reads alone');
     button('activate')?.click();await tick();probe(posts().length===2&&posts()[1].tail==='stage2/actions'&&posts()[1].body.offer_ref===changes.actions[0].offer.offer_ref&&!rt.pending&&sessionStorage.getItem('v7-pending-action')===null&&!!button('connect'),'separate existing activation contract');
   }
   await reset({status:'consent-required',reason:'stage2-continuation-activation-required',afterPost:'consent-required',afterReason:'stage2-continuation-activation-required',wrongOfferDigest:true});
@@ -187,8 +194,8 @@ async function exercise() {
   check(!app.el.querySelector('[data-v93-choice]') && app.el.innerHTML.includes('SYNTHETIC original material'),'connected is not selection');
   await reset({afterPost:'consent-required',afterReason:'stage2-continuation-activation-required'});
   button('connect').click();await tick();
-  check(status().includes('启用同意')&&!button('connect')&&posts().length===1,'consent shortfall after click');
-  button('read').click();await tick();check(posts().length===1,'consent read retains record');
+  check(status().includes('等你 · 第 2 步')&&!button('connect')&&posts().length===1,'consent shortfall after click');
+  await liveRefresh();await tick();check(posts().length===1,'consent read retains record');
   await reset({status:'unavailable',reason:'stage2-controller-current-input-required'});
   button('read').click();await tick();check(status().includes('输入包和接收回执')&&!posts().length,'missing packet');
   await reset({postError:'cross-site-rejected',postHttp:403});
@@ -228,7 +235,9 @@ async function exercise() {
   await reset({status:'connected'},3);
   const read=app.el.querySelector('[data-v93-read]');check(read,'verified planning connection opens original entry');
   read.click();await tick();check(!posts().length&&calls.some(c=>c.tail==='stage3/planning'),'planning read does not execute');
-  await reset({},3);button('connect').click();await tick();
+  await reset({},3);
+  check(button('connect')?.textContent==='接通本课题'&&!button('publish')&&!button('activate')&&!button('read'),'Stage 3 offers a single connect action');
+  button('connect').click();await tick();
   check(posts().length===1&&posts()[0].body.stage==='stage3-planning'&&status().includes('本课题已接通'),'stage3 explicit registration');
   await reset({status:'connected'},3);
   let release;changes.wait=new Promise(resolve=>release=resolve);button('read').click();await Promise.resolve();
@@ -247,22 +256,11 @@ async function exerciseUnreadyStage2() {
   const open=async config=>{
     sessionStorage.clear();window.changes={continuationError:'stage2-controller-not-connected',...config};
     calls.length=0;await liveRefresh();await tick();
-    const before=calls.filter(call=>call.tail==='stage2/continuation').length;
-    const read=continuation('read');
-    probe(!!read,'ordinary Stage 2 saved-status control is visible');
-    read?.click();await tick();
-    probe(calls.filter(call=>call.tail==='stage2/continuation').length===before+1,
-      'ordinary Stage 2 control rereads the real 409 error code');
     probe(app.el.querySelector('[data-wiki-stage2-continuation] code')?.textContent==='stage2-controller-not-connected',
       'ordinary Stage 2 exposes the original 409 code');
     probe(!continuation('request')&&!app.el.querySelector('[data-v93-choice]'),'409 hides run and selection controls');
-    const next=continuation('connection');
-    probe(next && next.textContent.includes('查看 Stage 2 接通条件'),'ordinary Stage 2 offers a concrete next step');
-    const requests=calls.length;
-    next?.click();
-    probe(document.activeElement===panel()?.querySelector('h2')&&calls.length===requests,
-      'next step focuses the existing panel without making a request');
-    connection('read').click();await tick();
+    probe(!continuation('connection'),'ordinary Stage 2 shows the connection directly without a jump button');
+    connection('read')?.click();await tick();
     probe(!posts().length && !sessionStorage.getItem('v7-pending-action'),
       'view and refresh preserve an unwritten project');
   };
@@ -287,6 +285,25 @@ async function exerciseUnreadyStage2() {
   connection('publish').click();await tick();
   probe(posts().length===1&&posts()[0].tail==='connections'&&!!connection('activate'),
     'publishing leaves a separate verified human consent action');
+  window.changes={status:'connected',selection:'ready'};
+  calls.length=0;await liveRefresh();await tick();
+  probe(panel().querySelector('hr')&&panel().querySelector('[data-wiki-stage2-request-row]')?.textContent.includes('文献包已接收')&&
+    panel().contains(continuation('request'))&&panel().contains(continuation('read'))&&
+    app.el.querySelectorAll('[data-wiki-stage2-action="read"]').length===1,
+    'the connected project shows the existing candidate request and readback inside its connection panel');
+  const before=calls.filter(call=>call.tail==='stage2/continuation').length;
+  continuation('read')?.click();await tick();
+  probe(calls.filter(call=>call.tail==='stage2/continuation').length===before+1&&!posts().length,
+    'the inline readback uses the existing read-only continuation request');
+  probe(!app.el.innerText.includes('接收文献包'),'no manual literature intake action');
+  window.changes={status:'connected',selection:'selection-available'};
+  calls.length=0;await liveRefresh();await tick();
+  probe(!!app.el.querySelector('[data-v93-choice]')&&panel().textContent.includes('当前版本的候选已保存，可以查看选案')&&
+    !posts().length,'a verified saved selection is described accurately on readback');
+  window.changes={status:'connected',selection:'SYNTHETIC-unknown-status'};
+  calls.length=0;await liveRefresh();await tick();
+  probe(panel().textContent.includes('候选请求状态待核对')&&!continuation('request')&&!posts().length,
+    'an unrecognized status does not claim no request or allow a write');
   check(!errors.length,errors.join(' | '));
 }
 
@@ -302,14 +319,13 @@ async function exerciseStage2ConnectionFocus() {
   ]) {
     let release;
     const pending=new Promise(resolve=>{release=resolve;});
-    window.changes={continuationError:'stage2-controller-not-connected',status:'unavailable',
-      reason:'stage2-controller-profile-unavailable',row:{profile_sha256:null}};
+    window.changes=read==='connections'?{continuationError:'stage2-controller-not-connected',status:'unavailable',
+      reason:'stage2-controller-profile-unavailable',row:{profile_sha256:null}}:{status:'connected',selection:'ready'};
     if (read==='connections') changes.wait=pending;
     calls.length=0;app.stage=2;
     await liveRefresh();await tick();
-    const next=app.el.querySelector('[data-wiki-stage2-action="connection"]');
     const requests=calls.length;
-    next.click();
+    heading().focus();
     if (document.activeElement!==heading() || calls.length!==requests)
       failures.push('focus the same heading without a request');
     if (read==='continuation') {
@@ -380,7 +396,7 @@ async function exerciseStaticPlanningRead() {
   if (defects.length) throw Error(defects.join(' | '));
 }
 
-function runChromeExercise(exercise) {
+function runChromeExercise(exercise, runtimeHooks='') {
   const chrome=[process.env.CHROME_BIN, process.env.CHROME_PATH,
     'C:/Program Files/Google/Chrome/Application/chrome.exe','/usr/bin/google-chrome','/usr/bin/chromium',
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p=>p&&existsSync(p));
@@ -389,7 +405,7 @@ function runChromeExercise(exercise) {
   try {
     const runtime=source('renderer/src/runtime.js');
     const actions=runtime.slice(runtime.indexOf('async function liveReceiptBound('),runtime.indexOf('const liveDisabled='));
-    const scripts=[`(${browserFixture})();`, actions, ...['stage2_display.js','v9-stage-connections.js','v9-stage3-bridge.js'].map(source),
+    const scripts=[`(${browserFixture})();`, actions, runtimeHooks, ...['stage2_display.js','v9-stage-connections.js','v9-stage3-bridge.js'].map(source),
       `(${exercise})().then(()=>document.title='SYNTHETIC_PASS',e=>document.title='FAIL '+e.stack);`];
     const html=join(temp,'fixture.html');
     writeFileSync(html,'<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'"><title>RUNNING</title><main></main>'+
@@ -400,11 +416,14 @@ function runChromeExercise(exercise) {
     assert.equal(run.stdout.match(/<title>([^<]*)<\/title>/)?.[1],'SYNTHETIC_PASS');
   } finally { rmSync(temp,{recursive:true,force:true,maxRetries:8,retryDelay:100}); }
 }
+module.exports = {runChromeExercise};
+if (require.main === module) {
 test('SYNTHETIC stage connections through the served renderer functions and real button clicks',
   ()=>runChromeExercise(exercise));
-test('SYNTHETIC ordinary Stage 2 saved-status control and original not-connected 409',
+test('SYNTHETIC ordinary Stage 2 unified request controls and original not-connected 409',
   ()=>runChromeExercise(exerciseUnreadyStage2));
 test('SYNTHETIC Stage 2 keeps the connection heading focused during discovery repaint',
   ()=>runChromeExercise(exerciseStage2ConnectionFocus));
 test('SYNTHETIC Stage 3 static saved planning on the Stage 2-only Host contract',
   ()=>runChromeExercise(exerciseStaticPlanningRead));
+}

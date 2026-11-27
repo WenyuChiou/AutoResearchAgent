@@ -132,15 +132,17 @@ async function wikiStage2Load(state, submit) {
   }
 }
 
-function wikiStage2Panel(state) {
+function wikiStage2RequestRow(state) {
   const label = (zh, en, tw) => rl(zh, en, tw);
-  const status = state.result?.status;
+  const status = state?.result?.status;
+  if (state && JSON.stringify(wikiStage2Basis()) !== JSON.stringify(state.basis)) return '';
   const descriptions = {
-    ready: label("项目已接入。可请求生成候选。", "This project is connected. You can request candidates.", "專案已接入。可請求產生候選。"),
+    ready: label("文献包已接收，可以请求生成候选。", "The literature packet was received. You can request candidates.", "文獻包已接收，可以請求產生候選。"),
     "request-saved": label("请求已保存。可查看处理状态。", "Request saved. You can check its status.", "請求已儲存。可查看處理狀態。"),
     running: label("正在处理此请求。", "This request is in progress.", "正在處理此請求。"),
     "candidate-ready": label("当前版本的候选已保存。", "Candidates saved for this version.", "目前版本的候選已儲存。"),
-    "no-candidate": label("已有控制器回执。候选交付尚未保存。", "A controller receipt is saved. Candidate delivery is pending.", "已有控制器回執。候選交付尚未儲存。"),
+    "selection-available": label("当前版本的候选已保存，可以查看选案。", "Candidates are saved for this version. The selection view is available.", "目前版本的候選已儲存，可以查看選案。"),
+    "no-candidate": label("后台已经回执，候选交付还没有保存。", "The service acknowledged the request. Candidate delivery is pending.", "背景服務已回執，候選交付還沒有儲存。"),
     "execution-unknown": label("已有请求。请由操作者核对原运行记录。", "A request exists. Ask the operator to check the retained run.", "已有請求。請由操作者核對原執行紀錄。"),
     blocked: label("已保存的请求受阻。请由操作者检查交接。", "The saved request is blocked. Ask the operator to check the handoff.", "已儲存的請求受阻。請由操作者檢查交接。"),
     "stage2-controller-not-connected": label("本课题还没有接通 Stage 2。", "Stage 2 is not connected for this project.", "本課題還沒有接通 Stage 2。"),
@@ -151,16 +153,25 @@ function wikiStage2Panel(state) {
     "stage2-continuation-request-exists": label("已有请求。请查看保存状态。", "A request already exists. Check its saved status.", "已有請求。請查看儲存狀態。"),
     "stage2-continuation-worker-busy": label("另一个请求正在处理。请稍后再试。", "Another request is running. Try again shortly.", "另一個請求正在處理。請稍後再試。"),
   };
-  const pathConflict=state.error==="stage2-continuation-result-not-current" && typeof v9ConnectionReason==='function';
-  const needsConnection=wikiStage2NeedsConnection(state);
-  const canViewConnection=needsConnection && !state.busy && typeof v9ConnectionCurrent==='function' &&
-    v9ConnectionCurrent(v9ConnectionView) && v9ConnectionView.stage==='stage2-controller';
+  const pathConflict=state?.error==="stage2-continuation-result-not-current" && typeof v9ConnectionReason==='function';
   const mayRequest=typeof v9AllowsCandidateRequest!=='function'||v9AllowsCandidateRequest();
-  const message = pathConflict ? v9ConnectionReason(state.error,409) : state.busy
+  const message = pathConflict ? v9ConnectionReason(state.error,409) : !state || state.busy
     ? label("正在读取请求状态。", "Checking request status.", "正在讀取請求狀態。")
     : descriptions[state.error || status] || (state.error
       ? label("暂时无法读取回执。请再查一次保存状态。", "The receipt could not be read. Check its saved status again.", "暫時無法讀取回執。請再查一次儲存狀態。")
-      : "");
+      : label("候选请求状态待核对，原记录仍保留。", "The candidate request status needs checking. Original records are retained.", "候選請求狀態待核對，原紀錄仍保留。"));
+  return `<div data-wiki-stage2-request-row><p role="status">${rx(message)}</p><div class="n9-page-actions">
+      ${status === "ready" && mayRequest ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
+      ${state && !pathConflict ? `<button type="button" class="hs-button" data-wiki-stage2-action="read" ${state.busy ? "disabled" : ""}>${label("查看保存状态", "Check saved status", "查看儲存狀態")}</button>` : ""}
+    </div></div>`;
+}
+
+function wikiStage2Panel(state) {
+  const label = (zh, en, tw) => rl(zh, en, tw);
+  const status = state.result?.status;
+  const pathConflict = state.error === "stage2-continuation-result-not-current";
+  const needsConnection = wikiStage2NeedsConnection(state);
+  const standaloneRequest = typeof v9ConnectionPanel !== 'function' || v9LegacyConnection('stage2-controller');
   const cards = state.result?.cards || [];
   const heading = label("候选方向", "Candidate directions", "候選方向");
   const prompts = [
@@ -170,11 +181,7 @@ function wikiStage2Panel(state) {
   ];
   return `<section class="hs-panel" data-wiki-stage2-continuation><h2>${heading}</h2>
     <small>${rx(rt.overview.project.brief?.original_description || state.basis[0])} · ${label("输入版本", "Input version", "輸入版本")} ${rx(state.basis[1])}</small>
-    <p role="status">${rx(message)}</p><div class="n9-page-actions">
-      ${status === "ready" && mayRequest ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
-      ${canViewConnection ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="connection">${label("查看 Stage 2 接通条件", "View Stage 2 connection requirements", "查看 Stage 2 接通條件")}</button>` : ""}
-      <button type="button" class="hs-button" data-wiki-stage2-action="read" ${state.busy ? "disabled" : ""}>${label("查看保存状态", "Check saved status", "查看儲存狀態")}</button>
-    </div>
+    ${standaloneRequest ? wikiStage2RequestRow(state) : ''}
     ${pathConflict||needsConnection||state.selectionError ? '<details><summary>'+label('技术详情','Technical details','技術詳情')+'</summary><code>'+rx(pathConflict||needsConnection?state.error:state.selectionError)+'</code></details>' : ''}
     ${state.result?.synthetic_test_only ? `<p>${label("合成工程候选", "Synthetic engineering candidates", "合成工程候選")}</p>` : ""}
     ${state.result?.human_selection === "pending" ? `<p>${label("等待人工选案", "Human selection pending", "等待人工選案")}</p>` : ""}
@@ -208,14 +215,7 @@ stage2 = function (app) {
 document.addEventListener("click", event => {
   const button = event.target.closest?.("[data-wiki-stage2-action]");
   if (!button || !wikiStage2State || button.disabled) return;
-  if (button.dataset.wikiStage2Action === "connection") {
-    const app = apps[0];
-    if (app?.el.contains(button) && wikiStage2NeedsConnection(wikiStage2State) &&
-        typeof v9ConnectionCurrent==='function' && v9ConnectionCurrent(v9ConnectionView) &&
-        v9ConnectionView.stage==='stage2-controller')
-      app.el.querySelector("[data-v9-connection-panel] h2")?.focus();
-    return;
-  }
+  if (!["read", "request"].includes(button.dataset.wikiStage2Action)) return;
   const submit = button.dataset.wikiStage2Action === "request";
   if (submit && ((typeof v9AllowsCandidateRequest==="function" && !v9AllowsCandidateRequest()) || wikiStage2State.result?.status !== "ready" || rt.busy || rt.loading || rt.pending || rt.controlHeld)) return;
   wikiStage2Load(wikiStage2State, submit);

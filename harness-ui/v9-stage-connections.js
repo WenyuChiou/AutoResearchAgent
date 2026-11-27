@@ -196,8 +196,8 @@ function v9ConnectionPanel(app) {
   if (app !== apps[0] || app.page !== 'workspace' || canonicalReadonly() || !rt.ref) return '';
   const stage = v9ConnectionStages[app.stage], basis = v9ConnectionBasis(rt.overview?.project);
   if (!stage) return '';
-  const heading = 'Stage ' + app.stage + ' · ' + rl('本课题接通状态','Project connection');
-  if (!basis || rt.loading) return '<section class="hs-panel"><h2>'+heading+'</h2><p>'+rl('等待核对本课题、整数输入版本和摘要。','Waiting for a verified project, integer input version and brief digest.')+'</p></section>';
+  const heading = rl('本课题的 Stage ' + app.stage, 'Stage ' + app.stage + ' connection');
+  if (!basis || rt.loading) return '<section class="hs-panel"><h2>'+heading+'</h2><p>'+rl('还没有可核对的接通记录。正在等待本课题、输入版本和摘要。','No connection record is available to check yet. Waiting for the project, input version and brief digest.')+'</p></section>';
   if (!v9ConnectionCurrent(v9ConnectionView)) {
     const next = {epoch: rt.epoch, basis, stage, reading: false, row: null, error: ''};
     v9ConnectionView = next;
@@ -205,30 +205,41 @@ function v9ConnectionPanel(app) {
   }
   const view = v9ConnectionView, row = view.row;
   const code = view.error || row?.reason, unknown = v9ConnectionPending();
+  const action = v9ConnectionAction(view);
+  const missingInput = !unknown && !view.error && stage==='stage2-controller' &&
+    row?.status==='unavailable' && code==='stage2-controller-current-input-required';
   let message = rl('正在核对本课题的接通记录。','Checking this project’s saved connection.');
   if (unknown && rt.pending.path===projectPath(rt.ref,'stage2/actions')) message=rl('上次启用结果仍为 Unknown。请保留原请求，查询原启用回执。','Activation remains Unknown. Retain the request and check its original receipt.');
   else if (unknown) message = rl('上次登记结果仍为 Unknown。原请求键已保留；请只读核对接通状态及对应的操作回执。','Registration remains Unknown. Its key is retained. Check the saved connection and the matching action receipt.');
   else if (view.stage2Only) message = v9StaticStage3Read()
     ? rl('可查看原配置下本课题已保存的 Stage 3 规划。','Read the saved Stage 3 plan for this project under its original configuration.','可查看原設定下本課題已儲存的 Stage 3 規劃。')
     : v9ConnectionReason('stage-connection-interface-unavailable', null, stage);
+  else if (action === 'publish') message = rl('还差这个课题的 Stage 2 启用同意。先生成一份启用提议，看过再同意。','Stage 2 needs your consent. Generate an offer and review it before agreeing.');
+  else if (action === 'activate') message = rl('启用提议已生成，生成时间暂不可读。同意后只登记启用，不会启动研究。','The activation offer was generated. Its timestamp is unavailable. Agreeing records activation without starting research.');
   else if (view.error || row?.status === 'consent-required' || row?.status === 'unavailable') message = v9ConnectionReason(code, view.http, stage);
   else if (row?.status === 'connected') message = rl('本课题已接通。已核对接通登记；执行与交付须另查原记录。','This project is connected. Registration was verified. Execution and delivery have separate records.');
   else if (row?.status === 'connectable') message = rl('本课题还没有接通。可以登记当前配置，登记不会启动研究。','This project is ready to connect. Registering the current configuration does not start research.');
   const token = rx(JSON.stringify([stage, view.epoch, ...Object.values(basis)]));
   const button = (action, label, disabled) => `<button type="button" class="hs-button" data-v9-connection="${action}" data-connection-basis="${token}" ${disabled?'disabled':''}>${label}</button>`;
-  const action=v9ConnectionAction(view);
   const labels={connect:rl('接通本课题','Connect this project'),publish:rl('生成本课题的启用提议','Publish the project activation offer'),
     activate:rl('同意这份提议并启用 Stage 2','Confirm this offer and activate Stage 2')};
-  const proposal=action==='activate'?'<p>'+rl('原启用提议','Original activation offer')+' · '+rx(row.proof.offer.offer_ref)+'</p>':'';
   const controls=!unknown && action?button(action,labels[action],!v9ConnectionCanWrite()||v9ConnectionWriting):'';
-  const lockHint = controls && typeof globalThis.navigator?.locks?.request !== 'function'
-    ? rl('此浏览器缺少跨标签页项目锁，仅可查看。','This browser lacks cross-tab project locks. Readback is available.') : '';
-  const missingInput = !unknown && !view.error && stage==='stage2-controller' &&
-    row?.status==='unavailable' && code==='stage2-controller-current-input-required';
+  const lockHint = controls && (!v9ConnectionCanWrite() || v9ConnectionWriting)
+    ? typeof globalThis.navigator?.locks?.request !== 'function'
+      ? rl('此浏览器缺少跨标签页项目锁，仅可查看。','This browser lacks cross-tab project locks. Readback is available.')
+      : rl('正在等待当前操作或核对完成。','Waiting for the current operation or readback to finish.')
+    : '';
   const stage1 = missingInput ? `<button type="button" class="hs-button" data-stage="1">${rl('前往 Stage 1 查看交付','Go to Stage 1 to view delivery','前往 Stage 1 查看交付')}</button>` : '';
-  return `<section class="hs-panel" data-v9-connection-panel><h2 tabindex="-1">${heading}</h2><p role="status">${message} ${lockHint}</p>${proposal}${controls}${stage1}
-    ${button('read', rl('重新核对接通记录','Check connection again'), view.reading || v9ConnectionWriting)}
-    ${code ? '<details><summary>'+rl('技术详情','Technical details')+'</summary><code>'+rx(code)+'</code></details>' : ''}</section>`;
+  const status = !unknown && (action === 'publish' ? rl('等你 · 第 1 步','Waiting for you · Step 1')
+    : action === 'activate' ? rl('等你 · 第 2 步','Waiting for you · Step 2')
+    : missingInput ? rl('缺输入包','Input packet required') : '');
+  const offerRef = row?.proof?.offer.offer_ref;
+  const request = stage === 'stage2-controller' && v9ConnectionConnected(stage) && typeof wikiStage2RequestRow === 'function'
+    ? wikiStage2RequestRow(wikiStage2State) : '';
+  return `<section class="hs-panel" data-v9-connection-panel><h2 tabindex="-1">${heading}</h2><p role="status">${status ? '<strong>'+status+'</strong> ' : ''}${message} ${lockHint}</p>${controls}${stage1}
+    ${controls ? '' : button('read', unknown ? rl('核对上次提交','Check previous submission') : rl('重新读取','Read again'), view.reading || v9ConnectionWriting)}
+    ${code || offerRef ? `<details><summary>${rl('技术细节','Technical details')}</summary>${code ? '<code>'+rx(code)+'</code>' : ''}${offerRef ? '<p>'+rl('启用提议编号','Activation offer ID')+' · <code>'+rx(offerRef)+'</code></p>' : ''}</details>` : ''}
+    ${request ? '<hr><h3>'+rl('生成候选','Generate candidates')+'</h3>'+request : ''}</section>`;
 }
 document.addEventListener('click', async event => {
   const button = event.target.closest?.('[data-v9-connection]'), view = v9ConnectionView;

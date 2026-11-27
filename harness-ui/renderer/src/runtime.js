@@ -416,7 +416,7 @@ function wikiShellMount(app){
  previous?.remove();
  if(!markup)return;
  const headings=Array.from(content.querySelectorAll('.hs-heading,.n9-stage-context,h1,h2')).filter(node=>!node.closest('details:not([open]),[hidden],[aria-hidden="true"],.lp-topic,[data-v93-choice]'));
- const heading=headings.find(node=>node.matches('.hs-heading,.n9-stage-context'))||headings[0];
+ const heading=headings.find(node=>node.matches('.hs-heading,.n9-stage-context'))||headings.find(node=>node.matches('h1'))||headings[0];
  if(heading)heading.insertAdjacentHTML('afterend',markup);else content.insertAdjacentHTML('afterbegin',markup);
  const mounted=content.querySelector('[data-wiki-shell]');if(mounted)mounted.wikiShellMarkup=markup;
 }
