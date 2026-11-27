@@ -57,16 +57,17 @@ function wikiHomeProgress(row) {
 const wikiHomeRanStatuses = /^(query-|offline-ledger-active|owner-reopen-required|imported-verified-delivery)/;
 function wikiHomeRecordCell(row) {
  // Backend counts already read in this tab take priority; the home table never starts a read of its own.
+ if (row.origin === 'synthetic') return '演示数据，不计';
  const backend = typeof wikiRecHome === 'function' ? wikiRecHome(row.ref) : null;
  if (backend) return `<span class="wiki-home-record">${esc(backend.text)}</span><small>后台记录 · 已读 Stage ${backend.stages.join('、')}</small>`;
- if (row.origin === 'synthetic') return '演示数据，不计';
+ if (typeof wikiRecHomeWaiting === 'function' && wikiRecHomeWaiting(row.ref)) return '<small>等待读取后台记录…</small>';
  let seen = null;
  try { seen = JSON.parse(sessionStorage.getItem('wiki-v1-record:' + row.ref) || 'null'); } catch (_) { seen = null; }
  const n = value => Number.isSafeInteger(value) && value >= 0;
  if (seen && n(seen.papers) && n(seen.checked) && n(seen.claims)) return `<span class="wiki-home-record">按已保存交付统计：${seen.papers} 篇文献 · 核对 ${seen.checked} / ${seen.claims}</span><small>本次打开课题时数的</small>`;
  const project = rt.list.find(item => item.project_ref === row.ref);
  const ran = row.origin === 'archive' || wikiHomeRanStatuses.test(project?.stage1_status || '') || project?.stage2_status === 'delivery-received';
- return ran ? '有 Stage 1 记录，打开课题后可见' : '还没有运行';
+ return ran ? '有 Stage 1 记录，打开课题后可见' : row.stage ? '打开课题后可见' : '还没有运行';
 }
 
 // Same titles are allowed (no merging, 8.27). The roster has no creation time, so the last characters of
@@ -86,7 +87,7 @@ function wikiHomeProjectTable(rows, ready, locked) {
  const tableRows = rows.map(row => `<tr data-wiki-home-origin="${row.origin}">
    <th scope="row">${esc(row.title)}${wikiHomeTwin(row, rows)}</th><td><span class="wiki-home-origin ${row.origin}">${wikiHomeOrigins[row.origin]}</span></td>
    <td>${wikiHomeProgress(row)}</td><td>${row.waiting ? '<span class="wiki-home-wait">等你</span> ' : ''}${row.status}</td>
-   <td class="wiki-home-muted">${wikiHomeRecordCell(row)}</td>
+   <td class="wiki-home-muted" data-wiki-home-record-ref="${esc(row.ref)}">${wikiHomeRecordCell(row)}</td>
    <td><button type="button" class="wiki-home-button" data-wiki-home-open="${esc(row.ref)}" aria-label="打开 ${esc(row.title)}${wikiHomeTwinText(row, rows)}" ${locked?'disabled':''}>打开</button></td>
   </tr>`).join('');
  return `<section aria-labelledby="wiki-home-projects"><div class="wiki-home-table-head">
@@ -97,6 +98,7 @@ function wikiHomeProjectTable(rows, ready, locked) {
   <th scope="col">项目</th><th scope="col">来历</th><th scope="col">到了哪一段</th><th scope="col">现在的状态</th><th scope="col">Harness 记录</th><th scope="col"><span class="wiki-home-visually-hidden">操作</span></th>
  </tr></thead><tbody>${tableRows || `<tr><td colspan="6" class="wiki-home-empty" role="status">${ready ? '还没有保存的课题。输入标题开始第一个课题。' : rt.error ? '暂时读不到项目列表。' : '正在读取项目列表…'}</td></tr>`}</tbody></table></div>
  <p class="wiki-home-note">「Harness 记录」显示项目已有的检查记录和拦截次数。历史归档可供查阅，合成样例只用于演示。${rows.some(row => row.origin === 'synthetic') ? '合成样例是自带的只读样例，不连 Codex 也能看。' : ''}</p></section>
+ <p class="wiki-home-note" data-wiki-home-record-note role="status">${typeof wikiRecHomeNote === 'function' ? esc(wikiRecHomeNote()) : ''}</p>
  ${wikiHomeCases()}`;
 }
 
@@ -239,7 +241,7 @@ render = function(app) {
  app.el.dataset.wikiHomeShell = String(active);
  if (app.wikiHomePreviousTitle === undefined) app.wikiHomePreviousTitle = document.title;
  document.title = active ? 'Wiki V1 · 工作台' : app.wikiHomePreviousTitle;
- if (!active) return;
+ if (!active) { if (typeof wikiRecHomeLeave === 'function') wikiRecHomeLeave(); return; }
  app.el.querySelector('.hs-project-name').textContent = '工作台';
  app.el.querySelector('[data-page="workspace"]').setAttribute('aria-current', 'page');
  const recent = wikiHomeResume(rt.list.map(wikiHomeRow));
@@ -256,6 +258,7 @@ const wikiHomePreviousAfter = v7AfterRender;
 v7AfterRender = function(app) {
  wikiHomePreviousAfter(app);
  if (app.lang !== 'zh' || app.page !== 'home') return;
+ if (typeof wikiRecHomeStart === 'function') wikiRecHomeStart(wikiRecHomeVisible(app));
  const side = app.el.querySelector('.hs-sidebar-foot');
  if (!side) return; // The V1 sidebar has its own fixed footer line.
  side.textContent = rt.busy || rt.loading || rt.pending ? '等当前请求处理完，可打开课题。' :

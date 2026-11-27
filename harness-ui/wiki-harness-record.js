@@ -144,13 +144,14 @@ function wikiRecRepaint() {
 }
 function wikiRecPump() {
  if (wikiRecFlight || !wikiRecWant) return;
- const {ref, stage} = wikiRecWant, key = ref + '|' + stage, entry = wikiRecStore.get(key);
+ const {ref, stage, home} = wikiRecWant, key = ref + '|' + stage, entry = wikiRecStore.get(key);
  wikiRecWant = null;
  if (!entry || entry.state !== 'loading') return;
- if (typeof rt !== 'undefined' && rt.ref !== ref) { wikiRecStore.delete(key); return; }
+ // A page read is dropped when the page changed; a home read is dropped as soon as the user left the home page.
+ if (home ? !wikiRecHomeActive() : typeof rt !== 'undefined' && rt.ref !== ref) { wikiRecStore.delete(key); return; }
  wikiRecFlight = {key};
  const timer = setTimeout(() => {
-  if (entry.state === 'loading') { entry.state = 'timeout'; wikiRecRepaint(); }
+  if (entry.state === 'loading') { entry.state = 'timeout'; wikiRecRepaint(); wikiRecHomeStep(); }
  }, wikiRecTimeoutMs);
  let request;
  try { request = Promise.resolve(liveRequest(projectPath(ref, 'harness-record/stage-' + stage))); }
@@ -168,10 +169,11 @@ function wikiRecPump() {
   wikiRecFlight = null;
   wikiRecRepaint();
   wikiRecPump();
+  wikiRecHomeStep();
  });
 }
 // retry=true only from the explicit button; a timed-out or failed stage is never resent by itself.
-function wikiRecEnsure(ref, stage, retry) {
+function wikiRecEnsure(ref, stage, retry, home) {
  if (!wikiRecRef.test(ref || '')) return;
  const key = ref + '|' + stage;
  let entry = wikiRecStore.get(key);
@@ -186,7 +188,7 @@ function wikiRecEnsure(ref, stage, retry) {
   const oldKey = wikiRecWant.ref + '|' + wikiRecWant.stage;
   if (wikiRecStore.get(oldKey)?.state === 'loading' && wikiRecFlight?.key !== oldKey) wikiRecStore.delete(oldKey);
  }
- wikiRecWant = {ref, stage};
+ wikiRecWant = {ref, stage, home:home === true};
  wikiRecPump();
 }
 
@@ -233,20 +235,83 @@ function wikiRecordBlock(stage) {
  return wikiRecTag(html, ref, stage);
 }
 
-// Home table: only what was already read in this tab. Never reads for a row (one read at a time, on demand).
+// Home table: shows what was already read in this tab; wikiRecHomeStart below reads at most 8 rows, one at a time.
 function wikiRecHome(ref) {
- let records = 0, blocked = 0, inferred = false;
+ let records = 0, blocked = 0, inferred = false, ran = false;
  const stages = [];
  for (const stage of [1, 2, 3]) {
   const data = wikiRecStore.get(ref + '|' + stage);
-  if (data?.state !== 'ok' || data.data?.status !== 'recorded') continue;
+  if (data?.state !== 'ok' || !['recorded', 'not-run'].includes(data.data?.status)) continue;
   stages.push(stage);
-  if (wikiRecordNumber(data.data.summary?.records)) records += data.data.summary.records;
   if (wikiRecordNumber(data.data.blocked_total)) blocked += data.data.blocked_total;
+  if (data.data.status !== 'recorded') continue;
+  ran = true;
+  if (wikiRecordNumber(data.data.summary?.records)) records += data.data.summary.records;
   if (data.data.summary?.inferred === true) inferred = true;
  }
  if (!stages.length) return null;
- return {text: wikiRecordSummary({recordCount:records, blockedCount:blocked}) + (inferred ? '（推算）' : ''), stages};
+ if (ran) return {text: wikiRecordSummary({recordCount:records, blockedCount:blocked}) + (inferred ? '（推算）' : ''), stages};
+ return {text: '还没有运行' + (blocked > 0 ? ' · 被拦下 ' + blocked + ' 次' : ''), stages};
+}
+
+// ---------- Home: bounded, sequential reads (coordinator, 11-27) ----------
+// First 8 visible rows, Stage 1 only (no writer lock), one request at a time, stops when the user leaves the
+// home page, and stops for good on the first timeout. Read-only.
+const wikiRecHomeLimit = 8;
+const wikiRecHomeState = {queue:[], total:0, key:'', stopped:null};
+function wikiRecHomeActive() {
+ return typeof apps !== 'undefined' && apps[0]?.lang === 'zh' && apps[0].page === 'home';
+}
+function wikiRecHomeWaiting(ref) {
+ return wikiRecHomeState.queue.some(item => item.ref === ref);
+}
+function wikiRecHomeNote() {
+ const state = wikiRecHomeState;
+ if (state.stopped === 'timeout') return '后台记录读取超时，已停止读取后续课题；没读到的课题写「打开课题后可见」。';
+ if (state.queue.length) return `正在逐个读取前 ${state.total} 个课题的后台记录（${state.total - state.queue.length} / ${state.total}），一次只读一个。`;
+ return '';
+}
+function wikiRecHomeRepaint() {
+ if (typeof apps === 'undefined' || !wikiRecHomeActive() || typeof wikiHomeRecordCell !== 'function') return;
+ const el = apps[0].el;
+ for (const cell of el?.querySelectorAll?.('[data-wiki-home-record-ref]') || []) {
+  const project = rt.list.find(item => item.project_ref === cell.dataset.wikiHomeRecordRef);
+  if (project) cell.innerHTML = wikiHomeRecordCell(wikiHomeRow(project));
+ }
+ const note = el?.querySelector?.('[data-wiki-home-record-note]');
+ if (note) note.textContent = wikiRecHomeNote();
+}
+function wikiRecHomeStep() {
+ const state = wikiRecHomeState;
+ if (!state.queue.length) return;
+ if (!wikiRecHomeActive()) { state.queue = []; state.key = ''; return; }
+ while (state.queue.length) {
+  const {ref, stage} = state.queue[0], entry = wikiRecStore.get(ref + '|' + stage);
+  if (entry?.state === 'timeout') { state.stopped = 'timeout'; state.queue = []; break; }
+  if (entry && ['ok', 'unsupported', 'failed'].includes(entry.state)) { state.queue.shift(); continue; }
+  wikiRecEnsure(ref, stage, false, true);
+  break;
+ }
+ wikiRecHomeRepaint();
+}
+function wikiRecHomeStart(items) {
+ const state = wikiRecHomeState;
+ const list = (items || []).filter(item => wikiRecRef.test(item?.ref || '')).slice(0, wikiRecHomeLimit);
+ const key = JSON.stringify(list);
+ if (key === state.key) return;
+ state.key = key; state.queue = list.map(item => ({ref:item.ref, stage:1})); state.total = list.length; state.stopped = null;
+ wikiRecHomeStep();
+}
+function wikiRecHomeLeave() {
+ Object.assign(wikiRecHomeState, {queue:[], key:'', stopped:null});
+}
+// Visible rows in table order (the origin filter hides rows), only rows that have a stage.
+function wikiRecHomeVisible(app) {
+ const refs = [...(app?.el?.querySelectorAll?.('tr[data-wiki-home-origin]:not([hidden]) [data-wiki-home-open]') || [])].map(button => button.dataset.wikiHomeOpen);
+ return refs.filter(ref => {
+  const project = rt.list.find(item => item.project_ref === ref);
+  return project && wikiHomeRow(project).origin === 'local' && wikiHomeRow(project).stage;
+ }).slice(0, wikiRecHomeLimit).map(ref => ({ref}));
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {

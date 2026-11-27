@@ -105,7 +105,7 @@ const stage = (status, extra = {}) => { const one = {
 
  // Home column: only what was already read; the stage 3 result was "not-run" so it adds nothing.
  const home = wikiRecHome(REF);
- assert.deepEqual([...home.stages], [1, 2]);
+ assert.deepEqual([...home.stages], [1, 2, 3]); // stage 3 read as not-run adds no counts
  assert.match(home.text, /358 条记录 · 拦下 2 次（推算）/);
  assert.equal(wikiRecHome('project-other'), null);
 
