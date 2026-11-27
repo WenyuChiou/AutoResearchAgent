@@ -311,8 +311,10 @@ async function v9ReconnectStage(view) {
     const response=await liveRequest(projectPath(ref,'connections'),body);
     if (!v9ConnectionCurrent(view)) return;
     const result=v9ConnectionRow(response,basis,stage);
+    // The saved record carries the original receipt; this click's key coming back means a new registration was
+    // written, which a reconnect must never do (review P2-1).
     if (Object.keys(response.connections).length!==1 || result.status!=='connected' || result.profile_sha256!==body.profile_sha256 ||
-        !v9ConnectionHash(result.connection_id) || typeof result.receipt_id!=='string' || !result.receipt_id)
+        !v9ConnectionHash(result.connection_id) || typeof result.receipt_id!=='string' || !result.receipt_id || result.receipt_id===body.key)
       throw Error('stage-connection-receipt-unverified');
     const read=await v9ReadConnection(view,true);
     if (read.status!=='connected' || read.connection_id!==result.connection_id || read.receipt_id!==result.receipt_id)
