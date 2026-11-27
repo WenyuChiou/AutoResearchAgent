@@ -23,6 +23,7 @@ class PortableHost(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
             incoming = root/'incoming'
+            state_root = root
             packet = write_stage2_fixture(incoming)
             packet_path = incoming/'packet.json'
             packet_path.write_text(json.dumps(packet), encoding='utf-8')
@@ -106,6 +107,18 @@ class PortableHost(unittest.TestCase):
                     self.assertEqual(restored['actions'], 0)
                     self.assertEqual(ok('/api/v9/workflow/prepare', dict(id=material['id'], expected_sha256=pin))['event_head'], operation['event_head'])
                     self.assertEqual(call('/api/v9/human-record', {})[0], 404)
+                    # Codex chat is off without --chat-config: status only, no store, no Codex.
+                    with urlopen(base+'/host-binding.json', timeout=5) as response:
+                        chat = json.load(response)['chat']
+                    self.assertEqual(chat, dict(configured=False, disabled_reason='operator-chat-config-required',
+                                                read_only=True, research_execution=False, formal_selection=False))
+                    state = ok('/api/v9/chat/state?project='+project['project_ref']+'&stage=1')
+                    self.assertEqual((state['panel_state'], state['can_send'], state['enabled']), ('not-configured', False, False))
+                    sent = call('/api/v9/chat/send', dict(project_ref=project['project_ref'], stage=1, text='hi',
+                        key='http-default-off-0001', session_id=None, input_version=1, brief_sha256='a'*64))
+                    self.assertEqual((sent[0], sent[1]['error']), (409, 'operator-chat-config-required'))
+                    self.assertEqual(call('/api/v9/chat/state?project=x&stage=1', auth=False)[0], 401)
+                    self.assertFalse(list(state_root.rglob('conversations.sqlite3')) or list(state_root.rglob('quota.sqlite3')))
                     invalid = {**selection, 'source_ids':['absent']}
                     self.assertEqual(call('/api/v9/draft', dict(id=material['id'], revision=1,
                         note='', target_stage=2, selection=invalid))[0], 409)
