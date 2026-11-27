@@ -223,7 +223,9 @@ class ChatService:
         if not path.exists() or path.stat().st_size == 0:
             return
         try:
-            connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
+            connection = sqlite3.connect(
+                path.resolve().as_uri() + "?mode=ro", uri=True, timeout=2
+            )
             try:
                 tables = {
                     r[0]
@@ -717,7 +719,10 @@ class ChatService:
             "chat-answer-fields-invalid",
         )
         require(
-            all(type(body[k]) is str for k in ("turn_id", "request_id", "request_sha256")),
+            all(
+                type(body[k]) is str
+                for k in ("turn_id", "request_id", "request_sha256")
+            ),
             "chat-answer-fields-invalid",
         )
         with self.lock:

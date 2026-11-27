@@ -198,22 +198,30 @@ class ContinuationHttp(unittest.TestCase):
             row = service.get("turns", turn["id"])
         self.assertEqual(row["status"], "completed", row)
         spent = self.ledger()
-        self.assertEqual(spent[:2], (3, 360), "the reservation lands on the original ledger")
+        self.assertEqual(
+            spent[:2], (3, 360), "the reservation lands on the original ledger"
+        )
         self.assertEqual(spent[2], str(self.owner.resolve()))
-        self.assertFalse(self.never.exists(), "--chat-root is ignored and never created")
+        self.assertFalse(
+            self.never.exists(), "--chat-root is ignored and never created"
+        )
         connection = sqlite3.connect(self.owner)
         try:
             count = connection.execute("SELECT COUNT(*) FROM turns").fetchone()[0]
         finally:
             connection.close()
-        self.assertEqual(count, 1, "the turn is recorded in the original conversation store")
+        self.assertEqual(
+            count, 1, "the turn is recorded in the original conversation store"
+        )
         # Stages outside the grant stay closed.
         self.assertNotEqual(fx.call(path + "3")[1]["panel_state"], "ready")
 
     def test_a_revoked_receipt_leaves_the_inert_service_and_spends_nothing(self):
         fx = HostFixture(self)
         options = self.build(fx)
-        Path(str(options.chat_permit_receipt) + ".revoked").write_text("operator", encoding="utf-8")
+        Path(str(options.chat_permit_receipt) + ".revoked").write_text(
+            "operator", encoding="utf-8"
+        )
         with patch(
             "harness_chat_runtime.runtime_module_paths", return_value=self.modules
         ):
@@ -221,7 +229,10 @@ class ContinuationHttp(unittest.TestCase):
         self.addCleanup(service.close)
         self.assertIsNone(service.spec)
         code, state = fx.call("/api/v9/chat/state?project=" + fx.ref + "&stage=1")
-        self.assertEqual((code, state["panel_state"], state["can_send"]), (200, "not-configured", False))
+        self.assertEqual(
+            (code, state["panel_state"], state["can_send"]),
+            (200, "not-configured", False),
+        )
         self.assertEqual(fx.call("/api/v9/chat/send", fx.send_body())[0], 409)
         self.assertEqual(self.ledger()[:2], (2, 240))
         self.assertFalse(self.never.exists())

@@ -225,7 +225,15 @@ class ChatServiceTests(unittest.TestCase):
 
     def test_failed_turn_text_carries_no_local_path(self):
         fx = self.fx
-        secret = "C:" + chr(92) + "Users" + chr(92) + "private-name" + chr(92) + "config.toml"
+        secret = (
+            "C:"
+            + chr(92)
+            + "Users"
+            + chr(92)
+            + "private-name"
+            + chr(92)
+            + "config.toml"
+        )
 
         class Broken(FakeRpc):
             def request(self, method, params, timeout=10):
@@ -242,12 +250,22 @@ class ChatServiceTests(unittest.TestCase):
         self.assertNotIn("private-name", json.dumps(row))
         self.assertEqual(row["error"], "FileNotFoundError:chat-state-unreadable")
         with service.db() as db:
-            events = [r[0] for r in db.execute("SELECT body FROM events WHERE turn_id=?", (row["id"],))]
-        self.assertTrue(any("private-name" in e for e in events), "full text stays in the local record")
+            events = [
+                r[0]
+                for r in db.execute(
+                    "SELECT body FROM events WHERE turn_id=?", (row["id"],)
+                )
+            ]
+        self.assertTrue(
+            any("private-name" in e for e in events),
+            "full text stays in the local record",
+        )
 
     def test_reconcile_after_expiry_or_revocation_starts_no_codex(self):
         fx = self.fx
-        service = fx.service(action=dict(action="state", id="", note=""), wrong_binding=True)
+        service = fx.service(
+            action=dict(action="state", id="", note=""), wrong_binding=True
+        )
         turn = fx.finished(service, fx.send(service))
         self.assertEqual(turn["status"], "unknown")
         started = []
@@ -259,7 +277,9 @@ class ChatServiceTests(unittest.TestCase):
         service.spec["expires_at"] = time.time() + 600
         grant_file = fx.root / "grant.json"
         grant_file.write_bytes(b"{}")
-        service.spec.update(_path=str(grant_file), _pin=hashlib.sha256(b"{}").hexdigest())
+        service.spec.update(
+            _path=str(grant_file), _pin=hashlib.sha256(b"{}").hexdigest()
+        )
         revoked = Path(str(grant_file) + ".revoked")
         revoked.write_text("operator", encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "chat-permit-revoked"):
@@ -278,7 +298,9 @@ class ChatServiceTests(unittest.TestCase):
         def moving(project, stage):
             value = real(project, stage)
             calls.append(1)
-            if len(calls) > 1:  # the project is re-versioned after the first, unlocked read
+            if (
+                len(calls) > 1
+            ):  # the project is re-versioned after the first, unlocked read
                 value = dict(value, project_pin="f" * 64)
             return value
 
