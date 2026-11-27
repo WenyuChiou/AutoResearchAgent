@@ -95,3 +95,6 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-wiki-home-shell="true"]) {
  .wiki-home-top,.wiki-home-decisions { grid-template-columns:minmax(0,1fr); }
  .wiki-home-decisions li+li { border-inline-start:0; border-top:1px solid #dde5e2; }
 }
+.wiki-home-cases { display:grid; gap:10px; }
+.wiki-home-case { display:flex; flex-wrap:wrap; align-items:center; gap:10px; border:1px solid #d7e2de; border-radius:8px; background:white; padding:14px 18px; }
+.wiki-home-case b { margin-right:6px; }

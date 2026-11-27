@@ -31,7 +31,7 @@ function wikiHomeRow(project) {
  const waiting = stage === 1 && !saved && project.stage1_status === 'not-started' && project.stage1_intake_ready === false && project.revision === 2 && project.input_version === 1;
  const status = failed ? '项目资料读取失败' : waiting ? '确认研究范围' :
   saved ? '已保存，只读' : stage === 2 ? '已有交付材料' : archive ? '已有保存材料' :
-  project.stage1_intake_ready === true ? '范围与计划已保存' : '当前状态未提供';
+  project.stage1_intake_ready === true ? '范围与计划已保存' : stage === 1 && project.revision > 2 ? '范围已确认，文献还没交付' : '当前状态未提供';
  return {
   ref:project.project_ref, title:project.topic || '标题未提供', origin:synthetic?'synthetic':archive?'archive':stage?'local':'unknown',
   stage, status, waiting, priorSaved:!!saved || project.stage1_status === 'imported-verified-delivery'
@@ -69,7 +69,18 @@ function wikiHomeProjectTable(rows, ready, locked) {
  <div class="wiki-home-table"><table><thead><tr>
   <th scope="col">项目</th><th scope="col">来历</th><th scope="col">到了哪一段</th><th scope="col">现在的状态</th><th scope="col">Harness 记录</th><th scope="col"><span class="wiki-home-visually-hidden">操作</span></th>
  </tr></thead><tbody>${tableRows || `<tr><td colspan="6" class="wiki-home-empty" role="status">${ready ? '还没有保存的课题。输入标题开始第一个课题。' : rt.error ? '暂时读不到项目列表。' : '正在读取项目列表…'}</td></tr>`}</tbody></table></div>
- <p class="wiki-home-note">「Harness 记录」显示项目已有的检查记录和拦截次数。历史归档可供查阅，合成样例只用于演示。</p></section>`;
+ <p class="wiki-home-note">「Harness 记录」显示项目已有的检查记录和拦截次数。历史归档可供查阅，合成样例只用于演示。</p></section>
+ ${wikiHomeCases()}`;
+}
+
+// DESIGN 8.5 (decided): published cases open the external read-only pages in a new tab.
+function wikiHomeCases() {
+ const base = 'https://wenyuchiou.github.io/AutoResearchAgent/stage-3/';
+ const parts = [['household-case', '研究设计案例'], ['data-methods', '数据与方法'], ['validation', '研究验证'], ['harness-evaluation', '计划评估']];
+ return `<section class="wiki-home-cases" aria-labelledby="wiki-home-cases"><h2 id="wiki-home-cases">已发布的只读案例</h2>
+  <div class="wiki-home-case"><b>美国居民消费</b><span class="wiki-home-origin archive">历史归档</span>
+  ${parts.map(([hash, name]) => `<a class="wiki-home-button" target="_blank" rel="noopener noreferrer" href="${base}#${hash}">${name} <span aria-hidden="true">↗</span><span class="wiki-home-visually-hidden">（在新标签页打开）</span></a>`).join('')}</div>
+  <p class="wiki-home-note">这是独立的只读归档，不在这个 Wiki 里。</p></section>`;
 }
 
 function wikiHomeMarkup() {
