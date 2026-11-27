@@ -1,0 +1,74 @@
+/* Wiki V1 global pages (DESIGN 8.1, 8.2; prototype ops.css .kv/.files/.history/.checks/.quota/.chips). [data-v1="other"] only. */
+#harness-trace-workbench-v6 [data-v1="other"] .hs-content > :not([data-v1-global],.v1-alert) { display:none !important; }
+#harness-trace-workbench-v6 [data-v1] .v1-page[data-v1-global] { gap:24px; }
+#harness-trace-workbench-v6 [data-v1] .v1-hint { font-size:14px; color:var(--v1-sub); max-width:80ch; margin:0; }
+#harness-trace-workbench-v6 [data-v1] .v1-note { margin:0; font-size:14px; color:var(--v1-text); background:var(--v1-blue-soft); border-left:6px solid var(--v1-blue); border-radius:8px; padding:10px 14px; }
+#harness-trace-workbench-v6 [data-v1] .v1-small { display:block; font-size:13px; color:var(--v1-sub); margin-top:4px; }
+#harness-trace-workbench-v6 [data-v1] .v1-empty { margin:0; background:#fff; border:1px dashed var(--v1-line2); border-radius:8px; padding:20px 24px; color:var(--v1-sub); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+#harness-trace-workbench-v6 [data-v1] .v1-vh { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+#harness-trace-workbench-v6 [data-v1] .v1-table-wrap { overflow-x:auto; border:1px solid var(--v1-line); border-radius:8px; background:#fff; }
+#harness-trace-workbench-v6 [data-v1] .v1-table { width:100%; border-collapse:collapse; }
+#harness-trace-workbench-v6 [data-v1] .v1-table th, #harness-trace-workbench-v6 [data-v1] .v1-table td { padding:10px 14px; font-size:15px; text-align:left; vertical-align:top; border-bottom:1px solid var(--v1-line); }
+#harness-trace-workbench-v6 [data-v1] .v1-table thead th { background:#fafaf6; color:var(--v1-sub); font-size:14px; font-weight:700; white-space:nowrap; }
+#harness-trace-workbench-v6 [data-v1] .v1-table tbody tr:last-child > * { border-bottom:0; }
+#harness-trace-workbench-v6 [data-v1] .v1-table tbody th { font-weight:600; }
+#harness-trace-workbench-v6 [data-v1] .v1-table tbody th small { display:inline; margin-left:4px; font-weight:400; color:var(--v1-sub); font-size:14px; }
+#harness-trace-workbench-v6 [data-v1] .v1-table .n { font-family:ui-monospace,Consolas,monospace; font-variant-numeric:tabular-nums; white-space:nowrap; }
+#harness-trace-workbench-v6 [data-v1] .v1-table .acts { white-space:nowrap; text-align:right; }
+#harness-trace-workbench-v6 [data-v1] .v1-table .acts .v1-btn + .v1-btn { margin-left:6px; }
+#harness-trace-workbench-v6 [data-v1] .v1-table .acts .v1-reason { white-space:normal; }
+#harness-trace-workbench-v6 [data-v1] .v1-files tr.sel > * { background:var(--v1-teal-soft); }
+#harness-trace-workbench-v6 [data-v1] .v1-kv tbody th { width:200px; }
+#harness-trace-workbench-v6 [data-v1] .v1-kv tbody th small { display:block; margin:0; font-weight:400; font-size:14px; }
+#harness-trace-workbench-v6 [data-v1] .v1-kv td:nth-child(2) { width:260px; }
+#harness-trace-workbench-v6 [data-v1] .v1-panel-head { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+#harness-trace-workbench-v6 [data-v1] .v1-panel h2 { font-size:20px; line-height:1.35; margin:0; }
+#harness-trace-workbench-v6 [data-v1] .v1-panel > h2 { margin-bottom:12px; }
+#harness-trace-workbench-v6 [data-v1] .v1-panel > p { margin:0 0 8px; }
+#harness-trace-workbench-v6 [data-v1] .v1-two { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+#harness-trace-workbench-v6 [data-v1] .v1-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+#harness-trace-workbench-v6 [data-v1] .v1-field { width:100%; min-height:44px; padding:0 12px; border:1px solid var(--v1-line2); border-radius:8px; background:#fff; font:inherit; font-size:16px; color:var(--v1-text); margin-bottom:10px; }
+#harness-trace-workbench-v6 [data-v1] .v1-st { display:inline-flex; align-items:center; gap:5px; min-height:24px; padding:0 8px; border-radius:4px; font-size:13px; font-weight:700; white-space:nowrap; border:1px solid transparent; }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-done { background:var(--v1-teal-soft); color:var(--v1-teal-dark); border-color:#bcd9d2; }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-done::before { content:"✓"; }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-run { background:var(--v1-blue-soft); color:var(--v1-blue); border-color:#c5d6ee; }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-run::before { content:"↻"; }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-block { background:var(--v1-amber-soft); color:var(--v1-amber); border-color:var(--v1-amber-line); }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-block::before { content:"!"; }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-err { background:var(--v1-red-soft); color:var(--v1-red); border-color:var(--v1-red-line); }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-err::before { content:"✕"; }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-idle { background:var(--v1-gray); color:#4c5f6a; border-color:var(--v1-line2); }
+#harness-trace-workbench-v6 [data-v1] .v1-st.s-idle::before { content:"○"; }
+#harness-trace-workbench-v6 [data-v1] .v1-chips { display:flex; gap:8px; flex-wrap:wrap; }
+#harness-trace-workbench-v6 [data-v1] .v1-chip { min-height:36px; padding:0 12px; border-radius:18px; border:1px solid var(--v1-line2); background:#fff; font:inherit; font-size:14px; color:var(--v1-text); cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+#harness-trace-workbench-v6 [data-v1] .v1-chip b { font-variant-numeric:tabular-nums; }
+#harness-trace-workbench-v6 [data-v1] .v1-chip[aria-pressed="true"] { background:var(--v1-navy); border-color:var(--v1-navy); color:#fff; }
+#harness-trace-workbench-v6 [data-v1] .v1-quota { display:flex; align-items:center; gap:8px 18px; flex-wrap:wrap; font-size:14px; }
+#harness-trace-workbench-v6 [data-v1] .v1-quota b { font-family:ui-monospace,Consolas,monospace; font-variant-numeric:tabular-nums; }
+#harness-trace-workbench-v6 [data-v1] .v1-quota.none { background:var(--v1-gray); color:var(--v1-sub); border-radius:6px; padding:6px 10px; }
+#harness-trace-workbench-v6 [data-v1] .v1-qk { font-size:13px; font-weight:700; color:var(--v1-sub); letter-spacing:.04em; }
+#harness-trace-workbench-v6 [data-v1] .v1-qnote { flex-basis:100%; font-size:13px; }
+#harness-trace-workbench-v6 [data-v1] .v1-ntag { font-style:normal; display:inline-block; font-size:12px; font-weight:700; border-radius:4px; padding:0 6px; line-height:20px; border:1px solid var(--v1-line2); color:#4c5f6a; background:#fff; }
+#harness-trace-workbench-v6 [data-v1] .v1-permits { list-style:none; margin:0; padding:0 0 8px; display:grid; gap:6px; font-size:14px; }
+#harness-trace-workbench-v6 [data-v1] .v1-fold > summary { min-height:44px; display:flex; align-items:center; cursor:pointer; font-size:14px; color:var(--v1-sub); gap:8px; }
+#harness-trace-workbench-v6 [data-v1] .v1-fix { background:var(--v1-amber-soft); border:1px solid var(--v1-amber-line); border-radius:8px; padding:12px 16px; font-size:15px; margin-top:12px; }
+#harness-trace-workbench-v6 [data-v1] .v1-checks { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+#harness-trace-workbench-v6 [data-v1] .v1-checks li { border:1px solid var(--v1-line); border-radius:8px; padding:12px 14px; display:grid; gap:6px; align-content:start; font-size:14px; color:var(--v1-sub); border-top:4px solid #8a99a2; }
+#harness-trace-workbench-v6 [data-v1] .v1-checks li b { font-size:15px; color:var(--v1-text); }
+#harness-trace-workbench-v6 [data-v1] .v1-checks li .v1-st { justify-self:start; }
+#harness-trace-workbench-v6 [data-v1] .v1-checks li.ok { border-top-color:var(--v1-teal); }
+#harness-trace-workbench-v6 [data-v1] .v1-checks li.bad { border-top-color:#c88a1e; background:var(--v1-amber-soft); }
+#harness-trace-workbench-v6 [data-v1] .v1-tech { border:1px solid var(--v1-line); border-radius:8px; background:#fafaf6; padding:0 16px; }
+#harness-trace-workbench-v6 [data-v1] .v1-tech > summary { min-height:44px; display:flex; align-items:center; cursor:pointer; font-size:14px; font-weight:600; color:var(--v1-sub); }
+#harness-trace-workbench-v6 [data-v1] .v1-tech dl { display:grid; grid-template-columns:200px minmax(0,1fr); gap:6px 16px; padding:4px 0 16px; margin:0; font-size:14px; }
+#harness-trace-workbench-v6 [data-v1] .v1-tech dt { color:var(--v1-sub); }
+#harness-trace-workbench-v6 [data-v1] .v1-tech dd { margin:0; font-size:13px; overflow-wrap:anywhere; color:#34495a; }
+#harness-trace-workbench-v6 [data-v1] .v1-tech .flash { background:#fff3c9; }
+#harness-trace-workbench-v6 [data-v1] .v1-files-wrap { display:grid; gap:16px; }
+#harness-trace-workbench-v6 [data-v1] .v1-preview { background:#fff; border:1px solid var(--v1-line2); border-left:4px solid var(--v1-teal); border-radius:8px; padding:16px 20px; display:grid; gap:6px; }
+#harness-trace-workbench-v6 [data-v1] .v1-preview-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+#harness-trace-workbench-v6 [data-v1] .v1-preview small { color:var(--v1-sub); font-size:13px; }
+#harness-trace-workbench-v6 [data-v1] .v1-preview pre { margin:0; max-height:420px; overflow:auto; white-space:pre-wrap; font-size:13px; background:#fafaf6; border-radius:6px; padding:12px; }
+@media (min-width:1100px) {
+ #harness-trace-workbench-v6 [data-v1] .v1-files-wrap:has(.v1-preview) { grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); align-items:start; }
+}
