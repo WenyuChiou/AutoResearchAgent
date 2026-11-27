@@ -82,6 +82,8 @@ async function wsAdvance() {
  rt.wsProg = outcome;
  await liveRefresh(ref, {list:true});
  rt.wsProg = outcome; livePaint();
+ // Network or server failure: read the state again at once so 「结果未确认」 and its check button appear (review P2-6).
+ if (outcome.state === 'error' && typeof wsProgLoad === 'function') wsProgLoad(true);
 }
 // Seven display states from DESIGN 8.7, plus the six "consent unusable" reasons.
 function wsAuto() {

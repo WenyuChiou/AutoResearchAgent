@@ -339,7 +339,7 @@ function wikiS3Table(model, review, state) {
    ? (target ? `<button type="button" class="ws3-link ws3-jump" data-s3-jump="${wikiS3Escape(location)}">${wikiS3Escape(item.revision.action)}</button>` : wikiS3Escape(item.revision.action))
    : item.missing_information ? `需要补：${wikiS3Escape(item.missing_information.needed)}（问谁：${wikiS3Escape(item.missing_information.owner)}）`
    : `<em class="ws3-muted">${item.revision === undefined ? wikiS3Missing : '没有'}</em>`;
-  return `<tr><th scope="row">${wikiS3Escape(wikiS3Axes[item.axis] || item.axis)}</th><td><span class="ws3-verdict ws3-v-${verdict[2]}"><span aria-hidden="true">${verdict[0]}</span> ${verdict[1]}</span></td><td>${wikiS3Escape(item.reason)}</td><td>${advice}</td></tr>`;
+  return `<tr><th scope="row">${wikiS3Escape(wikiS3Axes[item.axis] || item.axis)}</th><td><span class="ws3-verdict ws3-v-${verdict[2]}"><span aria-hidden="true">${verdict[0]}</span> ${wikiS3Escape(verdict[1])}</span></td><td>${wikiS3Escape(item.reason)}</td><td>${advice}</td></tr>`;
  });
  const pass = review.findings.filter(item => item.status === 'adequate').length;
  return `<section class="ws3-block" data-s3-review><div class="ws3-head"><h2>计划评审</h2><span class="ws3-by">评审者：${reviewer}</span></div>
@@ -370,7 +370,7 @@ function wikiS3MaterialsTab(view) {
  const state = context && typeof v94fState === 'function' ? v94fState(context) : null;
  const bound = state ? state.records.filter(row => row.record.kind === 'revision' && (row.record.material_refs || []).length) : [];
  const files = bound.flatMap(row => row.record.material_refs.map(ref =>
-  `<li><strong>${wikiS3Escape(ref.name)}</strong> · ${wikiS3Escape(ref.bytes)} 字节 · 人工草案 v${row.record.revision_number} · 关联的问题：${wikiS3Escape(ref.question_ref)}（未审阅）
+  `<li><strong>${wikiS3Escape(ref.name)}</strong> · ${wikiS3Escape(ref.bytes)} 字节 · 人工草案 v${wikiS3Escape(row.record.revision_number)} · 关联的问题：${wikiS3Escape(ref.question_ref)}（未审阅）
   <button type="button" class="hs-button" data-v95-material-download="${wikiS3Escape(ref.file_id)}" data-v95-receipt="${wikiS3Escape(row.receipt_sha256)}">核对并下载完整文件</button></li>`));
  return `<section class="ws3-block" data-s3-materials-tab><h2>这个版本的完整材料</h2>
  <p>大材料以原文件保存，最多 128 MiB；规划只保存摘要、版本和文件指纹，不会自动发给模型。</p>
@@ -430,7 +430,7 @@ function wikiS3Page(app, base) {
 }
 
 function wikiS3FeedbackLead(context, state, revision) {
- const version = revision ? `当前规划 v${revision.record.revision_number} · 父版本 v1 · 收据 ✓` : '当前规划 v1 · 原始规划';
+ const version = revision ? `当前规划 v${wikiS3Escape(revision.record.revision_number)} · 父版本 v1 · 收据 ✓` : '当前规划 v1 · 原始规划';
  return `<p class="ws3-version" data-s3-version><b>${version}</b></p>`;
 }
 
