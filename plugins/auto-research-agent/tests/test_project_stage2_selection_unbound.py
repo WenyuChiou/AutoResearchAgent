@@ -6,10 +6,13 @@ so it never becomes an unrecoverable "execution-unknown" action.
 """
 
 # ruff: noqa: E402 -- exercise repository CLI and authored fixtures.
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from pathlib import Path
 import sys
+import time
 import unittest
+from types import SimpleNamespace
 
 sys.path[:0] = [
     str(Path(__file__).resolve().parents[1] / "cli"),
@@ -19,6 +22,7 @@ from project_stage2_selection_fixture import Stage2SelectionFixture
 from research_workspace_native.project_stage2_selection import (
     ProjectStage2SelectionService,
 )
+from research_workspace_native.http import SessionHandler
 from research_workspace_native.session_api import SessionApiError
 
 
@@ -131,12 +135,73 @@ class UnboundSelectionTests(Stage2SelectionFixture):
         stuck = {**body, "key": "stuck-key"}
         self.legacy_unconnected_record(
             stuck,
-            error="session-deadline-exceeded",
+            error="absolute request deadline expired",
             phase="core-write-outcome-unobserved",
         )
         fresh = {**body, "key": "fresh-key", "revision": body["revision"] + 1}
         with self.assertRaisesRegex(SessionApiError, "stage2-selection-unresolved"):
             bound.select("own", self.ref, fresh)
+
+    def test_deadline_expiring_during_verification_leaves_nothing_and_retries(self):
+        bound, body, _ = self.prepare_choice()
+        before = footprint(self.intake, self.ref)
+        requester = SimpleNamespace(
+            deadline=time.monotonic() + 600,
+            connection=SimpleNamespace(settimeout=lambda _: None),
+        )
+        calls = []
+
+        def real_deadline():
+            calls.append(True)
+            if len(calls) == 2:  # the check right after the source verification
+                requester.deadline = time.monotonic() - 1
+            SessionHandler._remaining(requester)
+
+        with self.assertRaisesRegex(TimeoutError, "absolute request deadline expired"):
+            bound.select("own", self.ref, body, check_deadline=real_deadline)
+        self.assertEqual(footprint(self.intake, self.ref), before)
+        # The very same key is still usable: nothing was recorded.
+        result = bound.select("own", self.ref, body)
+        self.assertEqual(result["selection_status"], "recorded")
+
+    def test_listed_error_with_an_existing_choice_directory_still_blocks(self):
+        bound, body, _ = self.prepare_choice()
+        stuck = {**body, "key": "stuck-key"}
+        receipt = self.legacy_unconnected_record(
+            stuck,
+            error="stage2-selection-unconnected",
+            phase="core-write-outcome-unobserved",
+        )
+        self.intake._path(
+            self.ref, "stage2-choice-" + receipt["request_sha256"]
+        ).mkdir()
+        fresh = {**body, "key": "fresh-key", "revision": body["revision"] + 1}
+        with self.assertRaisesRegex(SessionApiError, "stage2-selection-unresolved"):
+            bound.select("own", self.ref, fresh)
+
+    def test_two_concurrent_selections_record_one_and_refuse_the_other_cleanly(self):
+        bound, body, _ = self.prepare_choice()
+
+        def attempt(key):
+            try:
+                return bound.select("own", self.ref, {**body, "key": key})
+            except SessionApiError as error:
+                return error.code
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            replies = list(pool.map(attempt, ("first-key", "second-key")))
+        saved = [r for r in replies if isinstance(r, dict)]
+        refused = [r for r in replies if not isinstance(r, dict)]
+        self.assertEqual(len(saved), 1, replies)
+        self.assertEqual(len(refused), 1, replies)
+        statuses = [
+            row[0]
+            for row in self.intake.db.execute(
+                "SELECT json_extract(receipt, '$.status') FROM intake_actions "
+                "WHERE json_extract(receipt, '$.kind')='stage2-select'"
+            )
+        ]
+        self.assertEqual(statuses, ["saved"])
 
 
 if __name__ == "__main__":
