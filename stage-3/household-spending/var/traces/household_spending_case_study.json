@@ -1,6 +1,6 @@
 {
   "files": {
-    "household_spending_case_study.py": "\"\"\"Play the U.S. household spending case study using Edtrace and the v57 manuscript.\n\nRun this file with Python 3.11 or newer. The companion folders contain the\nplayer runtime, the study figures, and the recorded prompt. Use --export-pages\nto rebuild the GitHub Pages entry, --trace-only to record the talk, or\n--no-browser to print the local player address.\n\"\"\"\n\nimport argparse\nfrom collections.abc import Sequence\nfrom html import escape\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\nimport json\nfrom pathlib import Path\nimport subprocess\nimport sys\nfrom tempfile import TemporaryDirectory\nfrom urllib.parse import urlencode, urlsplit\nimport webbrowser\n\nHERE = Path(__file__).resolve().parent\nRUNTIME = HERE / \"runtime\"\nWHEEL = RUNTIME / \"edtrace-0.1.25-py3-none-any.whl\"\nsys.path.insert(0, str(WHEEL))\n\nfrom edtrace import plot, text\n\nENTRY = Path(__file__).stem\nSTUDY_TITLE = 'A Large Language Model Simulation of U.S. Household Spending under Population Aging and Gasoline Price Feedback'\nPROMPT_PDF = \"sources/recorded-spending-prompt.pdf\"\nTRACE_PATH = HERE / \"var\" / \"traces\" / f\"{ENTRY}.json\"\nOBSERVED = \"images/observed-bls.png\"\nWORKFLOW = \"images/household-loop.png\"\nSQ1_COMPARISON = \"images/sq1-quarterly-comparison.png\"\nAGING = \"images/sq2-aging.png\"\nFEEDBACK = \"images/sq3-feedback.png\"\n\nAGING_CHART = {\n    \"title\": \"U.S. residents aged 65+\",\n    \"data\": {\"values\": [{\"year\": \"2004\", \"share\": 12.4}, {\"year\": \"2024\", \"share\": 18.0}]},\n    \"width\": 240,\n    \"height\": 75,\n    \"encoding\": {\n        \"y\": {\"field\": \"year\", \"type\": \"nominal\", \"sort\": [\"2004\", \"2024\"], \"title\": None},\n        \"x\": {\n            \"field\": \"share\", \"type\": \"quantitative\", \"title\": \"Percent of U.S. residents\",\n            \"scale\": {\"domain\": [0, 20]}, \"axis\": {\"tickCount\": 5},\n        },\n    },\n    \"mark\": {\"type\": \"bar\", \"color\": \"#087269\"},\n    \"config\": {\"view\": {\"stroke\": None}},\n}\n\nSQ1_SCORES = [\n    [\n        \"Method\",\n        \"Scaled error\",\n        \"Correct quarterly direction\"\n    ],\n    [\n        \"Gemma\",\n        \"15.99%\",\n        \"47 / 80\"\n    ],\n    [\n        \"CPI basket\",\n        \"15.99%\",\n        \"48 / 80\"\n    ],\n    [\n        \"Seasonal ridge\",\n        \"12.36%\",\n        \"50 / 80\"\n    ]\n]\nSQ2_SPENDING = [\n    [\n        \"Increase in 65+ share\",\n        \"Annual gap (USD per consumer unit)\"\n    ],\n    [\n        \"+5 pp\",\n        \"−$1,149\"\n    ],\n    [\n        \"+10 pp\",\n        \"−$2,297\"\n    ],\n    [\n        \"+15 pp\",\n        \"−$3,446\"\n    ]\n]\nAGE_MIX_CAPTION = (\n    \"Table 3. U.S. household spending in 2030 on the CBO central path. \"\n    \"Amounts are in billions of nominal U.S. dollars. \"\n    \"Parentheses show reductions from the fixed mix under the same gasoline price rule. Differences use unrounded values.\"\n)\nAGE_MIX_SPENDING = [\n    [\"Age mix\", \"65+ share\", \"No feedback\", \"With feedback\", \"Added reduction\"],\n    [\"Fixed\", \"28.22%\", \"9,125.58\", \"9,125.58\", \"—\"],\n    [\"+5 pp\", \"33.22%\", \"8,969.65 (155.92)\", \"8,966.06 (159.52)\", \"3.60\"],\n    [\"+10 pp\", \"38.22%\", \"8,813.73 (311.84)\", \"8,803.89 (321.69)\", \"9.85\"],\n    [\"+15 pp\", \"43.22%\", \"8,657.81 (467.76)\", \"8,638.12 (487.46)\", \"19.70\"],\n]\n\n\nCell = str | tuple[tuple[str, str], ...]\n\n\ndef table_cell(cell: Cell) -> str:\n    if isinstance(cell, str):\n        return escape(cell)\n    return \"<br>\".join(f'<a href=\"{escape(url)}\">{escape(label)}</a>' for label, url in cell)\n\n\ndef table(caption: str, rows: Sequence[Sequence[Cell]], *, compact: bool = False) -> str:\n    wrapper_class = \"table-wrap table-wrap-compact\" if compact else \"table-wrap\"\n    headings, *body = rows\n    head = \"\".join(f'<th scope=\"col\">{table_cell(cell)}</th>' for cell in headings)\n    entries = \"\".join(\n        f'<tr><th scope=\"row\">{table_cell(label)}</th>'\n        + \"\".join(f\"<td>{table_cell(cell)}</td>\" for cell in cells) + \"</tr>\"\n        for label, *cells in body\n    )\n    return (\n        f'<div class=\"{wrapper_class}\"><table><caption>' + escape(caption) + '</caption>'\n        + f\"<thead><tr>{head}</tr></thead><tbody>{entries}</tbody></table></div>\"\n    )\n\n\nDATA_ROLES = [\n    [\"Source\", \"What it provides\"],\n    [\n        (\n            (\n                'U.S. Bureau of Labor Statistics (BLS), Consumer Expenditure Interview Survey, Public Use Microdata',\n                'https://www.bls.gov/cex/pumd.htm',\n            ),\n        ),\n        'Observed spending, age, region, income, and survey weights.',\n    ],\n    [\n        (\n            (\n                'BLS, Consumer Price Index',\n                'https://www.bls.gov/cpi/',\n            ),\n        ),\n        'Historical price changes used to update spending baskets.',\n    ],\n    [\n        (\n            (\n                'U.S. Congressional Budget Office, The Budget and Economic Outlook',\n                'https://www.cbo.gov/publication/61882',\n            ),\n            (\n                'Federal Reserve Bank of Philadelphia, Survey of Professional Forecasters',\n                'https://www.philadelphiafed.org/surveys-and-data/real-time-data-research/survey-of-professional-forecasters',\n            ),\n            (\n                'BLS, Employment Cost Index',\n                'https://www.bls.gov/eci/',\n            ),\n        ),\n        'The central 2026–2030 price and income path, plus inputs for four alternatives.',\n    ],\n    [\n        (\n            (\n                'U.S. Energy Information Administration (EIA), U.S. Gasoline and Diesel Retail Prices',\n                'https://www.eia.gov/dnav/pet/pet_pri_gnd_dcus_nus_m.htm',\n            ),\n            (\n                'EIA, Weekly Petroleum Status Report',\n                'https://www.eia.gov/petroleum/supply/weekly/archive/',\n            ),\n            (\n                'EIA, Short-Term Energy Outlook archives',\n                'https://www.eia.gov/outlooks/steo/outlook.php',\n            ),\n        ),\n        'Historical pump prices, inventories, and archived outlooks for checking the gasoline market model.',\n    ],\n    [\n        (\n            (\n                'EIA, Annual Energy Outlook',\n                'https://www.eia.gov/outlooks/aeo/',\n            ),\n            (\n                'Federal Highway Administration (FHWA), Monthly Motor Fuel: Gasoline Volumes Distributed',\n                'https://data.transportation.gov/d/5qxh-t94v',\n            ),\n        ),\n        'The future gasoline reference path and fuel-volume weights for regional and seasonal calculations.',\n    ],\n]\n\n\ndef figure_caption(label: str, description: str) -> str:\n    return f'<figcaption class=\"figure-caption\"><strong>{escape(label)}</strong> {escape(description)}</figcaption>'\n\n\ndef study_figure(path: str, alt: str, label: str, description: str) -> str:\n    image_path = escape(path)\n    return (\n        '<figure class=\"study-figure\">'\n        f'<a href=\"{image_path}\" target=\"_blank\" rel=\"noopener\" title=\"Open the full-size figure\">'\n        f'<img src=\"{image_path}\" alt=\"{escape(alt)}\"></a>'\n        f'{figure_caption(label, description)}</figure>'\n    )\n\n\ndef spending_prompt_table() -> str:\n    return f\"\"\"<div class=\"table-wrap\">\n<table>\n<caption>Table S11. Recorded quarterly spending prompt (excerpt)</caption>\n<thead><tr><th scope=\"col\">Prompt block</th><th scope=\"col\">What the model sees or returns</th></tr></thead>\n<tbody>\n<tr><th scope=\"row\">Household profile</th><td><strong>2026 Q1</strong> under the CBO central path. <strong>South</strong>, reference age <strong>76</strong> at sampling, <strong>2</strong> people, <strong>0</strong> earners, <strong>owner with mortgage</strong>, <strong>4</strong> vehicles.</td></tr>\n<tr><th scope=\"row\">Prices and spending history</th><td>Income and price updates, the past four simulated quarters, and a price-adjusted reference for the same season. This household can spend up to <strong>$31,209</strong> this quarter.</td></tr>\n<tr><th scope=\"row\">Model output</th><td>Eight whole-number adjustments, one per spending category, from −100% to +150%. Their implied spending must stay within the limit.</td></tr>\n</tbody>\n</table>\n</div>\n<p><a href=\"{escape(PROMPT_PDF)}\">Read the full recorded prompt in Table S11</a>.</p>\"\"\"\n\n\ndef workflow_cue(block: str, title: str = \"\", explanation: str = \"\") -> str:\n    cue = f'<strong>{escape(title)}.</strong> {escape(explanation)}' if title else \"\"\n    return f'<span class=\"workflow-step\" data-block=\"{escape(block)}\" hidden>{cue}</span>'\n\n\ndef workflow_figure() -> str:\n    first_cue = workflow_cue(\n        \"households\",\n        \"Set up households\",\n        \"Start the 500 BLS profiles from their saved spending at the end of 2025.\",\n    )\n    return (\n        f'<figure class=\"workflow-figure\" data-block=\"\">{first_cue}'\n        f'<a class=\"workflow-art\" href=\"{WORKFLOW}\" target=\"_blank\" rel=\"noopener\" '\n        'title=\"Open the full-size workflow figure\">'\n        '<span class=\"workflow-focus\" aria-hidden=\"true\"></span></a>'\n        '<div class=\"workflow-cue\" aria-live=\"polite\"></div>'\n        + figure_caption(\n            \"Figure 1. Forward simulation, 2026–2030.\",\n            \"The top return arrow carries spending into the next quarter. \"\n            \"The dashed arrow shows the two-quarter delay in gasoline price feedback.\",\n        )\n        + '</figure>'\n    )\n\n\ndef show_aging_background() -> None:\n    plot(AGING_CHART)\n    text('<p class=\"figure-caption\"><a href=\"https://www.census.gov/newsroom/press-releases/2025/older-adults-outnumber-children.html\">Source: U.S. Census Bureau</a></p>')\n\n\ndef main() -> None:\n    text('## 01 · Introduction')\n\n    text('### 1.1 Why Population Aging Matters')\n    text('- **An older population can change what households buy.** The U.S. share aged 65 or older rose from 12.4% in 2004 to 18.0% in 2024.')\n    text('- **The shift matters for consumer demand.** Cravino et al. estimate that aging accounted for about one fifth of the rise in the U.S. spending share devoted to services from 1982 to 2016. [Cravino et al.](https://doi.org/10.1257/mac.20200371)')\n    show_aging_background()  # @stepover\n\n    text('### 1.2 Conventional Approaches')\n    text('Researchers study spending under population aging using **demographic reweighting**, **demand systems**, and **life-cycle simulations**.')\n    text('- **Demographic reweighting.** Combine spending by group with projected population shares. The U.S. Council of Economic Advisers used survey spending and Census projections to estimate future spending patterns. [CEA, 2013, Box 2-4](https://www.govinfo.gov/content/pkg/ERP-2013/html/ERP-2013-chapter2.htm)')\n    text('- **Demand systems.** Estimate how households divide a budget across goods and services. Lührmann estimated demand across eight spending categories using West German household data. [Lührmann, 2005](https://www.mpisoc.mpg.de/fileadmin/user_upload/datapool/publications/gtyzs5eximf4u8v9_95-2005.pdf)')\n    text('- **Life-cycle simulations.** Model how people spend and save at different ages. Faruqee used that approach to study how aging changes economy-wide spending and saving. [Faruqee, 2002](https://www.imf.org/en/publications/wp/issues/2016/12/30/population-aging-and-its-macroeconomic-implications-a-framework-for-analysis-15590)')\n    text('A quarterly simulation needs a way to update spending as prices and budgets change. A **large language model (LLM)** can help make that choice from the information a household sees.')\n\n    text('### 1.3 LLMs in Social and Economic Simulation')\n    text('- **Agents can use past experience.** Park et al. gave agents a memory of past events to guide their choices in a simulated town. [Park et al., 2023](https://arxiv.org/abs/2304.03442)')\n    text('- **Simulated choices can be checked against people.** Argyle et al. used demographic profiles to generate survey responses and compared them with observed responses. [Argyle et al., 2023](https://doi.org/10.1017/PAN.2023.2)')\n    text('- **Household prediction and market feedback.** *HouseholdBench* tests predictions against observed household outcomes. [Huang et al., 2026](https://arxiv.org/abs/2610.07563) *EconAgent* uses demand and inventories to update prices. [Li et al., 2024, §2.3](https://aclanthology.org/2024.acl-long.829.pdf#page=3)')\n\n    text('### 1.4 Research Gaps')\n    text('- **Historical fit by age and region.** Quarterly spending levels and changes need to be checked by group. An error in one age group can carry into the national estimate as that group grows.')\n    text('- **Aging under shared economic conditions.** Prices and incomes also change over time. When both age mixes face the same prices and income, the spending difference in the simulation comes from the change in the age mix.')\n    text('- **The size of gasoline feedback.** Demand can affect later prices through inventories. A paired comparison is needed to measure how much this feedback changes the aging-related spending gap.')\n\n    text('### 1.5 Scientific Questions')\n    text('- **SQ1 · Historical spending.** Can the simulation reproduce typical spending and quarterly changes across U.S. regions and age groups?')\n    text('- **SQ2 · Population aging.** How does a larger share of older households change spending along the same price and income path?')\n    text('- **SQ3 · Gasoline price feedback.** How much does the aging-related spending gap change when gasoline prices respond to demand?')\n\n    text('### 1.6 Study Goal')\n    text('This study estimates how population aging could change U.S. household spending using a **large language model (LLM)**. Each agent represents a U.S. household and makes **quarterly spending choices**.')\n    text('To build those households, we start with what U.S. households report spending.')\n\n    text('## 02 · Data and Methods')\n\n    text('### 2.1 Data Sources')\n    text('Our historical benchmark comes from the U.S. Bureau of Labor Statistics (BLS). A **consumer unit** is a person who manages their own expenses or a group that shares major expenses. We measure spending in **dollars per consumer unit per quarter**. [BLS glossary](https://www.bls.gov/cex/csxgloss.htm)')\n    text(table('Table 1. Data sources and their roles', DATA_ROLES))  # @stepover\n    text(study_figure(OBSERVED, \"Observed quarterly spending by region and age group\", \"Figure 2. Observed BLS benchmark.\", \"The lines show survey-weighted median spending by region from 2023 Q1 to 2025 Q2. Ages 45–54 are on the left and 65+ are on the right.\"))  # @stepover\n\n    text('### 2.2 Study Setup')\n    text(\"- **Historical sample.** Draw 25 profiles per group using BLS survey weights, for **200** in total. The groups span the Northeast, Midwest, South, and West and two age bands, 45–54 and 65+. Age refers to the survey's household reference person. The historical check uses **one set of LLM trajectories** for these profiles.\")\n    text('- **Starting point.** Each group starts from its 2019 Q4 BLS spending basket. Four warm-up quarters build a spending history.')\n    text('- **Future scenarios.** A separate panel of **500 profiles** across four regions and six age groups starts from saved 2025 Q4 states.')\n    text('- The **fixed age mix** keeps the first-half 2025 BLS survey weights. The **65+ share is 28.22%**, based on the age of each consumer unit’s reference person.')\n\n    text('### 2.3 Quarterly Simulation Workflow')\n    text('- **Household inputs.** The LLM sees *the household profile, recent spending, a basket updated for prices, and a spending limit*.')\n    text('- **Quarterly decision.** The LLM proposes changes in **eight spending categories**. The program checks the budget and saves *the dollar amounts* for next quarter. This study uses Gemma 4 12B. [Gemma model card](https://gemma.ai/models/gemma-4/model-card/)')\n    text(spending_prompt_table())  # @stepover\n    text(workflow_figure())  # @stepover\n    text(workflow_cue(\"spending\", \"Quarterly spending\", \"The LLM adjusts eight categories. The program checks the budget and carries the final spending into the next quarter.\"))  # @stepover\n    text(workflow_cue(\"one-way\", \"One-way simulation\", \"Use the scenario prices and incomes, then apply age weights to compare spending across age mixes.\"))  # @stepover\n    text(workflow_cue(\"feedback\", \"Two-way gasoline feedback\", \"The LLM estimates gallons at the pump price. Purchases change inventories, which can affect the price two quarters later.\"))  # @stepover\n    text(workflow_cue(\"overview\"))  # @stepover\n\n    text(\"## 03 · Results\")\n    text(\"First, check the LLM against **historical spending**. Then, simulate an **older age mix** under projected prices and incomes. Finally, let **gasoline purchases affect future pump prices**.\")\n    text(\"### SQ1 · Historical Validation\")\n    text(\"- We first ask **what the LLM can reproduce**. We compare spending levels and quarterly changes with BLS across eight region–age groups.\")\n    text(study_figure(SQ1_COMPARISON, \"BLS spending and historical spending simulations by region and age\", \"Figure 3.\", \"Lines show quarterly group medians. The blue band shows the middle half of household spending in the calibrated replay, with spread informed by BLS survey quartiles.\"))  # @stepover\n    text(\"**Scaled error** measures how far spending levels are from BLS. **Direction hits** count correct quarterly rises and falls.\")\n    text(table(\"Original validation, 2023 Q1–2025 Q2 · v57 Table 2\", SQ1_SCORES))  # @stepover\n    text(\"- **South 65+** had the closest spending levels, with **5.55%** error. **Midwest 65+** matched the direction in **8 of 10 quarters**.\")\n    text(\"- The LLM **understates quarterly swings** in all eight groups. In **Northeast 45–54**, the average size of a quarterly change was **$110** per consumer unit, compared with **$3,447** in BLS.\")\n    text(\"The **calibrated replay** reaches **14.61%** error and **51 of 80** direction matches in the period used to fit it.\")\n\n    text(\"- **SQ1 takeaway.** The simulation captures **typical spending levels** in some groups. Interpret individual quarterly swings more cautiously.\")\n\n    text(\"### SQ2 · Spending under Population Aging\")\n    text(\"- **What would aging change under the same economic outlook?** Projected CPI updates prices in the spending basket. Within each forecast path, all age mixes face the same prices and income.\")\n    text(\"Each path uses **one set of LLM decisions** for 500 profiles. We keep those decisions and change the age weights, raising the **28.22%** older share by **5, 10, or 15 percentage points** by 2030.\")\n    text(study_figure(AGING, \"Quarterly spending and differences for the older age mixes\", \"Figure 4.\", \"Left shows spending per consumer unit. Right shows aging minus the fixed mix on the same path. Lines are medians across five economic paths. Shading spans the lowest and highest path results. Variability across repeated LLM generations with identical inputs remains unmeasured.\"))  # @stepover\n    text(\"- Annual spending rises in every age mix on the central path. In the **+15-point case**, it grows from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit, ending **$3,446 below** the fixed mix.\")\n    text(table(\"2030 annual gaps vs. the fixed mix on the central path · v57 Table S8\", SQ2_SPENDING))  # @stepover\n    text(\"- The **+15-point case** spends less than its fixed mix in 2030 on **all five economic paths**. The age shift gives more weight to **groups that spend less on average**.\")\n    text(\"Historical mean spending under national weights was **27.2% below BLS**, so read the dollar gaps as scenario estimates.\")\n    text(\"- **SQ2 takeaway.** Under the projected price and income paths, population aging can **slow spending growth even as total spending rises**.\")\n    text(\"Would the gap change if gasoline prices responded to what households buy?\")\n\n    text(\"### SQ3 · Spending with Gasoline Feedback\")\n    text(\"- **How much would two-way gasoline feedback change the aging effect?** On one central path, we compare four age mixes under two pump-price rules, for **eight cases**. Other prices and non-gasoline spending follow the same paths.\")\n    text(\"- **Fuel purchases change inventories.** The inventory rule updates pump prices **two quarters later**, and households use those prices when they choose how much fuel to buy.\")\n    text(study_figure(FEEDBACK, \"Difference in national spending gaps with gasoline feedback\", \"Figure 5.\", \"The plotted effect is the aging-minus-fixed gap with feedback minus the same gap under prescribed prices. Values below zero show a larger reduction. Shading spans the LLM decisions and three alternative demand rules on the central path.\"))  # @stepover\n    text(\"In 2030, the **+15-point** mix buys less gasoline than the fixed mix under feedback, and its simulated market has higher stocks. By Q4, the pump price is **$2.81 per gallon**, compared with **$3.09** in the fixed mix.\")\n    text(\"For the **+15-point** case, the price change adds **$21.55 billion** to the 2030 spending reduction. Changes in gallons purchased offset **$1.85 billion**.\")\n    text(\"- In the **+15-point case**, gasoline feedback widens the 2030 spending gap from **$467.76 billion** to **$487.46 billion**, an additional **$19.70 billion**. Inventories are above the historical seasonal range in **14 of 20 quarters** for that feedback case.\")\n    text(\"- **SQ3 takeaway.** The **two-way link between gasoline purchases and pump prices** widens the aging-related spending gap on the central path. Lower pump prices account for most of the added reduction.\")\n\n    text(\"## 04 · Discussion\")\n    text(\"### National Spending in 2030\")\n    text(\"The fixed group keeps the **65+ share at 28.22%**. As prices and incomes change, its annual U.S. spending rises from **$8.294 trillion in 2026** to **$9.126 trillion in 2030** on the central path.\")\n    text(table(AGE_MIX_CAPTION, AGE_MIX_SPENDING, compact=True))  # @stepover\n\n    text(\"## 05 · Conclusion\")\n    text(\"- In the BLS comparison, the LLM simulation **captures typical spending levels in some groups** and **understates quarterly swings**.\")\n    text(\"- **An older age mix slows spending growth on the central path.** Under the projected prices and income, annual spending in the **+15-point case** rises from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit. It ends **$3,446 below** the fixed age mix.\")\n    text(\"- On the central path, **gasoline price feedback** widens the +15-point case's national spending gap in 2030 from **$467.76 billion** to **$487.46 billion**. Lower pump prices explain most of the **$19.70 billion** added reduction.\")\n\n\ndef record() -> bytes:\n    \"\"\"Run the published Edtrace recorder with the report's module as its input.\"\"\"\n    TRACE_PATH.parent.mkdir(parents=True, exist_ok=True)\n    with TemporaryDirectory(dir=TRACE_PATH.parent) as folder:\n        launcher = (\n            \"import runpy, sys; sys.path.insert(0, sys.argv.pop(1)); \"\n            \"runpy.run_module('edtrace.execute', run_name='__main__')\"\n        )\n        subprocess.run(\n            [sys.executable, \"-X\", \"utf8\", \"-B\", \"-c\", launcher, str(WHEEL), \"-m\", ENTRY, \"-o\", folder],\n            cwd=HERE,\n            check=True,\n        )\n        generated = Path(folder) / TRACE_PATH.name\n        data = generated.read_bytes()\n        recorded = json.loads(data)\n        source_name = ENTRY + \".py\"\n        source = recorded[\"files\"][source_name]\n        executed = [step[\"stack\"][-1][\"line_number\"] for step in recorded[\"steps\"]]\n        hidden = set(recorded[\"hidden_line_numbers\"][source_name])\n        hidden.update(\n            line for line in range(1, len(source.splitlines()) + 1)\n            if line < min(executed) or line > max(executed)\n        )\n        recorded[\"hidden_line_numbers\"][source_name] = sorted(hidden)\n        data = (json.dumps(recorded, ensure_ascii=False, indent=2) + \"\\n\").encode(\"utf-8\")\n        generated.write_bytes(data)\n        generated.replace(TRACE_PATH)\n    print(f\"Recorded {TRACE_PATH}\", flush=True)\n    return data\n\n\nPLAYER = \"\"\"<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Case Study · {{TITLE}}</title>\n<script>\n    const pageURL = new URL(location.href);\n    if (pageURL.pathname.endsWith(\"/index.html\")) {\n        pageURL.pathname = pageURL.pathname.slice(0, -\"index.html\".length);\n    }\n    if (!pageURL.pathname.endsWith(\"/\")) pageURL.pathname += \"/\";\n    pageURL.searchParams.set(\"trace\", \"{{ENTRY}}\");\n    if (!pageURL.searchParams.has(\"animate\")) pageURL.searchParams.set(\"animate\", \"1\");\n    if (pageURL.href !== location.href) history.replaceState(history.state, \"\", pageURL);\n\n    // Keep report assets in this directory when the viewer updates the URL.\n    const reportBase = document.createElement(\"base\");\n    reportBase.href = new URL(\"./\", pageURL).href;\n    document.head.append(reportBase);\n</script>\n<link rel=\"icon\" href=\"data:,\">\n<link rel=\"stylesheet\" href=\"runtime/player.css\">\n<link rel=\"stylesheet\" href=\"presentation.css\">\n<script type=\"module\" src=\"runtime/viewer-pages.js\"></script>\n</head>\n<body>\n<header class=\"report-header\">\n    <div class=\"study-heading\">\n        <p class=\"report-kind\">Case Study</p>\n        <h1>{{TITLE}}</h1>\n        <p class=\"controls-help\">Use <kbd>←</kbd> and <kbd>→</kbd> or the toolbar to move one step at a time.</p>\n    </div>\n    <nav class=\"chapters\" aria-label=\"Chapters\">{{CHAPTERS}}</nav>\n</header>\n<main id=\"root\" aria-label=\"Report playback\"></main>\n<script>\n    const titleElement = document.querySelector(\"title\");\n    const studyTitle = titleElement.textContent;\n    const keepStudyTitle = new MutationObserver(() => {\n        if (titleElement.textContent !== studyTitle) {\n            titleElement.textContent = studyTitle;\n        }\n    });\n    keepStudyTitle.observe(titleElement, {childList: true, characterData: true, subtree: true});\n\n    const root = document.getElementById(\"root\");\n    const workflowImage = document.createElement(\"img\");\n    workflowImage.alt = \"Household setup, quarterly household spending, and the one-way and gasoline feedback paths.\";\n    const activeWorkflowCue = () => root.querySelector(\".line.current-line .workflow-step\");\n    const syncWorkflow = () => {\n        const figure = root.querySelector(\".workflow-figure\");\n        if (!figure) return;\n        const art = figure.querySelector(\".workflow-art\");\n        if (!workflowImage.hasAttribute(\"src\")) workflowImage.src = art.getAttribute(\"href\");\n        if (workflowImage.parentElement !== art) art.prepend(workflowImage);\n        const cue = activeWorkflowCue();\n        const block = cue?.dataset.block ?? \"\";\n        if (figure.dataset.block === block) return;\n        figure.dataset.block = block;\n        const cueText = figure.querySelector(\".workflow-cue\");\n        const words = cue ? Array.from(cue.childNodes, node => node.cloneNode(true)) : [];\n        cueText.replaceChildren(...words);\n        if (!cue) return;\n        workflowImage.decode().catch(() => {}).then(() => {\n            requestAnimationFrame(() => {\n                if (activeWorkflowCue()?.dataset.block === block && figure.isConnected) {\n                    figure.scrollIntoView({block: \"start\", behavior: \"instant\"});\n                }\n            });\n        });\n    };\n    const workflowObserver = new MutationObserver(syncWorkflow);\n    workflowObserver.observe(root, {childList: true, subtree: true, attributes: true, attributeFilter: [\"class\"]});\n\n    const requestedStep = new URLSearchParams(location.search).get(\"step\");\n    const opensChapter = [...document.querySelectorAll(\".chapters a\")].some(\n        link => new URL(link.href).searchParams.get(\"step\") === requestedStep\n    );\n    if (opensChapter) {\n        const locateChapter = new MutationObserver(() => {\n            const chapter = root.querySelector(\".line.current-line:has(h2)\");\n            if (!chapter) return;\n            locateChapter.disconnect();\n            const images = [...root.querySelectorAll(\".renderings img\")];\n            Promise.allSettled(images.map(image => image.decode())).then(() => {\n                requestAnimationFrame(() => {\n                    if (chapter.matches(\".current-line\")) {\n                        chapter.scrollIntoView({block: \"start\", behavior: \"instant\"});\n                    }\n                });\n            });\n        });\n        locateChapter.observe(root, {childList: true, subtree: true});\n    }\n</script>\n</body>\n</html>\"\"\"\n\n\ndef player_path(step: int | None = None) -> str:\n    query = {\"trace\": ENTRY, \"animate\": \"1\"}\n    if step is not None:\n        query[\"step\"] = str(step)\n    return \"?\" + urlencode(query)\n\n\ndef player_document(trace: bytes) -> bytes:\n    chapters = []\n    for index, step in enumerate(json.loads(trace)[\"steps\"]):\n        for rendering in step[\"renderings\"]:\n            if rendering[\"type\"] == \"markdown\" and rendering[\"data\"].startswith(\"## \"):\n                label = rendering[\"data\"][3:].split(\" · \", 1)[-1]\n                chapters.append(f'<a href=\"{escape(player_path(index))}\">{escape(label)}</a>')\n    document = PLAYER.replace(\"{{TITLE}}\", escape(STUDY_TITLE))\n    document = document.replace(\"{{CHAPTERS}}\", \"\\n\".join(chapters))\n    return document.replace(\"{{ENTRY}}\", ENTRY).encode(\"utf-8\")\n\n\ndef play(trace: bytes, open_browser: bool) -> None:\n    routes = {\n        \"/\": (\"text/html; charset=utf-8\", player_document(trace)),\n        \"/runtime/player.css\": (\"text/css; charset=utf-8\", RUNTIME / \"player.css\"),\n        \"/presentation.css\": (\"text/css; charset=utf-8\", HERE / \"presentation.css\"),\n        \"/runtime/viewer-pages.js\": (\"text/javascript; charset=utf-8\", RUNTIME / \"viewer-pages.js\"),\n        f\"/var/traces/{TRACE_PATH.name}\": (\"application/json\", trace),\n        f\"/{PROMPT_PDF}\": (\"application/pdf\", HERE / PROMPT_PDF),\n    }\n    for name in (OBSERVED, WORKFLOW, SQ1_COMPARISON, AGING, FEEDBACK):\n        routes[\"/\" + name] = (\"image/png\", HERE / name)\n\n    class Handler(BaseHTTPRequestHandler):\n        def do_GET(self) -> None:\n            route = routes.get(urlsplit(self.path).path)\n            if route is None:\n                self.send_error(404)\n                return\n            content_type, item = route\n            try:\n                data = item.read_bytes() if isinstance(item, Path) else item\n            except OSError:\n                self.send_error(404)\n                return\n            self.send_response(200)\n            self.send_header(\"Content-Type\", content_type)\n            self.send_header(\"Content-Length\", str(len(data)))\n            self.send_header(\"Cache-Control\", \"no-store\")\n            self.end_headers()\n            self.wfile.write(data)\n\n    with ThreadingHTTPServer((\"127.0.0.1\", 0), Handler) as server:\n        url = f\"http://127.0.0.1:{server.server_port}/{player_path()}\"\n        print(f\"Presentation: {url}\", flush=True)\n        if open_browser:\n            webbrowser.open(url)\n        try:\n            server.serve_forever()\n        except KeyboardInterrupt:\n            pass\n\n\nif __name__ == \"__main__\":\n    parser = argparse.ArgumentParser(description=__doc__)\n    output = parser.add_mutually_exclusive_group()\n    output.add_argument(\"--trace-only\", action=\"store_true\")\n    output.add_argument(\"--export-pages\", action=\"store_true\", help=\"Write the static page and playback trace.\")\n    parser.add_argument(\"--no-browser\", action=\"store_true\", help=\"Print the local playback URL.\")\n    args = parser.parse_args()\n    trace = record()\n    if args.export_pages:\n        (HERE / \"index.html\").write_bytes(player_document(trace))\n    elif not args.trace_only:\n        play(trace, open_browser=not args.no_browser)\n"
+    "household_spending_case_study.py": "\"\"\"Play the U.S. household spending case study using Edtrace.\n\nRun this file with Python 3.11 or newer. The companion folders contain the\nplayer runtime, the study figures, and the recorded prompt. Use --export-pages\nto rebuild the GitHub Pages entry, --trace-only to record the talk, or\n--no-browser to print the local player address.\n\"\"\"\n\nimport argparse\nfrom collections.abc import Sequence\nfrom html import escape\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\nimport json\nfrom pathlib import Path\nimport subprocess\nimport sys\nfrom tempfile import TemporaryDirectory\nfrom urllib.parse import urlencode, urlsplit\nimport webbrowser\n\nHERE = Path(__file__).resolve().parent\nRUNTIME = HERE / \"runtime\"\nWHEEL = RUNTIME / \"edtrace-0.1.25-py3-none-any.whl\"\nsys.path.insert(0, str(WHEEL))\n\nfrom edtrace import plot, text\n\nENTRY = Path(__file__).stem\nSTUDY_TITLE = 'A Large Language Model Simulation of U.S. Household Spending under Population Aging and Gasoline Price Feedback'\nPROMPT_PDF = \"sources/recorded-spending-prompt.pdf\"\nTRACE_PATH = HERE / \"var\" / \"traces\" / f\"{ENTRY}.json\"\nOBSERVED = \"images/observed-bls.png\"\nWORKFLOW = \"images/household-loop.png\"\nSQ1_COMPARISON = \"images/sq1-quarterly-comparison.png\"\nAGING = \"images/sq2-aging-percentages.png\"\nFEEDBACK = \"images/sq3-feedback-percentages.png\"\n\nAGING_CHART = {\n    \"title\": \"U.S. residents aged 65+\",\n    \"data\": {\"values\": [{\"year\": \"2004\", \"share\": 12.4}, {\"year\": \"2024\", \"share\": 18.0}]},\n    \"width\": 240,\n    \"height\": 75,\n    \"encoding\": {\n        \"y\": {\"field\": \"year\", \"type\": \"nominal\", \"sort\": [\"2004\", \"2024\"], \"title\": None},\n        \"x\": {\n            \"field\": \"share\", \"type\": \"quantitative\", \"title\": \"Percent of U.S. residents\",\n            \"scale\": {\"domain\": [0, 20]}, \"axis\": {\"tickCount\": 5},\n        },\n    },\n    \"mark\": {\"type\": \"bar\", \"color\": \"#087269\"},\n    \"config\": {\"view\": {\"stroke\": None}},\n}\n\nSQ1_SCORES = [\n    [\n        \"Method\",\n        \"Scaled error\",\n        \"Correct quarterly direction\"\n    ],\n    [\n        \"Gemma\",\n        \"15.99%\",\n        \"47 / 80\"\n    ],\n    [\n        \"CPI basket\",\n        \"15.99%\",\n        \"48 / 80\"\n    ],\n    [\n        \"Seasonal ridge\",\n        \"12.36%\",\n        \"50 / 80\"\n    ]\n]\nSQ2_SPENDING = [\n    [\n        \"Increase in 65+ share\",\n        \"Annual spending change (%)\"\n    ],\n    [\n        \"+5 pp\",\n        \"−1.71%\"\n    ],\n    [\n        \"+10 pp\",\n        \"−3.42%\"\n    ],\n    [\n        \"+15 pp\",\n        \"−5.13%\"\n    ]\n]\nAGE_MIX_CAPTION = 'Table 3. U.S. spending changes in 2030 on the CBO central path. Each gap compares an aging scenario with the fixed age mix under the same gasoline price rule. Spending changes use fixed-mix spending at preset prices as the denominator. Added change is the gap with feedback minus the gap at preset prices, before rounding.'\nAGE_MIX_SPENDING = [\n    [\n        \"Age mix\",\n        \"65+ share\",\n        \"No feedback\",\n        \"With feedback\",\n        \"Added change\"\n    ],\n    [\n        \"Fixed\",\n        \"28.22%\",\n        \"0.00%\",\n        \"0.00%\",\n        \"0.00%\"\n    ],\n    [\n        \"+5 pp\",\n        \"33.22%\",\n        \"−1.71%\",\n        \"−1.75%\",\n        \"−0.04%\"\n    ],\n    [\n        \"+10 pp\",\n        \"38.22%\",\n        \"−3.42%\",\n        \"−3.53%\",\n        \"−0.11%\"\n    ],\n    [\n        \"+15 pp\",\n        \"43.22%\",\n        \"−5.13%\",\n        \"−5.34%\",\n        \"−0.22%\"\n    ]\n]\n\n\nCell = str | tuple[tuple[str, str], ...]\n\n\ndef table_cell(cell: Cell) -> str:\n    if isinstance(cell, str):\n        return escape(cell)\n    return \"<br>\".join(f'<a href=\"{escape(url)}\">{escape(label)}</a>' for label, url in cell)\n\n\ndef table(caption: str, rows: Sequence[Sequence[Cell]], *, compact: bool = False) -> str:\n    wrapper_class = \"table-wrap table-wrap-compact\" if compact else \"table-wrap\"\n    headings, *body = rows\n    head = \"\".join(f'<th scope=\"col\">{table_cell(cell)}</th>' for cell in headings)\n    entries = \"\".join(\n        f'<tr><th scope=\"row\">{table_cell(label)}</th>'\n        + \"\".join(f\"<td>{table_cell(cell)}</td>\" for cell in cells) + \"</tr>\"\n        for label, *cells in body\n    )\n    return (\n        f'<div class=\"{wrapper_class}\"><table><caption>' + escape(caption) + '</caption>'\n        + f\"<thead><tr>{head}</tr></thead><tbody>{entries}</tbody></table></div>\"\n    )\n\n\nDATA_ROLES = [\n    [\"Source\", \"What it provides\"],\n    [\n        (\n            (\n                'U.S. Bureau of Labor Statistics (BLS), Consumer Expenditure Interview Survey, Public Use Microdata',\n                'https://www.bls.gov/cex/pumd.htm',\n            ),\n        ),\n        'Observed spending, age, region, income, and survey weights.',\n    ],\n    [\n        (\n            (\n                'BLS, Consumer Price Index',\n                'https://www.bls.gov/cpi/',\n            ),\n        ),\n        'Historical price changes used to update spending baskets.',\n    ],\n    [\n        (\n            (\n                'U.S. Congressional Budget Office, The Budget and Economic Outlook',\n                'https://www.cbo.gov/publication/61882',\n            ),\n            (\n                'Federal Reserve Bank of Philadelphia, Survey of Professional Forecasters',\n                'https://www.philadelphiafed.org/surveys-and-data/real-time-data-research/survey-of-professional-forecasters',\n            ),\n            (\n                'BLS, Employment Cost Index',\n                'https://www.bls.gov/eci/',\n            ),\n        ),\n        'The central 2026–2030 price and income path, plus inputs for four alternatives.',\n    ],\n    [\n        (\n            (\n                'U.S. Energy Information Administration (EIA), U.S. Gasoline and Diesel Retail Prices',\n                'https://www.eia.gov/dnav/pet/pet_pri_gnd_dcus_nus_m.htm',\n            ),\n            (\n                'EIA, Weekly Petroleum Status Report',\n                'https://www.eia.gov/petroleum/supply/weekly/archive/',\n            ),\n            (\n                'EIA, Short-Term Energy Outlook archives',\n                'https://www.eia.gov/outlooks/steo/outlook.php',\n            ),\n        ),\n        'Historical pump prices, inventories, and archived outlooks for checking the gasoline market model.',\n    ],\n    [\n        (\n            (\n                'EIA, Annual Energy Outlook',\n                'https://www.eia.gov/outlooks/aeo/',\n            ),\n            (\n                'Federal Highway Administration (FHWA), Monthly Motor Fuel: Gasoline Volumes Distributed',\n                'https://data.transportation.gov/d/5qxh-t94v',\n            ),\n        ),\n        'The future gasoline reference path and fuel-volume weights for regional and seasonal calculations.',\n    ],\n]\n\n\ndef figure_caption(label: str, description: str) -> str:\n    return f'<figcaption class=\"figure-caption\"><strong>{escape(label)}</strong> {escape(description)}</figcaption>'\n\n\ndef study_figure(path: str, alt: str, label: str, description: str) -> str:\n    image_path = escape(path)\n    return (\n        '<figure class=\"study-figure\">'\n        f'<a href=\"{image_path}\" target=\"_blank\" rel=\"noopener\" title=\"Open the full-size figure\">'\n        f'<img src=\"{image_path}\" alt=\"{escape(alt)}\"></a>'\n        f'{figure_caption(label, description)}</figure>'\n    )\n\n\ndef spending_prompt_table() -> str:\n    return f\"\"\"<div class=\"table-wrap\">\n<table>\n<caption>Table S11. Recorded quarterly spending prompt (excerpt)</caption>\n<thead><tr><th scope=\"col\">Prompt block</th><th scope=\"col\">What the model sees or returns</th></tr></thead>\n<tbody>\n<tr><th scope=\"row\">Household profile</th><td><strong>2026 Q1</strong> under the CBO central path. <strong>South</strong>, reference age <strong>76</strong> at sampling, <strong>2</strong> people, <strong>0</strong> earners, <strong>owner with mortgage</strong>, <strong>4</strong> vehicles.</td></tr>\n<tr><th scope=\"row\">Prices and spending history</th><td>Income and price updates, the past four simulated quarters, and a price-adjusted reference for the same season. This household can spend up to <strong>$31,209</strong> this quarter.</td></tr>\n<tr><th scope=\"row\">Model output</th><td>Eight whole-number adjustments, one per spending category, from −100% to +150%. Their implied spending must stay within the limit.</td></tr>\n</tbody>\n</table>\n</div>\n<p><a href=\"{escape(PROMPT_PDF)}\">Read the full recorded prompt in Table S11</a>.</p>\"\"\"\n\n\ndef workflow_cue(block: str, title: str = \"\", explanation: str = \"\") -> str:\n    cue = f'<strong>{escape(title)}.</strong> {escape(explanation)}' if title else \"\"\n    return f'<span class=\"workflow-step\" data-block=\"{escape(block)}\" hidden>{cue}</span>'\n\n\ndef workflow_figure() -> str:\n    first_cue = workflow_cue(\n        \"households\",\n        \"Set up households\",\n        \"Start the 500 BLS profiles from their saved spending at the end of 2025.\",\n    )\n    return (\n        f'<figure class=\"workflow-figure\" data-block=\"\">{first_cue}'\n        f'<a class=\"workflow-art\" href=\"{WORKFLOW}\" target=\"_blank\" rel=\"noopener\" '\n        'title=\"Open the full-size workflow figure\">'\n        '<span class=\"workflow-focus\" aria-hidden=\"true\"></span></a>'\n        '<div class=\"workflow-cue\" aria-live=\"polite\"></div>'\n        + figure_caption(\n            \"Figure 1. Forward simulation, 2026–2030.\",\n            \"The top return arrow carries spending into the next quarter. \"\n            \"The dashed arrow shows the two-quarter delay in gasoline price feedback.\",\n        )\n        + '</figure>'\n    )\n\n\ndef show_aging_background() -> None:\n    plot(AGING_CHART)\n    text('<p class=\"figure-caption\"><a href=\"https://www.census.gov/newsroom/press-releases/2025/older-adults-outnumber-children.html\">Source: U.S. Census Bureau</a></p>')\n\n\ndef main() -> None:\n    text('## 01 · Introduction')\n\n    text('### 1.1 Why Population Aging Matters')\n    text('- **An older population can change what households buy.** The U.S. share aged 65 or older rose from 12.4% in 2004 to 18.0% in 2024.')\n    text('- **The shift matters for consumer demand.** Cravino et al. estimate that aging accounted for about one fifth of the rise in the U.S. spending share devoted to services from 1982 to 2016. [Cravino et al.](https://doi.org/10.1257/mac.20200371)')\n    show_aging_background()  # @stepover\n\n    text('### 1.2 Conventional Approaches')\n    text('Researchers study spending under population aging using **demographic reweighting**, **demand systems**, and **life-cycle simulations**.')\n    text('- **Demographic reweighting.** Combine spending by group with projected population shares. The U.S. Council of Economic Advisers used survey spending and Census projections to estimate future spending patterns. [CEA, 2013, Box 2-4](https://www.govinfo.gov/content/pkg/ERP-2013/html/ERP-2013-chapter2.htm)')\n    text('- **Demand systems.** Estimate how households divide a budget across goods and services. Lührmann estimated demand across eight spending categories using West German household data. [Lührmann, 2005](https://www.mpisoc.mpg.de/fileadmin/user_upload/datapool/publications/gtyzs5eximf4u8v9_95-2005.pdf)')\n    text('- **Life-cycle simulations.** Model how people spend and save at different ages. Faruqee used that approach to study how aging changes economy-wide spending and saving. [Faruqee, 2002](https://www.imf.org/en/publications/wp/issues/2016/12/30/population-aging-and-its-macroeconomic-implications-a-framework-for-analysis-15590)')\n    text('A quarterly simulation needs a way to update spending as prices and budgets change. A **large language model (LLM)** can help make that choice from the information a household sees.')\n\n    text('### 1.3 LLMs in Social and Economic Simulation')\n    text('- **Agents can use past experience.** Park et al. gave agents a memory of past events to guide their choices in a simulated town. [Park et al., 2023](https://arxiv.org/abs/2304.03442)')\n    text('- **Simulated choices can be checked against people.** Argyle et al. used demographic profiles to generate survey responses and compared them with observed responses. [Argyle et al., 2023](https://doi.org/10.1017/PAN.2023.2)')\n    text('- **Household prediction and market feedback.** *HouseholdBench* tests predictions against observed household outcomes. [Huang et al., 2026](https://arxiv.org/abs/2610.07563) *EconAgent* uses demand and inventories to update prices. [Li et al., 2024, §2.3](https://aclanthology.org/2024.acl-long.829.pdf#page=3)')\n\n    text('### 1.4 Research Gaps')\n    text('- **Historical fit by age and region.** Quarterly spending levels and changes need to be checked by group. An error in one age group can carry into the national estimate as that group grows.')\n    text('- **Aging under shared economic conditions.** Prices and incomes also change over time. When both age mixes face the same prices and income, the spending difference in the simulation comes from the change in the age mix.')\n    text('- **The size of gasoline feedback.** Demand can affect later prices through inventories. A paired comparison is needed to measure how much this feedback changes the aging-related spending gap.')\n\n    text('### 1.5 Scientific Questions')\n    text('- **SQ1 · Historical spending.** Can the simulation reproduce typical spending and quarterly changes across U.S. regions and age groups?')\n    text('- **SQ2 · Population aging.** How does a larger share of older households change spending along the same price and income path?')\n    text('- **SQ3 · Gasoline price feedback.** How much does the aging-related spending gap change when gasoline prices respond to demand?')\n\n    text('### 1.6 Study Goal')\n    text('This study estimates how population aging could change U.S. household spending using a **large language model (LLM)**. Each agent represents a U.S. household and makes **quarterly spending choices**.')\n    text('To build those households, we start with what U.S. households report spending.')\n\n    text('## 02 · Data and Methods')\n\n    text('### 2.1 Data Sources')\n    text('Our historical benchmark comes from the U.S. Bureau of Labor Statistics (BLS). A **consumer unit** is a person who manages their own expenses or a group that shares major expenses. We measure spending in **dollars per consumer unit per quarter**. [BLS glossary](https://www.bls.gov/cex/csxgloss.htm)')\n    text(table('Table 1. Data sources and their roles', DATA_ROLES))  # @stepover\n    text(study_figure(OBSERVED, \"Observed quarterly spending by region and age group\", \"Figure 2. Observed BLS benchmark.\", \"The lines show survey-weighted median spending by region from 2023 Q1 to 2025 Q2. Ages 45–54 are on the left and 65+ are on the right.\"))  # @stepover\n\n    text('### 2.2 Study Setup')\n    text(\"- **Historical sample.** Draw 25 profiles per group using BLS survey weights, for **200** in total. The groups span the Northeast, Midwest, South, and West and two age bands, 45–54 and 65+. Age refers to the survey's household reference person. The historical check uses **one set of LLM trajectories** for these profiles.\")\n    text('- **Starting point.** Each group starts from its 2019 Q4 BLS spending basket. Four warm-up quarters build a spending history.')\n    text('- **Future scenarios.** A separate panel of **500 profiles** across four regions and six age groups starts from saved 2025 Q4 states.')\n    text('- The **fixed age mix** keeps the first-half 2025 BLS survey weights. The **65+ share is 28.22%**, based on the age of each consumer unit’s reference person.')\n\n    text('### 2.3 Quarterly Simulation Workflow')\n    text('- **Household inputs.** The LLM sees *the household profile, recent spending, a basket updated for prices, and a spending limit*.')\n    text('- **Quarterly decision.** The LLM proposes changes in **eight spending categories**. The program checks the budget and saves *the dollar amounts* for next quarter. This study uses Gemma 4 12B. [Gemma model card](https://gemma.ai/models/gemma-4/model-card/)')\n    text(spending_prompt_table())  # @stepover\n    text(workflow_figure())  # @stepover\n    text(workflow_cue(\"spending\", \"Quarterly spending\", \"The LLM adjusts eight categories. The program checks the budget and carries the final spending into the next quarter.\"))  # @stepover\n    text(workflow_cue(\"one-way\", \"One-way simulation\", \"Use the scenario prices and incomes, then apply age weights to compare spending across age mixes.\"))  # @stepover\n    text(workflow_cue(\"feedback\", \"Two-way gasoline feedback\", \"The LLM estimates gallons at the pump price. Purchases change inventories, which can affect the price two quarters later.\"))  # @stepover\n    text(workflow_cue(\"overview\"))  # @stepover\n\n    text(\"## 03 · Results\")\n    text(\"First, check the LLM against **historical spending**. Then, simulate an **older age mix** under projected prices and incomes. Finally, let **gasoline purchases affect future pump prices**.\")\n    text(\"### SQ1 · Historical Validation\")\n    text(\"- We first ask **what the LLM can reproduce**. We compare spending levels and quarterly changes with BLS across eight region–age groups.\")\n    text(study_figure(SQ1_COMPARISON, \"BLS spending and historical spending simulations by region and age\", \"Figure 3.\", \"Lines show quarterly group medians. The blue band shows the middle half of household spending in the calibrated replay, with spread informed by BLS survey quartiles.\"))  # @stepover\n    text(\"**Scaled error** measures how far spending levels are from BLS. **Direction hits** count correct quarterly rises and falls.\")\n    text(table(\"Original validation, 2023 Q1–2025 Q2 · v57 Table 2\", SQ1_SCORES))  # @stepover\n    text(\"- **South 65+** had the closest spending levels, with **5.55%** error. **Midwest 65+** matched the direction in **8 of 10 quarters**.\")\n    text(\"- The LLM **understates quarterly swings** in all eight groups. In **Northeast 45–54**, the average size of a quarterly change was **$110** per consumer unit, compared with **$3,447** in BLS.\")\n    text(\"The **calibrated replay** reaches **14.61%** error and **51 of 80** direction matches in the period used to fit it.\")\n\n    text(\"- **SQ1 takeaway.** The simulation captures **typical spending levels** in some groups. Interpret individual quarterly swings more cautiously.\")\n\n    text(\"### SQ2 · Spending under Population Aging\")\n    text(\"- **What would aging change under the same economic outlook?** Projected CPI updates prices in the spending basket. Within each forecast path, all age mixes face the same prices and income.\")\n    text(\"Each path uses **one set of LLM decisions** for 500 profiles across four regions. We keep those decisions and raise the national 65+ share by **1, 2, or 3 points per year**, reaching **+5, +10, or +15** by 2030.\")\n    text(study_figure(AGING, \"Quarterly percentage changes under three aging scenarios, by region and for the United States\", \"Figure 4.\", \"Changes are percentages of fixed-mix spending in the same area, quarter, and economic path. Lines show medians and shading the full range across five paths.\"))  # @stepover\n    text(\"- Annual spending grows under every age mix on the central path. The **+15-point case grows 5.47%** from 2026 to 2030 and ends **5.13% below** the fixed mix.\")\n    text(table(\"Annual U.S. spending change from the fixed age mix in 2030 · central path\", SQ2_SPENDING))  # @stepover\n    text(\"- In **2030 Q4**, the Northeast is **2.66% below** its fixed mix in the +10-point scenario. Giving more weight to older households lowers average spending because this group spends less in the model.\")\n    text(\"Historical mean spending under national weights was **27.2% below BLS**. Read the percentage changes as **scenario results**. These age shifts exceed the household projection used for context.\")\n    text(\"- **SQ2 takeaway.** Under the projected price and income paths, population aging can **slow spending growth even as total spending rises**.\")\n    text(\"Would the gap change if gasoline prices responded to what households buy?\")\n\n    text(\"### SQ3 · Spending with Gasoline Feedback\")\n    text(\"- **How much would two-way gasoline feedback change the aging effect?** On one central path, we compare four age mixes under two pump-price rules, for **eight cases**. Other prices and non-gasoline spending follow the same paths.\")\n    text(\"- **Fuel purchases change inventories.** The inventory rule updates pump prices **two quarters later**, and households use those prices when they choose how much fuel to buy.\")\n    text(study_figure(FEEDBACK, \"Additional quarterly percentage changes from gasoline price feedback, by region and for the United States\", \"Figure 5.\", \"The spending gap with feedback minus the gap at preset gasoline prices, as a percentage of fixed-mix spending at preset prices in the same area and quarter. Lines use the saved LLM decisions. Shading spans four fuel demand rules on the central path.\"))  # @stepover\n    text(\"Under feedback, the **+15-point case** buys less gasoline than the fixed mix. Higher inventories lead to lower pump prices in the model.\")\n    text(\"Lower pump prices account for most of the additional reduction. Changes in gallons purchased partly offset it.\")\n    text(\"- In the **+15-point case**, gasoline feedback widens the national 2030 gap from **5.13% to 5.34% below** the fixed mix. The added reduction is **0.22% of fixed-mix spending**. Inventories are above the historical seasonal range in **14 of 20 quarters**.\")\n    text(\"- **SQ3 takeaway.** The **two-way link between gasoline purchases and pump prices** widens the aging-related spending gap on the central path. Lower pump prices account for most of the added reduction.\")\n\n    text(\"## 04 · Discussion\")\n    text(\"### National Spending in 2030\")\n    text(\"The fixed group keeps the **65+ share at 28.22%**. Annual U.S. spending still grows **10.03%** from 2026 to 2030 on the central path as prices and incomes change.\")\n    text(table(AGE_MIX_CAPTION, AGE_MIX_SPENDING, compact=True))  # @stepover\n\n    text(\"## 05 · Conclusion\")\n    text(\"- In the BLS comparison, the LLM simulation **captures typical spending levels in some groups** and **understates quarterly swings**.\")\n    text(\"- **An older age mix slows spending growth on the central path.** Spending in the +15-point case grows **5.47%** from 2026 to 2030 and ends **5.13% below** the fixed mix.\")\n    text(\"- **Gasoline price feedback** adds a reduction equal to **0.22% of fixed-mix spending** nationally in 2030 in the +15-point case. Lower pump prices explain most of the change.\")\n\n\ndef record() -> bytes:\n    \"\"\"Run the published Edtrace recorder with the report's module as its input.\"\"\"\n    TRACE_PATH.parent.mkdir(parents=True, exist_ok=True)\n    with TemporaryDirectory(dir=TRACE_PATH.parent) as folder:\n        launcher = (\n            \"import runpy, sys; sys.path.insert(0, sys.argv.pop(1)); \"\n            \"runpy.run_module('edtrace.execute', run_name='__main__')\"\n        )\n        subprocess.run(\n            [sys.executable, \"-X\", \"utf8\", \"-B\", \"-c\", launcher, str(WHEEL), \"-m\", ENTRY, \"-o\", folder],\n            cwd=HERE,\n            check=True,\n        )\n        generated = Path(folder) / TRACE_PATH.name\n        data = generated.read_bytes()\n        recorded = json.loads(data)\n        source_name = ENTRY + \".py\"\n        source = recorded[\"files\"][source_name]\n        executed = [step[\"stack\"][-1][\"line_number\"] for step in recorded[\"steps\"]]\n        hidden = set(recorded[\"hidden_line_numbers\"][source_name])\n        hidden.update(\n            line for line in range(1, len(source.splitlines()) + 1)\n            if line < min(executed) or line > max(executed)\n        )\n        recorded[\"hidden_line_numbers\"][source_name] = sorted(hidden)\n        data = (json.dumps(recorded, ensure_ascii=False, indent=2) + \"\\n\").encode(\"utf-8\")\n        generated.write_bytes(data)\n        generated.replace(TRACE_PATH)\n    print(f\"Recorded {TRACE_PATH}\", flush=True)\n    return data\n\n\nPLAYER = \"\"\"<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Case Study · {{TITLE}}</title>\n<script>\n    const pageURL = new URL(location.href);\n    if (pageURL.pathname.endsWith(\"/index.html\")) {\n        pageURL.pathname = pageURL.pathname.slice(0, -\"index.html\".length);\n    }\n    if (!pageURL.pathname.endsWith(\"/\")) pageURL.pathname += \"/\";\n    pageURL.searchParams.set(\"trace\", \"{{ENTRY}}\");\n    if (!pageURL.searchParams.has(\"animate\")) pageURL.searchParams.set(\"animate\", \"1\");\n    if (pageURL.href !== location.href) history.replaceState(history.state, \"\", pageURL);\n\n    // Keep report assets in this directory when the viewer updates the URL.\n    const reportBase = document.createElement(\"base\");\n    reportBase.href = new URL(\"./\", pageURL).href;\n    document.head.append(reportBase);\n</script>\n<link rel=\"icon\" href=\"data:,\">\n<link rel=\"stylesheet\" href=\"runtime/player.css\">\n<link rel=\"stylesheet\" href=\"presentation.css\">\n<script type=\"module\" src=\"runtime/viewer-pages.js\"></script>\n</head>\n<body>\n<header class=\"report-header\">\n    <div class=\"study-heading\">\n        <p class=\"report-kind\">Case Study</p>\n        <h1>{{TITLE}}</h1>\n        <p class=\"controls-help\">Use <kbd>←</kbd> and <kbd>→</kbd> or the toolbar to move one step at a time.</p>\n    </div>\n    <nav class=\"chapters\" aria-label=\"Chapters\">{{CHAPTERS}}</nav>\n</header>\n<main id=\"root\" aria-label=\"Report playback\"></main>\n<script>\n    const titleElement = document.querySelector(\"title\");\n    const studyTitle = titleElement.textContent;\n    const keepStudyTitle = new MutationObserver(() => {\n        if (titleElement.textContent !== studyTitle) {\n            titleElement.textContent = studyTitle;\n        }\n    });\n    keepStudyTitle.observe(titleElement, {childList: true, characterData: true, subtree: true});\n\n    const root = document.getElementById(\"root\");\n    const workflowImage = document.createElement(\"img\");\n    workflowImage.alt = \"Household setup, quarterly household spending, and the one-way and gasoline feedback paths.\";\n    const activeWorkflowCue = () => root.querySelector(\".line.current-line .workflow-step\");\n    const syncWorkflow = () => {\n        const figure = root.querySelector(\".workflow-figure\");\n        if (!figure) return;\n        const art = figure.querySelector(\".workflow-art\");\n        if (!workflowImage.hasAttribute(\"src\")) workflowImage.src = art.getAttribute(\"href\");\n        if (workflowImage.parentElement !== art) art.prepend(workflowImage);\n        const cue = activeWorkflowCue();\n        const block = cue?.dataset.block ?? \"\";\n        if (figure.dataset.block === block) return;\n        figure.dataset.block = block;\n        const cueText = figure.querySelector(\".workflow-cue\");\n        const words = cue ? Array.from(cue.childNodes, node => node.cloneNode(true)) : [];\n        cueText.replaceChildren(...words);\n        if (!cue) return;\n        workflowImage.decode().catch(() => {}).then(() => {\n            requestAnimationFrame(() => {\n                if (activeWorkflowCue()?.dataset.block === block && figure.isConnected) {\n                    figure.scrollIntoView({block: \"start\", behavior: \"instant\"});\n                }\n            });\n        });\n    };\n    const workflowObserver = new MutationObserver(syncWorkflow);\n    workflowObserver.observe(root, {childList: true, subtree: true, attributes: true, attributeFilter: [\"class\"]});\n\n    const requestedStep = new URLSearchParams(location.search).get(\"step\");\n    const opensChapter = [...document.querySelectorAll(\".chapters a\")].some(\n        link => new URL(link.href).searchParams.get(\"step\") === requestedStep\n    );\n    if (opensChapter) {\n        const locateChapter = new MutationObserver(() => {\n            const chapter = root.querySelector(\".line.current-line:has(h2)\");\n            if (!chapter) return;\n            locateChapter.disconnect();\n            const images = [...root.querySelectorAll(\".renderings img\")];\n            Promise.allSettled(images.map(image => image.decode())).then(() => {\n                requestAnimationFrame(() => {\n                    if (chapter.matches(\".current-line\")) {\n                        chapter.scrollIntoView({block: \"start\", behavior: \"instant\"});\n                    }\n                });\n            });\n        });\n        locateChapter.observe(root, {childList: true, subtree: true});\n    }\n</script>\n</body>\n</html>\"\"\"\n\n\ndef player_path(step: int | None = None) -> str:\n    query = {\"trace\": ENTRY, \"animate\": \"1\"}\n    if step is not None:\n        query[\"step\"] = str(step)\n    return \"?\" + urlencode(query)\n\n\ndef player_document(trace: bytes) -> bytes:\n    chapters = []\n    for index, step in enumerate(json.loads(trace)[\"steps\"]):\n        for rendering in step[\"renderings\"]:\n            if rendering[\"type\"] == \"markdown\" and rendering[\"data\"].startswith(\"## \"):\n                label = rendering[\"data\"][3:].split(\" · \", 1)[-1]\n                chapters.append(f'<a href=\"{escape(player_path(index))}\">{escape(label)}</a>')\n    document = PLAYER.replace(\"{{TITLE}}\", escape(STUDY_TITLE))\n    document = document.replace(\"{{CHAPTERS}}\", \"\\n\".join(chapters))\n    return document.replace(\"{{ENTRY}}\", ENTRY).encode(\"utf-8\")\n\n\ndef play(trace: bytes, open_browser: bool) -> None:\n    routes = {\n        \"/\": (\"text/html; charset=utf-8\", player_document(trace)),\n        \"/runtime/player.css\": (\"text/css; charset=utf-8\", RUNTIME / \"player.css\"),\n        \"/presentation.css\": (\"text/css; charset=utf-8\", HERE / \"presentation.css\"),\n        \"/runtime/viewer-pages.js\": (\"text/javascript; charset=utf-8\", RUNTIME / \"viewer-pages.js\"),\n        f\"/var/traces/{TRACE_PATH.name}\": (\"application/json\", trace),\n        f\"/{PROMPT_PDF}\": (\"application/pdf\", HERE / PROMPT_PDF),\n    }\n    for name in (OBSERVED, WORKFLOW, SQ1_COMPARISON, AGING, FEEDBACK):\n        routes[\"/\" + name] = (\"image/png\", HERE / name)\n\n    class Handler(BaseHTTPRequestHandler):\n        def do_GET(self) -> None:\n            route = routes.get(urlsplit(self.path).path)\n            if route is None:\n                self.send_error(404)\n                return\n            content_type, item = route\n            try:\n                data = item.read_bytes() if isinstance(item, Path) else item\n            except OSError:\n                self.send_error(404)\n                return\n            self.send_response(200)\n            self.send_header(\"Content-Type\", content_type)\n            self.send_header(\"Content-Length\", str(len(data)))\n            self.send_header(\"Cache-Control\", \"no-store\")\n            self.end_headers()\n            self.wfile.write(data)\n\n    with ThreadingHTTPServer((\"127.0.0.1\", 0), Handler) as server:\n        url = f\"http://127.0.0.1:{server.server_port}/{player_path()}\"\n        print(f\"Presentation: {url}\", flush=True)\n        if open_browser:\n            webbrowser.open(url)\n        try:\n            server.serve_forever()\n        except KeyboardInterrupt:\n            pass\n\n\nif __name__ == \"__main__\":\n    parser = argparse.ArgumentParser(description=__doc__)\n    output = parser.add_mutually_exclusive_group()\n    output.add_argument(\"--trace-only\", action=\"store_true\")\n    output.add_argument(\"--export-pages\", action=\"store_true\", help=\"Write the static page and playback trace.\")\n    parser.add_argument(\"--no-browser\", action=\"store_true\", help=\"Print the local playback URL.\")\n    args = parser.parse_args()\n    trace = record()\n    if args.export_pages:\n        (HERE / \"index.html\").write_bytes(player_document(trace))\n    elif not args.trace_only:\n        play(trace, open_browser=not args.no_browser)\n"
   },
   "hidden_line_numbers": {
     "household_spending_case_study.py": [
@@ -265,32 +265,32 @@
       259,
       260,
       261,
-      361,
-      362,
-      363,
-      364,
-      365,
-      366,
-      367,
-      368,
-      369,
-      370,
-      371,
-      372,
-      373,
-      374,
-      375,
-      376,
-      377,
-      378,
-      379,
-      380,
-      381,
-      382,
-      383,
-      384,
-      385,
-      386,
+      262,
+      263,
+      264,
+      265,
+      266,
+      267,
+      268,
+      269,
+      270,
+      271,
+      272,
+      273,
+      274,
+      275,
+      276,
+      277,
+      278,
+      279,
+      280,
+      281,
+      282,
+      283,
+      284,
+      285,
+      286,
+      287,
       387,
       388,
       389,
@@ -471,7 +471,33 @@
       564,
       565,
       566,
-      567
+      567,
+      568,
+      569,
+      570,
+      571,
+      572,
+      573,
+      574,
+      575,
+      576,
+      577,
+      578,
+      579,
+      580,
+      581,
+      582,
+      583,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      592,
+      593
     ]
   },
   "steps": [
@@ -485,7 +511,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 262,
+          "line_number": 288,
           "function_name": "main",
           "code": "def main() -> None:"
         }
@@ -503,7 +529,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 263,
+          "line_number": 289,
           "function_name": "main",
           "code": "text('## 01 · Introduction')"
         }
@@ -530,7 +556,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 265,
+          "line_number": 291,
           "function_name": "main",
           "code": "text('### 1.1 Why Population Aging Matters')"
         }
@@ -557,7 +583,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 266,
+          "line_number": 292,
           "function_name": "main",
           "code": "text('- **An older population can change what households buy.** The U.S. share aged 65 or older rose from 12.4% in 2004 to 18.0% in 2024.')"
         }
@@ -584,7 +610,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 267,
+          "line_number": 293,
           "function_name": "main",
           "code": "text('- **The shift matters for consumer demand.** Cravino et al. estimate that aging accounted for about one fifth of the rise in the U.S. spending share devoted to services from 1982 to 2016. [Cravino et al.](https://doi.org/10.1257/mac.20200371)')"
         }
@@ -611,7 +637,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 268,
+          "line_number": 294,
           "function_name": "main",
           "code": "show_aging_background()  # @stepover"
         }
@@ -696,7 +722,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 270,
+          "line_number": 296,
           "function_name": "main",
           "code": "text('### 1.2 Conventional Approaches')"
         }
@@ -723,7 +749,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 271,
+          "line_number": 297,
           "function_name": "main",
           "code": "text('Researchers study spending under population aging using **demographic reweighting**, **demand systems**, and **life-cycle simulations**.')"
         }
@@ -750,7 +776,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 272,
+          "line_number": 298,
           "function_name": "main",
           "code": "text('- **Demographic reweighting.** Combine spending by group with projected population shares. The U.S. Council of Economic Advisers used survey spending and Census projections to estimate future spending patterns. [CEA, 2013, Box 2-4](https://www.govinfo.gov/content/pkg/ERP-2013/html/ERP-2013-chapter2.htm)')"
         }
@@ -777,7 +803,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 273,
+          "line_number": 299,
           "function_name": "main",
           "code": "text('- **Demand systems.** Estimate how households divide a budget across goods and services. Lührmann estimated demand across eight spending categories using West German household data. [Lührmann, 2005](https://www.mpisoc.mpg.de/fileadmin/user_upload/datapool/publications/gtyzs5eximf4u8v9_95-2005.pdf)')"
         }
@@ -804,7 +830,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 274,
+          "line_number": 300,
           "function_name": "main",
           "code": "text('- **Life-cycle simulations.** Model how people spend and save at different ages. Faruqee used that approach to study how aging changes economy-wide spending and saving. [Faruqee, 2002](https://www.imf.org/en/publications/wp/issues/2016/12/30/population-aging-and-its-macroeconomic-implications-a-framework-for-analysis-15590)')"
         }
@@ -831,7 +857,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 275,
+          "line_number": 301,
           "function_name": "main",
           "code": "text('A quarterly simulation needs a way to update spending as prices and budgets change. A **large language model (LLM)** can help make that choice from the information a household sees.')"
         }
@@ -858,7 +884,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 277,
+          "line_number": 303,
           "function_name": "main",
           "code": "text('### 1.3 LLMs in Social and Economic Simulation')"
         }
@@ -885,7 +911,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 278,
+          "line_number": 304,
           "function_name": "main",
           "code": "text('- **Agents can use past experience.** Park et al. gave agents a memory of past events to guide their choices in a simulated town. [Park et al., 2023](https://arxiv.org/abs/2304.03442)')"
         }
@@ -912,7 +938,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 279,
+          "line_number": 305,
           "function_name": "main",
           "code": "text('- **Simulated choices can be checked against people.** Argyle et al. used demographic profiles to generate survey responses and compared them with observed responses. [Argyle et al., 2023](https://doi.org/10.1017/PAN.2023.2)')"
         }
@@ -939,7 +965,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 280,
+          "line_number": 306,
           "function_name": "main",
           "code": "text('- **Household prediction and market feedback.** *HouseholdBench* tests predictions against observed household outcomes. [Huang et al., 2026](https://arxiv.org/abs/2610.07563) *EconAgent* uses demand and inventories to update prices. [Li et al., 2024, §2.3](https://aclanthology.org/2024.acl-long.829.pdf#page=3)')"
         }
@@ -966,7 +992,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 282,
+          "line_number": 308,
           "function_name": "main",
           "code": "text('### 1.4 Research Gaps')"
         }
@@ -993,7 +1019,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 283,
+          "line_number": 309,
           "function_name": "main",
           "code": "text('- **Historical fit by age and region.** Quarterly spending levels and changes need to be checked by group. An error in one age group can carry into the national estimate as that group grows.')"
         }
@@ -1020,7 +1046,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 284,
+          "line_number": 310,
           "function_name": "main",
           "code": "text('- **Aging under shared economic conditions.** Prices and incomes also change over time. When both age mixes face the same prices and income, the spending difference in the simulation comes from the change in the age mix.')"
         }
@@ -1047,7 +1073,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 285,
+          "line_number": 311,
           "function_name": "main",
           "code": "text('- **The size of gasoline feedback.** Demand can affect later prices through inventories. A paired comparison is needed to measure how much this feedback changes the aging-related spending gap.')"
         }
@@ -1074,7 +1100,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 287,
+          "line_number": 313,
           "function_name": "main",
           "code": "text('### 1.5 Scientific Questions')"
         }
@@ -1101,7 +1127,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 288,
+          "line_number": 314,
           "function_name": "main",
           "code": "text('- **SQ1 · Historical spending.** Can the simulation reproduce typical spending and quarterly changes across U.S. regions and age groups?')"
         }
@@ -1128,7 +1154,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 289,
+          "line_number": 315,
           "function_name": "main",
           "code": "text('- **SQ2 · Population aging.** How does a larger share of older households change spending along the same price and income path?')"
         }
@@ -1155,7 +1181,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 290,
+          "line_number": 316,
           "function_name": "main",
           "code": "text('- **SQ3 · Gasoline price feedback.** How much does the aging-related spending gap change when gasoline prices respond to demand?')"
         }
@@ -1182,7 +1208,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 292,
+          "line_number": 318,
           "function_name": "main",
           "code": "text('### 1.6 Study Goal')"
         }
@@ -1209,7 +1235,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 293,
+          "line_number": 319,
           "function_name": "main",
           "code": "text('This study estimates how population aging could change U.S. household spending using a **large language model (LLM)**. Each agent represents a U.S. household and makes **quarterly spending choices**.')"
         }
@@ -1236,7 +1262,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 294,
+          "line_number": 320,
           "function_name": "main",
           "code": "text('To build those households, we start with what U.S. households report spending.')"
         }
@@ -1263,7 +1289,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 296,
+          "line_number": 322,
           "function_name": "main",
           "code": "text('## 02 · Data and Methods')"
         }
@@ -1290,7 +1316,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 298,
+          "line_number": 324,
           "function_name": "main",
           "code": "text('### 2.1 Data Sources')"
         }
@@ -1317,7 +1343,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 299,
+          "line_number": 325,
           "function_name": "main",
           "code": "text('Our historical benchmark comes from the U.S. Bureau of Labor Statistics (BLS). A **consumer unit** is a person who manages their own expenses or a group that shares major expenses. We measure spending in **dollars per consumer unit per quarter**. [BLS glossary](https://www.bls.gov/cex/csxgloss.htm)')"
         }
@@ -1344,7 +1370,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 300,
+          "line_number": 326,
           "function_name": "main",
           "code": "text(table('Table 1. Data sources and their roles', DATA_ROLES))  # @stepover"
         }
@@ -1371,7 +1397,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 301,
+          "line_number": 327,
           "function_name": "main",
           "code": "text(study_figure(OBSERVED, \"Observed quarterly spending by region and age group\", \"Figure 2. Observed BLS benchmark.\", \"The lines show survey-weighted median spending by region from 2023 Q1 to 2025 Q2. Ages 45–54 are on the left and 65+ are on the right.\"))  # @stepover"
         }
@@ -1398,7 +1424,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 303,
+          "line_number": 329,
           "function_name": "main",
           "code": "text('### 2.2 Study Setup')"
         }
@@ -1425,7 +1451,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 304,
+          "line_number": 330,
           "function_name": "main",
           "code": "text(\"- **Historical sample.** Draw 25 profiles per group using BLS survey weights, for **200** in total. The groups span the Northeast, Midwest, South, and West and two age bands, 45–54 and 65+. Age refers to the survey's household reference person. The historical check uses **one set of LLM trajectories** for these profiles.\")"
         }
@@ -1452,7 +1478,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 305,
+          "line_number": 331,
           "function_name": "main",
           "code": "text('- **Starting point.** Each group starts from its 2019 Q4 BLS spending basket. Four warm-up quarters build a spending history.')"
         }
@@ -1479,7 +1505,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 306,
+          "line_number": 332,
           "function_name": "main",
           "code": "text('- **Future scenarios.** A separate panel of **500 profiles** across four regions and six age groups starts from saved 2025 Q4 states.')"
         }
@@ -1506,7 +1532,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 307,
+          "line_number": 333,
           "function_name": "main",
           "code": "text('- The **fixed age mix** keeps the first-half 2025 BLS survey weights. The **65+ share is 28.22%**, based on the age of each consumer unit’s reference person.')"
         }
@@ -1533,7 +1559,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 309,
+          "line_number": 335,
           "function_name": "main",
           "code": "text('### 2.3 Quarterly Simulation Workflow')"
         }
@@ -1560,7 +1586,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 310,
+          "line_number": 336,
           "function_name": "main",
           "code": "text('- **Household inputs.** The LLM sees *the household profile, recent spending, a basket updated for prices, and a spending limit*.')"
         }
@@ -1587,7 +1613,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 311,
+          "line_number": 337,
           "function_name": "main",
           "code": "text('- **Quarterly decision.** The LLM proposes changes in **eight spending categories**. The program checks the budget and saves *the dollar amounts* for next quarter. This study uses Gemma 4 12B. [Gemma model card](https://gemma.ai/models/gemma-4/model-card/)')"
         }
@@ -1614,7 +1640,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 312,
+          "line_number": 338,
           "function_name": "main",
           "code": "text(spending_prompt_table())  # @stepover"
         }
@@ -1641,7 +1667,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 313,
+          "line_number": 339,
           "function_name": "main",
           "code": "text(workflow_figure())  # @stepover"
         }
@@ -1668,7 +1694,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 314,
+          "line_number": 340,
           "function_name": "main",
           "code": "text(workflow_cue(\"spending\", \"Quarterly spending\", \"The LLM adjusts eight categories. The program checks the budget and carries the final spending into the next quarter.\"))  # @stepover"
         }
@@ -1695,7 +1721,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 315,
+          "line_number": 341,
           "function_name": "main",
           "code": "text(workflow_cue(\"one-way\", \"One-way simulation\", \"Use the scenario prices and incomes, then apply age weights to compare spending across age mixes.\"))  # @stepover"
         }
@@ -1722,7 +1748,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 316,
+          "line_number": 342,
           "function_name": "main",
           "code": "text(workflow_cue(\"feedback\", \"Two-way gasoline feedback\", \"The LLM estimates gallons at the pump price. Purchases change inventories, which can affect the price two quarters later.\"))  # @stepover"
         }
@@ -1749,7 +1775,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 317,
+          "line_number": 343,
           "function_name": "main",
           "code": "text(workflow_cue(\"overview\"))  # @stepover"
         }
@@ -1776,7 +1802,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 319,
+          "line_number": 345,
           "function_name": "main",
           "code": "text(\"## 03 · Results\")"
         }
@@ -1803,7 +1829,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 320,
+          "line_number": 346,
           "function_name": "main",
           "code": "text(\"First, check the LLM against **historical spending**. Then, simulate an **older age mix** under projected prices and incomes. Finally, let **gasoline purchases affect future pump prices**.\")"
         }
@@ -1830,7 +1856,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 321,
+          "line_number": 347,
           "function_name": "main",
           "code": "text(\"### SQ1 · Historical Validation\")"
         }
@@ -1857,7 +1883,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 322,
+          "line_number": 348,
           "function_name": "main",
           "code": "text(\"- We first ask **what the LLM can reproduce**. We compare spending levels and quarterly changes with BLS across eight region–age groups.\")"
         }
@@ -1884,7 +1910,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 323,
+          "line_number": 349,
           "function_name": "main",
           "code": "text(study_figure(SQ1_COMPARISON, \"BLS spending and historical spending simulations by region and age\", \"Figure 3.\", \"Lines show quarterly group medians. The blue band shows the middle half of household spending in the calibrated replay, with spread informed by BLS survey quartiles.\"))  # @stepover"
         }
@@ -1911,7 +1937,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 324,
+          "line_number": 350,
           "function_name": "main",
           "code": "text(\"**Scaled error** measures how far spending levels are from BLS. **Direction hits** count correct quarterly rises and falls.\")"
         }
@@ -1938,7 +1964,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 325,
+          "line_number": 351,
           "function_name": "main",
           "code": "text(table(\"Original validation, 2023 Q1–2025 Q2 · v57 Table 2\", SQ1_SCORES))  # @stepover"
         }
@@ -1965,7 +1991,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 326,
+          "line_number": 352,
           "function_name": "main",
           "code": "text(\"- **South 65+** had the closest spending levels, with **5.55%** error. **Midwest 65+** matched the direction in **8 of 10 quarters**.\")"
         }
@@ -1992,7 +2018,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 327,
+          "line_number": 353,
           "function_name": "main",
           "code": "text(\"- The LLM **understates quarterly swings** in all eight groups. In **Northeast 45–54**, the average size of a quarterly change was **$110** per consumer unit, compared with **$3,447** in BLS.\")"
         }
@@ -2019,7 +2045,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 328,
+          "line_number": 354,
           "function_name": "main",
           "code": "text(\"The **calibrated replay** reaches **14.61%** error and **51 of 80** direction matches in the period used to fit it.\")"
         }
@@ -2046,7 +2072,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 330,
+          "line_number": 356,
           "function_name": "main",
           "code": "text(\"- **SQ1 takeaway.** The simulation captures **typical spending levels** in some groups. Interpret individual quarterly swings more cautiously.\")"
         }
@@ -2073,7 +2099,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 332,
+          "line_number": 358,
           "function_name": "main",
           "code": "text(\"### SQ2 · Spending under Population Aging\")"
         }
@@ -2100,7 +2126,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 333,
+          "line_number": 359,
           "function_name": "main",
           "code": "text(\"- **What would aging change under the same economic outlook?** Projected CPI updates prices in the spending basket. Within each forecast path, all age mixes face the same prices and income.\")"
         }
@@ -2127,16 +2153,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 334,
+          "line_number": 360,
           "function_name": "main",
-          "code": "text(\"Each path uses **one set of LLM decisions** for 500 profiles. We keep those decisions and change the age weights, raising the **28.22%** older share by **5, 10, or 15 percentage points** by 2030.\")"
+          "code": "text(\"Each path uses **one set of LLM decisions** for 500 profiles across four regions. We keep those decisions and raise the national 65+ share by **1, 2, or 3 points per year**, reaching **+5, +10, or +15** by 2030.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "Each path uses **one set of LLM decisions** for 500 profiles. We keep those decisions and change the age weights, raising the **28.22%** older share by **5, 10, or 15 percentage points** by 2030.",
+          "data": "Each path uses **one set of LLM decisions** for 500 profiles across four regions. We keep those decisions and raise the national 65+ share by **1, 2, or 3 points per year**, reaching **+5, +10, or +15** by 2030.",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2154,16 +2180,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 335,
+          "line_number": 361,
           "function_name": "main",
-          "code": "text(study_figure(AGING, \"Quarterly spending and differences for the older age mixes\", \"Figure 4.\", \"Left shows spending per consumer unit. Right shows aging minus the fixed mix on the same path. Lines are medians across five economic paths. Shading spans the lowest and highest path results. Variability across repeated LLM generations with identical inputs remains unmeasured.\"))  # @stepover"
+          "code": "text(study_figure(AGING, \"Quarterly percentage changes under three aging scenarios, by region and for the United States\", \"Figure 4.\", \"Changes are percentages of fixed-mix spending in the same area, quarter, and economic path. Lines show medians and shading the full range across five paths.\"))  # @stepover"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "<figure class=\"study-figure\"><a href=\"images/sq2-aging.png\" target=\"_blank\" rel=\"noopener\" title=\"Open the full-size figure\"><img src=\"images/sq2-aging.png\" alt=\"Quarterly spending and differences for the older age mixes\"></a><figcaption class=\"figure-caption\"><strong>Figure 4.</strong> Left shows spending per consumer unit. Right shows aging minus the fixed mix on the same path. Lines are medians across five economic paths. Shading spans the lowest and highest path results. Variability across repeated LLM generations with identical inputs remains unmeasured.</figcaption></figure>",
+          "data": "<figure class=\"study-figure\"><a href=\"images/sq2-aging-percentages.png\" target=\"_blank\" rel=\"noopener\" title=\"Open the full-size figure\"><img src=\"images/sq2-aging-percentages.png\" alt=\"Quarterly percentage changes under three aging scenarios, by region and for the United States\"></a><figcaption class=\"figure-caption\"><strong>Figure 4.</strong> Changes are percentages of fixed-mix spending in the same area, quarter, and economic path. Lines show medians and shading the full range across five paths.</figcaption></figure>",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2181,16 +2207,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 336,
+          "line_number": 362,
           "function_name": "main",
-          "code": "text(\"- Annual spending rises in every age mix on the central path. In the **+15-point case**, it grows from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit, ending **$3,446 below** the fixed mix.\")"
+          "code": "text(\"- Annual spending grows under every age mix on the central path. The **+15-point case grows 5.47%** from 2026 to 2030 and ends **5.13% below** the fixed mix.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "- Annual spending rises in every age mix on the central path. In the **+15-point case**, it grows from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit, ending **$3,446 below** the fixed mix.",
+          "data": "- Annual spending grows under every age mix on the central path. The **+15-point case grows 5.47%** from 2026 to 2030 and ends **5.13% below** the fixed mix.",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2208,16 +2234,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 337,
+          "line_number": 363,
           "function_name": "main",
-          "code": "text(table(\"2030 annual gaps vs. the fixed mix on the central path · v57 Table S8\", SQ2_SPENDING))  # @stepover"
+          "code": "text(table(\"Annual U.S. spending change from the fixed age mix in 2030 · central path\", SQ2_SPENDING))  # @stepover"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "<div class=\"table-wrap\"><table><caption>2030 annual gaps vs. the fixed mix on the central path · v57 Table S8</caption><thead><tr><th scope=\"col\">Increase in 65+ share</th><th scope=\"col\">Annual gap (USD per consumer unit)</th></tr></thead><tbody><tr><th scope=\"row\">+5 pp</th><td>−$1,149</td></tr><tr><th scope=\"row\">+10 pp</th><td>−$2,297</td></tr><tr><th scope=\"row\">+15 pp</th><td>−$3,446</td></tr></tbody></table></div>",
+          "data": "<div class=\"table-wrap\"><table><caption>Annual U.S. spending change from the fixed age mix in 2030 · central path</caption><thead><tr><th scope=\"col\">Increase in 65+ share</th><th scope=\"col\">Annual spending change (%)</th></tr></thead><tbody><tr><th scope=\"row\">+5 pp</th><td>−1.71%</td></tr><tr><th scope=\"row\">+10 pp</th><td>−3.42%</td></tr><tr><th scope=\"row\">+15 pp</th><td>−5.13%</td></tr></tbody></table></div>",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2235,16 +2261,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 338,
+          "line_number": 364,
           "function_name": "main",
-          "code": "text(\"- The **+15-point case** spends less than its fixed mix in 2030 on **all five economic paths**. The age shift gives more weight to **groups that spend less on average**.\")"
+          "code": "text(\"- In **2030 Q4**, the Northeast is **2.66% below** its fixed mix in the +10-point scenario. Giving more weight to older households lowers average spending because this group spends less in the model.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "- The **+15-point case** spends less than its fixed mix in 2030 on **all five economic paths**. The age shift gives more weight to **groups that spend less on average**.",
+          "data": "- In **2030 Q4**, the Northeast is **2.66% below** its fixed mix in the +10-point scenario. Giving more weight to older households lowers average spending because this group spends less in the model.",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2262,16 +2288,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 339,
+          "line_number": 365,
           "function_name": "main",
-          "code": "text(\"Historical mean spending under national weights was **27.2% below BLS**, so read the dollar gaps as scenario estimates.\")"
+          "code": "text(\"Historical mean spending under national weights was **27.2% below BLS**. Read the percentage changes as **scenario results**. These age shifts exceed the household projection used for context.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "Historical mean spending under national weights was **27.2% below BLS**, so read the dollar gaps as scenario estimates.",
+          "data": "Historical mean spending under national weights was **27.2% below BLS**. Read the percentage changes as **scenario results**. These age shifts exceed the household projection used for context.",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2289,7 +2315,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 340,
+          "line_number": 366,
           "function_name": "main",
           "code": "text(\"- **SQ2 takeaway.** Under the projected price and income paths, population aging can **slow spending growth even as total spending rises**.\")"
         }
@@ -2316,7 +2342,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 341,
+          "line_number": 367,
           "function_name": "main",
           "code": "text(\"Would the gap change if gasoline prices responded to what households buy?\")"
         }
@@ -2343,7 +2369,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 343,
+          "line_number": 369,
           "function_name": "main",
           "code": "text(\"### SQ3 · Spending with Gasoline Feedback\")"
         }
@@ -2370,7 +2396,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 344,
+          "line_number": 370,
           "function_name": "main",
           "code": "text(\"- **How much would two-way gasoline feedback change the aging effect?** On one central path, we compare four age mixes under two pump-price rules, for **eight cases**. Other prices and non-gasoline spending follow the same paths.\")"
         }
@@ -2397,7 +2423,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 345,
+          "line_number": 371,
           "function_name": "main",
           "code": "text(\"- **Fuel purchases change inventories.** The inventory rule updates pump prices **two quarters later**, and households use those prices when they choose how much fuel to buy.\")"
         }
@@ -2424,16 +2450,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 346,
+          "line_number": 372,
           "function_name": "main",
-          "code": "text(study_figure(FEEDBACK, \"Difference in national spending gaps with gasoline feedback\", \"Figure 5.\", \"The plotted effect is the aging-minus-fixed gap with feedback minus the same gap under prescribed prices. Values below zero show a larger reduction. Shading spans the LLM decisions and three alternative demand rules on the central path.\"))  # @stepover"
+          "code": "text(study_figure(FEEDBACK, \"Additional quarterly percentage changes from gasoline price feedback, by region and for the United States\", \"Figure 5.\", \"The spending gap with feedback minus the gap at preset gasoline prices, as a percentage of fixed-mix spending at preset prices in the same area and quarter. Lines use the saved LLM decisions. Shading spans four fuel demand rules on the central path.\"))  # @stepover"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "<figure class=\"study-figure\"><a href=\"images/sq3-feedback.png\" target=\"_blank\" rel=\"noopener\" title=\"Open the full-size figure\"><img src=\"images/sq3-feedback.png\" alt=\"Difference in national spending gaps with gasoline feedback\"></a><figcaption class=\"figure-caption\"><strong>Figure 5.</strong> The plotted effect is the aging-minus-fixed gap with feedback minus the same gap under prescribed prices. Values below zero show a larger reduction. Shading spans the LLM decisions and three alternative demand rules on the central path.</figcaption></figure>",
+          "data": "<figure class=\"study-figure\"><a href=\"images/sq3-feedback-percentages.png\" target=\"_blank\" rel=\"noopener\" title=\"Open the full-size figure\"><img src=\"images/sq3-feedback-percentages.png\" alt=\"Additional quarterly percentage changes from gasoline price feedback, by region and for the United States\"></a><figcaption class=\"figure-caption\"><strong>Figure 5.</strong> The spending gap with feedback minus the gap at preset gasoline prices, as a percentage of fixed-mix spending at preset prices in the same area and quarter. Lines use the saved LLM decisions. Shading spans four fuel demand rules on the central path.</figcaption></figure>",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2451,16 +2477,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 347,
+          "line_number": 373,
           "function_name": "main",
-          "code": "text(\"In 2030, the **+15-point** mix buys less gasoline than the fixed mix under feedback, and its simulated market has higher stocks. By Q4, the pump price is **$2.81 per gallon**, compared with **$3.09** in the fixed mix.\")"
+          "code": "text(\"Under feedback, the **+15-point case** buys less gasoline than the fixed mix. Higher inventories lead to lower pump prices in the model.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "In 2030, the **+15-point** mix buys less gasoline than the fixed mix under feedback, and its simulated market has higher stocks. By Q4, the pump price is **$2.81 per gallon**, compared with **$3.09** in the fixed mix.",
+          "data": "Under feedback, the **+15-point case** buys less gasoline than the fixed mix. Higher inventories lead to lower pump prices in the model.",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2478,16 +2504,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 348,
+          "line_number": 374,
           "function_name": "main",
-          "code": "text(\"For the **+15-point** case, the price change adds **$21.55 billion** to the 2030 spending reduction. Changes in gallons purchased offset **$1.85 billion**.\")"
+          "code": "text(\"Lower pump prices account for most of the additional reduction. Changes in gallons purchased partly offset it.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "For the **+15-point** case, the price change adds **$21.55 billion** to the 2030 spending reduction. Changes in gallons purchased offset **$1.85 billion**.",
+          "data": "Lower pump prices account for most of the additional reduction. Changes in gallons purchased partly offset it.",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2505,16 +2531,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 349,
+          "line_number": 375,
           "function_name": "main",
-          "code": "text(\"- In the **+15-point case**, gasoline feedback widens the 2030 spending gap from **$467.76 billion** to **$487.46 billion**, an additional **$19.70 billion**. Inventories are above the historical seasonal range in **14 of 20 quarters** for that feedback case.\")"
+          "code": "text(\"- In the **+15-point case**, gasoline feedback widens the national 2030 gap from **5.13% to 5.34% below** the fixed mix. The added reduction is **0.22% of fixed-mix spending**. Inventories are above the historical seasonal range in **14 of 20 quarters**.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "- In the **+15-point case**, gasoline feedback widens the 2030 spending gap from **$467.76 billion** to **$487.46 billion**, an additional **$19.70 billion**. Inventories are above the historical seasonal range in **14 of 20 quarters** for that feedback case.",
+          "data": "- In the **+15-point case**, gasoline feedback widens the national 2030 gap from **5.13% to 5.34% below** the fixed mix. The added reduction is **0.22% of fixed-mix spending**. Inventories are above the historical seasonal range in **14 of 20 quarters**.",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2532,7 +2558,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 350,
+          "line_number": 376,
           "function_name": "main",
           "code": "text(\"- **SQ3 takeaway.** The **two-way link between gasoline purchases and pump prices** widens the aging-related spending gap on the central path. Lower pump prices account for most of the added reduction.\")"
         }
@@ -2559,7 +2585,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 352,
+          "line_number": 378,
           "function_name": "main",
           "code": "text(\"## 04 · Discussion\")"
         }
@@ -2586,7 +2612,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 353,
+          "line_number": 379,
           "function_name": "main",
           "code": "text(\"### National Spending in 2030\")"
         }
@@ -2613,16 +2639,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 354,
+          "line_number": 380,
           "function_name": "main",
-          "code": "text(\"The fixed group keeps the **65+ share at 28.22%**. As prices and incomes change, its annual U.S. spending rises from **$8.294 trillion in 2026** to **$9.126 trillion in 2030** on the central path.\")"
+          "code": "text(\"The fixed group keeps the **65+ share at 28.22%**. Annual U.S. spending still grows **10.03%** from 2026 to 2030 on the central path as prices and incomes change.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "The fixed group keeps the **65+ share at 28.22%**. As prices and incomes change, its annual U.S. spending rises from **$8.294 trillion in 2026** to **$9.126 trillion in 2030** on the central path.",
+          "data": "The fixed group keeps the **65+ share at 28.22%**. Annual U.S. spending still grows **10.03%** from 2026 to 2030 on the central path as prices and incomes change.",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2640,7 +2666,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 355,
+          "line_number": 381,
           "function_name": "main",
           "code": "text(table(AGE_MIX_CAPTION, AGE_MIX_SPENDING, compact=True))  # @stepover"
         }
@@ -2649,7 +2675,7 @@
       "renderings": [
         {
           "type": "markdown",
-          "data": "<div class=\"table-wrap table-wrap-compact\"><table><caption>Table 3. U.S. household spending in 2030 on the CBO central path. Amounts are in billions of nominal U.S. dollars. Parentheses show reductions from the fixed mix under the same gasoline price rule. Differences use unrounded values.</caption><thead><tr><th scope=\"col\">Age mix</th><th scope=\"col\">65+ share</th><th scope=\"col\">No feedback</th><th scope=\"col\">With feedback</th><th scope=\"col\">Added reduction</th></tr></thead><tbody><tr><th scope=\"row\">Fixed</th><td>28.22%</td><td>9,125.58</td><td>9,125.58</td><td>—</td></tr><tr><th scope=\"row\">+5 pp</th><td>33.22%</td><td>8,969.65 (155.92)</td><td>8,966.06 (159.52)</td><td>3.60</td></tr><tr><th scope=\"row\">+10 pp</th><td>38.22%</td><td>8,813.73 (311.84)</td><td>8,803.89 (321.69)</td><td>9.85</td></tr><tr><th scope=\"row\">+15 pp</th><td>43.22%</td><td>8,657.81 (467.76)</td><td>8,638.12 (487.46)</td><td>19.70</td></tr></tbody></table></div>",
+          "data": "<div class=\"table-wrap table-wrap-compact\"><table><caption>Table 3. U.S. spending changes in 2030 on the CBO central path. Each gap compares an aging scenario with the fixed age mix under the same gasoline price rule. Spending changes use fixed-mix spending at preset prices as the denominator. Added change is the gap with feedback minus the gap at preset prices, before rounding.</caption><thead><tr><th scope=\"col\">Age mix</th><th scope=\"col\">65+ share</th><th scope=\"col\">No feedback</th><th scope=\"col\">With feedback</th><th scope=\"col\">Added change</th></tr></thead><tbody><tr><th scope=\"row\">Fixed</th><td>28.22%</td><td>0.00%</td><td>0.00%</td><td>0.00%</td></tr><tr><th scope=\"row\">+5 pp</th><td>33.22%</td><td>−1.71%</td><td>−1.75%</td><td>−0.04%</td></tr><tr><th scope=\"row\">+10 pp</th><td>38.22%</td><td>−3.42%</td><td>−3.53%</td><td>−0.11%</td></tr><tr><th scope=\"row\">+15 pp</th><td>43.22%</td><td>−5.13%</td><td>−5.34%</td><td>−0.22%</td></tr></tbody></table></div>",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2667,7 +2693,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 357,
+          "line_number": 383,
           "function_name": "main",
           "code": "text(\"## 05 · Conclusion\")"
         }
@@ -2694,7 +2720,7 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 358,
+          "line_number": 384,
           "function_name": "main",
           "code": "text(\"- In the BLS comparison, the LLM simulation **captures typical spending levels in some groups** and **understates quarterly swings**.\")"
         }
@@ -2721,16 +2747,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 359,
+          "line_number": 385,
           "function_name": "main",
-          "code": "text(\"- **An older age mix slows spending growth on the central path.** Under the projected prices and income, annual spending in the **+15-point case** rises from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit. It ends **$3,446 below** the fixed age mix.\")"
+          "code": "text(\"- **An older age mix slows spending growth on the central path.** Spending in the +15-point case grows **5.47%** from 2026 to 2030 and ends **5.13% below** the fixed mix.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "- **An older age mix slows spending growth on the central path.** Under the projected prices and income, annual spending in the **+15-point case** rises from **$60,464 in 2026** to **$63,773 in 2030** per consumer unit. It ends **$3,446 below** the fixed age mix.",
+          "data": "- **An older age mix slows spending growth on the central path.** Spending in the +15-point case grows **5.47%** from 2026 to 2030 and ends **5.13% below** the fixed mix.",
           "style": {},
           "external_link": null,
           "internal_link": null,
@@ -2748,16 +2774,16 @@
         },
         {
           "path": "household_spending_case_study.py",
-          "line_number": 360,
+          "line_number": 386,
           "function_name": "main",
-          "code": "text(\"- On the central path, **gasoline price feedback** widens the +15-point case's national spending gap in 2030 from **$467.76 billion** to **$487.46 billion**. Lower pump prices explain most of the **$19.70 billion** added reduction.\")"
+          "code": "text(\"- **Gasoline price feedback** adds a reduction equal to **0.22% of fixed-mix spending** nationally in 2030 in the +15-point case. Lower pump prices explain most of the change.\")"
         }
       ],
       "env": {},
       "renderings": [
         {
           "type": "markdown",
-          "data": "- On the central path, **gasoline price feedback** widens the +15-point case's national spending gap in 2030 from **$467.76 billion** to **$487.46 billion**. Lower pump prices explain most of the **$19.70 billion** added reduction.",
+          "data": "- **Gasoline price feedback** adds a reduction equal to **0.22% of fixed-mix spending** nationally in 2030 in the +15-point case. Lower pump prices explain most of the change.",
           "style": {},
           "external_link": null,
           "internal_link": null,
