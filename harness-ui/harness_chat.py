@@ -597,6 +597,18 @@ class ChatService:
             )
             # Admission and reservation must be atomic across local server processes.
             db.execute("BEGIN IMMEDIATE")
+            # The project may have moved to a new input version since the unlocked read above.
+            fresh = self.tools.context(body["project_ref"], body["stage"])
+            again = self._connect_failures(
+                fresh,
+                principal,
+                expected=(body["input_version"], body["brief_sha256"]),
+            )
+            require(not again, again[0] if again else "")
+            require(
+                session["project_pin"] == fresh["project_pin"],
+                "chat-input-version-differs",
+            )
             prior = [json.loads(r[0]) for r in db.execute("SELECT body FROM turns")]
             require(
                 not any(r["status"] not in TERMINAL for r in prior),
@@ -758,6 +770,8 @@ class ChatService:
                 self.spec and turn.get("thread_id") and turn.get("native_turn_id"),
                 "chat-native-identity-incomplete",
             )
+            # An expired or revoked grant must not start a local app-server, even for a read.
+            check_config(self.spec)
             rpc = self.rpc_factory(
                 lambda direction, frame: self.event(identity, direction, frame)
             )

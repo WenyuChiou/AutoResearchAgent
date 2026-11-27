@@ -245,6 +245,53 @@ class ChatServiceTests(unittest.TestCase):
             events = [r[0] for r in db.execute("SELECT body FROM events WHERE turn_id=?", (row["id"],))]
         self.assertTrue(any("private-name" in e for e in events), "full text stays in the local record")
 
+    def test_reconcile_after_expiry_or_revocation_starts_no_codex(self):
+        fx = self.fx
+        service = fx.service(action=dict(action="state", id="", note=""), wrong_binding=True)
+        turn = fx.finished(service, fx.send(service))
+        self.assertEqual(turn["status"], "unknown")
+        started = []
+        service.rpc_factory = lambda record: started.append(1) or FakeRpc(record)
+        service.spec["expires_at"] = time.time() - 1
+        with self.assertRaisesRegex(ValueError, "chat-operator-lease-expired"):
+            service.reconcile(turn["id"])
+        self.assertEqual(started, [], "no app-server for an expired grant")
+        service.spec["expires_at"] = time.time() + 600
+        grant_file = fx.root / "grant.json"
+        grant_file.write_bytes(b"{}")
+        service.spec.update(_path=str(grant_file), _pin=hashlib.sha256(b"{}").hexdigest())
+        revoked = Path(str(grant_file) + ".revoked")
+        revoked.write_text("operator", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "chat-permit-revoked"):
+            service.reconcile(turn["id"])
+        self.assertEqual(started, [])
+        revoked.unlink()
+        self.assertEqual(service.reconcile(turn["id"])["status"], "completed")
+        self.assertEqual(started, [1], "a valid grant still reconciles")
+
+    def test_version_change_between_read_and_reservation_is_refused(self):
+        fx = self.fx
+        service = fx.service()
+        real = fx.tools.context
+        calls = []
+
+        def moving(project, stage):
+            value = real(project, stage)
+            calls.append(1)
+            if len(calls) > 1:  # the project is re-versioned after the first, unlocked read
+                value = dict(value, project_pin="f" * 64)
+            return value
+
+        fx.tools.context = moving
+        try:
+            with self.assertRaises(ValueError):
+                fx.send(service)
+        finally:
+            fx.tools.context = real
+        self.assertGreaterEqual(len(calls), 2, "context is read again under the lock")
+        self.assertEqual(fx.rpcs, [], "no Codex process for a stale version")
+        self.assertEqual(service.status(fx.ref, 1, PRINCIPAL)["reserved_turns"], 0)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
