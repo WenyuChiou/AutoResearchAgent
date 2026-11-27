@@ -415,7 +415,11 @@ function wikiS3ConnBlock(app) {
  const codes = [m.code, m.action === 'reconnect' && m.reconnectError?.code].filter(Boolean);
  const detail = codes.length ? `<details class="wiki-s2-tech"><summary>技术细节</summary>${codes.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
  return `<section class="wiki-s2-conn" data-wiki-s3-conn aria-label="本课题的 Stage 3"><h2 tabindex="-1">本课题的 Stage 3</h2>
-  <div class="wiki-s2-conn-row" data-tone="${row.tone}"><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${detail}</section>`;
+  <div class="wiki-s2-conn-row" data-tone="${row.tone}"><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${detail}${m.connected && typeof wikiS3RequestMarkup === 'function' ? wikiS3RequestMarkup(wikiS3SavedView()) : ''}</section>`;
+}
+function wikiS3SavedView() {
+ const basis = typeof v93Identity === 'function' ? v93Identity() : null;
+ return basis && v93Matches(v93.basis, basis) ? v93.view : null;
 }
 
 function wikiS3Page(app, base) {
