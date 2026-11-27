@@ -1,5 +1,5 @@
 // Wiki V1 HOME uses the existing roster, project create receipt and bound reads.
-const wikiHomeOrigins = {local:'本地项目', archive:'历史归档', synthetic:'合成样例', unknown:'未标注'};
+const wikiHomeOrigins = {local:'本地项目', archive:'历史归档', synthetic:'合成样例', unknown:'来历未标注'};
 const wikiHomeStageNames = ['文献与证据', '比较与选方向', '研究计划与评审'];
 const wikiHomeDecisions = [
  ['确认题目范围和授权', 'Stage 1 开始前。确认后才会检索和查阅资料。'],
@@ -59,7 +59,7 @@ function wikiHomeProjectTable(rows, ready, locked) {
  const tableRows = rows.map(row => `<tr data-wiki-home-origin="${row.origin}">
    <th scope="row">${esc(row.title)}</th><td><span class="wiki-home-origin ${row.origin}">${wikiHomeOrigins[row.origin]}</span></td>
    <td>${wikiHomeProgress(row)}</td><td>${row.waiting ? '<span class="wiki-home-wait">等你</span> ' : ''}${row.status}</td>
-   <td class="wiki-home-muted">${row.origin === 'synthetic' ? '演示数据，不计' : wikiRecordSummary()}</td>
+   <td class="wiki-home-muted">${row.origin === 'synthetic' ? '演示数据，不计' : row.origin === 'archive' ? '归档没有保存记录汇总' : '还没有运行'}</td>
    <td><button type="button" class="wiki-home-button" data-wiki-home-open="${esc(row.ref)}" aria-label="打开 ${esc(row.title)}" ${locked?'disabled':''}>打开</button></td>
   </tr>`).join('');
  return `<section aria-labelledby="wiki-home-projects"><div class="wiki-home-table-head">

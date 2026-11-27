@@ -162,6 +162,7 @@ function wikiS3Heading() {
 
 function wikiS3ReadLine(app, model) {
  const basis = v93Identity();
+ if (!basis) return '<p class="ws3-note" role="status">目前没有已保存的规划。Stage 2 选定方向、并接通本课题的 Stage 3 之后，这里才会有计划；图解、评审和你的决定都会出现在这里。</p>';
  if (v93.busy) return '<p class="ws3-note ws3-run" role="status">正在读取已保存的规划，不会重新生成。</p>';
  if (basis && v93Matches(v93.errorBasis, basis) && v93.error)
   return `<div class="ws3-alert ws3-err" role="alert"><p><strong>读取失败</strong>：没有读到已保存的规划，也没有重新生成。</p><button type="button" class="hs-button" data-v93-read>重新读取</button><details><summary>读取详情</summary><p>${wikiS3Escape(v93.error)}</p></details></div>`;
@@ -346,13 +347,13 @@ function wikiS3Table(model, review, state) {
  <p class="ws3-total">通过 ${pass} / ${review.findings.length}<span class="ws3-ntag">工程测试</span></p></section>`;
 }
 
-function wikiS3Decision() {
+function wikiS3Decision(noPlan = false) {
  const choices = [['accept', '接受计划'], ['revise', '按建议修改后再评审'], ['back', '退回 Stage 2 重选']];
  return `<section class="ws3-decide" data-s3-decision><span class="ws3-label">你的决定</span><h2>这份计划怎么处理？</h2>
  <p class="ws3-note">接受也不会启动实验。系统的评审不是你的选择。</p>
  ${choices.map(([key, label]) => `<label class="ws3-choice"><input type="radio" name="s3-decision" value="${key}" disabled> ${label}</label>`).join('')}
  <button type="button" class="hs-button" disabled>确认</button>
- <p class="ws3-why-off">现在还不能做这一步：页面读不到对计划的正式决定入口，Stage 3 交接和决定还没有接通。想改计划，用上面的「评语与修订」。</p></section>`;
+ <p class="ws3-why-off">${noPlan ? '现在还不能做这一步：还没有计划。' : '现在还不能做这一步：页面读不到对计划的正式决定入口，Stage 3 交接和决定还没有接通。想改计划，用上面的「评语与修订」。'}</p></section>`;
 }
 
 function wikiS3TechDetails(view) {
@@ -378,6 +379,29 @@ function wikiS3MaterialsTab(view) {
  <p class="ws3-note">文件关联不等于已阅读、获准使用或科学接受。</p></section>`;
 }
 
+// DESIGN 8.13 connection block for Stage 3 (same component as Stage 2; one GET read via v9ConnectionModel).
+function wikiS3ConnBlock(app) {
+ if (typeof v9ConnectionModel !== 'function' || typeof wikiS2ConnectionLine !== 'function') return '';
+ const m = v9ConnectionModel(app);
+ if (!m) return '';
+ let row;
+ if (!v93Identity() && !m.connected) row = {tone:'idle', tag:'缺正式选择', text:'Stage 3 要等 Stage 2 选定一个方向后才能请求生成计划。', buttons:[{label:'去 Stage 2', stage:2}]};
+ else {
+  row = wikiS2ConnectionLine(m);
+  row = {...row, text:String(row.text).replace(/Stage 2/g, 'Stage 3')};
+ }
+ const blocked = button => button.attr && button.attr !== 'read' ? (!m.canWrite || m.writing) : button.attr === 'read' ? (m.reading || m.writing) : false;
+ const why = m.writing ? '正在保存，请稍等' : m.reading ? '正在读取保存记录' : '上次提交的结果还没确认，先核对';
+ const buttons = row.buttons.map(button => {
+  const data = button.attr ? `data-v9-connection="${button.attr}" data-connection-basis="${wikiS3Escape(m.token)}"` : button.stage ? `data-stage="${button.stage}"` : `data-page="${button.page}"`;
+  const off = blocked(button);
+  return `<span><button type="button" class="hs-button${button.primary ? ' hs-button-primary' : ''}" ${data} ${off ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${off ? `<small class="wiki-s2-reason">${why}</small>` : ''}</span>`;
+ }).join('');
+ const detail = m.code ? `<details class="wiki-s2-tech"><summary>技术细节</summary><code>${wikiS3Escape(m.code)}</code></details>` : '';
+ return `<section class="wiki-s2-conn" data-wiki-s3-conn aria-label="本课题的 Stage 3"><h2 tabindex="-1">本课题的 Stage 3</h2>
+  <div class="wiki-s2-conn-row" data-tone="${row.tone}"><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${detail}</section>`;
+}
+
 function wikiS3Page(app, base) {
  const basis = v93Identity();
  const view = basis && v93Matches(v93.basis, basis) ? v93.view : null;
@@ -388,12 +412,12 @@ function wikiS3Page(app, base) {
  const model = view ? wikiS3Model(view, plan) : null;
  const state = wikiS3State(app, model);
  const connected = typeof v9ConnectionConnected === 'function' && v9ConnectionConnected('stage3-planning');
- const panel = !(connected && view?.plan) && typeof v9ConnectionPanel === 'function' ? v9ConnectionPanel(app) : '';
+ const panel = !(connected && view?.plan) ? wikiS3ConnBlock(app) : '';
  const tabs = `<div class="ws3-tabs" role="tablist" aria-label="Stage 3">${Object.entries(wikiS3Tabs).map(([key, label]) =>
   `<button type="button" role="tab" id="ws3-tab-${key}" aria-selected="${key === state.tab}" tabindex="${key === state.tab ? 0 : -1}" data-s3-tab="${key}">${label}</button>`).join('')}</div>`;
  let body;
  if (state.tab === 'materials') body = wikiS3MaterialsTab(view);
- else if (!model) body = wikiS3ReadLine(app, model) + wikiS3Decision();
+ else if (!model) body = wikiS3ReadLine(app, model) + wikiS3Decision(true);
  else {
   const panelHtml = feedback && feedbackState ? v94fHtml(feedback, feedbackState) : '';
   body = `${wikiS3ReadLine(app, model)}${wikiS3SummaryRow(app, model, revision?.record.revision_number)}${wikiS3DraftLine(revision?.record.revision_number)}
@@ -415,7 +439,7 @@ function wikiS3FeedbackLead(context, state, revision) {
 const wikiS3Later = laterStage;
 laterStage = function(app) {
  if (!wikiS3Active(app)) return wikiS3Later(app);
- if (!v93Identity()) return wikiS3Heading() + wikiS3Later(app);
+ if (!v93Identity()) wikiS3Later(app); // earlier chain still starts its reads; its markup is not used
  return wikiS3Page(app, null);
 };
 

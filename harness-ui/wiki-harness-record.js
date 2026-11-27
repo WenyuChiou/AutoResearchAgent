@@ -1,5 +1,5 @@
 // Display only. Callers supply project-bound, persisted records from the Host.
-const wikiRecordMissing = '这一段还没有记录';
+const wikiRecordMissing = '这一段还没有运行，没有记录。';
 const wikiRecordNumber = value => Number.isSafeInteger(value) && value >= 0;
 
 function wikiRecordSummary(record) {

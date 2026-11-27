@@ -242,7 +242,7 @@ function wikiS2CompareTable(app, model, state) {
   const flagged = state.flags.has(route.key);
   return `<th scope="col" ${route.key === picked ? 'class="picked"' : ''}><b class="wiki-s2-letter">${esc(route.letter)}</b>
    <span class="wiki-s2-opinion" data-tone="${tone}">${opinion}</span>${route.key === tentative ? '<span class="wiki-s2-opinion" data-tone="draft">暂定</span>' : ''}
-   <small>${esc(route.id)} · v${esc(route.version)}</small>
+
    <button type="button" class="wiki-s2-flag" data-s2-flag="${esc(route.key)}" aria-pressed="${flagged}">${flagged ? '已标记待审' : '标记待审'}</button>
    <small>仅本机草稿，未提交 Harness</small></th>`;
  };
@@ -310,6 +310,8 @@ function wikiS2Decision(app, model, state) {
   ${state.tentative ? `<p>当前暂定偏好：方向 ${esc(state.tentative.letter)}${state.tentative.note ? ' · ' + esc(state.tentative.note) : ''} · 本机草稿</p>` : ''}</details>`;
  const localDraft = blocked === null ? '' : `<div class="wiki-s2-actions"><button type="button" class="hs-button" data-s2-save ${pick ? '' : 'disabled'}>保存本地草稿</button><button type="button" class="hs-button" data-s2-clear>清除本地草稿</button>
   <small aria-live="polite">${wikiS2DraftStatus(state)}</small>${pick ? '' : '<small class="wiki-s2-reason">请先选一个方向</small>'}</div>`;
+ if (model.origin === 'archive') return `<section class="wiki-s2-decide" data-s2-decide><span class="wiki-s2-label">你的决定</span>
+  <h2>选一个研究方向，带进 Stage 3</h2><p class="wiki-s2-muted">这是${model.synthetic ? '合成样例' : '历史归档'}，不能在这里改。归档里${model.receipt ? '已有选择回执，见上方' : '没有真人选择记录'}。</p></section>`;
  return `<section class="wiki-s2-decide" data-s2-decide><span class="wiki-s2-label">你的决定</span>
   <h2>选一个研究方向，带进 Stage 3</h2><p class="wiki-s2-muted">这一步由你来选，系统建议只是参考。选了以后，Stage 3 才能接着规划。</p>${formal}${localDraft}${tentative}</section>`;
 }
@@ -482,9 +484,16 @@ function wikiS2Page(app) {
   `<button type="button" role="tab" id="wiki-s2-${key}" aria-selected="${key === state.tab}" tabindex="${key === state.tab ? 0 : -1}" aria-controls="wiki-s2-panel" data-s2-tab="${key}">${label}</button>`).join('')}</div>`;
  const panel = state.tab === 'literature' ? wikiS2LiteratureTab(model, state) : state.tab === 'materials' ? wikiS2MaterialsTab(app) : wikiS2CompareTab(app, model, state);
  const unbound = model && !model.blocked && model.routes.length && model.bound !== true && model.origin !== 'native'
-  ? '<p class="wiki-s2-unbound" data-s2-unbound>这份候选和某个课题的 Stage 1 文献包之间没有正式的绑定记录。系统的建议不会自动批准进入 Stage 3。</p>' : '';
+  ? '<p class="wiki-s2-unbound" data-s2-unbound><span class="wiki-s2-unbound-tag">! 没有绑定</span> 这份候选和某个课题的 Stage 1 文献包之间没有正式的绑定记录。系统的建议不会自动批准进入 Stage 3。</p>' : '';
  return `<section data-wiki-s2 aria-label="选方向">${wikiS2ConnBlock(app)}${wikiHarnessRecord()}${unbound}${wikiS2Receipt(model)}${wikiS2Banner(app, model)}${tabs}
-  <div role="tabpanel" id="wiki-s2-panel" aria-labelledby="wiki-s2-${state.tab}">${panel}</div></section>`;
+  <div role="tabpanel" id="wiki-s2-panel" aria-labelledby="wiki-s2-${state.tab}">${panel}</div>${wikiS2TechDetails(model)}</section>`;
+}
+
+function wikiS2TechDetails(model) {
+ const rows = [['project_ref', rt.ref], ['input_version', rt.overview?.project?.input_version], ['revision', rt.overview?.project?.revision],
+  ['origin', model?.origin], ...(model?.routes || []).map(route => ['candidate ' + route.letter, route.id + ' · v' + route.version])]
+  .filter(([, value]) => value !== undefined && value !== null);
+ return `<details class="wiki-s2-tech wiki-s2-page-tech" data-s2-tech><summary>本页技术细节</summary><dl>${rows.map(([key, value]) => `<div><dt>${esc(key)}</dt><dd><code>${esc(value)}</code></dd></div>`).join('')}</dl></details>`;
 }
 
 function wikiS2Heading(html) {

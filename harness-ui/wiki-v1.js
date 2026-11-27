@@ -291,3 +291,66 @@ function v1S1Record() {
   ]
  };
 }
+
+// ---------- Stage 2 status (DESIGN 3.3, 8.13) ----------
+function v1Split(text) {
+ const value = String(text || '');
+ const at = value.indexOf('。');
+ return at < 0 ? [value + '。', ''] : [value.slice(0, at + 1), value.slice(at + 1)];
+}
+v1StageStatus[2] = () => {
+ const model = typeof wikiS2Model === 'function' ? wikiS2Model() : null;
+ if (model?.receipt) return ['已选定方向', 'done'];
+ if (model?.blocked) return ['被拦下', 'wait'];
+ if (model?.routes?.length) return model.origin === 'native' ? ['等你选方向', 'wait'] : ['候选已保存（只读）', 'done'];
+ return ['还没有候选', ''];
+};
+v1PageStatus.s2 = app => {
+ if (typeof wikiS2StatusText !== 'function') return null;
+ const model = wikiS2Model(), status = wikiS2StatusText(app);
+ if (!status) return null;
+ const human = String(status.human || '');
+ const waiting = /^等你/.test(human);
+ const you = human === '不需要你操作' ? null : {wait:waiting, text:human.replace(/^等你\s*·\s*/, '')};
+ if (model?.blocked) return {tone:'wait', now:v1Split(status.now), next:'重新读取一次。', you:null, button:{label:'重新读取', attrs:'data-v1-reload', primary:false}};
+ if (model?.receipt) return {tone:'done', now:v1Split(status.now), next:status.next + '。', you, button:{label:'去 Stage 3', attrs:'data-stage="3"'}};
+ if (model?.routes?.length) return {tone:waiting ? 'wait' : 'done', now:v1Split(status.now), next:status.next + '。', you,
+  button: waiting ? {label:'去选方向', attrs:'data-v1-goto="decide"'} : null};
+ return {tone:waiting ? 'wait' : 'off', now:v1Split(status.now), next:String(status.next).replace(/。?$/, '。'), you};
+};
+document.addEventListener('click', event => {
+ const button = event.target.closest?.('[data-v1-goto="decide"]');
+ if (!button) return;
+ event.preventDefault();
+ apps[0].el.querySelector('.wiki-s2-decide, [data-s2-decide], .decide')?.scrollIntoView({behavior:'smooth', block:'start'});
+}, true);
+
+// ---------- Stage 3 status (DESIGN 3.4, 8.13, 8.19) ----------
+function v1S3Plan() {
+ if (typeof v93Identity !== 'function') return null;
+ const basis = v93Identity();
+ return basis && v93Matches(v93.basis, basis) && v93.view?.plan ? v93.view : null;
+}
+v1StageStatus[3] = () => {
+ if (v1S3Plan()) return ['等你做决定', 'wait'];
+ return ['还没有规划', ''];
+};
+v1PageStatus.s3 = app => {
+ if (typeof v93Identity !== 'function') return null;
+ const basis = v93Identity(), view = v1S3Plan();
+ if (basis && v93.busy) return {tone:'run', now:['正在读取已保存的规划。', '不会重新生成。'], next:'读完后这里会写计划和评审的情况。', you:null};
+ if (basis && v93Matches(v93.errorBasis, basis) && v93.error) return {tone:'err', now:['读取规划没有完成。', '没有读到已保存的规划，也没有重新生成。'], next:'重新读取；原因在读取详情里。', you:{text:'重新读取'}, button:{label:'重新读取', attrs:'data-v93-read', primary:false}};
+ if (view) {
+  const review = typeof wikiS3Review === 'function' ? wikiS3Review(view) : null;
+  return {tone:'wait', now:['计划写好了。', review?.findings?.length ? `评审给了 ${review.findings.length} 条意见。` : '还没有评审意见（后台读取不返回评审）。'],
+   next:'看完计划和评审后做决定。', you:{wait:true, text:'对计划做决定'}, button:{label:'去做决定', attrs:'data-v1-goto="s3-decide"', primary:false}};
+ }
+ if (!basis) return {tone:'off', now:['还没有规划。', 'Stage 2 还没有选定方向，Stage 3 不会生成计划。'], next:'先到 Stage 2 选一个方向。', you:null, button:{label:'去 Stage 2', attrs:'data-stage="2"', primary:false}};
+ return {tone:'off', now:['还没有规划。', '已经有选定的方向，但还没有保存的计划。'], next:'接通本课题的 Stage 3 后，请求生成计划。', you:null};
+};
+document.addEventListener('click', event => {
+ const button = event.target.closest?.('[data-v1-goto="s3-decide"]');
+ if (!button) return;
+ event.preventDefault();
+ apps[0].el.querySelector('[data-s3-decision]')?.scrollIntoView({behavior:'smooth', block:'start'});
+}, true);

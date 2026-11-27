@@ -438,7 +438,6 @@ v7AfterRender = function (app) {
    info[2].insertAdjacentHTML('beforeend', '<button type="button" class="hs-button" data-ws-go="scope">去确认</button>');
   }
   const record = app.el.querySelector('[data-wiki-record]');
-  if (record && !record.querySelector('.wiki-record-chip')?.nextElementSibling) record.insertAdjacentHTML('beforeend', '<span>这一段还没有运行，没有记录。</span>');
  }
 };
 
