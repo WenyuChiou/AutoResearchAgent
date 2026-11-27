@@ -1,0 +1,96 @@
+/* Wiki V1 Codex chat drawer (DESIGN 8.4). Colours and sizes follow wiki-v1.css (2.1-2.5). */
+#harness-trace-workbench-v6 [data-v1] .wc-root { position:fixed; inset:0 0 0 auto; z-index:60; pointer-events:none; width:0; }
+#harness-trace-workbench-v6 [data-v1] .wc-root > * { pointer-events:auto; }
+
+/* Collapsed: a vertical tab on the right edge, with a status dot. */
+#harness-trace-workbench-v6 [data-v1] .wc-tab {
+ position:fixed; right:0; top:42%; transform:translateY(-50%); min-width:44px; min-height:132px; padding:14px 8px; border:1px solid var(--v1-line2); border-right:0;
+ border-radius:10px 0 0 10px; background:#fff; color:var(--v1-text); font:inherit; font-size:15px; font-weight:600; cursor:pointer;
+ display:flex; flex-direction:column; align-items:center; gap:10px; box-shadow:-4px 4px 14px rgba(25,47,64,.1);
+}
+#harness-trace-workbench-v6 [data-v1] .wc-tab span { writing-mode:vertical-rl; letter-spacing:.14em; }
+#harness-trace-workbench-v6 [data-v1] .wc-tab small { writing-mode:vertical-rl; white-space:nowrap; font-size:12px; font-weight:500; color:var(--v1-sub); }
+#harness-trace-workbench-v6 [data-v1] .wc-tab:hover { background:var(--v1-teal-soft); }
+#harness-trace-workbench-v6 [data-v1] .wc-tab:focus-visible, #harness-trace-workbench-v6 [data-v1] .wc-root :is(button, textarea, summary):focus-visible { outline:3px solid #9cc2ee; outline-offset:2px; }
+
+/* Expanded: 380px, over the right part of the page, not pushing it. */
+#harness-trace-workbench-v6 [data-v1] .wc-drawer {
+ position:fixed; inset:0 0 0 auto; width:380px; max-width:100vw; background:#fbfbf8; border-left:1px solid var(--v1-line2); box-shadow:-12px 0 32px rgba(25,47,64,.16);
+ overflow:hidden; padding:16px 16px 12px; display:flex; flex-direction:column; gap:12px; font-size:14px; line-height:1.55; color:var(--v1-text);
+}
+#harness-trace-workbench-v6 [data-v1] .wc-drawer > * { flex:none; }
+#harness-trace-workbench-v6 [data-v1] .wc-scroll { flex:1 1 auto; min-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:2px 2px 8px; }
+#harness-trace-workbench-v6 [data-v1] .wc-drawer > .wc-note { font-size:13.5px; }
+#harness-trace-workbench-v6 [data-v1] .wc-scroll > * { flex:none; }
+#harness-trace-workbench-v6 [data-v1] .wc-foot { display:grid; gap:8px; border-top:1px solid var(--v1-line); padding-top:10px; max-height:46%; overflow-y:auto; }
+#harness-trace-workbench-v6 [data-v1] .wc-head > div { min-width:0; }
+#harness-trace-workbench-v6 [data-v1] .wc-head .wc-btn { white-space:nowrap; flex:none; }
+#harness-trace-workbench-v6 [data-v1] .wc-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+#harness-trace-workbench-v6 [data-v1] .wc-head h2 { margin:0; font-size:18px; line-height:1.3; }
+#harness-trace-workbench-v6 [data-v1] .wc-where { margin:2px 0 0; color:var(--v1-teal-dark); font-weight:600; font-size:13px; overflow-wrap:anywhere; }
+#harness-trace-workbench-v6 [data-v1] .wc-sub { margin:2px 0 0; color:var(--v1-sub); font-size:13px; }
+#harness-trace-workbench-v6 [data-v1] .wc-state { display:flex; align-items:center; gap:8px; min-height:44px; padding:0 12px; border:1px solid var(--v1-line2); border-radius:8px; background:#fff; font-size:15px; }
+#harness-trace-workbench-v6 [data-v1] .wc-dot { width:10px; height:10px; border-radius:50%; background:#7f93a0; display:inline-block; flex:none; }
+#harness-trace-workbench-v6 [data-v1] .wc-dot.done { background:#2f9d86; }
+#harness-trace-workbench-v6 [data-v1] .wc-dot.wait { background:#e09a21; }
+#harness-trace-workbench-v6 [data-v1] .wc-dot.run { background:#4f82c4; }
+#harness-trace-workbench-v6 [data-v1] .wc-dot.err { background:#c9503f; }
+#harness-trace-workbench-v6 [data-v1] .wc-note { margin:0; color:var(--v1-text); }
+#harness-trace-workbench-v6 [data-v1] .wc-muted, #harness-trace-workbench-v6 [data-v1] .wc-grey { color:var(--v1-sub); margin:0; font-size:13px; }
+#harness-trace-workbench-v6 [data-v1] .wc-reason { display:block; color:var(--v1-amber); font-size:13px; margin:0; }
+#harness-trace-workbench-v6 [data-v1] .wc-reason[hidden] { display:none; }
+#harness-trace-workbench-v6 [data-v1] .wc-btn { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 14px; border-radius:8px; border:1px solid var(--v1-line2); background:#fff; color:var(--v1-text); font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+#harness-trace-workbench-v6 [data-v1] .wc-btn.sm { min-height:40px; padding:0 12px; }
+#harness-trace-workbench-v6 [data-v1] .wc-btn.primary { background:var(--v1-teal); border-color:var(--v1-teal); color:#fff; }
+#harness-trace-workbench-v6 [data-v1] .wc-btn.primary:hover:not(:disabled) { background:var(--v1-teal-dark); }
+#harness-trace-workbench-v6 [data-v1] .wc-btn:disabled { background:var(--v1-gray); border-color:var(--v1-line); color:#7b8a92; cursor:not-allowed; }
+#harness-trace-workbench-v6 [data-v1] .wc-link { border:0; background:none; padding:0 2px; min-height:32px; color:var(--v1-blue); font:inherit; text-decoration:underline; cursor:pointer; }
+#harness-trace-workbench-v6 [data-v1] .wc-alert { padding:8px 12px; border-radius:8px; border:1px solid var(--v1-amber-line); background:var(--v1-amber-soft); color:var(--v1-amber); }
+#harness-trace-workbench-v6 [data-v1] .wc-alert.err { border-color:var(--v1-red-line); background:var(--v1-red-soft); color:var(--v1-red); }
+
+#harness-trace-workbench-v6 [data-v1] .wc-quota { display:grid; gap:4px; }
+#harness-trace-workbench-v6 [data-v1] .wc-quota p { margin:0; font-size:13px; color:var(--v1-sub); }
+#harness-trace-workbench-v6 [data-v1] .wc-bar { height:8px; border-radius:4px; background:var(--v1-line); overflow:hidden; }
+#harness-trace-workbench-v6 [data-v1] .wc-bar i { display:block; height:100%; background:var(--v1-teal); }
+
+#harness-trace-workbench-v6 [data-v1] .wc-fold { border:1px solid var(--v1-line); border-radius:8px; background:#fff; padding:0 12px; }
+#harness-trace-workbench-v6 [data-v1] .wc-fold > summary { min-height:44px; display:flex; align-items:center; cursor:pointer; font-weight:600; font-size:14px; }
+#harness-trace-workbench-v6 [data-v1] .wc-fold ul { margin:4px 0 10px; padding-left:18px; }
+#harness-trace-workbench-v6 [data-v1] .wc-materials { list-style:none; padding:0 !important; display:grid; gap:8px; }
+#harness-trace-workbench-v6 [data-v1] .wc-mat-top { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; }
+#harness-trace-workbench-v6 [data-v1] .wc-mat-top b { overflow-wrap:anywhere; }
+#harness-trace-workbench-v6 [data-v1] .wc-ver, #harness-trace-workbench-v6 [data-v1] .wc-origin { font-size:12px; color:var(--v1-sub); border:1px solid var(--v1-line2); border-radius:10px; padding:0 8px; }
+#harness-trace-workbench-v6 [data-v1] .wc-ok { color:var(--v1-teal-dark); font-weight:600; }
+#harness-trace-workbench-v6 [data-v1] .wc-no { color:var(--v1-amber); font-weight:600; }
+#harness-trace-workbench-v6 [data-v1] .wc-expect { border:1px dashed var(--v1-line2); border-radius:8px; padding:8px 12px; background:#fff; }
+#harness-trace-workbench-v6 [data-v1] .wc-expect ul { margin:4px 0 0; padding-left:18px; }
+
+#harness-trace-workbench-v6 [data-v1] .wc-messages { display:flex; flex-direction:column; gap:12px; padding:2px; }
+#harness-trace-workbench-v6 [data-v1] .wc-turn { display:flex; flex-direction:column; gap:6px; }
+#harness-trace-workbench-v6 [data-v1] .wc-bubble { padding:8px 12px; border-radius:10px; white-space:pre-wrap; overflow-wrap:anywhere; max-width:92%; }
+#harness-trace-workbench-v6 [data-v1] .wc-user { align-self:flex-end; background:var(--v1-teal-soft); border:1px solid #bcd9d2; }
+#harness-trace-workbench-v6 [data-v1] .wc-bot { align-self:flex-start; background:#fff; border:1px solid var(--v1-line2); }
+#harness-trace-workbench-v6 [data-v1] .wc-meta, #harness-trace-workbench-v6 [data-v1] .wc-end { margin:0; font-size:12.5px; color:var(--v1-sub); }
+#harness-trace-workbench-v6 [data-v1] .wc-tag { display:inline-flex; align-items:center; min-height:22px; padding:0 8px; border-radius:11px; font-size:12.5px; font-weight:700; }
+#harness-trace-workbench-v6 [data-v1] .wc-tag.ok { background:var(--v1-teal-soft); color:var(--v1-teal-dark); }
+#harness-trace-workbench-v6 [data-v1] .wc-tag.warn { background:var(--v1-amber-soft); color:var(--v1-amber); }
+#harness-trace-workbench-v6 [data-v1] .wc-tag.err { background:var(--v1-red-soft); color:var(--v1-red); }
+#harness-trace-workbench-v6 [data-v1] .wc-tag.run { background:var(--v1-blue-soft); color:var(--v1-blue); }
+#harness-trace-workbench-v6 [data-v1] .wc-ask { border:1.5px solid var(--v1-amber-line); background:var(--v1-amber-soft); border-radius:8px; padding:10px 12px; display:grid; gap:8px; }
+#harness-trace-workbench-v6 [data-v1] .wc-q { display:grid; gap:4px; }
+#harness-trace-workbench-v6 [data-v1] .wc-q textarea, #harness-trace-workbench-v6 [data-v1] .wc-compose textarea { width:100%; box-sizing:border-box; border:1px solid var(--v1-line2); border-radius:8px; padding:8px 10px; font:inherit; font-size:14px; resize:vertical; background:#fff; color:var(--v1-text); }
+#harness-trace-workbench-v6 [data-v1] .wc-compose textarea:disabled { background:var(--v1-gray); }
+
+#harness-trace-workbench-v6 [data-v1] .wc-chips { display:grid; gap:6px; }
+#harness-trace-workbench-v6 [data-v1] .wc-chip { text-align:left; min-height:44px; padding:6px 12px; border:1px solid var(--v1-line2); border-radius:8px; background:#fff; font:inherit; font-size:13px; color:var(--v1-text); cursor:pointer; }
+#harness-trace-workbench-v6 [data-v1] .wc-chip:hover { background:var(--v1-teal-soft); }
+#harness-trace-workbench-v6 [data-v1] .wc-compose { display:grid; gap:6px; }
+#harness-trace-workbench-v6 [data-v1] .wc-send-row, #harness-trace-workbench-v6 [data-v1] .wc-actions { display:flex; flex-wrap:wrap; gap:8px; }
+#harness-trace-workbench-v6 [data-v1] .wc-tech table { border-collapse:collapse; width:100%; margin:4px 0 10px; }
+#harness-trace-workbench-v6 [data-v1] .wc-tech th { text-align:left; width:30%; font-size:12px; color:var(--v1-sub); vertical-align:top; }
+#harness-trace-workbench-v6 [data-v1] .wc-tech code { font-size:12px; overflow-wrap:anywhere; }
+#harness-trace-workbench-v6 [data-v1] .wc-tech code.wc-mark { background:#fff1b8; }
+
+@media (max-width: 520px) { #harness-trace-workbench-v6 [data-v1] .wc-drawer { width:100vw; } }
+@media (prefers-reduced-motion: no-preference) { #harness-trace-workbench-v6 [data-v1] .wc-drawer { animation:wc-in .16s ease-out; } }
+@keyframes wc-in { from { transform:translateX(24px); opacity:.4; } to { transform:none; opacity:1; } }

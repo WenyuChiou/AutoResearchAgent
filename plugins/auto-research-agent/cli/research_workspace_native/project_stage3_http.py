@@ -21,13 +21,14 @@ from .http import MAX_BODY
 from .transport import _decode
 from .project_stage3_planning import SOURCE_FIELDS
 from .project_stage3_direction_planning import DIRECTION_FIELDS
+from .project_stage3_decision import check_shape, read_decisions, record_decision
 from .project_stage3_feedback import fits_response, read_feedback, record_feedback
 from .project_selection_read_context import verified_selection_read
 
 
 ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage3/planning"
-    r"(?:/(prepare|run|inspect|recover|comment|revise))?"
+    r"(?:/(prepare|run|inspect|recover|comment|revise|decide))?"
 )
 
 
@@ -73,6 +74,28 @@ class ProjectStage3Http:
                     )
                     if fits_response(projected):
                         view = projected
+                    try:
+                        decided = read_decisions(configured["jobs"], ref, view)
+                    except SessionApiError as error:
+                        # A damaged decision log must not take the whole plan page
+                        # down; say so in the field instead.
+                        decided = {"error": error.code}
+                    candidate = dict(view, host_decision=decided)
+                    if fits_response(candidate):
+                        view = candidate
+                    else:
+                        latest = (
+                            decided.get("latest") if "error" not in decided else None
+                        )
+                        summary = {
+                            "omitted": "response-bound",
+                            "count": len(decided.get("records", ())),
+                            "latest_decision": latest and latest["record"]["decision"],
+                            "latest_sequence": latest and latest["record"]["sequence"],
+                        }
+                        omitted = dict(view, host_decision=summary)
+                        if fits_response(omitted):
+                            view = omitted  # say so; never drop it silently
             return view
 
     def _view(self, credential, ref, *, check_deadline=None):
@@ -183,6 +206,18 @@ class ProjectStage3Http:
                 action,
                 check_deadline,
                 material_resolver=self.material_resolver,
+            )
+
+    def decide(self, credential, ref, body, *, check_deadline=None):
+        check_shape(body)  # before any lock or journal owner lease
+        with self.service.intake._lock:
+            view = self._view(credential, ref, check_deadline=check_deadline)
+            bindings = self.service.bindings
+            configured = getattr(bindings, "for_write", bindings.get)(ref)
+            if configured is None:
+                raise SessionApiError("stage3-planning-unconnected", 409)
+            return record_decision(
+                configured["jobs"], ref, view, body, check_deadline=check_deadline
             )
 
     def admit_run(self, credential, ref, body, check_deadline):
@@ -299,7 +334,13 @@ def handle_planning(handler, method):
                 raise SessionApiError("unknown-project-write", 404)
             if handler.headers.get("Content-Type", "").lower() != "application/json":
                 raise SessionApiError("json-content-type-required", 415)
-            body_limit = MAX_BODY if action == "revise" else 4096
+            body_limit = (
+                MAX_BODY
+                if action == "revise"
+                else 32768
+                if action == "decide"
+                else 4096
+            )
             if not 0 < length <= body_limit:
                 raise SessionApiError("stage3-planning-body-bound-exceeded", 413)
             raw = handler.rfile.read(length)
@@ -333,6 +374,14 @@ def handle_planning(handler, method):
                     # response. The original adapter still owns the native limit.
                     service.run(token, ref, body, check_deadline=transport.check_open)
                     return
+            elif action == "decide":
+                check_shape(body)
+                transport.admit_feedback(ref, body, action)
+                running = True
+                result = transport.decide(
+                    token, ref, body, check_deadline=handler._remaining
+                )
+                transport.finish_feedback_write(ref)
             elif action in {"comment", "revise"}:
                 transport.admit_feedback(ref, body, action)
                 running = True
