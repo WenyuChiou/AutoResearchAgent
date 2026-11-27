@@ -502,6 +502,26 @@ class ZeroAllowanceNeverStartsCodex(Base):
         )
         self.assertEqual(self.ledger(host.service), (None, 0))
 
+    def test_allowance_file_must_not_be_an_older_research_or_conversation_store(self):
+        import sqlite3
+
+        fx = self.fx
+        old = fx.root / "old-research.sqlite3"
+        connection = sqlite3.connect(old)
+        connection.execute("CREATE TABLE research_runs(id INTEGER)")
+        connection.commit()
+        connection.close()
+        before = old.read_bytes()
+        with self.assertRaisesRegex(ValueError, "chat-budget-must-not-use-old-store"):
+            fx.service(fx.grant(budget_path=str(old)))
+        self.assertEqual(old.read_bytes(), before, "the older store is left untouched")
+        junk = fx.root / "not-sqlite.db"
+        junk.write_bytes(b"this is not a database" * 10)
+        with self.assertRaisesRegex(ValueError, "chat-budget-must-not-use-old-store"):
+            fx.service(fx.grant(budget_path=str(junk)))
+        # A new file and this chat's own budget file are both fine.
+        fx.service(fx.grant(budget_path=str(fx.root / "fresh-quota.sqlite3")))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

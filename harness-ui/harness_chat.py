@@ -174,6 +174,7 @@ class ChatService:
         )
         self.budget_path.parent.mkdir(parents=True, exist_ok=True)
         self.lock, self.running = threading.RLock(), {}
+        self._require_dedicated_budget_store()
         if spec and spec.get("_continuation"):
             # Preflight existing rows in read-only mode BEFORE any schema/init writes.
             uri = Path(self.budget_path).resolve().as_uri() + "?mode=ro"
@@ -211,6 +212,30 @@ class ChatService:
                         error="host-restarted-native-terminal-unconfirmed",
                     )
                     self.put(db, "turns", row)
+
+    def _require_dedicated_budget_store(self):
+        """The allowance file may only be new or hold nothing but this chat's budget table.
+
+        Pointing it at an older research or conversation database would add a table to
+        somebody else's store, so that is refused before any write.
+        """
+        path = self.budget_path
+        if not path.exists() or path.stat().st_size == 0:
+            return
+        try:
+            connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
+            try:
+                tables = {
+                    r[0]
+                    for r in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                }
+            finally:
+                connection.close()
+        except sqlite3.Error:
+            raise ValueError("chat-budget-must-not-use-old-store") from None
+        require(tables <= {"budget"}, "chat-budget-must-not-use-old-store")
 
     @contextmanager
     def db(self):

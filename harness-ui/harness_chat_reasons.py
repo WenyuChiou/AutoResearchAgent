@@ -45,6 +45,11 @@ EXACT = (
         "额度记录和配置对不上，发送关闭，请联系操作者",
     ),
     (
+        "chat-budget-must-not-use-old-store",
+        "budget-mismatch",
+        "额度记录和配置对不上，发送关闭，请联系操作者",
+    ),
+    (
         "chat-budget-owned-by-another-store",
         "budget-mismatch",
         "额度记录和配置对不上，发送关闭，请联系操作者",
