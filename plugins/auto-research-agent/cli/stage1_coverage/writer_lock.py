@@ -166,6 +166,16 @@ def owner_record(root, clock):
     if os.name != "nt":
         return None
     try:
+        manifest_size = safe_path(root, "run_manifest.json").stat().st_size
+    except (OSError, ValueError):
+        manifest_size = None  # metadata failure: legacy writing stays available
+    # An oversized manifest is not a metadata failure: refuse instead of
+    # silently downgrading to the unrecoverable legacy lock.
+    _need(
+        manifest_size is None or manifest_size <= MAX_MANIFEST_BYTES,
+        "writer-lock-manifest-too-large",
+    )
+    try:
         identity = _run_identity(root)
         creation = _creation_time(_windows().GetCurrentProcess())
         if creation <= 0:
