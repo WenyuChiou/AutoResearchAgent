@@ -48,7 +48,9 @@ class ProjectStage2Tests(unittest.TestCase):
         temp_root = Path(tempfile.gettempdir()).resolve()
         # Windows cleanup must reach the long action paths written by the
         # workflow. The service still receives an ordinary drive path.
-        prefix = "\\\\?\\" if sys.platform == "win32" and len(temp_root.drive) == 2 else ""
+        prefix = (
+            "\\\\?\\" if sys.platform == "win32" and len(temp_root.drive) == 2 else ""
+        )
         temporary = tempfile.TemporaryDirectory(
             prefix="project-stage2-", dir=prefix + str(temp_root)
         )
