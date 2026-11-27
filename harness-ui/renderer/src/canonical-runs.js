@@ -32,6 +32,10 @@ livePaint=function(){
  render(app);
 };
 liveRefresh=async function(ref=rt.ref,options={}){
+ // Leave HOME list loading and errors in the regular refresh lifecycle, including the first retry.
+ if(!ref&&typeof liveWikiHomeActive==='function'&&liveWikiHomeActive()){
+  rt.savedRun=null;return canonicalOldRefresh(ref,{...options,list:options.list||!rt.savedRosterReady});
+ }
  // The retained runtime starts its first project GET before this module is installed.
  // Load the combined roster once before choosing the initial project/view.
  if(!rt.savedRosterReady){const list=await liveRequest('/api/projects');rt.list=list.projects;if(!ref)ref=rt.pending?.ref||rt.meta?.case_ref||rt.list[0]?.project_ref;}

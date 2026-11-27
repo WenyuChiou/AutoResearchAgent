@@ -1,0 +1,70 @@
+.wiki-s1-card,.wiki-s1-metrics { border:1px solid #d7e2de; border-radius:8px; background:white; }
+body:has(#harness-trace-workbench-v6 [data-wiki-s1]) { padding:0; }
+#harness-trace-workbench-v6 .hs-product:has([data-wiki-s1]) { border:0; border-radius:0; box-shadow:none; }
+#harness-trace-workbench-v6 .hs-main:has([data-wiki-s1]) { background:#f7f6f1; }
+#harness-trace-workbench-v6 .hs-content:has([data-wiki-s1]) > .wiki-shell-state { margin:20px 0 24px; }
+#harness-trace-workbench-v6 [data-wiki-s1] + .wiki-s1-project { margin:24px 0 12px; }
+#harness-trace-workbench-v6 .wiki-s1-project > summary { min-height:44px; padding-block:10px; }
+[data-wiki-s1] { color:#203342; line-height:1.55; overflow-wrap:anywhere; }
+[data-wiki-s1] h2,[data-wiki-s1] h3,[data-wiki-s1] p { margin:0; }
+[data-wiki-s1] h2 { font-size:20px; line-height:1.35; margin-bottom:12px; }
+.wiki-s1-card { padding:24px; min-width:0; }
+.wiki-s1-muted { color:#566772; font-size:14px; }
+.wiki-s1-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.wiki-s1-metrics > div { padding:12px 20px; }
+.wiki-s1-metrics > div+div { border-inline-start:1px solid #dde5e2; }
+.wiki-s1-metrics strong { font-size:26px; font-variant-numeric:tabular-nums; }
+.wiki-s1-metrics b { font-size:14px; }
+.wiki-s1-metrics small { display:block; color:#566772; font-size:13px; }
+.wiki-s1-metrics span { display:inline-block; border:1px solid #c4d1cd; border-radius:4px; padding:1px 6px; margin-top:6px; font-size:12px; }
+.wiki-s1-tabs { display:flex; flex-wrap:wrap; border-bottom:1px solid #c4d1cd; margin:22px 0 24px; }
+.wiki-s1-tabs button { min-height:44px; border:none; border-bottom:3px solid transparent; padding:8px 18px; background:transparent; color:#566772; font-weight:650; }
+.wiki-s1-tabs button[aria-selected="true"] { border-bottom-color:#2f7a70; color:#192f40; }
+.wiki-s1-columns { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:24px; align-items:start; }
+.wiki-s1-chips,.wiki-s1-tools { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+.wiki-s1-chips button,.wiki-s1-tools button,.wiki-s1-tools summary { border:1px solid #c4d1cd; color:#203342; background:white; border-radius:8px; padding:6px 10px; min-height:44px; font-size:14px; }
+.wiki-s1-chips button { min-height:36px; max-width:100%; border-radius:20px; }
+.wiki-s1-chips button[aria-pressed="true"],.wiki-s1-tools button[aria-pressed="true"] { color:white; background:#192f40; }
+[data-wiki-s1] i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-inline-end:5px; background:var(--s1-color); }
+.wiki-s1-list { border:1px solid #dde5e2; border-radius:8px; margin-top:12px; }
+.wiki-s1-list[data-s1-long-list] { max-height:640px; overflow-y:auto; }
+.wiki-s1-list > button { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:12px; width:100%; align-items:start; text-align:left; background:white; color:inherit; border:0; border-bottom:1px solid #dde5e2; border-inline-start:4px solid transparent; padding:12px; }
+.wiki-s1-list > button[aria-pressed="true"] { background:#e4f0ed; border-inline-start-color:#2f7a70; }
+.wiki-s1-list small { display:block; color:#566772; font-size:13px; }
+.wiki-s1-list small span { display:inline; }
+.wiki-s1-decision { color:#235d56; background:#e4f0ed; border-radius:4px; padding:0 4px; font-size:13px; }
+.wiki-s1-tools label { color:#203342; font-size:14px; display:inline-flex; align-items:center; gap:4px; }
+.wiki-s1-tools input { accent-color:#2f7a70; }
+.wiki-s1-tools [role="group"] { display:flex; }
+.wiki-s1-tools [role="group"] button:first-child { border-radius:8px 0 0 8px; }
+.wiki-s1-tools [role="group"] button:last-child { border-radius:0 8px 8px 0; border-inline-start:0; }
+.wiki-s1-tools details { margin-inline-start:auto; position:relative; }
+.wiki-s1-tools details > div { position:absolute; right:0; z-index:3; width:240px; max-width:80vw; padding:12px; border:1px solid #c4d1cd; background:white; border-radius:8px; box-shadow:0 5px 20px #192f4022; display:grid; gap:8px; }
+.wiki-s1-atlas { height:400px; background:#08111e; border-radius:8px; }
+.wiki-s1-atlas .atlas-spatial-navigation { position:absolute; inset:auto 8px 8px; opacity:0; pointer-events:none; }
+.wiki-s1-atlas .atlas-spatial-navigation:focus-within,.wiki-s1-atlas:fullscreen .atlas-spatial-navigation { opacity:1; pointer-events:auto; }
+.wiki-s1-atlas + p,.wiki-s1-selection { margin-top:12px; }
+.wiki-s1-selection { background:#fffefa; border:1px solid #dde5e2; border-inline-start:4px solid #2f7a70; border-radius:6px; padding:12px 16px; }
+.wiki-s1-selection small { color:#235d56; font-weight:650; }
+.wiki-s1-selection button { margin-top:10px; }
+.wiki-s1-fallback { margin-bottom:12px; padding:12px; background:#edf3fc; border-radius:8px; }
+.wiki-s1-claim { display:grid; grid-template-columns:minmax(0,140px) minmax(0,1fr) minmax(0,230px); gap:16px; border:1px solid #dde5e2; border-radius:8px; margin-top:12px; padding:16px; }
+.wiki-s1-claim > div:last-child { border-inline-start:1px solid #dde5e2; padding-inline-start:16px; }
+.wiki-s1-claim p,.wiki-s1-claim details { margin-top:6px; }
+.wiki-s1-claim blockquote { margin:6px 0; padding-inline-start:10px; border-inline-start:3px solid #c4d1cd; color:#566772; }
+.wiki-s1-claim [data-s1-review] { display:inline-block; font-size:14px; border-radius:18px; padding:3px 8px; background:#eef1ef; }
+.wiki-s1-claim [data-s1-review="supports"] { background:#e4f0ed; color:#235d56; }
+.wiki-s1-claim [data-s1-review="partial"] { background:#f8efdf; color:#8a5a12; }
+.wiki-s1-claim [data-s1-review="contradicts"] { background:#f6e8e5; color:#a1392b; }
+.wiki-s1-synthesis { grid-template-columns:minmax(0,2fr) minmax(0,3fr); }
+.wiki-s1-synthesis-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:18px; }
+.wiki-s1-synthesis-grid section { border-top:3px solid #c4d1cd; padding-top:10px; }
+.wiki-s1-bar { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:8px; align-items:center; margin-top:12px; }
+.wiki-s1-bar progress { width:100%; accent-color:var(--s1-color); }
+.wiki-s1-card a { color:#235d56; }
+@media (max-width:1000px) {
+ .wiki-s1-columns { grid-template-columns:minmax(0,1fr); }
+ .wiki-s1-claim { grid-template-columns:minmax(0,1fr); }
+ .wiki-s1-claim > div:last-child { border-inline-start:0; padding-inline-start:0; }
+ .wiki-s1-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
