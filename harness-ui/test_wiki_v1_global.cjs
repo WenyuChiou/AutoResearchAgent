@@ -15,7 +15,8 @@ const context = vm.createContext({
  v1CurrentRow:() => rt.ref ? {origin:'local'} : null, v1ProjectTitle:() => rt.overview?.project?.brief?.original_description || '',
  wikiHomeArchiveBound:ref => /^view:/.test(ref || '') && rt.savedRun?.entry?.project_ref === ref,
  otherPage:() => '<section class="old">old</section>', livePaint:() => {}, liveRequest:() => { throw Error('no request in markup'); },
- localStorage:{removeItem() {}}, requestAnimationFrame:fn => fn(),
+ localStorage:{removeItem() {}}, requestAnimationFrame:fn => fn(), render:() => {}, v7AfterRender:() => {},
+ window:{RESEARCH_PROJECTS:{credential:'c'}}, location:{protocol:'http:'},
  document:{addEventListener:(type, fn) => (listeners[type] ||= []).push(fn)}
 });
 vm.runInContext(diag + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-v1-global.js'), 'utf8'), context);
@@ -103,4 +104,11 @@ assert.match(html, /归档没有随附这份原件，只能在页面里看/);
 assert.match(text(page('history')), /归档里没有保存操作记录/);
 assert.match(text(page('settings')), /这是历史归档：只读，不连接 Codex，没有许可和额度。/);
 
-console.log('PASS Wiki V1 global pages: no topic, loading, refused, error, empty, files, history filters and raw rows, settings blocks, archives.');
+// 8.22 environment bar: only when the page itself can tell it was not opened from the service.
+assert.equal(context.v1gEnvAlerts().length, 0);
+rt.error = 'origin-or-host-rejected';
+assert.match(context.v1gEnvAlerts()[0].title, /这个页面不是从 Wiki 服务打开的/);
+rt.error = ''; context.window.RESEARCH_PROJECTS = undefined;
+assert.equal(context.v1gEnvAlerts()[0].raw, 'no-service-bootstrap');
+
+console.log('PASS Wiki V1 global pages: environment bar, no topic, loading, refused, error, empty, files, history filters and raw rows, settings blocks, archives.');
