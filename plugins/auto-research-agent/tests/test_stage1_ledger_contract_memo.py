@@ -75,6 +75,36 @@ class ContractMemoTests(unittest.TestCase):
                 contracts.check({"n": index}, "Anything")
         self.assertEqual(len(contracts._valid), 3)
 
+    def test_tuple_and_list_are_never_confused(self):
+        validator = self.fake([])
+        with patch.object(contracts, "validator", return_value=validator):
+            contracts.check({"a": [1, 2]}, "Anything")
+            contracts.check({"a": (1, 2)}, "Anything")
+            contracts.check({"a": (1, 2)}, "Anything")
+            contracts.check({1: "x"}, "Anything")
+        # the list is cached once; every tuple / non-str-key value is validated
+        self.assertEqual(type(validator).calls, 4)
+
+    def test_invalid_value_on_the_real_schema_is_never_cached(self):
+        manifest = {"kind": "x"}
+        real = contracts.validator("Stage1Manifest")
+        with patch.object(contracts, "validator", return_value=real):
+            for _ in range(2):
+                with self.assertRaises(LedgerError):
+                    contracts.check(manifest, "Stage1Manifest")
+        self.assertEqual(len(contracts._valid), 0)
+
+    def test_threads_share_the_memo_safely(self):
+        from concurrent.futures import ThreadPoolExecutor
+
+        validator = self.fake([])
+        values = [{"n": index % 7} for index in range(200)]
+        with patch.object(contracts, "validator", return_value=validator):
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                list(pool.map(lambda v: contracts.check(v, "Anything"), values))
+        self.assertEqual(len(contracts._valid), 7)
+        self.assertGreaterEqual(type(validator).calls, 7)
+
 
 if __name__ == "__main__":
     unittest.main()
