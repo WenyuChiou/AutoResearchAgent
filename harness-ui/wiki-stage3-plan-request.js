@@ -8,7 +8,9 @@
 // dispatch; nothing here retries on its own.
 // unknown: a run sent from this page whose answer never came back (network, timeout); kept per topic so leaving and
 // returning cannot bring the grant card back. Only a read-only inspect settles it (review P1-2).
-const wikiS3Req = {busy:'', error:null, ref:null, check:false, inspected:null, unknown:null};
+// check: the request_sha256 of the prepared job the user ticked for; a different prepare voids it (review P2-2).
+const wikiS3Req = {busy:'', error:null, ref:null, check:null, inspected:null, unknown:null};
+function wikiS3ReqTicked(job) { return !!job?.request_sha256 && wikiS3Req.check === job.request_sha256; }
 
 function wikiS3ReqLock() {
  if (rt.loading) return '正在读取保存记录';
@@ -18,7 +20,7 @@ function wikiS3ReqLock() {
  return '';
 }
 function wikiS3ReqState(view) {
- if (wikiS3Req.ref !== rt.ref) Object.assign(wikiS3Req, {busy:'', error:null, ref:rt.ref, check:false, inspected:null});
+ if (wikiS3Req.ref !== rt.ref) Object.assign(wikiS3Req, {busy:'', error:null, ref:rt.ref, check:null, inspected:null});
  const job = wikiS3Req.inspected?.key === view?.default_request?.key ? wikiS3Req.inspected : view?.job;
  return {job, error:wikiS3Req.error};
 }
@@ -54,7 +56,7 @@ function wikiS3RequestLine(view) {
   text:'上次生成的结果还不清楚：模型可能已经调用过。原请求已保留，不会自动重发；先只读核对', buttons:[...(job?.request_sha256 ? [inspect] : []), read]};
  if (view.submission_error) return {tone:'warn', tag:'被拦下', detail, text:'上次生成没有完成，原因代码在技术细节里。原记录保留，不会自动重试', buttons:[read]};
  if (job?.status === 'intent-recorded') return {tone:'wait', tag:'等你授权', detail, text:'请求已保存，还没有调用模型。看过下面的授权，确认后才生成计划',
-  buttons:[read], grant:{gate:gate || (wikiS3Req.check ? '' : '请先勾选确认')}};
+  buttons:[read], grant:{gate:gate || (wikiS3ReqTicked(job) ? '' : '请先勾选确认')}};
  return {tone:'plain', tag:'还没请求', detail, text:'你选的方向已保存。可以请求生成研究计划', buttons:[{label:'请求生成计划', act:'prepare', primary:true, gate}, read]};
 }
 function wikiS3RequestMarkup(view) {
@@ -68,7 +70,7 @@ function wikiS3RequestMarkup(view) {
   <p><b>会做：</b>按你选的方向调用一次模型，生成研究计划和评审，保存到这个课题。<b>不会做：</b>不检索、不读新的来源、不启动实验；失败不会自动重试。</p>
   <p class="wiki-s1-muted">额度：这一步调用一次模型；规划的调用和时长上限后台没有返回给页面。</p>
   <p class="wiki-s1-muted">授权理由：现在的规划接口没有理由这一项，页面不收集。</p>
-  <label class="ws-check"><input type="checkbox" data-s3-plan-check ${wikiS3Req.check ? 'checked' : ''}> 我确认只授权这一次、这一件事</label>
+  <label class="ws-check"><input type="checkbox" data-s3-plan-check ${wikiS3ReqTicked(wikiS3ReqState(view).job) ? 'checked' : ''}> 我确认只授权这一次、这一件事</label>
   <span><button type="button" class="hs-button hs-button-primary" data-s3-plan="run" ${row.grant.gate ? 'disabled' : ''}>确认生成计划</button>${row.grant.gate ? `<small class="wiki-s2-reason">${wikiS3Escape(row.grant.gate)}</small>` : ''}</span></section>` : '';
  const failure = row.tag === '规划失败' && wikiS3Req.showFailure ? `<details class="wiki-s2-tech" open data-s3-plan-failure><summary>失败记录（原样）</summary><pre>${wikiS3Escape(JSON.stringify(wikiS3ReqState(view).job, null, 2))}</pre></details>` : '';
  const detail = row.detail?.length ? `<details class="wiki-s2-tech"><summary>技术细节</summary>${row.detail.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
@@ -91,11 +93,11 @@ async function wikiS3PlanAction(app, act) {
   if (!returned || returned.project_ref !== ref || returned.key !== request.key) throw Error('stage3-planning-receipt-differs');
   if (act === 'inspect' || act === 'recover') wikiS3Req.inspected = returned;
   if (act === 'inspect' && wikiS3Req.unknown?.ref === ref) wikiS3Req.unknown = null; // the read-only check answered
-  wikiS3Req.check = false;
+  wikiS3Req.check = null;
  } catch (error) {
   const code = String(error.message || error), refused = Number.isInteger(error.status) && error.status >= 400 && error.status < 500;
   // A run without a clear refusal may have reached the model: unknown outcome, the tick is cleared, no resend.
-  if (act === 'run') { wikiS3Req.check = false; if (!refused) wikiS3Req.unknown = {ref, sha:body.request_sha256, code}; }
+  if (act === 'run') { wikiS3Req.check = null; if (!refused) wikiS3Req.unknown = {ref, sha:body.request_sha256, code}; }
   if (epoch !== rt.epoch || ref !== rt.ref) return;
   if (!(act === 'run' && !refused)) wikiS3Req.error = {code, refused};
  } finally {
@@ -114,6 +116,7 @@ document.addEventListener('click', event => {
 });
 document.addEventListener('change', event => {
  if (!event.target.matches?.('[data-s3-plan-check]')) return;
- wikiS3Req.check = event.target.checked;
+ const basis = v93Identity(), view = basis && v93Matches(v93.basis, basis) ? v93.view : null;
+ wikiS3Req.check = event.target.checked ? wikiS3ReqState(view).job?.request_sha256 || null : null;
  livePaint();
 });

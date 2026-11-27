@@ -104,7 +104,8 @@ test('review P1-2: a run with no answer (network, 5xx) is an unknown outcome: ti
  for (const failure of [Error('Failed to fetch'), Object.assign(Error('HTTP 502'), {status:502})]) {
   const sha = 'c'.repeat(64);
   const {ctx, posts} = load({view:{job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
-  vm.runInContext('wikiS3Req.check = true', ctx);
+  line(ctx);
+  vm.runInContext(`wikiS3Req.check = '${sha}'`, ctx);
   ctx.answer = () => { throw failure; };
   await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
   // The re-read still says intent-recorded (the service may not have written yet).
@@ -112,7 +113,7 @@ test('review P1-2: a run with no answer (network, 5xx) is an unknown outcome: ti
   assert.equal(row.tag, '结果未知', failure.message);
   assert.equal(row.grant, undefined, 'no grant card, so no one-click resend');
   assert.equal(row.buttons.map(b => b.act).join(), 'inspect,read');
-  assert.equal(vm.runInContext('wikiS3Req.check', ctx), false, 'the tick is cleared');
+  assert.equal(vm.runInContext('wikiS3Req.check', ctx), null, 'the tick is cleared');
   assert.doesNotMatch(ctx.wikiS3RequestMarkup(ctx.v93.view), /data-s3-plan="run"/, 'no run button on the page');
   // The read-only check answers intent-recorded: the grant card comes back, unticked.
   ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'intent-recorded'});
@@ -153,4 +154,15 @@ test('review P1-1: a submission error next to an unknown or finished job keeps t
  assert.equal(row.grant, undefined, 'no grant card, so no resend');
  row = line(load({view:{submission_error:{code:'stage3-planning-input-rejected'}}}).ctx);
  assert.equal(row.tag, '被拦下', 'other submission errors are still blocked');
+});
+
+test('review P2-2: the tick belongs to one prepared request; a new prepare voids it', () => {
+ const {ctx} = load({view:{job:{status:'intent-recorded', request_sha256:'c'.repeat(64), key:request.key}}});
+ line(ctx); // first read binds the state to this topic
+ vm.runInContext(`wikiS3Req.check = '${'c'.repeat(64)}'`, ctx);
+ assert.equal(line(ctx).grant.gate, '');
+ assert.match(ctx.wikiS3RequestMarkup(ctx.v93.view), /data-s3-plan-check checked/);
+ ctx.v93.view.job = {status:'intent-recorded', request_sha256:'d'.repeat(64), key:request.key};
+ assert.equal(line(ctx).grant.gate, '请先勾选确认');
+ assert.doesNotMatch(ctx.wikiS3RequestMarkup(ctx.v93.view), /data-s3-plan-check checked/);
 });
