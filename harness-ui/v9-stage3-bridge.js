@@ -275,8 +275,9 @@ document.addEventListener('change',event=>{
  if(app)v93SyncLanguageRoute(app,true);
 });
 // Reading is GET-only (projectPath .../stage3/planning, no body). It never starts planning.
-async function v93ReadSaved(app,basis){
- if(v93.busy||!app||app.stage!==3||!basis)return;
+async function v93ReadSaved(app,basis,force){
+ // force: a read after a write must not be skipped because an older read is still in flight; the older answer is dropped by the sequence check.
+ if((v93.busy&&!force)||!app||app.stage!==3||!basis)return;
  const epoch=rt.epoch,sequence=++v93.sequence;v93.busy=true;v93.error='';v93.errorBasis=null;v93.view=null;v93.basis=null;livePaint();
  try{
   const view=await liveRequest(projectPath(basis.project_ref,'stage3/planning'));
