@@ -73,6 +73,7 @@ REASONS = {
     "cross-site-rejected": "只接受本页面同源的请求。",
     "credential-rejected": "凭据不对。",
     "stage1-run-grant-unavailable": "没有可用的运行许可。",
+    "stage1-run-grant-stale": "这个请求键对应的许可绑的是旧版本，当前版本没有可用的许可（以 GET 摘要为准）；响应里的 current_binding 是课题当前的绑定。",
 }
 
 
@@ -253,6 +254,15 @@ class Stage1RunGrantApi:
             refusal.recorded = True
             raise refusal
         _check(receipt["status"] == "saved", "stage1-run-grant-execution-unknown", 409)
+        current, binding = self._current(credential, ref, receipt["grant_ref"])
+        if not current:
+            # A replay must not present a grant of an older input version as success.
+            refusal = SessionApiError("stage1-run-grant-stale", 409)
+            refusal.extra = {
+                "current_binding": binding,
+                "grant_ref": receipt["grant_ref"],
+            }
+            raise refusal
         return 200 if receipt["replayed"] else 201, {
             "status": "saved",
             "replayed": receipt["replayed"],
@@ -260,10 +270,28 @@ class Stage1RunGrantApi:
             "grant_ref": receipt["grant_ref"],
             "grant_sha256": receipt["grant_sha256"],
             "expires_at": receipt["expires_at"],
+            "binding": binding,
+            "current": True,
             "execution_authorized": False,
             "creates_lane_permits": False,
             "resets_resources": False,
         }
+
+    def _current(self, credential, ref, grant_ref):
+        """Does the saved grant still bind the project's current version and plan?"""
+        principal = self.intake._principal(credential)
+        with self.intake._lock:
+            state = self.intake._load(principal, ref)
+            try:
+                binding = self.issuer._binding(state)
+            except (SessionApiError, ValueError):
+                return False, None
+            row = state.get(STORE, {}).get(grant_ref)
+            shown = {
+                key: binding[key]
+                for key in ("input_version", "brief_sha256", "plan_manifest_sha256")
+            }
+            return row is not None and row["document"]["binding"] == binding, shown
 
     def _lease(self, ref, document, pin):
         """Open the lease read-only; the service's own check() would write to it."""
@@ -474,6 +502,7 @@ def install_stage1_run_grant(host, *, limits, runtime_sha256):
                 return self._reply(status, result)
             except SessionApiError as error:
                 body = {"error": error.code, "reason": _reason(error.code)}
+                body.update(getattr(error, "extra", {}))
                 if getattr(error, "recorded", False):
                     body["recorded_as_failed"] = True
                     body["reason"] += (

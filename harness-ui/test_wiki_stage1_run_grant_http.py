@@ -344,6 +344,76 @@ class RunGrantHttpTests(Fixture, unittest.TestCase):
         for key in ("../x", "", "a b", 5, None, "x" * 121):
             self.refuse(400, "stage1-run-grant-fields-invalid", key=key)
 
+    def test_replaying_a_key_after_the_project_moved_on_is_not_a_success(self):
+        self.build()
+        original = self.payload()
+        status, first = self.create()
+        self.assertEqual(status, 201)
+        self.assertTrue(first["current"])
+        self.assertEqual(first["binding"]["input_version"], 1)
+        project = self.intake.read(TOKEN, self.ref)
+        self.intake.revise(
+            TOKEN,
+            self.ref,
+            {
+                "key": "revise-v2",
+                "revision": project["revision"],
+                "input_version": project["input_version"],
+                "brief_sha256": project["brief_sha256"],
+                "topic": "Urban flash flood forecasting, second round",
+            },
+        )
+        before = self.state()
+        status, body = self.call("POST", self.url(), original)
+        self.assertEqual((status, body["error"]), (409, "stage1-run-grant-stale"))
+        self.assertEqual(body["grant_ref"], first["grant_ref"])
+        self.assertTrue(body["reason"])
+        self.assertEqual(self.state(), before)  # a stale replay writes nothing
+
+    def test_cross_site_and_headerless_posts_are_refused_without_a_write(self):
+        self.build()
+        before = self.state()
+        base = {
+            "Authorization": "Bearer " + TOKEN,
+            "Origin": self.host.expected_origin,
+            "Content-Type": "application/json",
+        }
+        raw = json.dumps(self.payload()).encode()
+        cases = (
+            ({"Origin": "http://evil.example"}, 403),
+            ({"Origin": None}, 403),
+            ({"Sec-Fetch-Site": "cross-site"}, 403),
+            ({"Sec-Fetch-Site": "same-site"}, 403),
+        )
+        for changes, expected in cases:
+            headers = {k: v for k, v in (base | changes).items() if v is not None}
+            connection = http.client.HTTPConnection(
+                "127.0.0.1", self.host.server_address[1], timeout=20
+            )
+            try:
+                connection.request("POST", self.url(), raw, headers)
+                self.assertEqual(connection.getresponse().status, expected, changes)
+            finally:
+                connection.close()
+        self.assertEqual(self.state(), before)
+
+    def test_concurrent_different_keys_make_exactly_one_grant(self):
+        self.build()
+        results = []
+
+        def post(index):
+            results.append(self.create(key="run-grant-c" + str(index))[0])
+
+        threads = [Thread(target=post, args=(i,)) for i in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(30)
+        self.assertEqual(results.count(201), 1, results)
+        self.assertTrue(all(code in (201, 409) for code in results), results)
+        state = self.intake._load("local-viewer", self.ref)
+        self.assertEqual(len(state["stage1_run_grants"]), 1)
+
     def test_progression_needs_the_grant_then_reaches_the_submit_branch(self):
         self.build()
         project = self.intake.read(TOKEN, self.ref)
