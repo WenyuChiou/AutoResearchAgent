@@ -66,15 +66,25 @@ function wikiHomeRecordCell(row) {
  return ran ? '有 Stage 1 记录，打开课题后可见' : '还没有运行';
 }
 
+// Same titles are allowed (no merging, 8.27). The roster has no creation time, so the last characters of
+// the project number tell them apart (design gap: the design does not say how).
+function wikiHomeTwinText(row, rows) {
+ return rows.filter(other => other.title === row.title).length > 1 ? ' · 编号尾号 ' + String(row.ref).slice(-6) : '';
+}
+function wikiHomeTwin(row, rows) {
+ const text = wikiHomeTwinText(row, rows);
+ return text ? `<small class="wiki-home-twin">${esc(text.slice(3))}</small>` : '';
+}
+
 function wikiHomeProjectTable(rows, ready, locked) {
  const filters = [['all', '全部'], ...Object.entries(wikiHomeOrigins)]
   .map(([key, label]) => [key, label, rows.filter(row => key === 'all' || row.origin === key).length])
   .filter(([key, , count]) => key === 'all' || count > 0);
  const tableRows = rows.map(row => `<tr data-wiki-home-origin="${row.origin}">
-   <th scope="row">${esc(row.title)}</th><td><span class="wiki-home-origin ${row.origin}">${wikiHomeOrigins[row.origin]}</span></td>
+   <th scope="row">${esc(row.title)}${wikiHomeTwin(row, rows)}</th><td><span class="wiki-home-origin ${row.origin}">${wikiHomeOrigins[row.origin]}</span></td>
    <td>${wikiHomeProgress(row)}</td><td>${row.waiting ? '<span class="wiki-home-wait">等你</span> ' : ''}${row.status}</td>
    <td class="wiki-home-muted">${wikiHomeRecordCell(row)}</td>
-   <td><button type="button" class="wiki-home-button" data-wiki-home-open="${esc(row.ref)}" aria-label="打开 ${esc(row.title)}" ${locked?'disabled':''}>打开</button></td>
+   <td><button type="button" class="wiki-home-button" data-wiki-home-open="${esc(row.ref)}" aria-label="打开 ${esc(row.title)}${wikiHomeTwinText(row, rows)}" ${locked?'disabled':''}>打开</button></td>
   </tr>`).join('');
  return `<section aria-labelledby="wiki-home-projects"><div class="wiki-home-table-head">
   <h2 id="wiki-home-projects">全部项目</h2>
@@ -136,7 +146,7 @@ function wikiHomeMarkup() {
    </section>
    <section class="wiki-home-card wiki-home-resume">
     <h2>继续上次</h2>
-    ${recent ? `<h3>${esc(recent.title)}</h3><p class="wiki-home-resume-meta"><span class="wiki-home-origin ${recent.origin}">${wikiHomeOrigins[recent.origin]}</span>${wikiHomeProgress(recent)} ${recent.stage ? '<span>'+wikiHomeStageNames[recent.stage - 1]+'</span>' : ''}</p>
+    ${recent ? `<h3>${esc(recent.title)}${wikiHomeTwin(recent, rows)}</h3><p class="wiki-home-resume-meta"><span class="wiki-home-origin ${recent.origin}">${wikiHomeOrigins[recent.origin]}</span>${wikiHomeProgress(recent)} ${recent.stage ? '<span>'+wikiHomeStageNames[recent.stage - 1]+'</span>' : ''}</p>
     <p>${recent.waiting ? '<span class="wiki-home-wait">等你</span> ' : ''}${recent.status}</p><button type="button" class="wiki-home-button" data-wiki-home-open="${esc(recent.ref)}" ${locked?'disabled':''}>继续</button>`
     : `<p role="status">${ready ? '新建课题后，可以从这里继续。' : rt.error ? '刷新项目列表后可以继续。' : '正在读取上次的项目…'}</p>`}
    </section>

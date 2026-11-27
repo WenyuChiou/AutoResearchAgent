@@ -100,3 +100,4 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-wiki-home-shell="true"]) {
 .wiki-home-case b { margin-right:6px; }
 .wiki-home-record { display:block; color:#203342; font-weight:600; }
 .wiki-home-record + small { display:block; color:#566772; font-size:13px; }
+.wiki-home-twin { display:block; font-weight:400; color:#566772; font-size:13px; }
