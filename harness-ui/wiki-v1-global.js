@@ -332,3 +332,7 @@ v7AfterRender = function (app) {
  if (env && content.firstElementChild !== env) content.prepend(env);
 };
 
+// The runtime paints once when it loads, before the Wiki modules are installed. With a slow Host the first read
+// can take many seconds, and until it returns that first paint (the previous page layout) stayed on screen.
+// Paint again now that every module is in place, so the V1 shell shows its "正在读取" state from the start.
+if (typeof v1On === 'function' && v1On(apps[0])) livePaint();
