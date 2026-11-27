@@ -23,7 +23,7 @@ The last line downloads the frontend dependency `three.core.js` and checks its p
 powershell -NoProfile -ExecutionPolicy Bypass -File harness-ui\doctor.ps1
 ```
 
-Each line says "passed", or "not passed: reason; how to fix". While any required check fails, follow its fix and run the check again until the last line says all required checks passed. The check installs nothing and changes no system setting. Items marked frontend-test-only, real-run-only or advisory do not stop the Wiki from starting.
+Each line says "passed", or "not passed: reason; how to fix". While any required check fails, follow its fix and run the check again until the last line says all required checks passed. The check installs nothing and changes no system setting. Items marked frontend-test-only, real-run-only or advisory do not stop the Wiki from starting. The Codex item runs `codex --version` and `codex login status` (local state only: no model call, no search); add `-SkipCodex` to doctor to skip it. `Start-Wiki.ps1` already passes that switch when it calls doctor.
 
 ## 3. Start
 

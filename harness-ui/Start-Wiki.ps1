@@ -217,8 +217,18 @@ function Write-State {
 # Returns an object: Ok, Code, Message.
 function Stop-Tree {
     param([int]$RootPid, [int]$Port)
-    $out = & taskkill.exe /PID $RootPid /T /F 2>&1
-    $code = $LASTEXITCODE
+    # No `2>&1` on a native command: under $ErrorActionPreference='Stop' Windows PowerShell 5.1
+    # turns any stderr line into a terminating error. Read exit code and output from a
+    # System.Diagnostics.Process instead.
+    $code = -1
+    $msg = ''
+    try {
+        $kill = Invoke-Sync (Join-Path $env:SystemRoot 'System32\taskkill.exe') ('/PID ' + $RootPid + ' /T /F') $env:SystemRoot 30000
+        $code = $kill.Code
+        $msg = (($kill.Out + ' ' + $kill.Err).Trim())
+    } catch {
+        $msg = '无法运行 taskkill：' + $_.Exception.Message
+    }
     $deadline = (Get-Date).AddSeconds(15)
     $gone = $false
     while ((Get-Date) -lt $deadline) {
@@ -228,7 +238,7 @@ function Stop-Tree {
         if (-not $alive -and -not $listening) { $gone = $true; break }
         Start-Sleep -Milliseconds 300
     }
-    return [pscustomobject]@{ Ok = $gone; Code = $code; Message = (($out | ForEach-Object { [string]$_ }) -join ' ').Trim() }
+    return [pscustomobject]@{ Ok = $gone; Code = $code; Message = $msg }
 }
 
 function Report-StopFailure {
@@ -256,7 +266,18 @@ function Enter-Lock {
     $told = $false
     while ($true) {
         $h = $null
-        try { $h = [System.IO.File]::Open($LockFile, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None) } catch { $h = $null }
+        try {
+            $h = [System.IO.File]::Open($LockFile, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+        } catch [System.UnauthorizedAccessException] {
+            Write-Host ('没有权限打开锁文件 ' + $LockFile + '：' + $_.Exception.Message) -ForegroundColor Red
+            Write-Host '这是权限问题，不是别的窗口在占用。检查数据目录的写权限，或用 -DataDir 换一个自己能写的短路径。'
+            return $false
+        } catch [System.IO.IOException] {
+            $h = $null   # sharing violation: another window holds the lock, wait and retry
+        } catch {
+            Write-Host ('无法打开锁文件 ' + $LockFile + '：' + $_.Exception.Message) -ForegroundColor Red
+            return $false
+        }
         if ($h) { return $h }
         if (-not $told) { Write-Host '另一个窗口正在启动或停止这个数据目录的 Wiki，等它做完……' -ForegroundColor Yellow; $told = $true }
         if ((Get-Date) -gt $deadline) { return $null }
@@ -291,7 +312,7 @@ function Start-WikiMain {
     }
 
     # ---- Required checks (also for -CheckOnly) -------------------------------------------
-    $results = @(& $Doctor -DataDir $DataDir -Port $Port -Python $Python -PassThru -Quiet)
+    $results = @(& $Doctor -DataDir $DataDir -Port $Port -Python $Python -PassThru -Quiet -SkipCodex)
     $failed = @($results | Where-Object { $_.Level -eq '必需' -and -not $_.Ok })
     if ($failed.Count -gt 0) {
         Write-Host '启动前检查没通过，先处理下面这些：' -ForegroundColor Red
@@ -339,6 +360,7 @@ function Start-WikiMain {
 
     # ---- Start under the data-directory lock -------------------------------------------------
     $lock = Enter-Lock
+    if ($lock -is [bool]) { return 1 }
     if (-not $lock) {
         Write-Host '等了 150 秒，另一个窗口还没做完启动或停止。先看看它，不要重复运行。' -ForegroundColor Red
         return 1
@@ -390,6 +412,17 @@ function Start-WikiMain {
         $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
         $proc = [System.Diagnostics.Process]::Start($psi)
         $procInfo = Get-ProcInfo $proc.Id
+        if (-not $procInfo -or -not $procInfo.Created) {
+            # Cannot prove who this process is, so it cannot be recorded or safely stopped by id.
+            Write-Host '启动后读不到新进程的信息，无法登记它，按失败处理。' -ForegroundColor Red
+            Write-Host ('若任务管理器里有刚启动的 Wiki 进程（进程号 ' + $proc.Id + '），请手工结束它和它的子进程；日志：' + $StateDir)
+            return 1
+        }
+        # Record the instance right away (before readiness), so an interrupted start leaves
+        # a record that a later run recognises instead of an unrecorded orphan.
+        $url = 'http://127.0.0.1:' + $chosen + '/'
+        $state = [ordered]@{ pid = $proc.Id; process_started_filetime = $procInfo.Created.ToFileTimeUtc(); port = $chosen; url = $url; started = (Get-Date).ToString('s'); data_dir = $DataFull; python = $py; mode = 'zero-quota'; phase = 'starting' }
+        Write-State $state
 
         $ready = $false
         $deadline = (Get-Date).AddSeconds(90)
@@ -411,18 +444,19 @@ function Start-WikiMain {
             if (Test-Path -LiteralPath $errLog) { Get-Content -LiteralPath $errLog -Encoding UTF8 -Tail 15 }
             if (Test-Path -LiteralPath $outLog) { Get-Content -LiteralPath $outLog -Encoding UTF8 -Tail 5 }
             Write-Host ('完整日志：' + $StateDir)
+            if (-not $res -or $res.Ok) {
+                Remove-Item -LiteralPath $StateFile -Force -ErrorAction SilentlyContinue
+            }
             if ($res -and -not $res.Ok) {
                 Write-Host ('刚启动的进程（进程号 ' + $proc.Id + '）没能结束，请在任务管理器里手工结束它和它的子进程。') -ForegroundColor Red
             }
             return 1
         }
 
-        $startedAt = $procInfo.Created.ToFileTimeUtc()
-        $state = [ordered]@{ pid = $proc.Id; process_started_filetime = $startedAt; port = $chosen; url = ('http://127.0.0.1:' + $chosen + '/'); started = (Get-Date).ToString('s'); data_dir = $DataFull; python = $py; mode = 'zero-quota' }
+        $state.Remove('phase')
         Write-State $state
         Remove-Item -LiteralPath $StopNote -Force -ErrorAction SilentlyContinue
 
-        $url = 'http://127.0.0.1:' + $chosen + '/'
         Write-Host ('Wiki 已启动：' + $url) -ForegroundColor Green
         Write-Host ('  进程号 ' + $proc.Id + '；数据目录 ' + $DataFull + '；日志 ' + $StateDir)
         Write-Host '  模式：零额度（不接模型、不接 Codex，也不做任何检索）。'
@@ -446,6 +480,7 @@ function Get-RunArgs {
 # Stop needs the lock too, so it cannot interleave with a start.
 if ($Stop -and (Test-Path -LiteralPath $StateDir)) {
     $lock = Enter-Lock
+    if ($lock -is [bool]) { exit 1 }
     if (-not $lock) { Write-Host '等了 150 秒，另一个窗口还没做完启动或停止。' -ForegroundColor Red; exit 1 }
     try { $code = @(Start-WikiMain)[-1] } finally { $lock.Dispose() }
     exit $code

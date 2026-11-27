@@ -23,7 +23,7 @@ python -m venv .venv
 powershell -NoProfile -ExecutionPolicy Bypass -File harness-ui\doctor.ps1
 ```
 
-每一项显示“通过”，或“没通过：原因；怎么修”。只要“必需项”没通过，就照“怎么修”处理，再运行一次，直到最后写着“必需项全部通过”。自检不会替你安装或修改系统设置；标着“仅前端测试”“仅真实运行”“建议”的项不影响启动。
+每一项显示“通过”，或“没通过：原因；怎么修”。只要“必需项”没通过，就照“怎么修”处理，再运行一次，直到最后写着“必需项全部通过”。自检不会替你安装或修改系统设置；标着“仅前端测试”“仅真实运行”“建议”的项不影响启动。其中 Codex 项会运行 `codex --version` 和 `codex login status`（只读本机状态，不调用模型、不检索）；不想运行它就给 doctor 加 `-SkipCodex`，`Start-Wiki.ps1` 调用 doctor 时已自动加上。
 
 ## 3. 启动
 

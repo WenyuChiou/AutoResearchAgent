@@ -18,6 +18,12 @@
   Return the result objects instead of exiting (used by Start-Wiki.ps1).
 .PARAMETER Quiet
   Do not print the per-check lines (use with -PassThru).
+.PARAMETER SkipCodex
+  Do not run `codex` at all. Without this switch the Codex item runs
+  `codex --version` and `codex login status`; both only read local state
+  (this script does not check whether `login status` itself touches the network),
+  and neither calls a model or searches. Start-Wiki.ps1 always passes this switch
+  because the zero-quota Wiki does not need Codex.
 #>
 [CmdletBinding()]
 param(
@@ -25,7 +31,8 @@ param(
     [int]$Port = 8765,
     [string]$Python = '',
     [switch]$PassThru,
-    [switch]$Quiet
+    [switch]$Quiet,
+    [switch]$SkipCodex
 )
 
 $ErrorActionPreference = 'Stop'
@@ -288,10 +295,14 @@ if ($env:GIT_EDITOR) {
 }
 
 # ---- 9. Codex (real runs only) ------------------------------------------------------------
-$codex = Get-Command codex -ErrorAction SilentlyContinue
-if (-not $codex) {
+$codex = $null
+if (-not $SkipCodex) { $codex = Get-Command codex -ErrorAction SilentlyContinue }
+if ($SkipCodex) {
+    Add-Result 'codex' 'Codex 安装与登录' '仅真实运行' $true '已按 -SkipCodex 跳过（没有运行 codex）'
+} elseif (-not $codex) {
     Add-Result 'codex' 'Codex 安装与登录' '仅真实运行' $false '找不到 codex（只有以后接真实模型时才需要，零额度启动不需要）' '需要时按 Codex 官方说明安装，并自己在终端运行 codex login'
 } else {
+    # Only local reads: codex --version and codex login status (no model call, no search).
     $cv = Invoke-Native $codex.Source @('--version')
     $cs = Invoke-Native $codex.Source @('login', 'status')
     $text = ($cs.Out + ' ' + $cs.Err).Trim()
