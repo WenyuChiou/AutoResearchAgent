@@ -1,11 +1,14 @@
 """Bounded lock/database waits and read-only guard results; no dispatch."""
 
 from contextlib import contextmanager
+import contextvars
 import math
 import queue
 import sqlite3
 import threading
 import time
+
+from stage1_retrieval import verification_clock
 
 _GUARDS = threading.BoundedSemaphore(4)
 
@@ -24,10 +27,21 @@ class Deadline:
             raise ValueError("bounded I/O timeout required")
         if time.monotonic() >= lease:
             raise TimeoutError("owned process lifetime expired")
-        self.until = min(time.monotonic() + timeout, lease)
+        # The I/O timeout is a business bound (metered local verification is
+        # excluded); the owned process lease stays a hard raw-clock bound.
+        self.until, self.lease = (
+            (time.monotonic() - verification_clock.excluded()) + timeout,
+            lease,
+        )
 
     def left(self):
-        return max(0, self.until - time.monotonic())
+        return max(
+            0,
+            min(
+                self.until - (time.monotonic() - verification_clock.excluded()),
+                self.lease - time.monotonic(),
+            ),
+        )
 
     def check(self):
         if not self.left():
@@ -85,11 +99,17 @@ class Deadline:
             finally:
                 _GUARDS.release()
 
-        threading.Thread(target=run, daemon=True).start()
-        try:
-            result, error = done.get(timeout=self.left())
-        except queue.Empty as error:
-            raise TimeoutError("source guard deadline expired") from error
+        # The guard thread shares this context's verification meter, so its
+        # local passes extend left(); recheck it after each wait.
+        context = contextvars.copy_context()
+        threading.Thread(target=context.run, args=(run,), daemon=True).start()
+        while True:
+            try:
+                result, error = done.get(timeout=self.left())
+                break
+            except queue.Empty as empty:
+                if not self.left():
+                    raise TimeoutError("source guard deadline expired") from empty
         self.check()
         if error is not None:
             raise error

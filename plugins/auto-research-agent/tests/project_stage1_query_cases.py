@@ -563,6 +563,142 @@ class ProjectQueryCases(QueryCase):
             self.queries.services[self.ref].view("alice-token", self.ref)["history"], []
         )
 
+    # Saved probe deadline counts external actions only; local verification
+    # has its own file-count budget (stage1_retrieval.verification_clock).
+    def _timed_bootstrap(
+        self, key, *, verify_seconds=0, admit_seconds=0, limits=None, on_verify=None
+    ):
+        from contextlib import ExitStack
+        from time import time as wall_time
+
+        from stage1_retrieval import runtime_identity
+        from stage1_retrieval import verification_clock
+
+        self.authorize()
+        body = self.body("bootstrap_offer", key)
+        clock = SimpleNamespace(now=wall_time(), phases=[], body=body)
+        fake = SimpleNamespace(time=lambda: clock.now, monotonic=lambda: clock.now)
+        # The fixture runtime has 2 files, the real one about 13,696; scale the
+        # per-file allowance so a 4 s fake pass matches a real pass's ratio.
+        limits = dict(dict(PER_FILE_SECONDS=2.0), **(limits or {}))
+        original_tree = runtime_identity.tree_files
+
+        def slow_tree(*args, **kwargs):
+            clock.now += verify_seconds  # inside a metered verification pass
+            if on_verify is not None:
+                on_verify(clock)
+            return original_tree(*args, **kwargs)
+
+        def admit(event):
+            clock.phases.append(event["phase"])
+            if event["phase"] == "after-bootstrap-probe":
+                clock.now += admit_seconds  # an external, unmetered action
+            return True
+
+        self.queries.admit = admit
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch("research_workspace_native.project_stage1_queries.time", fake)
+            )
+            stack.enter_context(patch.object(verification_clock, "time", fake))
+            for name, value in limits.items():
+                stack.enter_context(patch.object(verification_clock, name, value))
+            stack.enter_context(patch.object(runtime_identity, "tree_files", slow_tree))
+            stack.enter_context(
+                patch(
+                    "stage1_retrieval.runtime_identity.verify_identity",
+                    side_effect=lambda pin, **kw: verify_identity(pin),
+                )
+            )
+            start = clock.now
+            self.queries.bootstrap("alice-token", self.ref, body)
+            self.queries.workers[self.ref].join(30)
+            self.assertFalse(self.queries.workers[self.ref].is_alive())
+            elapsed = clock.now - start
+        state = self.intake._load("alice", self.ref)
+        job = next(iter(state["stage1_query_jobs"].values()))
+        return job, state, elapsed, clock
+
+    def assert_not_activated(self, state):
+        self.assertIsNone(state.get("stage1_active"))
+        self.assertEqual(state.get("stage1_runs", {}), {})
+        self.assertNotIn(self.ref, self.queries.services)
+
+    def test_bootstrap_long_local_verification_does_not_spend_probe_deadline(self):
+        job, state, elapsed, clock = self._timed_bootstrap(
+            "slow-verification", verify_seconds=4
+        )
+        self.assertEqual(job["status"], "completed", job)
+        self.assertGreater(elapsed, 40)  # > the 30 s saved probe deadline
+        self.assertEqual(
+            clock.phases,
+            [
+                "before-bootstrap-probe",
+                "after-bootstrap-probe",
+                "before-bootstrap-commit",
+            ],
+        )
+        self.assertEqual(
+            state["stage1_active"], "stage1-live-" + job["request_sha256"][:24]
+        )
+
+    def test_bootstrap_slow_external_action_still_expires(self):
+        job, state, _, _ = self._timed_bootstrap("slow-action", admit_seconds=31)
+        self.assertEqual(job["status"], "execution-unknown")
+        self.assertEqual(
+            job["error"]["code"], "project-query-bootstrap-replay-or-deadline"
+        )
+        self.assert_not_activated(state)
+
+    def test_bootstrap_verification_over_its_own_budget_fails_distinctly(self):
+        job, state, _, clock = self._timed_bootstrap(
+            "verification-budget",
+            verify_seconds=1,
+            limits=dict(BASE_SECONDS=0, PASS_SECONDS=0, PER_FILE_SECONDS=0),
+        )
+        self.assertEqual(job["status"], "refused-known-unsent")
+        self.assertEqual(job["error"]["code"], "local-verification-budget-exceeded")
+        self.assert_not_activated(state)
+        self.assertTrue(
+            self.queries.bootstrap("alice-token", self.ref, clock.body)["replayed"]
+        )
+
+    def test_bootstrap_runtime_change_during_callback_is_refused_by_next_pass(self):
+        entry = Path(self.pin["code_identity"]["entry"])
+
+        def change_runtime(clock):
+            if clock.phases == ["before-bootstrap-probe", "after-bootstrap-probe"]:
+                entry.write_bytes(b"raise RuntimeError('changed after admission')\n")
+
+        job, state, _, _ = self._timed_bootstrap(
+            "runtime-change", verify_seconds=4, on_verify=change_runtime
+        )
+        self.assertEqual(job["status"], "execution-unknown")
+        self.assertEqual(job["error"]["type"], "LedgerError")
+        self.assert_not_activated(state)
+
+    def test_bootstrap_permit_expiry_stays_hard_during_verification(self):
+        def jump_past_expiry(clock):
+            if clock.phases == ["before-bootstrap-probe", "after-bootstrap-probe"]:
+                saved = self.intake._load("alice", self.ref)
+                permit = saved["stage1_query_authorization"]["permit"]
+                clock.now = max(clock.now, permit["expires_at_unix"] + 1)
+
+        job, state, _, _ = self._timed_bootstrap(
+            "hard-expiry",
+            limits=dict(PER_FILE_SECONDS=10.0),  # allowance far above the jump
+            on_verify=jump_past_expiry,
+        )
+        self.assertEqual(job["status"], "execution-unknown")
+        self.assertIn(
+            job["error"]["code"],
+            {
+                "project-query-bootstrap-replay-or-deadline",
+                "project-query-bootstrap-expired",
+            },
+        )
+        self.assert_not_activated(state)
+
     def test_bootstrap_last_callback_deadline_is_unknown_and_does_not_activate(self):
         self._late_bootstrap("callback")
 
@@ -600,6 +736,12 @@ class ProjectQueryCases(QueryCase):
             patch(
                 "research_workspace_native.project_stage1_queries.time",
                 SimpleNamespace(time=lambda: clock.now),
+            ),
+            # One controlled clock: real verification time must not offset the
+            # 1 s overrun this test injects through a callback or a write.
+            patch(
+                "stage1_retrieval.verification_clock.time",
+                SimpleNamespace(time=lambda: clock.now, monotonic=lambda: clock.now),
             ),
             patch(
                 "stage1_retrieval.runtime_identity.verify_identity",
