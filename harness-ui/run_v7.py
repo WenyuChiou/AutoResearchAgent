@@ -168,7 +168,10 @@ def main(argv=None):
         parser.add_argument('--' + stem + '-config', type=Path)
         parser.add_argument('--' + stem + '-sha256')
     args = parser.parse_args(argv)
-    if args.stage1_run_request is not None or args.stage1_run_request_sha256 is not None:
+    if (
+        getattr(args, 'stage1_run_request', None) is not None
+        or getattr(args, 'stage1_run_request_sha256', None) is not None
+    ):
         # The Wiki host never runs a command-line request: dropping it silently would
         # let an operator believe a whole-run grant had started.
         raise ValueError(RUN_REQUEST_REFUSAL)
