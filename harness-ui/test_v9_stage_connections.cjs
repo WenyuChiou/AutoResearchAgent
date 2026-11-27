@@ -435,10 +435,15 @@ function launchBrowser() {
       await new Promise(resolve=>setTimeout(resolve,50));
     }
     let lines;
-    for (;;) {  // the file may be seen before both lines are written
-      lines=readFileSync(portFile,'utf8').split('\n');
-      if (lines.length>=2&&lines[1]) break;
-      if (Date.now()-started>STARTUP_LIMIT_MS) throw Error('DevToolsActivePort stayed incomplete');
+    for (;;) {  // Chrome may still hold the file (EBUSY on Windows) or have written only one line
+      try {
+        lines=readFileSync(portFile,'utf8').split('\n');
+        if (lines.length>=2&&lines[1]) break;
+      } catch (error) {
+        if (!['EBUSY','EPERM','EACCES','ENOENT'].includes(error.code)) throw error;
+      }
+      if (state.exited) throw Error('Chrome exited before it was ready: '+stderr);
+      if (Date.now()-started>STARTUP_LIMIT_MS) throw Error('DevToolsActivePort stayed unreadable or incomplete: '+stderr);
       await new Promise(resolve=>setTimeout(resolve,50));
     }
     const ws=new WebSocket('ws://127.0.0.1:'+lines[0].trim()+lines[1].trim());
@@ -453,17 +458,26 @@ function launchBrowser() {
       state.pending.delete(message.id);
       if (message.error) waiting.reject(Error(message.error.message)); else waiting.resolve(message.result);
     });
+    const failPending=reason=>{
+      for (const waiting of state.pending.values()) waiting.reject(Error(reason));
+      state.pending.clear();
+    };
+    ws.addEventListener('close',()=>failPending('DevTools connection closed: '+stderr));
+    ws.addEventListener('error',()=>failPending('DevTools connection failed: '+stderr));
     state.ws=ws;
     state.startupMs=Date.now()-started;
     return state;
-  })();
+  })().catch(error=>{killTree(child);throw error;});
 }
 
-function cdp(state,method,params={},sessionId) {
+// Every DevTools call has an upper bound, so a lost reply can never hang the test file.
+function cdp(state,method,params={},sessionId,limitMs=PAGE_LIMIT_MS*3) {
   const id=state.nextId++;
   return new Promise((resolve,reject)=>{
-    state.pending.set(id,{resolve,reject});
-    state.ws.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));
+    const timer=setTimeout(()=>{state.pending.delete(id);reject(Error('DevTools call '+method+' got no reply within '+limitMs+' ms'));},limitMs);
+    state.pending.set(id,{resolve:value=>{clearTimeout(timer);resolve(value);},reject:error=>{clearTimeout(timer);reject(error);}});
+    try { state.ws.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})})); }
+    catch (error) { clearTimeout(timer);state.pending.delete(id);reject(error); }
   });
 }
 
