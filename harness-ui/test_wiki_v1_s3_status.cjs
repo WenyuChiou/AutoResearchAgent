@@ -39,3 +39,25 @@ test('a saved plan asks for the decision', () => {
  const basis = {project_ref:'p'};
  assert.equal(load(ready({connected:true}), {basis, view:{project_ref:'p', plan:{}}}).you.text, '对计划做决定');
 });
+
+test('the topic menu closes on a click outside it or Escape, and stays open for clicks inside (review P2-d)', () => {
+ const from = source.indexOf('// The toggle event comes a moment later');
+ const part = source.slice(from, source.indexOf('// ---------- Stage 1 status', from));
+ const menu = {open:true}, listeners = {doc:[], win:{}};
+ const app = {v1SwitchOpen:true, el:{querySelector:() => menu}};
+ const ctx = vm.createContext({apps:[app], rt:{ref:'p'},
+  document:{addEventListener:(type, fn) => listeners.doc.push(fn)},
+  window:{addEventListener:(type, fn) => { listeners.win[type] = fn; }}});
+ vm.runInContext(part, ctx);
+ const inside = {closest:sel => sel.includes('data-v1-switch') ? {} : null};
+ const outside = {closest:() => null};
+ listeners.win.click({target:inside});
+ assert.equal(app.v1SwitchOpen, true, 'a click inside the menu keeps it');
+ listeners.win.click({target:outside});
+ assert.equal(app.v1SwitchOpen, false);
+ assert.equal(menu.open, false);
+ app.v1SwitchOpen = true; menu.open = true;
+ listeners.win.keydown({key:'Escape'});
+ assert.equal(app.v1SwitchOpen, false);
+ assert.equal(menu.open, false);
+});

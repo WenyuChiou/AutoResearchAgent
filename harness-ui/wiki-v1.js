@@ -304,6 +304,20 @@ document.addEventListener('click', event => {
  apps[0].v1SwitchOpen = !summary.parentElement.open;
  apps[0].v1SwitchRef = rt.ref;
 }, true);
+// Keeping the menu open across repaints must not keep it open forever (review P2-d): a click anywhere outside the
+// menu, or Escape, closes it. Listened on window so a page handler that stops the event cannot skip this.
+function v1SwitchClose(app) {
+ if (!app?.v1SwitchOpen) return;
+ app.v1SwitchOpen = false;
+ const menu = app.el.querySelector?.('[data-v1-switch]');
+ if (menu) menu.open = false;
+}
+window.addEventListener('click', event => {
+ if (!event.target.closest?.('[data-v1-switch]')) v1SwitchClose(apps[0]);
+}, true);
+window.addEventListener('keydown', event => {
+ if (event.key === 'Escape') v1SwitchClose(apps[0]);
+}, true);
 
 // ---------- Stage 1 status (DESIGN 3.2, 8.6) ----------
 function v1S1Counts() {
