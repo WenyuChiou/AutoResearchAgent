@@ -97,6 +97,16 @@ function wikiHomeCases() {
   <p class="wiki-home-note">这是独立的只读归档，不在这个 Wiki 里。</p></section>`;
 }
 
+// DESIGN 8.5 / 8.3: a create whose result is unknown, or another topic's unconfirmed submit. Never resends.
+function wikiHomePendingBar() {
+ const p = rt.pending;
+ if (!p) return '';
+ if (rt.busy) return `<div class="wiki-home-message" role="status">${p.ref ? '正在等候上次提交的保存结果。' : '正在保存新课题…'}</div>`;
+ if (!p.ref) return '<div class="wiki-home-message" role="status">新课题的创建结果还待核对，不会自动重建。 <button type="button" class="wiki-home-button" data-wiki-home-recover>回到原提交处核对</button></div>';
+ const title = rt.list.find(item => item.project_ref === p.ref)?.topic;
+ return `<div class="wiki-home-message" role="status">另一个课题有未确认的提交${title ? '（' + esc(title) + '）' : ''}，不会自动重发。 <button type="button" class="wiki-home-button" data-wiki-home-pending-open="${esc(p.ref)}">切回那个课题核对</button></div>`;
+}
+
 function wikiHomeMarkup() {
  const rows = rt.list.map(wikiHomeRow);
  const ready = !!rt.meta && !rt.loading && !rt.error;
@@ -105,7 +115,7 @@ function wikiHomeMarkup() {
  const disabled = ready ? liveDisabled() : 'disabled';
  return `<div class="wiki-home" data-wiki-home>
   ${rt.error ? `<div class="wiki-home-message" role="alert">这次读取或保存没有完成。 <button type="button" class="wiki-home-button" data-wiki-home-retry ${locked?'disabled':''}>刷新检查</button><details><summary>技术细节</summary><p>${esc(rt.error)}</p></details></div>` : ''}
-  ${rt.pending ? `<div class="wiki-home-message" role="status">${rt.busy ? '正在等候上次提交的保存结果。' : '上次提交的结果还没确认。'} ${rt.busy ? '' : '<button type="button" class="wiki-home-button" data-wiki-home-recover>查询上次结果</button>'}</div>` : ''}
+  ${wikiHomePendingBar()}
   <div class="wiki-home-top">
    <section class="wiki-home-card">
     <h1>开始一个新研究</h1>
@@ -115,7 +125,7 @@ function wikiHomeMarkup() {
      <label for="wiki-home-topic">研究标题</label>
      <div class="wiki-home-entry">
       <input id="wiki-home-topic" data-live-topic required maxlength="240" placeholder="例如：人口老龄化如何影响家庭消费" value="${esc(rt.topicDraft)}" ${disabled}>
-      <button type="submit" class="wiki-home-button primary" ${disabled}>开始</button>
+      <button type="submit" class="wiki-home-button primary" ${disabled}>${rt.busy && rt.pending && !rt.pending.ref ? '正在保存…' : '开始'}</button>
      </div>
      <details ${rt.homeMore?'open':''} data-wiki-home-more><summary>更多（可以不填）</summary>
       <label for="wiki-home-question">想回答的问题</label>
@@ -176,6 +186,14 @@ async function wikiHomeOpen(ref, stage) {
  wikiHomeProjectOpened(ref, stage || wikiHomeRow(project).stage || 1);
 }
 
+// Opens the topic that owns the unconfirmed submit (reads only); the check itself stays on that topic's page.
+async function wikiHomePendingOpen(ref) {
+ const project = rt.list.find(item => item.project_ref === ref);
+ if (!project || rt.busy || rt.loading || rt.pending?.ref !== ref) return;
+ await liveRefresh(ref);
+ wikiHomeProjectOpened(ref, wikiHomeRow(project).stage || 1);
+}
+
 const wikiHomePreviousPage = otherPage;
 otherPage = app => app.lang === 'zh' && app.page === 'home' ? wikiHomeMarkup() : wikiHomePreviousPage(app);
 
@@ -213,7 +231,7 @@ v7AfterRender = function(app) {
 document.addEventListener('click', event => {
  const app = apps[0];
  if (app.lang !== 'zh' || !app.el.contains(event.target)) return;
- const button = event.target.closest('[data-page="workspace"],[data-wiki-home-open],[data-wiki-home-filter],[data-wiki-home-retry],[data-wiki-home-recover],[data-stage]');
+ const button = event.target.closest('[data-page="workspace"],[data-wiki-home-open],[data-wiki-home-pending-open],[data-wiki-home-filter],[data-wiki-home-retry],[data-wiki-home-recover],[data-stage]');
  if (!button || button.disabled || (button.dataset.stage && app.page !== 'home')) return;
  event.preventDefault();
  event.stopImmediatePropagation();
@@ -231,6 +249,7 @@ document.addEventListener('click', event => {
   const recent = wikiHomeResume(rt.list.map(wikiHomeRow));
   if (recent) wikiHomeOpen(recent.ref, Number(button.dataset.stage));
  } else if (button.hasAttribute('data-wiki-home-open')) wikiHomeOpen(button.dataset.wikiHomeOpen);
+ else if (button.hasAttribute('data-wiki-home-pending-open')) wikiHomePendingOpen(button.dataset.wikiHomePendingOpen);
  else if (button.hasAttribute('data-wiki-home-filter')) wikiHomeFilter(app, button.dataset.wikiHomeFilter);
  else if (button.hasAttribute('data-wiki-home-retry')) liveRefresh(null, {list:true});
  else liveRecover();
