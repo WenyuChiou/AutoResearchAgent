@@ -33,7 +33,7 @@ from research_workspace_native.source_worker_process import WindowsJobProcess
 
 
 # The pinned launcher must still run in a fresh interpreter. This observer adds
-# only a private fixture shutdown pipe; it delegates the original server loop.
+# only private fixture shutdown coordination; it delegates the original loop.
 WIKI_CHILD_OBSERVER = r"""
 import json
 import os
@@ -64,9 +64,14 @@ def serve(host, *args, **kwargs):
 
     def stop_owned_server():
         try:
-            command = sys.stdin.readline()
-            if command not in ("wiki-test-shutdown\n", ""):
-                raise RuntimeError("unexpected fixture shutdown command")
+            if sys.platform == "win32":
+                from test_v9_stage23_http import WindowsFixtureStop
+
+                WindowsFixtureStop.wait(os.environ["WIKI_TEST_STOP_EVENT"])
+            else:
+                command = sys.stdin.readline()
+                if command not in ("wiki-test-shutdown\n", ""):
+                    raise RuntimeError("unexpected fixture shutdown command")
             host.shutdown()
         except BaseException as error:
             observed["shutdown_error"] = repr(error)
@@ -109,6 +114,57 @@ finally:
     )
     receipt.write_text(json.dumps(value), encoding="utf-8")
 """
+
+
+class WindowsFixtureStop:
+    """Keep the shutdown waiter off stdin inherited by Git on Windows."""
+
+    def __init__(self):
+        from ctypes import wintypes
+
+        self.name = "Local\\ARA-Wiki-Test-" + os.urandom(16).hex()
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        create = kernel.CreateEventW
+        create.argtypes = [
+            ctypes.c_void_p, wintypes.BOOL, wintypes.BOOL, wintypes.LPCWSTR
+        ]
+        create.restype = wintypes.HANDLE
+        self.handle = create(None, True, False, self.name)
+        if not self.handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        self.set_event = kernel.SetEvent
+        self.set_event.argtypes = [wintypes.HANDLE]
+        self.set_event.restype = wintypes.BOOL
+
+    def signal(self):
+        if not self.set_event(self.handle):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def close(self):
+        import _winapi
+
+        _winapi.CloseHandle(self.handle)
+
+    @staticmethod
+    def wait(name):
+        import _winapi
+        from ctypes import wintypes
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        open_event = kernel.OpenEventW
+        open_event.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR]
+        open_event.restype = wintypes.HANDLE
+        handle = open_event(0x00100000, False, name)  # SYNCHRONIZE
+        if not handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            if (
+                _winapi.WaitForSingleObject(handle, _winapi.INFINITE)
+                != _winapi.WAIT_OBJECT_0
+            ):
+                raise ctypes.WinError()
+        finally:
+            _winapi.CloseHandle(handle)
 
 
 class ContainedWikiChild:
@@ -223,12 +279,15 @@ def launch_fixture_child(command, *, errors, env):
     )
 
 
-def close_owned_fixture(proc, reader, *, wait_seconds=20):
+def close_owned_fixture(proc, reader, *, wait_seconds=20, stop_event=None):
     """Graceful success is required; a bounded reap never turns failure into pass."""
     try:
         if proc.poll() is None:
-            proc.stdin.write("wiki-test-shutdown\n")
-            proc.stdin.flush()
+            if stop_event is None:
+                proc.stdin.write("wiki-test-shutdown\n")
+                proc.stdin.flush()
+            else:
+                stop_event.signal()
         proc.stdin.close()
         if proc.wait(timeout=wait_seconds) != 0:
             raise AssertionError("Wiki fixture child did not exit successfully")
@@ -400,14 +459,20 @@ class ConfiguredWikiHttpTests(unittest.TestCase):
             ]
             errors = (root / "child-stderr.log").open("w+", encoding="utf-8")
             lifecycle = root / "child-lifecycle.json"
+            child_env = {
+                **os.environ,
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "WIKI_TEST_LIFECYCLE_RECEIPT": str(lifecycle),
+            }
+            stop_event = None
+            if sys.platform == "win32":
+                stop_event = WindowsFixtureStop()
+                self.addCleanup(stop_event.close)
+                child_env["WIKI_TEST_STOP_EVENT"] = stop_event.name
             proc = launch_fixture_child(
                 [*cmd[:3], "-c", WIKI_CHILD_OBSERVER, *cmd[3:]],
                 errors=errors,
-                env={
-                    **os.environ,
-                    "PYTHONDONTWRITEBYTECODE": "1",
-                    "WIKI_TEST_LIFECYCLE_RECEIPT": str(lifecycle),
-                },
+                env=child_env,
             )
             out = queue.Queue()
             reader = threading.Thread(
@@ -415,6 +480,8 @@ class ConfiguredWikiHttpTests(unittest.TestCase):
             )
             reader.start()
             try:
+                if stop_event is not None:
+                    proc.stdin.close()
                 try:
                     line = out.get(timeout=90)
                 except queue.Empty:
@@ -519,7 +586,7 @@ class ConfiguredWikiHttpTests(unittest.TestCase):
             finally:
                 primary = sys.exc_info()[1]
                 try:
-                    close_owned_fixture(proc, reader)
+                    close_owned_fixture(proc, reader, stop_event=stop_event)
                     stopped = json.loads(lifecycle.read_text(encoding="utf-8"))
                     print(
                         json.dumps(
