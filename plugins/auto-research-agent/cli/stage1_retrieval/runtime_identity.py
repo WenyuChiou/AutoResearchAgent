@@ -204,6 +204,10 @@ def capture_identity(prefix, *, process_options=None):
 
 
 def verify_identity(pin, *, probe=False, process_options=None):
+    # probe=True belongs to the write path that precedes a launch; it must never
+    # run inside a read request's reuse scope.
+    if probe and getattr(_scope, "trees", None) is not None:
+        raise LedgerError("runtime-probe-inside-read-scope")
     identity = pin.get("code_identity")
     if not identity:
         raise LedgerError("runtime-code-identity-required")

@@ -95,8 +95,11 @@ def _json_native(value):
 
 
 def _value_key(value, name):
-    if not _json_native(value):
-        return None
+    try:
+        if not _json_native(value):
+            return None
+    except RecursionError:
+        return None  # absurdly deep value: validate it every time, never remember it
     try:
         raw = json.dumps(
             value,
