@@ -48,3 +48,13 @@ test('HTTP 200 unknown receipts remain unconfirmed on same-key replay',async()=>
  await f.fill();await f.click();assert.match(f.html(),/Registration unconfirmed/);assert.doesNotMatch(f.html(),/Registered; still/);
  await f.click();assert.deepEqual(f.calls[1],f.calls[0]);assert.match(f.html(),/Registration unconfirmed/);
 });
+
+test('without a Stage 1 ledger the form says what to do first and the button is disabled',()=>{
+ const f=fixture();
+ assert.doesNotMatch(f.html(),/no Stage 1 ledger yet/);
+ assert.doesNotMatch(f.html(),/data-provided-submit="file-a" disabled/);
+ f.rt.overview.stage1.ledger=null;
+ assert.match(f.html(),/no Stage 1 ledger yet/);
+ assert.match(f.html(),/data-provided-submit="file-a" disabled/);
+ assert.doesNotMatch(f.html(),/unreviewed/);
+});
