@@ -119,24 +119,30 @@ def _expected(handler, length):
     return body["input_version"], body["brief_sha256"]
 
 
-def install_project_progression(
-    host, *, read_consent, limits, runtime_sha256, dispatch=None
-):
+def run_grant_issuer(host, runtime_sha256):
+    """Return (issuer, trusted). Trusted means the Host's own run-capable issuer."""
     issuer = getattr(host.project_models, "run_grants", None)
     if issuer is None:
         # A local Host can observe existing grants while runtime lanes are offline.
-        issuer = ProjectStage1RunGrantService(
-            host.projects, runtime_sha256=runtime_sha256
+        return (
+            ProjectStage1RunGrantService(host.projects, runtime_sha256=runtime_sha256),
+            False,
         )
-    elif (
+    if (
         type(issuer) is ProjectStage1RunGrantService
         and issuer.intake is host.projects
         and issuer.runtime_sha256 == runtime_sha256
     ):
-        if dispatch is None:
-            dispatch = host.continue_stage1
-    else:
-        raise ValueError("trusted Stage 1 run issuer binding differs")
+        return issuer, True
+    raise ValueError("trusted Stage 1 run issuer binding differs")
+
+
+def install_project_progression(
+    host, *, read_consent, limits, runtime_sha256, dispatch=None
+):
+    issuer, trusted = run_grant_issuer(host, runtime_sha256)
+    if trusted and dispatch is None:
+        dispatch = host.continue_stage1
     step = _stage1_step(host, issuer, limits, dispatch)
     service = WikiProjectProgression(
         host, read_consent=read_consent, steps={"stage1": step}
