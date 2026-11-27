@@ -255,19 +255,23 @@ class WindowsWriterLockRecoveryTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(
-                result.returncode, 0,
+                result.returncode,
+                0,
                 (result.stdout + result.stderr).decode(errors="replace"),
             )
 
         self.assertEqual(
             writer_lock._effective_acl(writer_lock._acl_descriptor(self.root))[1],
-            writer_lock._effective_acl(writer_lock._acl_descriptor(self.root.parent))[1],
+            writer_lock._effective_acl(writer_lock._acl_descriptor(self.root.parent))[
+                1
+            ],
         )
         raw = self.interrupt_release()
         pin = digest(raw)
         change_fixture_acl("/deny", "*S-1-0-0:(OI)(CI)(R)")
         self.assertNotEqual(
-            writer_lock._acl_descriptor(self.root), writer_lock._acl_descriptor(self.root.parent)
+            writer_lock._acl_descriptor(self.root),
+            writer_lock._acl_descriptor(self.root.parent),
         )
         code, outcome = self.recover_cli(pin)
         self.assertEqual((code, outcome["error"]), (1, "writer-lock-audit-acl-differs"))

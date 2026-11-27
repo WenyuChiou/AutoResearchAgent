@@ -330,8 +330,13 @@ def _windows_security():
     api.GetSecurityInfo.argtypes = [wintypes.HANDLE, *common]
     api.GetNamedSecurityInfoW.restype = api.GetSecurityInfo.restype = wintypes.DWORD
     convert = api.ConvertSecurityDescriptorToStringSecurityDescriptorW
-    convert.argtypes = [pointer, wintypes.DWORD, wintypes.DWORD, out_pointer,
-                        ctypes.POINTER(wintypes.ULONG)]
+    convert.argtypes = [
+        pointer,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        out_pointer,
+        ctypes.POINTER(wintypes.ULONG),
+    ]
     convert.restype = wintypes.BOOL
     free = ctypes.WinDLL("kernel32").LocalFree
     free.argtypes = [pointer]
@@ -357,12 +362,23 @@ def _acl_descriptor(path=None, *, fd=None):
     dacl = ctypes.c_void_p()
     sddl = ctypes.c_void_p()
     try:
-        status = source(object_id, file_object, owner_group_dacl, None, None,
-                        ctypes.byref(dacl), None, ctypes.byref(descriptor))
-        _need(status == 0 and dacl.value is not None,
-              "writer-lock-audit-acl-unverifiable")
-        _need(convert(descriptor, 1, owner_group_dacl, ctypes.byref(sddl), None),
-              "writer-lock-audit-acl-unverifiable")
+        status = source(
+            object_id,
+            file_object,
+            owner_group_dacl,
+            None,
+            None,
+            ctypes.byref(dacl),
+            None,
+            ctypes.byref(descriptor),
+        )
+        _need(
+            status == 0 and dacl.value is not None, "writer-lock-audit-acl-unverifiable"
+        )
+        _need(
+            convert(descriptor, 1, owner_group_dacl, ctypes.byref(sddl), None),
+            "writer-lock-audit-acl-unverifiable",
+        )
         return ctypes.wstring_at(sddl)
     finally:
         if sddl:
@@ -373,23 +389,24 @@ def _acl_descriptor(path=None, *, fd=None):
 
 def _effective_acl(descriptor):
     """Compare ordered, ordinary access ACEs across directories and files."""
-    parts = re.fullmatch(r"(O:[^:]+G:[^:]+)D:(?:P|AR|AI)*((?:\([^()]*\))*)",
-                         descriptor)
+    parts = re.fullmatch(r"(O:[^:]+G:[^:]+)D:(?:P|AR|AI)*((?:\([^()]*\))*)", descriptor)
     _need(parts is not None, "writer-lock-audit-acl-unverifiable")
     owner_group, aces = parts.groups()
     effective = []
     for ace in re.findall(r"\(([^()]*)\)", aces):
         fields = re.fullmatch(
             r"(A|D);((?:OI|CI|NP|IO|ID)*);([A-Z0-9a-fx]+);;;([A-Z0-9-]+)",
-            ace, re.IGNORECASE,
+            ace,
+            re.IGNORECASE,
         )
         _need(fields is not None, "writer-lock-audit-acl-unverifiable")
         kind, flags, rights, sid = fields.groups()
         if "IO" not in re.findall(r"..", flags):
             # Windows expands generic rights for effective NTFS ACEs. Do not
             # assume equivalent access for a descriptor retaining generic bits.
-            _need(not re.search(r"G[ARWX]", rights),
-                  "writer-lock-audit-acl-unverifiable")
+            _need(
+                not re.search(r"G[ARWX]", rights), "writer-lock-audit-acl-unverifiable"
+            )
             effective.append((kind, rights, sid))
     return owner_group, tuple(effective)
 
@@ -400,8 +417,9 @@ def _verify_audit_file(access, *, fd):
 
 
 def _verify_audit_directory(audit, root):
-    _need(_acl_descriptor(audit) == _acl_descriptor(root),
-          "writer-lock-audit-acl-differs")
+    _need(
+        _acl_descriptor(audit) == _acl_descriptor(root), "writer-lock-audit-acl-differs"
+    )
 
 
 def _verify_audit_owner(audit, root, identity, access):
@@ -577,8 +595,10 @@ def recover_writer_lock(run, expected_sha256):
     # subsequent generation even if it inspected the old lock before a winner.
     try:
         _verify_audit_directory(audit, root)
-        _need(_effective_acl(_acl_descriptor(root)) == access,
-              "writer-lock-audit-acl-differs")
+        _need(
+            _effective_acl(_acl_descriptor(root)) == access,
+            "writer-lock-audit-acl-differs",
+        )
         _need(_read_lock(lock, access=access) == raw, "writer-lock-sha256-differs")
         os.rename(lock, retired)
     except (OSError, LedgerError):
