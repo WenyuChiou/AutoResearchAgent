@@ -1,0 +1,23 @@
+/* Wiki V1 Stage 1 run grant card and scope consent boxes. Colors follow wiki-stage1-ops.css. */
+.ws-rungrant { display:grid; gap:14px; }
+.ws-rungrant .ws-limits { width:100%; border-collapse:collapse; font-size:14px; }
+.ws-rungrant .ws-limits caption { text-align:left; font-weight:650; margin-bottom:4px; color:#203342; }
+.ws-rungrant .ws-limits th,.ws-rungrant .ws-limits td { border:1px solid #c4d1cd; padding:6px 10px; text-align:left; }
+.ws-rungrant .ws-limits th { background:#f3f5f3; font-weight:650; }
+.ws-grant-words { display:grid; gap:4px; font-weight:650; font-size:14px; }
+.ws-grant-words textarea { font:inherit; font-weight:400; min-height:72px; }
+.ws-grant-words small { color:#566772; font-weight:400; }
+.ws-grant-facts { display:grid; grid-template-columns:max-content 1fr; gap:4px 16px; margin:0; font-size:14px; }
+.ws-grant-facts dt { color:#566772; }
+.ws-grant-facts dd { margin:0; overflow-wrap:anywhere; }
+.ws-grant-form { display:grid; gap:14px; }
+.ws-grant-ops { border:1px solid #c4d1cd; border-radius:8px; padding:8px 14px 12px; }
+.ws-grant-ops legend { font-weight:650; padding:0 6px; font-size:14px; }
+.ws-grant-ops .ws-check { margin-top:8px; }
+.ws-grant-consent .ws-check small { display:block; }
+.ws-ok { background:#e4f0ed; color:#235d56; border-radius:8px; padding:10px 14px; font-size:14px; }
+.ws-reason { display:grid; gap:6px; border:1px solid #c4d1cd; border-radius:8px; background:#f8faf9; padding:10px 14px; margin:8px 0; max-width:640px; }
+.ws-reason label { display:grid; gap:4px; font-weight:650; font-size:14px; }
+.ws-reason textarea { font:inherit; font-weight:400; min-height:56px; }
+.ws-reason small { color:#566772; font-weight:400; }
+.ws-reason .ws-check { display:flex; font-weight:500; }

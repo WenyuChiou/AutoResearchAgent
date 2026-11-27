@@ -56,7 +56,7 @@ from stage1_deliverable.common import canonical, sha
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
-    r"(?:/(history|overview|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select|direction-intent)(?:/(answer|interrupt))?)?)?)?"
+    r"(?:/(history|overview|harness-record|contract|confirm|configure|revise|compile|models|stage1|stage2)(?:/(offers|actions|authorize|retire|native|initialize|plan-query|execute-query|screen|coverage|claim|source-claim|reading-review|review-stage2-input|prepare-delivery|recover-delivery|checkpoint|export|deliver|query-authorize|query-bootstrap|query-execute|query-restore-owner|expansion-authorize|expansion-execute|selection|select|direction-intent|stage-1|stage-2|stage-3)(?:/(answer|interrupt))?)?)?)?"
 )
 READING_ROUTE = re.compile(
     r"/api/projects/([A-Za-z0-9_-]{1,64})/stage1/reading/([0-9a-f]{64})"
@@ -839,9 +839,12 @@ class ProjectHandler(AtlasHandler):
             if method == "GET":
                 if length or operation in {"confirm", "configure", "revise", "compile"}:
                     raise SessionApiError("invalid-project-read", 400)
-                if operation not in {"models", "stage1", "stage2"} and (
-                    action or resolution
-                ):
+                if operation not in {
+                    "models",
+                    "stage1",
+                    "stage2",
+                    "harness-record",
+                } and (action or resolution):
                     raise SessionApiError("invalid-project-read", 400)
                 if (
                     operation == "stage2"
@@ -886,6 +889,23 @@ class ProjectHandler(AtlasHandler):
                     )
                     if operation == "stage1" and action in {None, "offers"}:
                         result = self.server.stage1_view(token, ref, automatic=True)
+                elif operation == "harness-record":
+                    if resolution or action not in {
+                        None,
+                        "stage-1",
+                        "stage-2",
+                        "stage-3",
+                    }:
+                        raise SessionApiError("invalid-project-read", 400)
+                    from .project_harness_record import harness_record
+
+                    result = harness_record(
+                        self.server,
+                        token,
+                        ref,
+                        stage=None if action is None else action[-1],
+                        check_deadline=self._remaining,
+                    )
                 elif operation == "overview":
                     if action or resolution:
                         raise SessionApiError("invalid-project-read", 400)
