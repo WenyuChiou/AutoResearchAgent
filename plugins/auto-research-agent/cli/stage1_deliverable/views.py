@@ -20,8 +20,20 @@ from .review_details import LiteralLine, by_work
 from .screening_records import extended as screened
 
 PREVIOUS_REVIEW_FORMAT = "screening-and-sources-v1"
-REVIEW_FORMAT = "screening-and-sources-v2"
+SOURCE_REVIEW_FORMAT = "screening-and-sources-v2"
+REVIEW_FORMAT = "typed-claims-v3"
+TYPED_CLAIM_COLUMNS = (
+    "claim_type",
+    "type_label",
+    "basis_claim_ids",
+    "split_hint",
+    "atomicity_verified",
+)
 _MARKDOWN_ESCAPES = str.maketrans({char: "\\" + char for char in "\\`*_[]{}#+-!=|~"})
+
+
+class _ClaimTypeHeading(str):
+    """Generated claim type heading, distinct from authored paragraph text."""
 
 
 def cell(value):
@@ -173,15 +185,15 @@ EMPTY_HEADERS = {
 }
 
 
-def grid(name, rows):
-    headers = list(rows[0]) if rows else EMPTY_HEADERS[name]
+def grid(name, rows, *, empty_headers=EMPTY_HEADERS):
+    headers = list(rows[0]) if rows else empty_headers[name]
     return [headers, *[[cell(row[key]) for key in headers] for row in rows]]
 
 
-def csv_bytes(name, rows):
+def csv_bytes(name, rows, *, empty_headers=EMPTY_HEADERS):
     stream = io.StringIO(newline="")
     writer = csv.writer(stream, lineterminator="\n")
-    for row in grid(name, rows):
+    for row in grid(name, rows, empty_headers=empty_headers):
         writer.writerow(
             [
                 "'" + value
@@ -193,13 +205,13 @@ def csv_bytes(name, rows):
     return stream.getvalue().encode("utf-8-sig")
 
 
-def workbook_bytes(all_tables):
+def workbook_bytes(all_tables, *, empty_headers=EMPTY_HEADERS):
     workbook = Workbook()
     workbook.remove(workbook.active)
     workbook.properties.created = workbook.properties.modified = datetime(2000, 1, 1)
     for name, rows in all_tables.items():
         sheet = workbook.create_sheet(name)
-        for row in grid(name, rows):
+        for row in grid(name, rows, empty_headers=empty_headers):
             if any(len(value.encode("utf-16-le")) // 2 > 32767 for value in row):
                 raise DeliverableError("canonical value exceeds Excel cell limit")
             sheet.append(row)
@@ -236,7 +248,7 @@ def workbook_bytes(all_tables):
     return _zip_bytes(out.getvalue())
 
 
-def review_lines(records, details=None):
+def review_lines(records, details=None, *, claim_details=True):
     lines = [
         "# Literature review",
         "",
@@ -280,7 +292,40 @@ def review_lines(records, details=None):
         if details is not None:
             lines.extend(historical)
     lines.extend(["## Evidence and limitations", ""])
+    history = {
+        row["payload"]["event_id"]: row["payload"]
+        for row in records.get("core_claim_history", [])
+    }
     for claim in records["claims"]:
+        if claim_details:
+            from stage1_ledger.claim_structure import presentation
+
+            display = presentation(
+                claim["core_event"]["payload"] if extended(records) else claim
+            )
+            lines.extend(
+                [
+                    _ClaimTypeHeading("### " + display["type_label"]),
+                    "Claim ID: " + claim["claim_id"],
+                    "Basis source-statement IDs: " + cell(display["basis_claim_ids"]),
+                    "Type and citation links do not establish scientific support.",
+                ]
+            )
+            if display["split_hint"]:
+                lines.append(display["split_hint"])
+            for basis_id in display["basis_claim_ids"]:
+                basis = history[basis_id]
+                lines.extend(
+                    [
+                        LiteralLine("Basis " + basis_id + ": " + basis["claim_text"]),
+                        LiteralLine(
+                            "Basis original sentence and location: "
+                            + cell(basis["locator"])
+                        ),
+                        "Basis source SHA-256: " + basis["source_ref"]["sha256"],
+                        "Basis recorded relation (unchanged): " + basis["relation"],
+                    ]
+                )
         if extended(records):
             event = claim["core_event"]["payload"]
             location = (
@@ -337,6 +382,8 @@ def docx_bytes(lines):
             paragraph = document.add_heading(line[2:], 0)
         elif line.startswith("## "):
             paragraph = document.add_heading(line[3:], 1)
+        elif isinstance(line, _ClaimTypeHeading):
+            paragraph = document.add_heading(line[4:], 3)
         else:
             if isinstance(line, LiteralLine):
                 # python-docx turns CR and LF into separate breaks.
@@ -419,16 +466,43 @@ def render(records, sources, *, review_format=REVIEW_FORMAT, journal=None):
     # ordering while preserving authored array order and original input bytes.
     records = json.loads(canonical(records))
     all_tables = tables(records, sources)
+    claim_projection = []
+    empty_headers = EMPTY_HEADERS
+    if review_format == REVIEW_FORMAT:
+        from stage1_ledger.claim_structure import presentation
+
+        empty_headers = {
+            **EMPTY_HEADERS,
+            "Claims": [*EMPTY_HEADERS["Claims"], *TYPED_CLAIM_COLUMNS],
+        }
+        for row in all_tables["Claims"]:
+            event = row["core_event"]["payload"] if extended(records) else row
+            display = presentation(event)
+            row.update({key: display[key] for key in TYPED_CLAIM_COLUMNS})
+            claim_projection.append(
+                {
+                    "claim_id": row["claim_id"],
+                    "work_id": row["work_id"],
+                    "version_id": row["version_id"],
+                    "text": row["text"],
+                    "quote": row["quote"],
+                    "locator": row["locator"],
+                    "source_sha256": row["source_sha256"],
+                    **display,
+                }
+            )
     details = (
         by_work(
             records,
             sources,
-            journal=journal if review_format == REVIEW_FORMAT else None,
+            journal=journal
+            if review_format in (REVIEW_FORMAT, SOURCE_REVIEW_FORMAT)
+            else None,
         )
         if review_format is not None
         else None
     )
-    lines = review_lines(records, details)
+    lines = review_lines(records, details, claim_details=review_format == REVIEW_FORMAT)
     markdown = "\n".join(map(_markdown_line, lines)) + "\n"
     coverage = [
         "# Coverage and stopping record",
@@ -448,15 +522,32 @@ def render(records, sources, *, review_format=REVIEW_FORMAT, journal=None):
             ]
         )
     result = {
-        "literature_catalog.xlsx": workbook_bytes(all_tables),
+        "literature_catalog.xlsx": workbook_bytes(
+            all_tables, empty_headers=empty_headers
+        ),
         "literature_review.md": markdown.encode("utf-8"),
         "literature_review.docx": docx_bytes(lines),
         "references.bib": bibtex(records),
-        "claims_and_evidence.csv": csv_bytes("Claims", all_tables["Claims"]),
+        "claims_and_evidence.csv": csv_bytes(
+            "Claims", all_tables["Claims"], empty_headers=empty_headers
+        ),
         "search_and_screening.csv": csv_bytes("Screening", all_tables["Screening"]),
         "coverage_and_stop.md": ("\n".join(coverage) + "\n").encode("utf-8"),
         "README.md": b"# Stage 1 researcher deliverable\n\nExperimental; quality improvement not yet demonstrated.\n\npapers.jsonl and provenance_manifest.json contain canonical records. Excel, Markdown, DOCX, BibTeX and CSV are editable derived views. Editing a view does not update canonical research records; regeneration and validation are required. Source archives preserve all attempts, including unavailable evidence. Papers contain only selected public full sources. Do not commit this private package to Git.\n\nWord and Markdown show authored findings, claim statements and source locators. Find each exact excerpt by claim_id in the workbook Claims sheet and canonical records. claims_and_evidence.csv protects formula-like values with a leading apostrophe, so its displayed quote may differ. Original quotes, extraction spacing and character offsets remain bound to the source; presentation does not establish claim support.\n\nValidate with: python -m stage1_deliverable validate PACKAGE --expected-sha256 MANIFEST_SHA256\nThe trusted manifest hash must come from the separately retained export receipt. Validation proves bindings and reproducible views, not scientific correctness. DOCX is supported by the declared runtime.\n",
     }
+    if review_format == REVIEW_FORMAT:
+        result["claim_structure.json"] = (
+            canonical(
+                {
+                    "kind": "Stage1ClaimStructureView",
+                    "schema_version": "1.0.0",
+                    "claims": claim_projection,
+                    "basis_location": "provenance_manifest.json / canonical_records / core_claim_history",
+                    "scope": "Authored types and structural hints only; not independent claim verification.",
+                }
+            )
+            + b"\n"
+        )
     if screened(records):
         result["screening_library.json"] = (
             canonical(records["screening_library"]) + b"\n"
