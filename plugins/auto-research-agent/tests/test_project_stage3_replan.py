@@ -474,5 +474,102 @@ class ReplanViewTests(ReplanFixture, unittest.TestCase):
         self.assertEqual(self.callback.call_count, 3)
 
 
+class ReplanHttpTests(ReplanFixture, unittest.TestCase):
+    def post(self, action, body):
+        from test_project_stage3_planning_http import Handler
+        from research_workspace_native.project_stage3_http import handle_planning
+
+        handler = Handler(self.http, action, body)
+        handler.path = "/api/projects/" + self.ref + "/stage3/planning/" + action
+        handle_planning(handler, "POST")
+        return handler.replies
+
+    def test_http_prepare_and_confirmed_run_dispatch_once(self):
+        _, revision, decision = self.revised_and_decided()
+        body = self.view()["replan"]["request"]
+        [(status, prepared)] = self.post("prepare", body)
+        self.assertEqual((status, prepared["status"]), (200, "intent-recorded"))
+        self.assertEqual(self.callback.call_count, 1)
+        self.respond(body["key"], marker="HTTP-PLAN")
+        run_body = dict(body, request_sha256=prepared["request_sha256"], confirmed=True)
+        [(status, accepted)] = self.post("run", run_body)
+        self.assertEqual(status, 202)
+        self.assertFalse(accepted["dispatch_observed"])
+        self.assertEqual(self.callback.call_count, 2)
+        [(status, replay)] = self.post("run", run_body)
+        self.assertEqual((status, replay["outcome"]), (200, "saved"))
+        [(status, read)] = self.post(
+            "inspect", dict(body, request_sha256=prepared["request_sha256"])
+        )
+        self.assertEqual((status, read), (200, replay))
+        self.assertEqual(self.callback.call_count, 2)
+        self.assertIsNone(self.view()["submission_error"])
+
+    def test_http_run_refuses_changed_revision_before_ack(self):
+        comment, revision, decision = self.revised_and_decided()
+        body = self.view()["replan"]["request"]
+        [(_, prepared)] = self.post("prepare", body)
+        self.revise(
+            comment, key="r-after", value="Edited after prepare", parent=revision
+        )
+        before = self.state()
+        run_body = dict(body, request_sha256=prepared["request_sha256"], confirmed=True)
+        self.assertEqual(
+            self.post("run", run_body),
+            [(409, {"error": "stage3-replan-revision-changed"})],
+        )
+        self.assertEqual(self.state(), before)
+        self.assertEqual(self.callback.call_count, 1)
+        self.assertEqual(self.post("run", dict(run_body, confirmed=False))[0][0], 400)
+
+    def test_http_prepare_without_decision_is_refused_without_record(self):
+        comment = self.comment()
+        revision = self.revise(comment)
+        before = self.state()
+        self.assertEqual(
+            self.post("prepare", self.replan_body("f" * 64, revision)),
+            [(409, {"error": "stage3-replan-decision-required"})],
+        )
+        self.assertEqual(self.state(), before)
+        self.assertEqual(self.callback.call_count, 1)
+
+
+class ReplanDirectionModeTests(unittest.TestCase):
+    def test_direction_mode_is_refused_before_any_job_lookup(self):
+        import threading
+        from types import SimpleNamespace
+
+        service = SimpleNamespace(
+            intake=SimpleNamespace(_lock=threading.RLock()),
+            bindings={},
+            _current=lambda *args, **kwargs: (None, None, None, None, None),
+        )
+        transport = ProjectStage3Http(service, close_owner=lambda: None)
+        self.addCleanup(transport.close)
+        body = dict(
+            key="stage3-replan-x",
+            revision=1,
+            input_version=1,
+            brief_sha256="a" * 64,
+            selection_request_sha256="b" * 64,
+            mode=MODE,
+            decision_receipt_sha256="c" * 64,
+            plan_revision_receipt_sha256="d" * 64,
+        )
+        for call in (transport.replan.prepare, transport.replan.inspect):
+            extra = (
+                {} if call == transport.replan.prepare else {"request_sha256": "e" * 64}
+            )
+            with (
+                self.subTest(call=call.__name__),
+                self.assertRaises(SessionApiError) as error,
+            ):
+                call("own", "direction-ref", dict(body, **extra))
+            self.assertEqual(
+                (error.exception.code, error.exception.status),
+                ("stage3-replan-direction-mode-unsupported", 409),
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
