@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const test=require('node:test');
-const {runChromeExercise}=require('./test_v9_stage_connections.cjs');
+const {runChromeExercise,closeBrowser}=require('./test_v9_stage_connections.cjs');
+test.after(()=>closeBrowser());
 const source=fs.readFileSync(path.join(__dirname,'renderer/src/runtime.js'),'utf8');
 const bridge=fs.readFileSync(path.join(__dirname,'v9-stage3-bridge.js'),'utf8');
 const validProject=bridge.match(/function v93ValidProject\(p\)\{[^\n]+/)[0];
@@ -125,8 +126,8 @@ async function exerciseEnabledStage3Shell() {
     throw Error('Wiki state must follow the project selector and Stage 3 title; follows selector='+follows(projectSelect,shell)+', follows title='+follows(title,shell));
 }
 
-test('enabled Stage 3 Wiki state follows the rendered title and project selector',()=>{
+test('enabled Stage 3 Wiki state follows the rendered title and project selector',async()=>{
   const projectSwitcher=canonical.match(/^function canonicalTop\(\).*$/m)[0];
-  runChromeExercise(exerciseEnabledStage3Shell,projectSwitcher+'\n'+source.slice(start)+'\n'+
+  await runChromeExercise(exerciseEnabledStage3Shell,projectSwitcher+'\n'+source.slice(start)+'\n'+
     'function translated(app, labels){return labels[{zh:0,en:1,tw:2}[app.lang]];}');
 });

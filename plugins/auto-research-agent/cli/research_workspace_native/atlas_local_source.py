@@ -42,28 +42,46 @@ def pairs(items):
     return result
 
 
-def unlinked(path):
+def _refuse_link(info):
+    require(
+        not stat.S_ISLNK(info.st_mode)
+        and not getattr(info, "st_file_attributes", 0) & 0x400,
+        "links/reparse points refused",
+    )
+
+
+def _unlinked(path, passed):
+    """Refuse links/reparse points on the path and every ancestor.
+
+    ``passed`` is None, or a set that belongs to ONE inventory() call: ancestors
+    already verified in that call are not lstat'ed again and newly verified ones
+    are added. It is private on purpose: it must never outlive a single pass.
+    """
     path = Path(path)
     require(path.is_absolute(), "absolute path required")
     for parent in (path, *path.parents):
+        if passed is not None and parent in passed:
+            continue
         try:
             info = parent.lstat()
         except FileNotFoundError:
             continue
-        require(
-            not stat.S_ISLNK(info.st_mode)
-            and not getattr(info, "st_file_attributes", 0) & 0x400,
-            "links/reparse points refused",
-        )
+        _refuse_link(info)
+        if passed is not None and parent != path:
+            passed.add(parent)
     return path
 
 
-def read(path, maximum=256 * 1024, *, allow_empty=False):
+def unlinked(path):
+    return _unlinked(path, None)
+
+
+def _read(path, maximum, allow_empty, passed):
     require(
         type(maximum) is int and 0 <= maximum < sys.maxsize,
         "integer file bound required",
     )
-    path = unlinked(path)
+    path = _unlinked(path, passed)
     require(stat.S_ISREG(path.stat().st_mode), "regular file required")
     chunks, remaining = [], maximum + 1
     with path.open("rb") as stream:
@@ -79,6 +97,10 @@ def read(path, maximum=256 * 1024, *, allow_empty=False):
         "file bound exceeded",
     )
     return raw
+
+
+def read(path, maximum=256 * 1024, *, allow_empty=False):
+    return _read(path, maximum, allow_empty, None)
 
 
 def pinned(path, expected, maximum=256 * 1024):
@@ -105,7 +127,13 @@ def decode(raw):
 
 
 def inventory(root):
-    root = unlinked(root)
+    # One pass: each ancestor is lstat'ed once and remembered only in this local
+    # set, which dies with the call, then lstat'ed once more at the end of the
+    # pass. Every file is still opened, read and hashed in full on every pass;
+    # any failing ancestor or file fails the whole pass.
+    passed = set()
+    root = _unlinked(root, passed)
+    passed.add(root)
     require(root.is_absolute() and root.is_dir(), "inventory root required")
     files = {}
     for base, directories, names in os.walk(root, followlinks=False):
@@ -127,8 +155,13 @@ def inventory(root):
             item = Path(base) / name
             require(len(files) < 4096, "inventory file bound exceeded")
             files[item.relative_to(root).as_posix()] = digest(
-                read(item, 32 * 1024 * 1024, allow_empty=True)
+                _read(item, 32 * 1024 * 1024, True, passed)
             )
+    for ancestor in passed:
+        try:
+            _refuse_link(ancestor.lstat())
+        except FileNotFoundError:
+            require(False, "inventory ancestor vanished during the pass")
     return files
 
 

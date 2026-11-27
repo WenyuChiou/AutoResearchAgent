@@ -304,6 +304,20 @@ document.addEventListener('click', event => {
  apps[0].v1SwitchOpen = !summary.parentElement.open;
  apps[0].v1SwitchRef = rt.ref;
 }, true);
+// Keeping the menu open across repaints must not keep it open forever (review P2-d): a click anywhere outside the
+// menu, or Escape, closes it. Listened on window so a page handler that stops the event cannot skip this.
+function v1SwitchClose(app) {
+ if (!app?.v1SwitchOpen) return;
+ app.v1SwitchOpen = false;
+ const menu = app.el.querySelector?.('[data-v1-switch]');
+ if (menu) menu.open = false;
+}
+window.addEventListener('click', event => {
+ if (!event.target.closest?.('[data-v1-switch]')) v1SwitchClose(apps[0]);
+}, true);
+window.addEventListener('keydown', event => {
+ if (event.key === 'Escape') v1SwitchClose(apps[0]);
+}, true);
 
 // ---------- Stage 1 status (DESIGN 3.2, 8.6) ----------
 function v1S1Counts() {
@@ -423,7 +437,7 @@ function v1S3Plan() {
  return basis && v93Matches(v93.basis, basis) && v93.view?.plan ? v93.view : null;
 }
 v1StageStatus[3] = () => {
- if (v1S3Plan()) return ['等你做决定', 'wait'];
+ if (v1S3Plan()) return typeof wikiS3DecStatus === 'function' && wikiS3DecStatus() ? ['已保存决定', 'done'] : ['等你做决定', 'wait'];
  return ['还没有规划', ''];
 };
 v1PageStatus.s3 = app => {
@@ -432,6 +446,8 @@ v1PageStatus.s3 = app => {
  if (basis && v93.busy) return {tone:'run', now:['正在读取已保存的规划。', '不会重新生成。'], next:'读完后这里会写计划和评审的情况。', you:null};
  if (basis && v93Matches(v93.errorBasis, basis) && v93.error) return {tone:'err', now:['读取规划没有完成。', '没有读到已保存的规划，也没有重新生成。'], next:'重新读取；原因在读取详情里。', you:{text:'重新读取'}, button:{label:'重新读取', attrs:'data-v93-read', primary:false}};
  if (view) {
+  const decided = typeof wikiS3DecStatus === 'function' ? wikiS3DecStatus() : null;
+  if (decided) return decided;
   const review = typeof wikiS3Review === 'function' ? wikiS3Review(view) : null;
   return {tone:'wait', now:['计划写好了。', review?.findings?.length ? `评审给了 ${review.findings.length} 条意见。` : '还没有评审意见（后台读取不返回评审）。'],
    next:'看完计划和评审后做决定。', you:{wait:true, text:'对计划做决定'}, button:{label:'去做决定', attrs:'data-v1-goto="s3-decide"', primary:false}};
@@ -439,10 +455,19 @@ v1PageStatus.s3 = app => {
  // Without a connected Stage 3 the saved-selection read (v93Identity) is unavailable; go by what /connections says.
  const conn = !basis && typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
  if (conn?.phase === 'ready' && !conn.unknown) {
+  if (conn.action === 'reconnect') return {tone:'wait', now:['Stage 3 未接通。', conn.reconnectError ? '上次点「重新接通」没有成功；规划登记仍然保存着。' : '规划登记已保存；如果上次是强行关闭，这次启动后会先显示未接通。'],
+  next:conn.reconnectError ? '可以再点一次下面的「重新接通」；原因代码在接通块的技术细节里。' : '点下面的「重新接通」恢复，不会重复执行任何步骤，也不会新增记录。', you:{wait:true, text:'重新接通'}};
   if (conn.action === 'connect') return {tone:'wait', now:['还没有规划。', 'Stage 3 还没有接通；接通只是登记，不会启动研究。'], next:'在下面的接通块点「接通本课题」。', you:{wait:true, text:'接通本课题'}};
+  // Connected but no selection read: not "cannot connect" (review P2-c).
+  if (conn.connected) return {tone:'off', now:['还没有规划。', 'Stage 3 已接通，但这次没有读到选定的方向。'], next:'重新读取一次。', you:null, button:{label:'重新读取', attrs:'data-v1-reload', primary:false}};
   if (conn.code && conn.code !== 'stage3-current-selection-required') return {tone:'off', now:['还没有规划。', 'Stage 3 现在接不上，原因写在下面的接通块里。'], next:'按接通块里的说法处理。', you:null};
  }
  if (!basis) return {tone:'off', now:['还没有规划。', 'Stage 2 还没有选定方向，Stage 3 不会生成计划。'], next:'先到 Stage 2 选一个方向。', you:null, button:{label:'去 Stage 2', attrs:'data-stage="2"', primary:false}};
+ const request = typeof wikiS3RequestLine === 'function' ? wikiS3RequestLine(view || (v93.basis && v93Matches(v93.basis, basis) ? v93.view : null)) : null;
+ const requestGate = request?.tag === '还没请求' ? request.buttons[0]?.gate : request?.tag === '等你授权' && request.grant?.gate !== '请先勾选确认' ? request.grant?.gate : '';
+ if (request && requestGate) return {tone:'off', now:['还没有规划。', `已经接通，但现在不能生成计划：${requestGate}。`], next:'条件满足后在下面「本课题的 Stage 3」里请求生成计划。', you:null};
+ if (request && ['还没请求', '等你授权'].includes(request.tag)) return {tone:'wait', now:['还没有规划。', '已经接通，还没有保存的计划。'], next:'在下面「本课题的 Stage 3」里请求生成计划；生成前会先请你授权。', you:{wait:true, text:'请求生成计划'}};
+ if (request) return {tone:request.tone === 'err' ? 'err' : request.tone === 'run' ? 'run' : 'off', now:['还没有规划。', /[。]$/.test(request.text) ? request.text : request.text + '。'], next:'看下面「本课题的 Stage 3」里请求一行的说明。', you:null};
  return {tone:'off', now:['还没有规划。', '已经有选定的方向，但还没有保存的计划。'], next:'接通本课题的 Stage 3 后，请求生成计划。', you:null};
 };
 document.addEventListener('click', event => {
