@@ -255,6 +255,98 @@ function report(name, problems) {
   await page.close(); report('stage 4 closed, open state remembered', problems);
  }
 
+ // 7. Review fixes P2-1..P2-5.
+ {
+  const {page} = await open(browser, 'hostile', 1, (route, request) => request.method() === 'GET' ? json(route, state('x" onmouseover="alert(1)', {can_send:false})) : json(route, {}, 500));
+  const problems = [];
+  await page.click('.wc-tab'); await page.waitForTimeout(500);
+  must(problems, (await page.locator('[onmouseover]').count()) === 0, '后台状态值变成了页面属性');
+  must(problems, /对话许可没有通过核对，界面只读，发送关闭/.test(await text(page)), '未知状态没有按只读处理');
+  await page.close(); report('P2-1 hostile state value stays inert', problems);
+ }
+ {
+  let gets = 0;
+  const {page} = await open(browser, 'poll-stop', 1, (route, request) => { if (request.method() === 'GET') gets++; return request.method() === 'GET' ? json(route, STATES['sending']) : json(route, {}, 500); });
+  const problems = [];
+  await page.click('.wc-tab');
+  const before = gets; await page.waitForTimeout(4500);
+  must(problems, gets - before >= 1, '进行中的一轮没有在轮询（对照组）');
+  await page.click('.v1-nav-item[data-page="files"]'); await page.waitForTimeout(800);
+  const after = gets; await page.waitForTimeout(6500);
+  must(problems, gets === after, '离开阶段页后还在轮询: ' + (gets - after) + ' 次');
+  await page.click('.v1-nav-item[data-page="workspace"]'); await page.waitForTimeout(1500);
+  const lang = await page.locator('select[data-language], .v1-lang').first().isVisible().catch(() => false);
+  must(problems, lang, '没有语言选择，无法测切换语言');
+  if (lang) {
+   const mark = gets;
+   await page.selectOption('select[data-language], .v1-lang', 'en'); await page.waitForTimeout(800);
+   const switched = gets; await page.waitForTimeout(5000);
+   must(problems, gets === switched, '切换语言后还在轮询: ' + (gets - switched) + ' 次 (之前 ' + (switched - mark) + ')');
+  }
+  await page.close(); report('P2-2 polling stops when leaving the stage page or changing language', problems);
+ }
+ {
+  let delayed = false;
+  const {page} = await open(browser, 'switch-during-send', 1, async (route, request) => {
+   if (request.method() === 'GET') return json(route, Object.assign({}, STATES['ready-empty'], {stage:Number(new URL(request.url()).searchParams.get('stage'))}));
+   delayed = true; await new Promise(r => setTimeout(r, 3500));
+   return json(route, turn('t-late', 'starting', {user_text:'来自 Stage 1'})).catch(() => {});
+  });
+  const problems = [];
+  await page.click('.wc-tab'); await page.waitForTimeout(500);
+  await page.fill('[data-wc-input]', 'Stage 1 的草稿'); await page.click('[data-wc-send]');
+  await page.waitForTimeout(300);
+  await page.click('.v1-flow-item[data-stage="2"]'); await page.waitForTimeout(1500);
+  must(problems, delayed, '发送请求没有发出');
+  await page.click('.wc-tab').catch(() => {}); await page.waitForTimeout(400);
+  await page.fill('[data-wc-input]', 'Stage 2 的草稿'); await page.waitForTimeout(3600);
+  const body = await text(page);
+  must(problems, (await page.inputValue('[data-wc-input]')) === 'Stage 2 的草稿', '新阶段的草稿被清掉了');
+  must(problems, /可以发送/.test(body) && !/本轮启动中|等待回复|来自 Stage 1/.test(body), '旧阶段的这一轮写到了新阶段上: ' + body.slice(0, 160));
+  await page.close(); report('P2-3 a send in flight does not write to the next stage', problems);
+ }
+ {
+  let answered = false, stopped = false, getDelay = 0;
+  const {page} = await open(browser, 'double-click', 1, async (route, request) => {
+   if (request.method() === 'GET') { if (getDelay) await new Promise(r => setTimeout(r, getDelay)); return json(route, answered ? STATES['asking'] : stopped ? STATES['sending'] : STATES['asking']).catch(() => {}); }
+   const url = request.url().split('/').pop();
+   if (url === 'answer') { answered = true; getDelay = 2500; return json(route, {saved:true, turn_id:'t2', request_id:'r1'}); }
+   return json(route, turn('t2', 'stop-requested'));
+  });
+  const problems = [];
+  await page.click('.wc-tab'); await page.waitForTimeout(600);
+  await page.fill('[data-wc-ans="t2|a"]', '甲'); await page.fill('[data-wc-ans="t2|b"]', '乙');
+  await Promise.all([page.click('[data-wc-answer]'), page.click('[data-wc-answer]', {timeout:600}).catch(() => {})]);
+  await page.waitForTimeout(500);
+  must(problems, posts.filter(p => p.url === 'answer').length === 1, '答复发了 ' + posts.filter(p => p.url === 'answer').length + ' 次');
+  must(problems, (await page.locator('[data-wc-answer]').count()) === 0, '答复成功后提问卡还在');
+  await page.close(); report('P2-4 answer cannot be submitted twice before the re-read', problems);
+ }
+ {
+  let getDelay = 0;
+  const {page} = await open(browser, 'stop-twice', 1, async (route, request) => {
+   if (request.method() === 'GET') { if (getDelay) await new Promise(r => setTimeout(r, getDelay)); return json(route, STATES['sending']).catch(() => {}); }
+   getDelay = 2500; return json(route, turn('t2', 'stop-requested'));
+  });
+  const problems = [];
+  await page.click('.wc-tab'); await page.waitForTimeout(600);
+  await page.click('[data-wc-stop]'); await page.waitForTimeout(300);
+  must(problems, await page.locator('[data-wc-stop]').isDisabled(), '中断成功后按钮还能点');
+  await page.locator('[data-wc-stop]').click({force:true, timeout:500}).catch(() => {}); await page.waitForTimeout(300);
+  must(problems, posts.filter(p => p.url === 'stop').length === 1, '中断发了 ' + posts.filter(p => p.url === 'stop').length + ' 次');
+  await page.close(); report('P2-4 stop cannot be sent twice before the re-read', problems);
+ }
+ {
+  let phase = 'asking';
+  const {page} = await open(browser, 'ask-poll', 1, (route, request) => request.method() === 'GET' ? json(route, phase === 'asking' ? STATES['asking'] : STATES['failed']) : json(route, {}, 500));
+  const problems = [];
+  await page.click('.wc-tab'); await page.waitForTimeout(800);
+  must(problems, (await page.locator('[data-wc-answer]').count()) === 1, '没有提问卡');
+  phase = 'failed'; await page.waitForTimeout(12000);
+  must(problems, (await page.locator('[data-wc-answer]').count()) === 0 && /本轮失败/.test(await text(page)), '等回答期间后台超时，页面没有更新');
+  await page.close(); report('P2-5 waiting for an answer still re-reads the turn', problems);
+ }
+
  await browser.close();
  console.log(failed ? failed + ' scenario(s) failed' : 'all scenarios passed');
  process.exit(failed ? 1 : 0);
