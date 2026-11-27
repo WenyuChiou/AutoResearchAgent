@@ -67,10 +67,11 @@ if(typeof v7AfterRender==='function'){
 }
 livePost = async function(tail,body,ref=rt.ref){
   if(liveReal() && tail==='confirm') {
-    const limits=rt.meta.run_limits,positive=value=>Number.isSafeInteger(value)&&value>0;
+    // Consent is what the researcher ticked on the page (wsgScopeConsent), never derived from the launch limits.
+    const limits=rt.meta.run_limits,ticked=typeof wsgScopeConsent==='function'?wsgScopeConsent():{external_search:false,public_source_read:false,browser_fallback:false};
     body={...body,
-      resource_envelope:'Bounded V7 integration validation: '+JSON.stringify(limits)+'. No scoring or later-stage execution.',
-      budgets:limits,consent:{external_search:positive(limits?.seconds)&&positive(limits?.search_calls),public_source_read:positive(limits?.seconds)&&positive(limits?.source_reads),browser_fallback:false}};
+      resource_envelope:'Launch limits '+JSON.stringify(limits)+'; external search consent: '+(ticked.external_search?'yes':'no')+'; public source read consent: '+(ticked.public_source_read?'yes':'no')+'. No scoring or later-stage execution.',
+      budgets:limits,consent:ticked};
   }
   return savedPost(tail,body,ref);
 };
@@ -227,11 +228,13 @@ document.addEventListener('click',async e=>{
    try{const text=document.querySelector('[data-real-plan]').value,request=JSON.parse(text);rt.planDraft.text=text;await livePost('compile',{...liveBound(),request,as_of:new Date().toISOString().slice(0,10)});}catch(error){rt.error=error.message;livePaint();}return;
   }
   if(['authorize-plan','plan'].includes(action)&&!realPlanningState().allowed){rt.error=realPlanningBlockMessage();livePaint();return;}
-  if(action==='authorize-plan')return livePost('models/authorize',{...liveBound(),operation:'plan-search',user_input:'用户要求在本地 V7 用本人 Codex 和仓库 Harness 实际验证链路。本轮上限 '+JSON.stringify(realBudget())+'；不做评分、不运行Stage2。',confirmed:true});
+  if(action==='authorize-plan'){const words=realResearcherWords();if(!words)return;return livePost('models/authorize',{...liveBound(),operation:'plan-search',user_input:words,confirmed:true});}
   if(action==='plan'){const o=realModelOffers().find(o=>o.available&&o.operation==='plan-search');if(o)return livePost('models/actions',{...liveBound(),offer_ref:o.offer_ref,offer_sha256:o.offer_sha256,confirmed:true});}
-  if(action.startsWith('query-')){const q=rt.overview.stage1.query_execution;const o=action==='query-restore-owner'?realQueryOwnerOffer():q?.[{'query-authorize':'authorization_offer','query-bootstrap':'bootstrap_offer','query-execute':'query_offer'}[action]];if(!o)return;const body={...liveBound(),offer_ref:o.offer_ref,offer_sha256:o.offer_sha256,confirmed:true};if(action==='query-authorize')body.user_input='本地 V7 限定链路验收，本轮上限 '+JSON.stringify(realBudget())+'；不评分，不进入Stage2。';return livePost('stage1/'+action,body);}
+  if(action.startsWith('query-')){const q=rt.overview.stage1.query_execution;const o=action==='query-restore-owner'?realQueryOwnerOffer():q?.[{'query-authorize':'authorization_offer','query-bootstrap':'bootstrap_offer','query-execute':'query_offer'}[action]];if(!o)return;const body={...liveBound(),offer_ref:o.offer_ref,offer_sha256:o.offer_sha256,confirmed:true};if(action==='query-authorize'){const words=realResearcherWords();if(!words)return;body.user_input=words;}return livePost('stage1/'+action,body);}
 },true);
 
+// The researcher's own words, written on the page. Without them no authorization is sent.
+function realResearcherWords(){const words=typeof wsgWords==='function'?wsgWords():'';if(!words){rt.error=rl('请先在「运行许可与授权理由」里写下你的授权理由，再授权。','Write your authorization reason first, then authorize.','請先寫下你的授權理由，再授權。');livePaint();}return words;}
 // Every write below is offered by the current production service. Reads never dispatch work.
 function realActionEnvelope(view){const p=rt.overview?.project;return !!(p&&p.project_ref===rt.ref&&view?.project_ref===rt.ref&&view.revision===p.revision);}
 function realModelOffers(){const value=rt.overview?.model_offers;return realActionEnvelope(value)&&Array.isArray(value.offers)?value.offers:[];}
