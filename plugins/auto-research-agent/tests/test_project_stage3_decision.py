@@ -36,7 +36,19 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
         self.binding = read_feedback(self.jobs, "authored-ref", self.view)["binding"]
 
     def decision(self, key="decision-1", decision="accept", text="I accept this plan."):
-        return dict(self.request(key), decision=decision, text=text, confirmed=True)
+        body = dict(self.request(key), decision=decision, text=text, confirmed=True)
+        body["plan_revision_receipt_sha256"] = self.revision_receipt()
+        return body
+
+    def revision_receipt(self):
+        from research_workspace_native.project_stage3_decision import _binding
+
+        try:
+            return _binding(self.jobs, "authored-ref", self.view)[1][
+                "plan_revision_receipt_sha256"
+            ]
+        except SessionApiError:  # no saved plan: the host refuses before binding
+            return None
 
     def post(self, body, **kwargs):
         handler = Handler(self.transport, "decide", body, **kwargs)
@@ -91,6 +103,39 @@ class Stage3DecisionTests(Stage3FeedbackFixture, unittest.TestCase):
         self.assertEqual([r["record"]["request"]["key"] for r in view["records"]], sent)
         self.assertEqual(view["latest"]["record"]["request"]["key"], sent[-1])
         self.assertEqual(view["latest"]["record"]["decision"], "accept")
+
+    def test_manual_revision_moves_old_decisions_to_history_and_binds_new_ones(self):
+        status, first = self.post(self.decision("before-revision"))
+        self.assertEqual(status, 200, first)
+        comment = self.comment()
+        revision = self.revision(comment)
+        view = self.transport.view("own", "authored-ref")["host_decision"]
+        self.assertTrue(view["has_manual_revision"])
+        self.assertEqual(view["records"], [])
+        self.assertIsNone(view["latest"])
+        self.assertEqual(len(view["history"]), 1)
+        self.assertTrue(view["history"][0]["superseded_by_manual_revision"])
+        # the old decision body no longer matches the displayed version
+        before = self.journal_state()
+        status, reply = self.post(
+            dict(self.decision("before-revision"), plan_revision_receipt_sha256=None)
+        )
+        self.assertEqual(
+            (status, reply["error"]), (409, "stage3-decision-version-differs")
+        )
+        self.assertEqual(self.journal_state(), before)
+        # a decision on the revised draft is possible and becomes the current one
+        status, second = self.post(self.decision("after-revision"))
+        self.assertEqual(status, 200, second)
+        self.assertEqual(
+            second["record"]["binding"]["plan_revision_receipt_sha256"],
+            revision["receipt_sha256"],
+        )
+        view = self.transport.view("own", "authored-ref")["host_decision"]
+        self.assertEqual(view["latest"]["receipt_sha256"], second["receipt_sha256"])
+        self.assertEqual(
+            [r["receipt_sha256"] for r in view["history"]], [first["receipt_sha256"]]
+        )
 
     def test_replay_returns_the_stored_record_and_changes_nothing(self):
         first = self.post(self.decision())[1]

@@ -24,13 +24,15 @@ from stage3_plan.validation import check_plan
 
 from .project_intake_contract import _fields
 from .project_stage3_feedback import BINDING_FIELDS, EDIT_FIELDS, _text, fits_response
+from .project_stage3_feedback import _rows as _feedback_rows
 from .session_api import _check
 
 METHOD = "stage3/project-host-decision/1"
 MAX_RECORDS = 32
 DECISIONS = ("accept", "revise-then-review", "return-to-stage2")
 STATUS = "recorded-by-local-host-ui"
-FIELDS = BINDING_FIELDS | {"key", "decision", "text", "confirmed"}
+REVISION = "plan_revision_receipt_sha256"
+FIELDS = BINDING_FIELDS | {REVISION, "key", "decision", "text", "confirmed"}
 TEXT_BYTES = 2000
 
 
@@ -53,18 +55,46 @@ def _context(ref, view):
     }
 
 
+def _current_revision(jobs, base):
+    """Receipt and plan of the newest manual revision of this saved plan, if any.
+
+    A manual revision (comment/revise) leaves the saved plan untouched, so it must
+    be part of what a decision is bound to; otherwise a decision made before the
+    revision would still look current. The newest is the highest revision_number
+    (ties broken by receipt hash, deterministic).
+    """
+    revisions = [
+        row for row in _feedback_rows(jobs, base) if row["record"]["kind"] == "revision"
+    ]
+    if not revisions:
+        return None, None
+    newest = max(
+        revisions,
+        key=lambda row: (row["record"]["revision_number"], row["receipt_sha256"]),
+    )
+    return newest["receipt_sha256"], newest["record"]["plan"]
+
+
+def _binding(jobs, ref, view):
+    base = _context(ref, view)
+    receipt, plan = _current_revision(jobs, base)
+    return base, {**base, REVISION: receipt}, plan
+
+
 def _key(binding, key):
     return "stage3-decision-" + digest([binding, key])
 
 
-def _rows(jobs, binding):
+def _rows(jobs, base):
+    """Every decision for this saved plan, across its manual revisions, in write order."""
     state = jobs.journal.snapshot(jobs.project_id)
     rows = []
     for item in state["intents"].values():
         if item["method"] != METHOD:
             continue
         record = item["payload"]
-        if record.get("binding") != binding:
+        recorded = record.get("binding") or {}
+        if {k: v for k, v in recorded.items() if k != REVISION} != base:
             continue
         _check(
             record.get("kind") == "decision"
@@ -77,7 +107,7 @@ def _rows(jobs, binding):
                     for name in ("key", "method", "payload", "request_identity")
                 }
             )
-            and item["key"] == _key(binding, record["request"]["key"]),
+            and item["key"] == _key(recorded, record["request"]["key"]),
             "stage3-decision-record-differs",
             409,
         )
@@ -99,15 +129,25 @@ def _rows(jobs, binding):
 
 
 def read_decisions(jobs, ref, view):
-    """Records for the currently displayed saved plan only; writes nothing."""
-    binding = _context(ref, view)
-    rows = _rows(jobs, binding)
+    """Decisions for the displayed plan version only; older ones go to history."""
+    base, binding, _ = _binding(jobs, ref, view)
+    rows = _rows(jobs, base)
+    current = [
+        r for r in rows if r["record"]["binding"].get(REVISION) == binding[REVISION]
+    ]
+    history = [
+        dict(r, superseded_by_manual_revision=True)
+        for r in rows
+        if r["record"]["binding"].get(REVISION) != binding[REVISION]
+    ]
     return {
         "kind": "ProjectStage3PlanDecisionView",
         "schema_version": 1,
         "binding": binding,
-        "records": rows,
-        "latest": deepcopy(rows[-1]) if rows else None,
+        "has_manual_revision": binding[REVISION] is not None,
+        "records": current,
+        "latest": deepcopy(current[-1]) if current else None,
+        "history": history,
         "decision_status": STATUS,
         "identity_authenticated": False,
         **POLICY,
@@ -165,18 +205,24 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
     _check(body["decision"] in DECISIONS, "stage3-decision-invalid", 400)
     _text(body["key"], "stage3-decision-key", 128)
     _text(body["text"], "stage3-decision-text", TEXT_BYTES)
-    binding = _context(ref, view)
+    base, binding, revised = _binding(jobs, ref, view)
     _check(
         all(
             type(body[name]) is type(binding[name]) and body[name] == binding[name]
-            for name in BINDING_FIELDS
+            for name in BINDING_FIELDS | {REVISION}
         ),
         "stage3-decision-version-differs",
         409,
     )
-    rows = _rows(jobs, binding)
+    rows = _rows(jobs, base)
     existing = next(
-        (row for row in rows if row["record"]["request"]["key"] == body["key"]), None
+        (
+            row
+            for row in rows
+            if row["record"]["request"]["key"] == body["key"]
+            and row["record"]["binding"] == binding
+        ),
+        None,
     )
     if existing:
         _check(
@@ -204,7 +250,7 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
         **POLICY,
     }
     if body["decision"] == "accept":
-        ok, name = accept_condition(view["plan"], view.get("job"))
+        ok, name = accept_condition(revised or view["plan"], view.get("job"))
         _check(ok, "stage3-decision-plan-not-ready", 409)
         record["accept_condition"] = name
         record["independent_review_required_by_this_build"] = False
