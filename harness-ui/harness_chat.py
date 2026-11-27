@@ -174,6 +174,7 @@ class ChatService:
         )
         self.budget_path.parent.mkdir(parents=True, exist_ok=True)
         self.lock, self.running = threading.RLock(), {}
+        self._require_dedicated_budget_store()
         if spec and spec.get("_continuation"):
             # Preflight existing rows in read-only mode BEFORE any schema/init writes.
             uri = Path(self.budget_path).resolve().as_uri() + "?mode=ro"
@@ -211,6 +212,32 @@ class ChatService:
                         error="host-restarted-native-terminal-unconfirmed",
                     )
                     self.put(db, "turns", row)
+
+    def _require_dedicated_budget_store(self):
+        """The allowance file may only be new or hold nothing but this chat's budget table.
+
+        Pointing it at an older research or conversation database would add a table to
+        somebody else's store, so that is refused before any write.
+        """
+        path = self.budget_path
+        if not path.exists() or path.stat().st_size == 0:
+            return
+        try:
+            connection = sqlite3.connect(
+                path.resolve().as_uri() + "?mode=ro", uri=True, timeout=2
+            )
+            try:
+                tables = {
+                    r[0]
+                    for r in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                }
+            finally:
+                connection.close()
+        except sqlite3.Error:
+            raise ValueError("chat-budget-must-not-use-old-store") from None
+        require(tables <= {"budget"}, "chat-budget-must-not-use-old-store")
 
     @contextmanager
     def db(self):
@@ -524,6 +551,12 @@ class ChatService:
             "chat-start-fields-invalid",
         )
         require(
+            (body["session_id"] is None or type(body["session_id"]) is str)
+            and type(body["project_ref"]) is str
+            and type(body["stage"]) is int,
+            "chat-start-fields-invalid",
+        )
+        require(
             isinstance(body["text"], str) and 0 < len(body["text"].encode()) <= 8192,
             "chat-message-size-invalid",
         )
@@ -591,6 +624,18 @@ class ChatService:
             )
             # Admission and reservation must be atomic across local server processes.
             db.execute("BEGIN IMMEDIATE")
+            # The project may have moved to a new input version since the unlocked read above.
+            fresh = self.tools.context(body["project_ref"], body["stage"])
+            again = self._connect_failures(
+                fresh,
+                principal,
+                expected=(body["input_version"], body["brief_sha256"]),
+            )
+            require(not again, again[0] if again else "")
+            require(
+                session["project_pin"] == fresh["project_pin"],
+                "chat-input-version-differs",
+            )
             prior = [json.loads(r[0]) for r in db.execute("SELECT body FROM turns")]
             require(
                 not any(r["status"] not in TERMINAL for r in prior),
@@ -673,6 +718,13 @@ class ChatService:
             set(body) == {"turn_id", "request_id", "request_sha256", "value"},
             "chat-answer-fields-invalid",
         )
+        require(
+            all(
+                type(body[k]) is str
+                for k in ("turn_id", "request_id", "request_sha256")
+            ),
+            "chat-answer-fields-invalid",
+        )
         with self.lock:
             turn = self.get("turns", body["turn_id"])
             pending = turn.get("pending")
@@ -719,6 +771,7 @@ class ChatService:
         return dict(saved=True, turn_id=turn["id"], request_id=pending["id"])
 
     def stop(self, identity):
+        require(type(identity) is str, "chat-turn-id-invalid")
         with self.lock:
             row = self.get("turns", identity)
             if row["status"] in TERMINAL:
@@ -747,6 +800,8 @@ class ChatService:
                 self.spec and turn.get("thread_id") and turn.get("native_turn_id"),
                 "chat-native-identity-incomplete",
             )
+            # An expired or revoked grant must not start a local app-server, even for a read.
+            check_config(self.spec)
             rpc = self.rpc_factory(
                 lambda direction, frame: self.event(identity, direction, frame)
             )
@@ -1137,11 +1192,25 @@ class ChatService:
                 error="chat-deadline-native-terminal-unconfirmed",
             )
         except Exception as exc:
+            # The page gets a content-free code; the full text stays in the local event record only.
+            code = (
+                str(exc).split(":", 1)[0][:120]
+                if isinstance(exc, ValueError)
+                else "chat-state-unreadable"
+            )
+            try:
+                self.event(
+                    turn["id"],
+                    "error",
+                    dict(detail=type(exc).__name__ + ":" + str(exc)[:1200]),
+                )
+            except Exception:  # noqa: BLE001 -- recording must not hide the failure itself
+                pass
             self.update(
                 turn["id"],
                 status="unknown" if dispatched else "failed",
                 execution_dispatched=dispatched,
-                error=type(exc).__name__ + ":" + str(exc)[:1200],
+                error=type(exc).__name__ + ":" + code,
             )
         finally:
             if rpc is not None:

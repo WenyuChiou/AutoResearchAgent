@@ -175,9 +175,51 @@ Its evidence is retained for review; corrected data never erases the failure.
 
 `recover` can append a missing, complete projection suffix from the journal.
 It refuses conflicting projections and torn journal lines. It reports unfinished
-attempts and performs zero automatic retries. An interrupted writer leaves
-`.writer-lock`; verify that process has stopped before manually removing that
-lock. Never delete a running writer's lock. Preserve corrupt files for review.
+attempts and performs zero automatic retries. It does not recover an abandoned
+writer lock.
+
+For a supported Windows local fixed-drive NTFS `CoverageLedger` writer, use the
+offline operator command below. Review the exact run path and pin the observed
+lock bytes. Run these commands from the plugin's `cli` directory or put it on
+`PYTHONPATH`.
+
+```powershell
+$run = 'D:/private-run'
+$lockSha = (Get-FileHash -LiteralPath "$run/.writer-lock" -Algorithm SHA256).Hash.ToLowerInvariant()
+python -m stage1_coverage.writer_lock --run $run --expect-lock-sha256 $lockSha
+```
+
+The operator needs the existing filesystem permissions and can recover only an
+identified writer that has exited. The command checks the lock's machine, boot,
+physical path, volume, directory identity, run-manifest digest and exact Windows
+process creation time. It refuses a live or reused PID, inaccessible process,
+changed digest, wrong run, remote volume, link, or otherwise unverifiable owner.
+Each acquisition gets a unique generation even if the process and timestamp
+repeat.
+A legacy `pid` / `created_at` lock does not contain sufficient owner evidence.
+Preserve it for operator review, including when its PID cannot be found. Other
+platforms and drivers without the recoverable owner record retain normal legacy
+writing and have no automatic lock recovery.
+
+Successful recovery moves the original lock byte-for-byte to the sibling
+`.<run-name>.writer-lock-recovery` directory and retains a separate JSON receipt
+there. Its `owner.json` binds the archive to the physical run. An existing
+directory with a missing or different owner record causes recovery to refuse.
+The audit directory must have the same Windows owner, group and discretionary
+ACL as the run. The receipt and archived lock must also match the run's
+effective discretionary access rules. If these checks cannot establish an
+equivalent boundary, recovery refuses and leaves the original lock in place.
+The `.lock` archive is the completion marker. If only the receipt JSON exists,
+the rename has not completed. Rerun with the same expected digest to recheck
+the owner and finish, or obtain `already-recovered` without affecting a later
+writer. Concurrent commands may both report `recovered` for the same verified
+archive. A subsequent call for that digest reports `already-recovered`. After
+lock recovery, verify the run through its normal read-only entry.
+If it separately reports `projection-incomplete`, the existing
+`python -m stage1_ledger --run ... recover` is the separate operation that can
+repair eligible projections. It writes derived files. No recovery command
+restarts a research action or grants execution authority. Preserve corrupt files
+for review.
 Raw files are size-bounded, hashed, and never silently overwritten. Paths must
 stay inside the run; symlinks and parent traversal are rejected. This is a
 single-writer local ledger, not a distributed transaction service. The journal

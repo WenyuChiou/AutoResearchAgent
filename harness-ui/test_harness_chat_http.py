@@ -212,6 +212,29 @@ class ChatHttp(unittest.TestCase):
         )
         self.assertEqual(fx.call(self.state_path(fx, stage=2))[1]["turns"], [])
 
+    def test_non_string_ids_are_answered_400_and_never_break_the_connection(self):
+        fx = HostFixture(
+            self, spec_factory=lambda f: f.grant(), rpc_factory=lambda r: FakeRpc(r)
+        )
+        for route, body in (
+            ("stop", {"turn_id": {}}),
+            ("reconcile", {"turn_id": ["x"]}),
+            ("stop", {"turn_id": 7}),
+            ("send", dict(fx.send_body(), session_id={"a": 1})),
+            (
+                "answer",
+                {"turn_id": "t", "request_id": {}, "request_sha256": "h", "value": {}},
+            ),
+        ):
+            code, value = fx.call("/api/v9/chat/" + route, body)
+            self.assertEqual(
+                (code, value["error"]), (400, "invalid-id-type"), (route, body)
+            )
+        self.assertEqual(fx.call(self.state_path(fx))[0], 200, "server still answers")
+        self.assertEqual(
+            fx.service.status(fx.ref, 1, fixtures.PRINCIPAL)["reserved_turns"], 0
+        )
+
     def test_unknown_routes_and_bad_queries(self):
         fx = HostFixture(
             self, spec_factory=lambda f: f.grant(), rpc_factory=lambda r: FakeRpc(r)
