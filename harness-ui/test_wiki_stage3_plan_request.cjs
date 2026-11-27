@@ -12,7 +12,7 @@ const request = {...basis, key:'stage3-fixed', selection_request_sha256:'b'.repe
 function load({calls = 1, view = {}} = {}) {
  const posts = [], reads = [];
  const ctx = vm.createContext({
-  console, JSON, Object, Number, String, Array, Error,
+  console, JSON, Object, Number, String, Array, Error, Map,
   rt:{ref:'project-p', epoch:1, loading:false, busy:false, pending:null, controlHeld:false, meta:{run_limits:{model_calls:calls}}},
   v93:{busy:false, basis, view:{...basis, plan:null, planning_configured:true, dispatch_action:'prepare-then-confirm-run', default_request:request, job:null, ...view}},
   apps:[{el:{contains:() => true}}],
@@ -184,4 +184,20 @@ test('review P2-1: the action checks the gate again before sending', async () =>
  ({ctx, posts} = load({view:{job:{status:'intent-recorded', request_sha256:sha, key:request.key}}}));
  await ctx.wikiS3PlanAction(ctx.apps[0], 'inspect');
  assert.equal(posts.length, 0, 'inspect is only sent where it is offered');
+});
+
+test('review P2-3: a request in flight stays busy when the user leaves the topic and comes back', async () => {
+ const sha = 'c'.repeat(64);
+ const {ctx, posts} = load({view:{job:{status:'intent-recorded', request_sha256:sha, key:request.key}}});
+ line(ctx); vm.runInContext(`wikiS3Req.check = '${sha}'`, ctx);
+ let release;
+ ctx.answer = () => new Promise(resolve => { release = () => resolve({kind:'ProjectStage3PlanningSubmission', job:{project_ref:'project-p', key:request.key, status:'dispatching'}}); });
+ const first = ctx.wikiS3PlanAction(ctx.apps[0], 'run');
+ ctx.rt.ref = 'project-b'; line(ctx); // away
+ ctx.rt.ref = 'project-p'; line(ctx); // back
+ assert.equal(line(ctx).grant.gate, '正在保存，请稍等');
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'run');
+ assert.equal(posts.length, 1, 'no second POST while the first is in flight');
+ release(); await first;
+ assert.equal(vm.runInContext('wikiS3Req.busy.size', ctx), 0);
 });

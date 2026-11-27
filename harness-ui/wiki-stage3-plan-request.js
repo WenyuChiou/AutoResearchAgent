@@ -9,18 +9,19 @@
 // unknown: a run sent from this page whose answer never came back (network, timeout); kept per topic so leaving and
 // returning cannot bring the grant card back. Only a read-only inspect settles it (review P1-2).
 // check: the request_sha256 of the prepared job the user ticked for; a different prepare voids it (review P2-2).
-const wikiS3Req = {busy:'', error:null, ref:null, check:null, inspected:null, unknown:null};
+// busy: requests in flight, per topic (review P2-3), so leaving and coming back does not forget one.
+const wikiS3Req = {busy:new Map(), error:null, ref:null, check:null, inspected:null, unknown:null};
 function wikiS3ReqTicked(job) { return !!job?.request_sha256 && wikiS3Req.check === job.request_sha256; }
 
 function wikiS3ReqLock() {
  if (rt.loading) return '正在读取保存记录';
- if (rt.busy || wikiS3Req.busy) return '正在保存，请稍等';
+ if (rt.busy || wikiS3Req.busy.has(rt.ref)) return '正在保存，请稍等';
  if (rt.pending) return '上次提交的结果还没确认，先核对';
  if (rt.controlHeld) return '有一条回执还没核对，先到操作历史里核对';
  return '';
 }
 function wikiS3ReqState(view) {
- if (wikiS3Req.ref !== rt.ref) Object.assign(wikiS3Req, {busy:'', error:null, ref:rt.ref, check:null, inspected:null});
+ if (wikiS3Req.ref !== rt.ref) Object.assign(wikiS3Req, {error:null, ref:rt.ref, check:null, inspected:null});
  const job = wikiS3Req.inspected?.key === view?.default_request?.key ? wikiS3Req.inspected : view?.job;
  return {job, error:wikiS3Req.error};
 }
@@ -78,7 +79,7 @@ function wikiS3RequestMarkup(view) {
 }
 async function wikiS3PlanAction(app, act) {
  const basis = v93Identity(), view = basis && v93Matches(v93.basis, basis) ? v93.view : null;
- if (!view || wikiS3Req.busy) return;
+ if (!view || wikiS3Req.busy.has(basis.project_ref)) return;
  if (act === 'read') { wikiS3Req.error = null; wikiS3Req.inspected = null; return v93ReadSaved(app, basis); } // the re-read shows the saved state
  if (act === 'failure') { wikiS3Req.showFailure = !wikiS3Req.showFailure; return livePaint(); }
  // Check the gate again right before sending (review P2-1): the button may have been drawn before the state changed.
@@ -89,7 +90,7 @@ async function wikiS3PlanAction(app, act) {
  const request = {...view.default_request};
  const body = act === 'prepare' ? request : act === 'run' ? {...request, request_sha256:job?.request_sha256, confirmed:true} : {...request, request_sha256:job?.request_sha256};
  if (act !== 'prepare' && !body.request_sha256) return;
- wikiS3Req.busy = act; wikiS3Req.error = null; livePaint();
+ wikiS3Req.busy.set(ref, act); wikiS3Req.error = null; livePaint();
  try {
   const answer = await liveRequest(projectPath(ref, 'stage3/planning/' + act), body);
   if (epoch !== rt.epoch || ref !== rt.ref) return;
@@ -105,7 +106,7 @@ async function wikiS3PlanAction(app, act) {
   if (epoch !== rt.epoch || ref !== rt.ref) return;
   if (!(act === 'run' && !refused)) wikiS3Req.error = {code, refused};
  } finally {
-  if (wikiS3Req.ref === ref) wikiS3Req.busy = '';
+  wikiS3Req.busy.delete(ref);
  }
  // Every outcome is followed by a read-only re-read of the saved state.
  if (epoch === rt.epoch && ref === rt.ref) await v93ReadSaved(app, basis);
