@@ -81,7 +81,7 @@ function v1Crumb(app, page) {
   page === 'other' ? ({files:'项目文件', history:'操作历史', settings:'连接与设置'})[app.page] || '' :
   `Stage ${app.stage} ${v1StageNames[app.stage - 1]}${page === 's1' && v1ScopePending() ? ' · 确认范围' : ''}`;
  const title = v1ProjectTitle();
- return `${title ? `<details class="v1-switch" data-v1-switch><summary>${esc(title)}</summary>${v1SwitchMenu()}</details><span aria-hidden="true">›</span>` : ''}<b>${esc(stageName)}</b>`;
+ return `${title ? `<details class="v1-switch" data-v1-switch ${app.v1SwitchOpen && app.v1SwitchRef === rt.ref ? 'open' : ''}><summary>${esc(title)}</summary>${v1SwitchMenu()}</details><span aria-hidden="true">›</span>` : ''}<b>${esc(stageName)}</b>`;
 }
 
 function v1SwitchMenu() {
@@ -281,8 +281,9 @@ document.addEventListener('click', event => {
  if (button.hasAttribute('data-v1-open')) {
   // Switching re-reads the whole project; nothing from the previous topic is kept.
   const ref = button.dataset.v1Open;
+  app.v1SwitchOpen = false;
   v1Leave('切换课题', () => { app.page = 'home'; wikiHomeOpen(ref); });
- } else if (button.hasAttribute('data-v1-home')) v1Leave('回到首页', () => wikiHomeShow());
+ } else if (button.hasAttribute('data-v1-home')) { app.v1SwitchOpen = false; v1Leave('回到首页', () => wikiHomeShow()); }
  else if (button.hasAttribute('data-v1-leave')) {
   const go = app.v1LeaveGo;
   app.v1LeaveGo = null; app.v1Alert = null;
@@ -293,6 +294,15 @@ document.addEventListener('click', event => {
 }, true);
 document.addEventListener('toggle', event => {
  if (event.target.matches?.('[data-v1-later]') && event.target.isConnected) apps[0].v1LaterOpen = event.target.open;
+ // A background repaint (a read finishing) re-renders the top bar; keep the topic menu open if the user opened it.
+ if (event.target.matches?.('[data-v1-switch]') && event.target.isConnected) { apps[0].v1SwitchOpen = event.target.open; apps[0].v1SwitchRef = rt.ref; }
+}, true);
+// The toggle event comes a moment later; a repaint in between would drop it, so note the click itself too.
+document.addEventListener('click', event => {
+ const summary = event.target.closest?.('[data-v1-switch] > summary');
+ if (!summary) return;
+ apps[0].v1SwitchOpen = !summary.parentElement.open;
+ apps[0].v1SwitchRef = rt.ref;
 }, true);
 
 // ---------- Stage 1 status (DESIGN 3.2, 8.6) ----------

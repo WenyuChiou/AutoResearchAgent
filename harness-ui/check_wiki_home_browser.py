@@ -82,14 +82,15 @@ class Browser:
         return wait(lambda: self.js(f"!!document.querySelector({json.dumps(selector)})"))
 
     def click(self, selector):
-        self.see(selector)
-        point = self.js(f"""(() => {{
+        # Wait until the element is really shown: a control inside a closed <details> is in the DOM with a
+        # zero-size box, and a click at its "centre" would land on (0, 0) instead.
+        point = wait(lambda: self.js(f"""(() => {{
           const item = document.querySelector({json.dumps(selector)});
-          if(item.disabled) return null;
+          if(!item || item.disabled) return null;
           item.scrollIntoView({{block:'center'}});
           const {{x,y,width,height}} = item.getBoundingClientRect();
-          return [x+width/2,y+height/2];
-        }})()""")
+          return width > 0 && height > 0 ? [x+width/2,y+height/2] : null;
+        }})()"""))
         assert point, selector
         x, y = point
         for event in ("mousePressed", "mouseReleased"):
