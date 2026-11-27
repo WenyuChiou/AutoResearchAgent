@@ -4,7 +4,7 @@
 // a key, decision (accept | revise-then-review | return-to-stage2), text (optional, at most 4096 UTF-8 bytes; the
 // 32768-byte figure is the whole request body) and confirmed:true. Every refusal happens before anything is written.
 // A replay of the same key returns the saved record. The record is a local page record: identity not verified,
-// never an execution grant. Records carry a sequence but no time.
+// never an execution grant. Records carry a sequence and recorded_at (UTC; null on older records).
 const wikiS3DecTextBytes = 4096;
 const wikiS3DecLabels = {'accept':'接受计划', 'revise-then-review':'按建议修改后再评审', 'return-to-stage2':'退回 Stage 2 重选'};
 // Interface table (stage3-decision-backend-1127.md, 审查后更新 and 复核后第二次更新); the raw code goes in technical details.
@@ -130,11 +130,20 @@ function wikiS3DecGate(m, state) {
  if (wikiS3DecBytes(state.text) > wikiS3DecTextBytes) return `理由超过 ${wikiS3DecTextBytes} 字节，原文保留；删短后才能保存`;
  return '';
 }
+// recorded_at is the server's UTC ISO 8601 write time (null for records saved before the field existed). Shown in
+// the viewer's local time zone; the UTC original is the hover title.
+function wikiS3DecTime(value) {
+ if (value === null || value === undefined) return '这条记录保存时还没有记录时间';
+ const date = new Date(value);
+ if (typeof value !== 'string' || Number.isNaN(date.getTime())) return `<span title="${wikiS3Escape(value)}">${wikiS3Escape(value)}</span>`;
+ const local = date.toLocaleString('zh-CN', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+ return `<time datetime="${wikiS3Escape(value)}" title="UTC ${wikiS3Escape(value)}" data-s3-dec-time>${wikiS3Escape(local)}</time>`;
+}
 function wikiS3DecRecord(row, old) {
  const r = row.record || {};
  return `<li class="ws3-dec-record" data-s3-dec-record="${wikiS3Escape(r.sequence)}"><b>第 ${wikiS3Escape(r.sequence ?? '?')} 次：${wikiS3Escape(wikiS3DecLabels[r.decision] || r.decision)}</b>${old ? ' <span class="ws3-dec-old">针对旧版本</span>' : ''}
   <div>理由：${r.text ? wikiS3Escape(r.text) : '<span class="ws3-muted">没有写理由</span>'}</div>
-  <div class="ws3-muted">时间：后台记录里没有保存时间 · ${wikiS3DecHonest}</div></li>`;
+  <div class="ws3-muted">时间：${wikiS3DecTime(r.recorded_at)} · ${wikiS3DecHonest}</div></li>`;
 }
 
 function wikiS3DecMarkup(app) {
@@ -156,7 +165,7 @@ function wikiS3DecMarkup(app) {
   const d = latest.record?.decision;
   const fresh = state.saved && state.saved === latest.receipt_sha256;
   const goto = d === 'revise-then-review' ? `<div class="wiki-s2-actions"><span><button type="button" class="hs-button" data-s3-dec="feedback">去「评语与修订」</button></span>
-   <span><button type="button" class="hs-button" disabled>请求生成计划</button><small class="wiki-s2-reason">这份计划已经保存；这次启动的规划接口对同一方向只会返回已保存的结果，不会重新生成，所以现在还不能重新评审</small></span></div>` : '';
+   <span><button type="button" class="hs-button" disabled>请求生成计划</button><small class="wiki-s2-reason">现在还不能针对修改后的计划再生成一次：后台生成计划时只读选方向时的材料，不读你修改过的版本。这个功能需要后台新增。</small></span></div>` : '';
   saved = `<div class="ws3-dec-saved" data-s3-dec-saved role="status">${line('done', fresh ? '已保存' : '已有决定', wikiS3DecFollow[d] || '已保存。')}${goto}</div>`;
  }
  // Two tied revisions: the backend cannot tell which one a decision is for; that is not "no decision".

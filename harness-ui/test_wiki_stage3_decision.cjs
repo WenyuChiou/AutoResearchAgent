@@ -117,10 +117,10 @@ test('confirm then save sends the binding, a new key, the choice, the text and c
   assert.match(t.text(), follow);
   assert.match(t.text(), /已保存/);
   assert.match(t.text(), /第 1 次/);
-  assert.match(t.text(), /时间：后台记录里没有保存时间/);
+  assert.match(t.text(), /时间：这条记录保存时还没有记录时间/, 'a record without recorded_at says so');
   if (decision === 'revise-then-review') {
    assert.match(t.html(), /data-s3-dec="feedback">去「评语与修订」/);
-   assert.match(t.html(), /disabled>请求生成计划<\/button><small class="wiki-s2-reason">这份计划已经保存/);
+   assert.ok(t.html().includes('disabled>请求生成计划</button><small class="wiki-s2-reason">现在还不能针对修改后的计划再生成一次：后台生成计划时只读选方向时的材料，不读你修改过的版本。这个功能需要后台新增。</small>'));
   }
  }
 });
@@ -252,4 +252,16 @@ test('the Stage 3 status line follows the latest saved decision', () => {
  assert.equal(status.tone, 'done');
  assert.match(status.now[1], /你的决定已保存：退回 Stage 2 重选（本机页面记录，未核验身份，不授权执行）/);
  assert.equal(load().ctx.wikiS3DecStatus(), null);
+});
+
+test('recorded_at is shown in local time with the UTC original on hover; null says no time was recorded', () => {
+ const at = '2026-11-27T06:05:09.123456+00:00';
+ const timed = record(1, 'accept', 'k1', {recorded_at:at}), old = record(2, 'return-to-stage2', 'k2', {recorded_at:null});
+ const t = load({view:{host_decision:hdOf({records:[timed, old], latest:old})}});
+ const local = new Date(at).toLocaleString('zh-CN', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+ assert.ok(t.html().includes(`<time datetime="${at}" title="UTC ${at}" data-s3-dec-time>${local}</time>`), 'local time, UTC original as the title');
+ assert.match(t.text(), /这条记录保存时还没有记录时间/);
+ assert.doesNotMatch(t.text(), /后台记录里没有保存时间/);
+ const bad = load({view:{host_decision:hdOf({records:[record(1, 'accept', 'k', {recorded_at:'not-a-time<'})], latest:null})}});
+ assert.match(bad.html(), /title="not-a-time&lt;">not-a-time&lt;/, 'an unreadable value is shown as is, escaped');
 });
