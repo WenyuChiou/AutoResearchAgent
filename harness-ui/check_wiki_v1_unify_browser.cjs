@@ -32,7 +32,10 @@ async function inspect(page) {
   const text = root.innerText;
   // Code blocks and saved paper titles/quotes are source text, not interface wording.
   let body = text;
-  for (const n of root.querySelectorAll('code, pre, .live-record, [data-s1-paper] strong, .wiki-s1-selection h3, .wiki-s1-card > h2, blockquote, [data-s1-claim] strong, .v1-sub')) if (visible(n) && n.innerText) body = body.split(n.innerText).join('');
+  // Longest first: a short excluded text (a project id) can sit inside a longer one (a raw record).
+  const excluded = [...root.querySelectorAll('code, pre, .live-record, [data-s1-paper] strong, .wiki-s1-selection h3, .wiki-s1-card > h2, blockquote, [data-s1-claim] strong, .v1-sub')]
+   .filter(n => visible(n) && n.innerText).map(n => n.innerText).sort((a, b) => b.length - a.length);
+  for (const piece of excluded) body = body.split(piece).join('');
   for (const t of retiredText) if (body.includes(t)) problems.push('旧标题可见: ' + t);
   const code = body.match(/(?<![\w/.#=-])[a-z0-9]+(?:-[a-z0-9]+){2,}(?![\w/.-])/);
   if (code) problems.push('后台代码当正文: ' + code[0]);
