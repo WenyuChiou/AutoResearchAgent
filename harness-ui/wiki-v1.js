@@ -436,6 +436,11 @@ v1PageStatus.s3 = app => {
   return {tone:'wait', now:['计划写好了。', review?.findings?.length ? `评审给了 ${review.findings.length} 条意见。` : '还没有评审意见（后台读取不返回评审）。'],
    next:'看完计划和评审后做决定。', you:{wait:true, text:'对计划做决定'}, button:{label:'去做决定', attrs:'data-v1-goto="s3-decide"', primary:false}};
  }
+ // A saved registration that lost its lease (Host force-stopped) is not "no direction chosen": say so and point
+ // to 重新接通 in the connection block below.
+ const conn = typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
+ if (conn && !conn.unknown && conn.action === 'reconnect') return {tone:'wait', now:['Stage 3 未接通。', '规划登记已保存；上次是强行关闭，这次启动后先显示未接通。'],
+  next:'点下面的「重新接通」恢复，不会重复执行任何步骤，也不会新增记录。', you:{wait:true, text:'重新接通'}};
  if (!basis) return {tone:'off', now:['还没有规划。', 'Stage 2 还没有选定方向，Stage 3 不会生成计划。'], next:'先到 Stage 2 选一个方向。', you:null, button:{label:'去 Stage 2', attrs:'data-stage="2"', primary:false}};
  return {tone:'off', now:['还没有规划。', '已经有选定的方向，但还没有保存的计划。'], next:'接通本课题的 Stage 3 后，请求生成计划。', you:null};
 };
