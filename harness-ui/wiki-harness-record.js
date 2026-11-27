@@ -18,16 +18,17 @@ function wikiHarnessRecord(record) {
  ];
  const resume = record?.resume;
  const recordedBlocks = blocked.some(([key]) => wikiRecordNumber(record?.blocked?.[key]));
- const summary = wikiRecordSummary(record);
+ const summary = typeof record?.summary === 'string' && record.summary ? record.summary : wikiRecordSummary(record);
  const raw = value => `<details><summary>看原始记录</summary><pre>${esc(JSON.stringify(value, null, 2))}</pre></details>`;
  const table = (headers, rows) => `<table><thead><tr>${headers.map(name => `<th scope="col">${name}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
  const missing = `<p>${wikiRecordMissing}</p>`;
  const chip = '<strong class="wiki-record-chip">Harness 记录</strong>';
+ const chips = (record?.chips || []).map(([text, warn]) => `<span class="wiki-record-count${warn ? ' warn' : ''}">${esc(text)}</span>`).join('');
  if (summary === wikiRecordMissing && !checks.length && !timeline.length && !recordedBlocks && resume?.raw == null) {
   return `<div class="wiki-record" data-wiki-record>${chip}<span>${wikiRecordMissing}</span></div>`;
  }
  return `<details class="wiki-record" data-wiki-record>
-  <summary>${chip}<span>${summary === wikiRecordMissing ? '有已保存的明细' : summary}</span><span class="wiki-record-expand">展开明细</span><span class="wiki-record-collapse">收起明细</span></summary>
+  <summary>${chip}<span>${summary === wikiRecordMissing ? '有已保存的明细' : summary}</span>${chips ? `<span class="wiki-record-counts">${chips}</span>` : ''}<span class="wiki-record-expand">展开明细</span><span class="wiki-record-collapse">收起明细</span></summary>
   <div class="wiki-record-body">
    <p>这里只说做了哪些检查，不代表研究结论是对的。</p>
    <h3>这一段查了什么、留了什么</h3>

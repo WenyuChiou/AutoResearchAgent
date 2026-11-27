@@ -176,6 +176,7 @@ v7AfterRender = function(app) {
  wikiHomePreviousAfter(app);
  if (app.lang !== 'zh' || app.page !== 'home') return;
  const side = app.el.querySelector('.hs-sidebar-foot');
+ if (!side) return; // The V1 sidebar has its own fixed footer line.
  side.textContent = rt.busy || rt.loading || rt.pending ? '等当前请求处理完，可打开课题。' :
   rt.list.some(project => wikiHomeRow(project).stage) ? '侧栏可打开上次课题已有记录的阶段。' : '新建课题后，可打开该课题的阶段页。';
 };

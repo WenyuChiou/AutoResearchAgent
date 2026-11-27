@@ -1,6 +1,11 @@
 // Wiki V1 Stage 1. Only project-bound persisted output is projected here.
 const wikiS1Tabs = {sources:'来源与图谱', evidence:'证据', synthesis:'跨文献综合'};
-const wikiS1Groups = ['#6fb7e9','#e2a23b','#3fbf9a','#d98bb5','#e6803a'];
+const wikiS1Groups = ['#6fb7e9','#e2a23b','#3fbf9a','#d98bb5','#e6803a','#a99be0'];
+// Saved coverage rows may carry only a question (often in English). Never show "undefined".
+function wikiS1GroupTitle(row, i) {
+ const text = typeof row?.description === 'string' && row.description.trim() || typeof row?.title === 'string' && row.title.trim();
+ return text || `需求 ${i + 1}`;
+}
 const wikiS1Decisions = {include:'纳入', exclude:'排除', pending:'待定', missing:'未提供'};
 const wikiS1Relations = {supports:'支持', partial:'部分支持', contradicts:'不支持', pending:'待判断',
  unclear:'不明确', unverifiable:'无法核对', unverified:'未核对', context:'背景信息'};
@@ -29,7 +34,8 @@ function wikiS1State(app, index) {
  const state = app.wikiS1;
  if (!index) return state;
  state.groups = (index.coverage || []).map((row,i) => ({
-  id:row.need_id, title:row.description, works:new Set(row.work_ids), color:wikiS1Groups[i % wikiS1Groups.length]
+  id:row.need_id, title:wikiS1GroupTitle(row, i), question:typeof row.question === 'string' ? row.question : '',
+  works:new Set(Array.isArray(row.work_ids) ? row.work_ids : []), color:wikiS1Groups[i % wikiS1Groups.length]
  }));
  const screen = new Map();
  for (const row of index.screening || []) {
@@ -79,12 +85,12 @@ function wikiS1Metrics(index, state) {
  const included = state.sources.filter(row=>row.decision?.status==='include').length;
  const count = (amount,total) => `<strong>${index ? amount : '未提供'}</strong>${index && total !== undefined ? ' / '+total : ''}`;
  const cells = [
-  [count(included,state.sources.length),'纳入来源','分母为本交付的文献'],
-  [count(located),'证据定位','有保存出处的证据条目'],
-  [count(evaluated,claims.length),'已有人工核对记录','分母为本交付的证据条目'],
-  [count(state.groups.length),'需求分组','一篇文献可属于多个分组']
+  [count(included,state.sources.length),'来源已纳入','分母是这份交付的文献数','工程记录'],
+  [count(located),'条证据定位','有保存出处位置的证据条目','工程记录'],
+  [count(evaluated,claims.length),'证据已核对','核对后才能当作研究依据','研究结果'],
+  [count(state.groups.length),'个需求分组','一篇文献可以属于多个分组','工程记录']
  ];
- return `<div class="wiki-s1-metrics">${cells.map(([value,title,note])=>`<div><div>${value} <b>${title}</b></div><small>${note}</small><span>工程记录</span></div>`).join('')}</div>`;
+ return `<div class="wiki-s1-metrics">${cells.map(([value,title,note,tag])=>`<div><div>${value} <b>${title}</b></div><small>${note}</small><span class="${tag==='研究结果'?'wiki-s1-res':''}">${tag}</span></div>`).join('')}</div>`;
 }
 
 function wikiS1PaperMeta(row) {
@@ -98,9 +104,9 @@ function wikiS1SourceList(state) {
   [label,sources.filter(row=>(row.decision?.status || 'missing')===key).length]);
  return `<div class="wiki-s1-chips" role="group" aria-label="按需求分组筛选">
  <button type="button" data-s1-group="" aria-pressed="${!group}">全部 ${state.sources.length}</button>
- ${state.groups.map(row=>`<button type="button" data-s1-group="${esc(row.id)}" title="${esc(row.title)}" aria-pressed="${row===group}"><i style="--s1-color:${row.color}"></i>${esc(row.title)} ${row.works.size}</button>`).join('')}
+ ${state.groups.map(row=>`<button type="button" data-s1-group="${esc(row.id)}" title="${esc(row.question || row.title)}" aria-pressed="${row===group}"><i style="--s1-color:${row.color}"></i>${esc(row.title)} ${row.works.size}</button>`).join('')}
  </div><p class="wiki-s1-muted">筛选结果 · ${counts.filter(([label,count])=>label!=='未提供'||count).map(([label,count])=>label+' '+count).join(' · ')}（共 ${sources.length} 篇）</p>
- <div class="wiki-s1-list" ${sources.length>30?'data-s1-long-list':''}>${sources.map(row=>`<button type="button" data-s1-paper="${esc(row.paper.work_id)}" aria-pressed="${row.paper.work_id===state.selected}">
+ <div class="wiki-s1-list" ${sources.length>=30?'data-s1-long-list':''}>${sources.map(row=>`<button type="button" data-s1-paper="${esc(row.paper.work_id)}" aria-pressed="${row.paper.work_id===state.selected}">
  <span class="wiki-s1-muted">${row.number}</span><span><strong>${esc(row.paper.title)}</strong><small>${wikiS1PaperMeta(row)} ${row.groups.map(g=>`<span><i style="--s1-color:${g.color}"></i>${esc(g.title)}</span>`).join(' ')} · ${row.claims.length} 条证据</small></span>
  <span class="wiki-s1-decision">${wikiS1Decisions[row.decision?.status] || wikiS1Decisions.missing}</span></button>`).join('') || '<p>这个分组没有来源。</p>'}</div>`;
 }
@@ -290,7 +296,7 @@ v7AfterRender = function(app) {
  const badge=app.el.querySelector('.hs-preview');
  if (badge) badge.textContent='Wiki V1 · 本地记录';
  if (!shell.nextElementSibling?.matches('[data-wiki-record]')) {
-  shell.insertAdjacentHTML('afterend',wikiHarnessRecord());
+  shell.insertAdjacentHTML('afterend',wikiHarnessRecord(typeof v1S1Record==='function'?v1S1Record():undefined));
   shell.nextElementSibling.after(panel);
   const heading=app.el.querySelector('.hs-heading');
   if (heading?.querySelector('h1')) {
