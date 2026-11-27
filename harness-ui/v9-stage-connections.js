@@ -275,7 +275,10 @@ document.addEventListener('click', async event => {
   if (button.dataset.v9Connection === 'read') return v9ConnectionPending()?liveRecover():v9ConnectionRead(view);
   const action=button.dataset.v9Connection, row=view.row, {stage,basis}=view;
   if (action!==v9ConnectionAction(view) || !v9ConnectionCanWrite()) return;
-  v9ConnectionWriting=true; livePaint();
+  v9ConnectionWriting=true;
+  // A new attempt replaces the reason kept from an earlier failed reconnect, so it cannot hide what happens now.
+  if (action==='reconnect') v9ReconnectErrors.delete(basis.project_ref);
+  livePaint();
   try {
     await navigator.locks.request('ara.stage2.transaction.v1.'+basis.project_ref,{mode:'exclusive',ifAvailable:true}, async lock=>{
       if (!lock) throw Error('project-lock-busy');
@@ -291,7 +294,8 @@ document.addEventListener('click', async event => {
   } catch (error) {
     // A failed reconnect keeps the row and its button; the reason is kept per project (v9ReconnectErrors) so the
     // block can say the last attempt failed instead of losing the button (review P2-2).
-    if (v9ConnectionCurrent(view) && !(action==='reconnect' && v9ReconnectErrors.has(basis.project_ref))) {view.row=null;view.error=error.message||'project-lock-failed';view.http=error.status;}
+    // Only this attempt's own recorded failure keeps the row; any other error (lock busy, profile changed) is shown.
+    if (v9ConnectionCurrent(view) && !(action==='reconnect' && error?.v9ReconnectRecorded)) {view.row=null;view.error=error.message||'project-lock-failed';view.http=error.status;}
   } finally {v9ConnectionWriting=false;livePaint();}
 });
 
@@ -330,6 +334,7 @@ async function v9ReconnectStage(view) {
   } catch (error) {
     if (ref!==rt.ref) throw error; // the topic changed meanwhile; nothing is shown for it
     v9ReconnectErrors.set(ref,{code:error.message||'stage-connection-receipt-unverified',http:error.status??null});
+    if (error && typeof error==='object') error.v9ReconnectRecorded=true;
     // After the service answered, read the project again so the page shows the real state (review P2-4).
     if (answered) { try { await liveRefresh(ref,{list:true}); } catch (_) { /* The reason above stays on the page. */ } }
     throw error;

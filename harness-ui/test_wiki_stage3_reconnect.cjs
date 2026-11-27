@@ -196,3 +196,19 @@ test('an answer carrying this click key as the receipt is refused (a new registr
  const v = await view(ctx);
  await assert.rejects(() => ctx.v9ReconnectStage(v), /stage-connection-receipt-unverified/);
 });
+
+test('a reason kept from an earlier failed reconnect does not hide a new, different error', async () => {
+ const s = service('unavailable'), ctx = load(s), original = s.request;
+ s.request = async (p, body) => { if (body) { s.posts.push(body); throw Object.assign(Error(reason), {status:409}); } return original(p, body); };
+ let v = await view(ctx);
+ await clickOn(ctx, v);
+ assert.equal(vm.runInContext('v9ReconnectErrors.get("project-r").code', ctx), reason);
+ // Second attempt fails before any request: the cross-tab lock is held elsewhere.
+ ctx.navigator.locks.request = async (_, __, fn) => fn(null);
+ v = ctx.v9ConnectionView;
+ await clickOn(ctx, v);
+ assert.equal(ctx.v9ConnectionView.error, 'project-lock-busy', 'the new error is shown');
+ assert.equal(ctx.v9ConnectionView.row, null);
+ assert.equal(vm.runInContext('v9ReconnectErrors.has("project-r")', ctx), false, 'the old reason is not kept as if it were current');
+ assert.equal(s.posts.length, 1, 'nothing was sent the second time');
+});
