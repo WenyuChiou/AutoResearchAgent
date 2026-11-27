@@ -32,10 +32,16 @@ async function inspect(page) {
   const text = root.innerText;
   // Code blocks and saved paper titles/quotes are source text, not interface wording.
   let body = text;
-  for (const n of root.querySelectorAll('code, pre, .live-record, [data-s1-paper] strong, .wiki-s1-selection h3, .wiki-s1-card > h2, blockquote, [data-s1-claim] strong')) if (visible(n) && n.innerText) body = body.split(n.innerText).join('');
+  for (const n of root.querySelectorAll('code, pre, .live-record, [data-s1-paper] strong, .wiki-s1-selection h3, .wiki-s1-card > h2, blockquote, [data-s1-claim] strong, .v1-sub')) if (visible(n) && n.innerText) body = body.split(n.innerText).join('');
   for (const t of retiredText) if (body.includes(t)) problems.push('旧标题可见: ' + t);
   const code = body.match(/(?<![\w/.#=-])[a-z0-9]+(?:-[a-z0-9]+){2,}(?![\w/.-])/);
   if (code) problems.push('后台代码当正文: ' + code[0]);
+  // Two-part codes such as no-source count too, but only standing alone among Chinese text: an English
+  // hyphenated word inside an English phrase (two-way, LLM-driven) is not flagged.
+  for (const m of body.matchAll(/(?<![\w/.#=-])[a-z][a-z0-9]*-[a-z0-9]+(?![\w/.-])/g)) {
+   const before = body.slice(0, m.index).replace(/[ 	]+$/, '').slice(-1), after = body.slice(m.index + m[0].length).replace(/^[ 	]+/, '').charAt(0);
+   if (!/[A-Za-z]/.test(before) && !/[A-Za-z]/.test(after)) { problems.push('后台代码当正文: ' + m[0]); break; }
+  }
   for (const w of internal) if (body.includes(w)) problems.push('内部词可见: ' + w + ' …' + body.slice(Math.max(0, body.indexOf(w) - 30), body.indexOf(w) + 30).replace(/\s+/g, ' '));
   const exempt = b => b.closest('.v1-side, .v1-menu, [role="tablist"], .wiki-s1-chips, .wiki-s2-chips, .wiki-s2-pager, .wiki-home-filters') || b.matches('[role="tab"], [aria-pressed]');
   for (const b of root.querySelectorAll('button:disabled')) {
