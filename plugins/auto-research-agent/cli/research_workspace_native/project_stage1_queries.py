@@ -412,6 +412,9 @@ class ProjectStage1QueryService:
                     principal=actor,
                     request_sha256=request_hash,
                     permit_sha256=state["stage1_query_authorization"]["sha256"],
+                    # Business deadline: checked against time.time() minus
+                    # metered local verification (see _bootstrap_live); a
+                    # status read may show it passed while still dispatching.
                     deadline_unix=min(
                         permit["expires_at_unix"],
                         time.time() + permit["limits"]["bootstrap_probe_seconds"],

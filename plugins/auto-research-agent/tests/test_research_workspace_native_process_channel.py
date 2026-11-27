@@ -572,6 +572,128 @@ class OwnedProcessTests(OwnedProcessCase):
             startup_delay=2.5
         )
 
+    def _metered_real_handshake(self, seconds, **limits):
+        # Real fake app-server child, real writer/reader threads, recording
+        # channel and transport; each source check is a metered local pass.
+        from types import SimpleNamespace
+
+        from research_workspace_native import (
+            bootstrap_context,
+            process_channel,
+            process_deadline,
+            recording,
+            transport,
+        )
+        from research_workspace_native.bootstrap import BootstrapSession
+        from stage1_retrieval import verification_clock as vc
+
+        self.child.write_text(
+            "import sys,json\n"
+            "for line in sys.stdin.buffer:\n"
+            " m=json.loads(line);method=m['method']\n"
+            " if method=='initialized':continue\n"
+            " p=m['params']\n"
+            " r={'userAgent':'synthetic-server'} if method=='initialize' else "
+            "{'requiresOpenaiAuth':True,'account':{'type':'apiKey'}} "
+            "if method=='account/read' else "
+            "{'thread':{'id':'synthetic-thread'},'cwd':p['cwd'],"
+            "'model':p['model'],'approvalPolicy':p['approvalPolicy'],"
+            "'sandbox':{'type':'readOnly','networkAccess':False}}\n"
+            " print(json.dumps({'id':m['id'],'result':r}),flush=True)\n",
+            encoding="utf8",
+        )
+        clock = SimpleNamespace(offset=0.0, passes=0, metered=False)
+
+        class ShiftedTime:
+            def __getattr__(self, name):
+                return getattr(time, name)
+
+            def monotonic(self):
+                return time.monotonic() + clock.offset
+
+        def verify():
+            with vc.local_verification(1500):
+                if vc.current() is not None:
+                    clock.passes += 1
+                    clock.offset += seconds
+            return True
+
+        channel = self.channel(verify_binding=verify, lifetime=600)
+        self.store.record_intent(
+            "alpha",
+            self.owner,
+            "new-session",
+            "thread/start",
+            dict(
+                cwd=str(self.cwd),
+                model="synthetic-model",
+                approvalPolicy="on-request",
+                sandbox="read-only",
+            ),
+            self.state()["revision"],
+        )
+        boot = BootstrapSession(
+            store=self.store,
+            project_id="alpha",
+            owner=self.owner,
+            connection_id="synthetic-epoch",
+            index_sha256="a" * 64,
+            input_version="b" * 64,
+            intent_key="new-session",
+            channel=channel,
+            verify_binding=verify,
+            admit_lifecycle=lambda offer: True,
+        )
+        shifted = ShiftedTime()
+        modules = (
+            process_deadline,
+            process_channel,
+            vc,
+            transport,
+            recording,
+            bootstrap_context,
+        )
+        patches = [patch.object(module, "time", shifted) for module in modules]
+        patches += [patch.object(vc, name, value) for name, value in limits.items()]
+        for item in patches:
+            item.start()
+        try:
+            boot.open_thread(
+                dict(name="synthetic-client", version="1"),
+                timeout=10,
+                total_timeout=30,
+            )
+        finally:
+            for item in reversed(patches):
+                item.stop()
+        return clock
+
+    def test_real_channel_handshake_excludes_metered_verification(self):
+        clock = self._metered_real_handshake(3)
+        state = self.state()
+        self.assertEqual(state["bootstrap"]["phase"], "ready")
+        self.assertGreater(clock.offset, 30)  # longer than the total budget
+        print(f"real-channel handshake passes: {clock.passes}", file=sys.stderr)
+        self.assertLess(clock.passes, 64)
+
+    def test_real_channel_verification_budget_is_not_an_idle_read(self):
+        with self.assertRaises(ValueError):
+            self._metered_real_handshake(
+                3, BASE_SECONDS=8, PASS_SECONDS=0, PER_FILE_SECONDS=0
+            )
+        state = self.state()
+        self.assertEqual(state["bootstrap"]["phase"], "failed")
+        self.assertNotEqual(state["intents"]["new-session"]["status"], "dispatching")
+        # The distinct reason survives transport wrapping; never an idle read.
+        self.assertEqual(
+            state["bootstrap"]["failure_type"], "LocalVerificationBudgetExceeded"
+        )
+        from research_workspace_native.recording import records
+
+        rows = records(self.store, "alpha", "synthetic-epoch")
+        self.assertTrue(rows)
+        self.assertNotIn("timeout", {row.get("outcome") for row in rows})
+
     def test_failed_bootstrap_reports_phase_clock_without_resend(self):
         from research_workspace_native.bootstrap import BootstrapSession
 

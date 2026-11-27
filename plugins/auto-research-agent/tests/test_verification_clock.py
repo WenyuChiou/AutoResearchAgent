@@ -95,6 +95,19 @@ class MeterTests(ClockCase):
                     self.clock.advance(6)  # still running: 5 s now count
                     self.assertEqual(self.business() - start, 5)
 
+    def test_scope_allowance_has_a_total_ceiling(self):
+        meter = self.meter(max_seconds=30)
+        with vc.metering(meter):
+            with self.assertRaises(vc.LocalVerificationBudgetExceeded):
+                with vc.local_verification(100000):  # formula: 511 s
+                    self.clock.advance(31)
+        self.assertEqual(meter.snapshot()["allowance"], 30)
+        self.assertEqual(vc.Meter().max_seconds, vc.MAX_SECONDS)
+
+    def test_budget_overrun_is_not_a_timeout(self):
+        # Read paths treat TimeoutError as an idle read; this must not be one.
+        self.assertFalse(issubclass(vc.LocalVerificationBudgetExceeded, TimeoutError))
+
     def test_failing_pass_keeps_its_own_error(self):
         with vc.metering(self.meter(base_seconds=0, pass_seconds=0)):
             with self.assertRaisesRegex(ValueError, "bytes differ"):
