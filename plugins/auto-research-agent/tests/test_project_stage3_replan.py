@@ -9,6 +9,7 @@ planner and process calls are forbidden.
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 
 sys.path[:0] = [
     str(Path(__file__).resolve().parents[1] / "cli"),
@@ -1003,6 +1004,71 @@ class ReplanInterfaceGapTests(ReplanFixture, unittest.TestCase):
         view = self.view()
         self.assertEqual(view["job"]["request_sha256"], new_prepared["request_sha256"])
         self.assertEqual([r["key"] for r in view["replan"]["attempts"]], [body["key"]])
+
+
+class ReplanAttemptWindowTests(ReplanFixture, unittest.TestCase):
+    """The attempts window: newest by recorded order, unknown never cut, one bad file."""
+
+    prepare_replan = ReplanInterfaceGapTests.prepare_replan
+
+    def record_clones(self, count, first_payload):
+        # keys sort opposite to the order they are recorded, so a key-ordered slice
+        # would keep the wrong ones
+        keys = []
+        for index in range(count):
+            key = "zz-clone-%03d" % (99 - index)
+            state = self.journal.snapshot(self.jobs.project_id)
+            self.journal.record_intent(
+                self.jobs.project_id,
+                self.jobs.owner,
+                self.jobs._key(key),
+                self.jobs.method,
+                dict(first_payload, key=key),
+                expected_revision=state["revision"],
+            )
+            keys.append(key)
+        return keys
+
+    def attempts(self):
+        replan = self.view()["replan"]
+        return [row["key"] for row in replan["attempts"]], replan["attempts_omitted"]
+
+    def test_window_keeps_the_newest_sixteen_by_recorded_order(self):
+        body, _, _ = self.prepare_replan()
+        payload = self.item_for(body["key"])["payload"]
+        clones = self.record_clones(17, payload)
+        keys, omitted = self.attempts()
+        recorded = [body["key"]] + clones
+        self.assertEqual((keys, omitted), (recorded[2:], 2))
+
+    def test_unknown_result_is_never_cut_from_the_window(self):
+        body, _, _ = self.prepare_replan()
+        payload = self.item_for(body["key"])["payload"]
+        clones = self.record_clones(17, payload)
+        # the oldest job's result becomes unknown after everything was recorded
+        self.jobs._transition(body["key"], "dispatching", {"authored": "dispatch"})
+        self.jobs._transition(body["key"], "execution-unknown", {"authored": "lost"})
+        keys, omitted = self.attempts()
+        self.assertEqual((keys, omitted), ([body["key"]] + clones[2:], 2))
+        row = self.view()["replan"]["attempts"][0]
+        self.assertEqual((row["status"], row["result_unknown"]), ("execution-unknown", True))
+
+    def test_one_unreadable_job_does_not_fail_the_whole_view(self):
+        body, _, _ = self.prepare_replan()
+        payload = self.item_for(body["key"])["payload"]
+        clones = self.record_clones(1, payload)
+        real = self.bridge.inspect
+
+        def inspect(credential, ref, request, **kwargs):
+            if request["key"] == clones[0]:
+                raise OSError("authored damaged job file")
+            return real(credential, ref, request, **kwargs)
+
+        with mock.patch.object(self.bridge, "inspect", side_effect=inspect):
+            rows = self.view()["replan"]["attempts"]
+        self.assertEqual([row["key"] for row in rows], [body["key"], clones[0]])
+        self.assertEqual(rows[1]["job"], {"error": "stage3-replan-job-unreadable"})
+        self.assertNotIn("error", rows[0]["job"])
 
 
 class ReplanDirectionModeTests(unittest.TestCase):
