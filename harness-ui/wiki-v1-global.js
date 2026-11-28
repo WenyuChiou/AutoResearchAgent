@@ -271,7 +271,7 @@ function v1gSettings() {
    ${step('本课题登记了模型连接', !ok ? 'unk' : d.provider === 'registered' ? 'ok' : d.provider === 'absent' ? 'bad' : 'unk', !ok ? '还没有读取到。' : d.provider === 'registered' ? '已登记。' : d.provider === 'absent' ? '没有登记。请本机操作者在启动配置里给这个课题登记模型连接。' : '服务没有给出记录。')}
   </ol></section>`;
  const lang = `<section class="v1-panel" data-v1g-block="lang"><h2>界面语言</h2>
-  <select class="v1-field" data-language aria-label="界面语言"><option value="zh" selected>简体中文</option><option value="tw">繁體中文（部分内容未翻译）</option><option value="en">English（部分内容未翻译）</option></select>
+  <select class="v1-field" data-language aria-label="界面语言"><option value="zh" selected>简体中文</option><option value="tw">繁體中文（旧版界面，功能不全）</option><option value="en">English（旧版界面，功能不全）</option></select>
   <p class="v1-hint">只换界面。论文标题、引文和你写的内容保持原文，缺译文的会标出来。</p></section>`;
  const stage = app.stage <= 3 ? `Stage ${app.stage} · ${v1gStageName[app.stage]}` : `Stage ${app.stage}`;
  const topic = `<section class="v1-panel" data-v1g-block="topic"><h2>当前课题</h2>
@@ -313,10 +313,32 @@ function v1gEnvAlerts() {
  }
  return [];
 }
+// ---------------- 英文、繁体：仍是旧版界面的说明 (acceptance S-1) ----------------
+// V1 is Simplified Chinese only for now. In English and Traditional Chinese the old interface is shown; say so at the top,
+// in that language, with a way to the new interface. The button changes the language through the page's own language
+// select, so the saved language, the address and the repaint all follow the normal path.
+const v1gLegacyTexts = {
+ en:{title:'This language still uses the old interface, and it has fewer features.', sub:'For the new interface, switch to Simplified Chinese.', button:'Switch to Simplified Chinese (简体中文)'},
+ tw:{title:'這個語言目前仍是舊版介面，功能不全。', sub:'新版介面請切換到簡體中文。', button:'切換到簡體中文（简体中文）'}
+};
+function v1gLegacyNote(app) {
+ const text = Object.hasOwn(v1gLegacyTexts, app.lang) ? v1gLegacyTexts[app.lang] : null;
+ const content = app === apps[0] ? app.el.querySelector?.('.hs-content') : null;
+ if (!text || !content || content.querySelector?.('[data-v1-legacy-note]')) return;
+ content.insertAdjacentHTML('afterbegin', `<div class="v1-lang-note" data-v1-legacy-note role="note"><div><b>${esc(text.title)}</b> <span>${esc(text.sub)}</span></div><button type="button" class="hs-button" data-v1g-lang-zh>${esc(text.button)}</button></div>`);
+}
+document.addEventListener('click', event => {
+ if (!event.target.closest?.('[data-v1g-lang-zh]')) return;
+ const select = apps[0]?.el?.querySelector?.('select[data-language]');
+ if (!select) return;
+ select.value = 'zh';
+ select.dispatchEvent(new Event('change', {bubbles:true}));
+}, true);
+
 const v1gPrevRender = render;
 render = function (app) {
  v1gPrevRender(app);
- if (!app.el.dataset.v1) return;
+ if (!app.el.dataset.v1) { v1gLegacyNote(app); return; }
  // The Codex chat drawer (wiki-chat.js) owns the right-edge tab; no second placeholder tag is drawn here.
  const content = app.el.querySelector('.hs-content');
  const alerts = v1gEnvAlerts();

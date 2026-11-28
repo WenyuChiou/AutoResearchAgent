@@ -149,5 +149,35 @@ assert.match(context.v1gEnvAlerts()[0].title, /这个页面不是从 Wiki 服务
 rt.error = ''; context.window.RESEARCH_PROJECTS = undefined;
 assert.equal(context.v1gEnvAlerts()[0].raw, 'no-service-bootstrap');
 
+// Acceptance S-1: English and Traditional Chinese keep the old interface and say so at the top, in their own language.
+{
+ const noteFor = lang => {
+  const inserted = [];
+  const content = {querySelector:() => null, insertAdjacentHTML:(where, html) => inserted.push([where, html])};
+  const legacy = {lang, el:{dataset:{}, querySelector:selector => selector === '.hs-content' ? content : null}};
+  context.apps[0] = legacy;
+  context.render(legacy);
+  context.render(legacy);
+  context.apps[0] = app;
+  return inserted;
+ };
+ const en = noteFor('en'), tw = noteFor('tw');
+ assert.equal(en.length, 2, 'inserted when the content has no note yet (the stub never shows one)');
+ assert.match(en[0][1], /still uses the old interface/);
+ assert.match(en[0][1], /switch to Simplified Chinese/);
+ assert.match(en[0][1], /data-v1g-lang-zh/);
+ assert.match(tw[0][1], /這個語言目前仍是舊版介面，功能不全/);
+ assert.match(tw[0][1], /新版介面請切換到簡體中文/);
+ assert.match(tw[0][1], /data-v1g-lang-zh/);
+ assert.equal(noteFor('zh').length, 0, 'Simplified Chinese on a legacy element gets no note');
+ assert.equal(noteFor('constructor').length, 0, 'a language name is looked up as an own key only');
+ // The button changes the language through the page's own select.
+ const events = [], select = {value:'en', dispatchEvent:event => events.push([select.value, event.type, event.bubbles])};
+ context.apps[0] = {el:{querySelector:selector => selector === 'select[data-language]' ? select : null}};
+ context.Event = class { constructor(type, init) { this.type = type; this.bubbles = init?.bubbles; } };
+ for (const fn of listeners.click) fn({target:{closest:selector => selector === '[data-v1g-lang-zh]' ? {} : null}});
+ context.apps[0] = app;
+ assert.deepEqual(events, [['zh', 'change', true]]);
+}
 console.log('PASS Wiki V1 global pages: environment bar, no topic, loading, refused, error, empty, files, history filters and raw rows, settings blocks, archives.');
 })().catch(error => { console.error(error); process.exit(1); });

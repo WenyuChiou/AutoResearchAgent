@@ -438,6 +438,7 @@ function v1Split(text) {
 v1StageStatus[2] = () => {
  const model = typeof wikiS2Model === 'function' ? wikiS2Model() : null;
  if (model?.receipt) return ['已选定方向', 'done'];
+ if (model?.missing) return ['归档里没有 Stage 2', ''];
  if (model?.blocked) return ['被拦下', 'wait'];
  if (model?.routes?.length) return model.origin === 'native' ? ['等你选方向', 'wait'] : ['候选已保存（只读）', 'done'];
  return ['还没有候选', ''];
