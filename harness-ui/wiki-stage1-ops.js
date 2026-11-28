@@ -227,7 +227,9 @@ function wsPhaseRows() {
   if (kind === 'wait' && !before) { kind = 'idle'; label = '未开始'; }
   if (kind === 'wait' && id === 'scope') label = '等你';
   rows.push({id, name:wsPhaseNames[id], kind, label, raw:found || null,
-   reason:wsReasons[found?.reason] || (found?.reason ? '' : '还没有读到这一步的状态')});
+   // Status 「unconnected」 means this launch has no query service (project_host.stage1_view: query_execution is null);
+   // the default reason the host attaches then is the permission one, which is not the cause. Say what the buttons say.
+   reason:id === 'query' && found?.status === 'unconnected' ? '查询执行还没接通' : wsReasons[found?.reason] || (found?.reason ? '' : '还没有读到这一步的状态')});
   before = before && kind === 'done';
  }
  return rows;

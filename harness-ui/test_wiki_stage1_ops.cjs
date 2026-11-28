@@ -146,6 +146,11 @@ assert.match(buttonOf(tab, 'data-real-action="plan"'), /没有本课题的运行
 assert.match(tab, /请先勾选确认|我确认只授权这一次、这一件事/);
 assert.equal(ctx.wsPhaseRows()[1].kind, 'wait');
 assert.equal(ctx.wsPhaseRows()[2].kind, 'idle', 'unconnected row is not started');
+// Query row on a launch without a query service: the row and the three query buttons give one reason (acceptance S-3).
+assert.equal(ctx.wsPhaseRows()[2].reason, '查询执行还没接通');
+assert.doesNotMatch(ctx.wsPhaseRows()[2].reason, /运行许可/);
+rt.overview.stage1.progress.phases[2] = {phase_id:'query', status:'required', reason:'query-permission-required'};
+assert.equal(ctx.wsPhaseRows()[2].reason, '没有这一段的运行许可', 'with a query service, the permission reason still applies');
 // Scope not confirmed: the plan row is not asking for you yet.
 rt = makeRt(false, {wsProg:{state:'absent'}}); ctx = load(rt);
 assert.equal(ctx.wsPhaseRows()[0].label, '等你');
