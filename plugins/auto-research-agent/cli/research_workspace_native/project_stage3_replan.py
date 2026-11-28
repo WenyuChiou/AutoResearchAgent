@@ -111,6 +111,31 @@ def _frozen_view(frozen):
 MAX_ATTEMPTS = 16
 
 
+def _newest(jobs, rows):
+    """At most ``MAX_ATTEMPTS`` rows, oldest first: the newest by the order the
+    journal recorded them (its append-only events), never by key. Rows whose
+    result is unknown (dispatching or execution-unknown) are always kept, so a
+    call that may have spent quota cannot be cut off. Returns (rows, omitted).
+    """
+    order = {}
+    for event in jobs.journal.events(jobs.project_id):
+        if event["kind"] == "intents-recorded":
+            order.setdefault(event["payload"]["key"], event["revision"])
+    rows = sorted(rows, key=lambda item: order.get(item["key"], 0))
+    keep = [
+        item["status"] in {"dispatching", "execution-unknown"} for item in rows
+    ]
+    room = MAX_ATTEMPTS - sum(keep)
+    for index in range(len(rows) - 1, -1, -1):
+        if room <= 0:
+            break
+        if not keep[index]:
+            keep[index] = True
+            room -= 1
+    chosen = [item for item, kept in zip(rows, keep) if kept]
+    return chosen, len(rows) - len(chosen)
+
+
 def _saved(item):
     return (
         item["status"] == "completed"
@@ -526,9 +551,9 @@ class ProjectStage3Replan:
             ):
                 continue
             rows.append(item)
-        omitted = max(0, len(rows) - MAX_ATTEMPTS)
+        rows, omitted = _newest(jobs, rows)
         entries = []
-        for item in rows[-MAX_ATTEMPTS:]:
+        for item in rows:
             payload = item["payload"]
             key = payload["key"]
             body = dict(
@@ -543,7 +568,7 @@ class ProjectStage3Replan:
                     ),
                     payload["revision_input"],
                 )
-            except (SessionApiError, Stage3Error) as error:
+            except (SessionApiError, Stage3Error, OSError) as error:
                 job = {"error": getattr(error, "code", "stage3-replan-job-unreadable")}
             entries.append(
                 {
