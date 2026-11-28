@@ -17,7 +17,7 @@ const revisedPlan = {question_plans:[
 const feedback = {records:[
  {receipt_sha256:CMT, record:{kind:'comment', question_ref:'q1', text:'评语一'}},
  {receipt_sha256:REV, record:{kind:'revision', plan:revisedPlan, comments:[CMT], changes:[]}}]};
-const planView = {...basis, plan:savedPlan, feedback, job:{status:'completed', outcome:'saved', request_sha256:H('f')}, planning_configured:true,
+const planView = {...basis, plan:savedPlan, feedback, job:{status:'completed', outcome:'saved', request_sha256:H('f')}, planning_configured:true, default_request:{...basis, key:'stage3-first', selection_request_sha256:H('b')},
  replan:{available:true, reason:null, request:{...request}, job:null, from_revision_receipt_sha256:REV, from_decision_receipt_sha256:DEC}};
 
 function load({view = {}, both = false} = {}) {
@@ -41,9 +41,18 @@ function load({view = {}, both = false} = {}) {
 }
 const line = ctx => ctx.wikiS3RpLine(ctx.v93.view);
 const html = ctx => ctx.wikiS3RpMarkup(ctx.v93.view);
-const withJob = (extra = {}, job = {}) => ({replan:{...planView.replan, job:{kind:'ProjectStage3PlanningJob', project_ref:'project-r', key:request.key, request_sha256:SHA, status:'intent-recorded', ...job}}, ...extra});
+// The Host's frozen list (replan.job.revision_input, 29c4d5d1 project_stage3_replan.py _frozen_view): the page shows exactly this.
+const frozenInput = (changes = [
+ {question_ref:'q1', field:'method', model_value:'旧方法', researcher_value:'新方法'},
+ {question_ref:'q1', field:'minimum_deliverable', model_value:'旧交付', researcher_value:'新交付'},
+ {question_ref:'q2', field:'analysis', model_value:'二的分析', researcher_value:'二的新分析'}]) => ({plan_revision_receipt_sha256:REV, decision_receipt_sha256:DEC,
+ parent_request_sha256:H('q'), parent_plan_manifest_sha256:H('b'), changes, comments:[{question_ref:'q1', text:'评语一'}], revision_input_sha256:H('i')});
+const withJob = (extra = {}, job = {}) => ({replan:{...planView.replan, job:{kind:'ProjectStage3PlanningJob', project_ref:'project-r', key:request.key, request_sha256:SHA, status:'intent-recorded', revision_input:frozenInput(), ...job}}, ...extra});
+const attempt = (extra = {}) => ({key:'stage3-replan-old', request_sha256:H('a'), status:'execution-unknown', outcome:null, result_unknown:true, read_only:true, recovery_pin_available:false,
+ revision_input:{...frozenInput(), decision_receipt_sha256:H('e'), plan_revision_receipt_sha256:H('f')}, job:{status:'execution-unknown'}, ...extra});
+const withAttempts = (list, over = {}) => ({replan:{...planView.replan, attempts:list, attempts_omitted:0, ...over}});
 const tick = (ctx, sha = SHA) => { line(ctx); vm.runInContext(`wikiS3Rp.check = {sha:'${sha}', edits:${JSON.stringify(JSON.stringify(ctx.wikiS3RpEdits(ctx.v93.view).changes))}}`, ctx); };
-const act = (ctx, name) => ctx.wikiS3RpAction(ctx.apps[0], name);
+const act = (ctx, name, target) => ctx.wikiS3RpAction(ctx.apps[0], name, target);
 const textOf = markup => markup.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
 test('the entry replaces the disabled stub: shown with edits against the revision, grayed with its reason without them', () => {
@@ -54,12 +63,11 @@ test('the entry replaces the disabled stub: shown with edits against the revisio
  assert.equal(row.buttons[0].act, 'prepare');
  assert.equal(row.buttons[0].gate, '');
  assert.doesNotMatch(html(ctx), /需要后台新增|只读选方向时的材料/);
- // No edits: the revision equals the saved plan.
- ({ctx} = load({view:{feedback:{records:[{receipt_sha256:REV, record:{kind:'revision', plan:savedPlan, comments:[]}}]}}}));
- assert.match(line(ctx).buttons[0].gate, /没有区别，没有要送出的修改/);
- // The page does not hold the revision (feedback omitted): it cannot list the edits, so it does not send.
+ // The entry does not depend on the page's own reading of the revision: there is no list before prepare, the Host freezes it.
  ({ctx} = load({view:{feedback:undefined}}));
- assert.match(line(ctx).buttons[0].gate, /列不出要送出的修改/);
+ assert.equal(line(ctx).buttons[0].gate, '');
+ assert.doesNotMatch(html(ctx), /data-s3-rp-edits/, 'no edit list before prepare');
+ assert.match(line(ctx).text, /准备后后台会给出要送给规划模型的修改清单/);
  // Inside the decision block the stub is gone and this entry stands in its place.
  ({ctx} = load({both:true}));
  const saved = {receipt_sha256:DEC, record:{kind:'decision', sequence:1, decision:'revise-then-review', request:{key:'d1'}, binding:{}}};
@@ -87,14 +95,15 @@ test('prepare: zero model, the body is replan.request without request_sha256, th
  second.ctx.rt.pending = {ref:'project-r'};
  await act(second.ctx, 'prepare');
  assert.equal(second.posts.length, 0);
- // No edits to send: nothing is sent.
+ // The page's own feedback records do not gate the zero-quota prepare.
  const third = load({view:{feedback:undefined}});
  await act(third.ctx, 'prepare');
- assert.equal(third.posts.length, 0);
+ assert.equal(third.posts.length, 1);
 });
 
 test('before confirming, every edit is listed: question, item, original value, the researcher edit; plus the cited comments', () => {
- const {ctx} = load({view:withJob()});
+ // The page's own feedback holds a different draft: it is ignored, the Host's frozen list is what is shown.
+ const {ctx} = load({view:{...withJob(), feedback:{records:[{receipt_sha256:REV, record:{kind:'revision', plan:{question_plans:[{question_ref:'q1', method:'本地改的另一份', design:'旧设计'}]}, comments:[]}}]}}});
  const edits = ctx.wikiS3RpEdits(ctx.v93.view);
  assert.equal(edits.changes.length, 3);
  assert.deepEqual(JSON.parse(JSON.stringify(edits.changes.map(c => [c.question_ref, c.field, c.model_value, c.researcher_value]))),
@@ -107,9 +116,11 @@ test('before confirming, every edit is listed: question, item, original value, t
  assert.match(text, /修订稿附带的材料引用不会送出/);
  assert.match(out, /data-s3-rp-grant/);
  assert.match(out, /data-s3-rp-check\s*>/, 'unticked');
- // A field cleared by the researcher is an edit too, and an HTML-looking value is escaped by the page's escape.
- const cleared = load({view:{...withJob(), feedback:{records:[{receipt_sha256:REV, record:{kind:'revision', plan:{question_plans:[{question_ref:'q1', method:'<b>x', design:'旧设计', minimum_deliverable:'旧交付'}]}, comments:[]}}]}}});
+ assert.doesNotMatch(text, /本地改的另一份/, 'the page never builds its own list');
+ // An HTML-looking value is escaped by the page's escape.
+ const cleared = load({view:withJob({}, {revision_input:frozenInput([{question_ref:'q1', field:'method', model_value:'', researcher_value:'<b>x'}])})});
  assert.match(html(cleared.ctx), /&lt;b>x/);
+ assert.match(html(cleared.ctx), /（空）/);
 });
 
 test('the confirmation is bound to that prepare request_sha256 and to the edit list shown; a new prepare or a changed edit voids it', async () => {
@@ -128,7 +139,7 @@ test('the confirmation is bound to that prepare request_sha256 and to the edit l
  ctx.v93.view = {...ctx.v93.view, ...withJob()};
  for (const fn of ctx.document.listeners.change) fn({target:{matches:selector => selector === '[data-s3-rp-check]', checked:true}});
  assert.equal(line(ctx).grant.gate, '');
- ctx.v93.view.feedback = {records:[{receipt_sha256:REV, record:{kind:'revision', plan:{question_plans:[{question_ref:'q1', method:'又改了', design:'旧设计', minimum_deliverable:'旧交付'}]}, comments:[]}}]};
+ ctx.v93.view.replan.job.revision_input = frozenInput([{question_ref:'q1', field:'method', model_value:'旧方法', researcher_value:'又改了'}]);
  assert.equal(line(ctx).grant.gate, '请先勾选确认');
 });
 
@@ -312,7 +323,7 @@ test('result unknown: a run with no answer (network, timeout, 5xx) clears the ti
 test('result unknown from the saved job and from a timed-out submission_error; a refused 4xx run is not unknown', async () => {
  let row = line(load({view:withJob({}, {status:'execution-unknown'})}).ctx);
  assert.equal(row.tag, '结果未知');
- assert.equal(row.buttons.map(b => b.act).join(), 'inspect,read', 'no recover button: the pin cover for a replan job is not stated');
+ assert.equal(row.buttons.map(b => b.act).join(), 'inspect,read', 'no recover button without the Host recovery_pin_available');
  const err = {code:'stage3-planning-deadline-or-io-failed', key:request.key};
  row = line(load({view:{...withJob(), submission_error:err}}).ctx);
  assert.equal(row.tag, '结果未知');
@@ -391,10 +402,74 @@ test('other states: processing, failed, saved, not available with its reason, un
  assert.equal(line(load({view:{plan:null}}).ctx), null);
 });
 
-test('the run request is refused by the page, not sent, when the edit list cannot be shown', async () => {
- const {ctx, posts} = load({view:{...withJob(), feedback:undefined}});
- assert.match(line(ctx).grant.gate, /列不出要送出的修改/);
- vm.runInContext(`wikiS3Rp.check = {sha:'${SHA}', edits:''}`, ctx);
- await act(ctx, 'run');
+test('no frozen edit list from the Host (missing, malformed, empty): the grant is gated with the reason and run is not sent; the page does not build one', async () => {
+ for (const input of [undefined, {...frozenInput(), changes:undefined}, {...frozenInput(), changes:[{question_ref:'q1'}]}, frozenInput([])]) {
+  const {ctx, posts} = load({view:withJob({}, {revision_input:input})});
+  const gate = line(ctx).grant.gate;
+  assert.match(gate, /没有给出这份作业冻结的修改清单|冻结的修改清单是空的/, JSON.stringify(input)?.slice(0, 40));
+  assert.match(textOf(html(ctx)), /页面不自己拼|是空的/);
+  vm.runInContext(`wikiS3Rp.check = {sha:'${SHA}', edits:''}`, ctx);
+  await act(ctx, 'run');
+  assert.equal(posts.length, 0);
+ }
+});
+
+test('older attempts stay in a read-only history after a new key: result unknown has only the read-only check, nothing can be run or prepared', async () => {
+ const key = 'stage3-replan-old';
+ const {ctx, posts} = load({view:withAttempts([attempt(), attempt({key:'stage3-replan-r', request_sha256:H('b'), status:'completed', outcome:'refused-before-call', result_unknown:false}),
+  attempt({key:'stage3-replan-p', request_sha256:H('c'), status:'intent-recorded', result_unknown:false}), attempt({key:request.key, request_sha256:SHA})], {attempts_omitted:3})});
+ const out = html(ctx), text = textOf(out);
+ assert.match(out, /data-s3-rp-history/);
+ assert.equal((out.match(/data-s3-rp-attempt=/g) || []).length, 3, 'the current request is not repeated in the history');
+ assert.match(text, /共 3 份/);
+ assert.match(text, /另有 3 份更早的没有列出/);
+ assert.match(text, /调用可能已经发出、额度可能已经花掉；只能只读核对，不会重发/);
+ assert.match(text, /这次在调用模型之前被拒绝，没有花额度/);
+ assert.match(text, /这份作业只准备过，没有调用模型/);
+ const buttons = [...out.matchAll(/data-s3-rp="(\w+)" data-s3-rp-target="([^"]+)"/g)].map(m => m[1] + ':' + m[2]);
+ assert.deepEqual(buttons, ['inspect:' + key], 'only the unknown attempt has a button, and it is read-only');
+ assert.doesNotMatch(out, /data-s3-rp-recover-check/, 'no pin: no recovery');
+ // Run / prepare / recover on an older attempt send nothing; inspect sends the read-only request for that attempt.
+ for (const name of ['run', 'prepare', 'recover']) { await act(ctx, name, key); }
  assert.equal(posts.length, 0);
+ ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-r', key:body.key, request_sha256:H('a'), status:'execution-unknown'});
+ await act(ctx, 'inspect', key);
+ assert.equal(posts.length, 1);
+ assert.equal(posts[0].p, '/api/projects/project-r/stage3/planning/inspect');
+ assert.equal(JSON.stringify(posts[0].body), JSON.stringify({project_ref:'project-r', input_version:1, revision:4, brief_sha256:H('a'), selection_request_sha256:H('b'), mode:'replan-from-revision', key, decision_receipt_sha256:H('e'), plan_revision_receipt_sha256:H('f'), request_sha256:H('a')}));
+ // The history survives when replan itself is not available (a new decision changed the key and the reason).
+ const gone = load({view:withAttempts([attempt()], {available:false, reason:'stage3-replan-decision-superseded', request:null})});
+ assert.match(textOf(html(gone.ctx)), /以前按修改稿生成的作业（只读，共 1 份）/);
+});
+
+test('recover is offered only where the Host says recovery_pin_available, with its own tick, never a resend; the current job follows the same rule', async () => {
+ const key = 'stage3-replan-old';
+ const {ctx, posts} = load({view:withAttempts([attempt({recovery_pin_available:true})])});
+ const out = html(ctx);
+ assert.match(out, /data-s3-rp="recover" data-s3-rp-target="stage3-replan-old" disabled/);
+ assert.match(out, /data-s3-rp-recover-check/);
+ await act(ctx, 'recover', key);
+ assert.equal(posts.length, 0, 'no tick, nothing sent');
+ for (const fn of ctx.document.listeners.change) fn({target:{matches:selector => selector === '[data-s3-rp-recover-check]', checked:true, dataset:{s3RpSha:H('a')}}});
+ assert.doesNotMatch(html(ctx), /data-s3-rp="recover" data-s3-rp-target="stage3-replan-old" disabled/);
+ ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-r', key:body.key, request_sha256:H('a'), status:'completed', outcome:'saved'});
+ await act(ctx, 'recover', key);
+ assert.equal(posts.length, 1);
+ assert.match(posts[0].p, /stage3\/planning\/recover$/);
+ assert.equal(posts[0].body.mode, 'replan-from-revision');
+ assert.equal(posts[0].body.request_sha256, H('a'));
+ assert.equal(posts[0].body.confirmed, undefined);
+ // A tick for a request_sha256 the page does not list is not accepted.
+ for (const fn of ctx.document.listeners.change) fn({target:{matches:selector => selector === '[data-s3-rp-recover-check]', checked:true, dataset:{s3RpSha:H('9')}}});
+ assert.equal(vm.runInContext('wikiS3Rp.recoverCheck', ctx), null);
+ // Not unknown, or no pin: no recover button.
+ const none = load({view:withAttempts([attempt({recovery_pin_available:true, result_unknown:false, status:'completed', outcome:'failed'})])});
+ assert.doesNotMatch(html(none.ctx), /data-s3-rp="recover"/);
+ // The current job.
+ const cur = load({view:withJob({}, {status:'execution-unknown', recovery_pin_available:true})});
+ assert.equal(line(cur.ctx).buttons.map(b => b.act).join(), 'inspect,recover,read');
+ assert.equal(line(cur.ctx).buttons[1].gate, '请先勾选确认');
+ const nopin = load({view:withJob({}, {status:'execution-unknown', recovery_pin_available:false})});
+ assert.equal(line(nopin.ctx).buttons.map(b => b.act).join(), 'inspect,read');
+ assert.match(textOf(html(cur.ctx)), /当时冻结的修改清单（3 处，只读）/);
 });

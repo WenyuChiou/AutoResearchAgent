@@ -4,12 +4,12 @@
 // replan.request is the body to send (already holding its key; request_sha256 only once the job exists).
 //   prepare: freezes the displayed revision, saves the intent, ZERO model calls. Its body must NOT carry request_sha256.
 //   run: needs request_sha256 + confirmed:true, answers 202, then calls the planning model ONCE.
-//   inspect: read-only. recover is not offered here: the Host does not say whether recovery_pin_available covers a replan job.
+//   inspect: read-only. recover: only where the Host says recovery_pin_available (replan.job / replan.attempts[]); it attaches the
+//   already saved result and never resends. The page offers it with its own tick.
 // Every refusal is a 4xx written before anything (no checkpoint, no journal); a run refused after the intent
 // (revision or decision changed) ends as job outcome "refused-before-call" and never calls the model.
-// The edits shown before the confirmation are computed here exactly as the backend does (project_stage3_replan.py _changes):
-// the displayed revision's question_plans against the saved plan (view.plan), field by field. The page cannot read the
-// backend's frozen copy (replan.request carries only the key and the receipts), so it lists what it can see and says so.
+// The edit list shown before the confirmation is the Host's frozen replan.job.revision_input.changes (no list before prepare).
+// Older attempts (replan.attempts[]: prepared, refused-before-call, failed, result unknown) stay readable in a history block.
 // State is the same shape as wiki-stage3-plan-request.js (review-stage3-plan-request-1127): busy per topic, an unknown
 // run outcome per topic, a tick bound to one prepared request_sha256 (and to the edit list shown), nothing resent.
 const wikiS3RpMode = 'replan-from-revision';
@@ -47,53 +47,37 @@ const wikiS3RpCodes = new Map([
  ['stage3-planning-input-rejected', '同时有另一次保存；请重新读取后再试。'],
  ['stage3-planning-body-bound-exceeded', '请求太大，没有执行。'],
  ['stage3-replan-history-ambiguous', '这份计划后面有两份并列的新计划（按修改稿生成），页面停在较早的一份，无法判断该显示哪一份。请联系维护者。'],
+ ['trusted-stage3-recovery-pin-required', '后台没有这份作业的可信固定值，不能恢复；请联系维护者。'],
  ['stage3-replan-job-unreadable', '这份重新生成的作业这次读不出来。请联系维护者。']
 ]);
 function wikiS3RpCode(code) { return typeof code === 'string' && wikiS3RpCodes.has(code) ? wikiS3RpCodes.get(code) : wikiS3RpGeneric; }
 const wikiS3RpRefusedText = '这次生成在调用模型之前被拒绝（修订稿或决定刚刚变了），没有花额度。请刷新后按当前的修订稿和决定重新请求生成。';
 
-const wikiS3Rp = {busy:new Map(), ref:null, error:null, check:null, inspected:null, unknown:new Map(), notRun:new Map(), notice:null, showFailure:false};
+const wikiS3Rp = {busy:new Map(), ref:null, error:null, check:null, recoverCheck:null, inspected:null, unknown:new Map(), notRun:new Map(), notice:null, showFailure:false};
 function wikiS3RpSync() {
- if (wikiS3Rp.ref !== rt.ref) Object.assign(wikiS3Rp, {ref:rt.ref, error:null, check:null, inspected:null, notice:null, showFailure:false});
+ if (wikiS3Rp.ref !== rt.ref) Object.assign(wikiS3Rp, {ref:rt.ref, error:null, check:null, recoverCheck:null, inspected:null, notice:null, showFailure:false});
 }
 function wikiS3RpObj(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
 
-// What the planner will be sent as "changes": same walk as the backend _changes (questions in the revision's order,
-// fields by name). known=false when the page does not hold the revision or the saved plan (feedback omitted, response bound).
-function wikiS3RpEdits(view) {
- const receipt = view?.replan?.from_revision_receipt_sha256, rows = view?.feedback?.records, base = view?.plan;
- if (typeof receipt !== 'string' || !Array.isArray(rows) || !wikiS3RpObj(base)) return {known:false, changes:[], comments:[], missing:0, json:''};
- const row = rows.find(item => item?.receipt_sha256 === receipt && item.record?.kind === 'revision');
- const revised = row?.record?.plan;
- if (!wikiS3RpObj(revised) || !Array.isArray(revised.question_plans)) return {known:false, changes:[], comments:[], missing:0, json:''};
- const before = new Map((Array.isArray(base.question_plans) ? base.question_plans : []).filter(wikiS3RpObj).map(item => [item.question_ref, item]));
- const changes = [];
- for (const item of revised.question_plans.filter(wikiS3RpObj)) {
-  const old = before.get(item.question_ref) || {};
-  for (const [field] of wikiS3RpFields) {
-   const value = item[field];
-   if (typeof value === 'string' && value !== old[field]) changes.push({question_ref:item.question_ref, field, model_value:typeof old[field] === 'string' ? old[field] : '', researcher_value:value});
-  }
- }
- const cited = Array.isArray(row.record.comments) ? row.record.comments : [];
- const comments = [];
- let missing = 0;
- for (const value of cited) {
-  const found = rows.find(item => item?.receipt_sha256 === value && item.record?.kind === 'comment');
-  if (found) comments.push({question_ref:found.record.question_ref, text:found.record.text}); else missing += 1;
- }
- return {known:true, changes, comments, missing, json:JSON.stringify(changes)};
+// The edit list is the server's frozen one: revision_input.changes of the prepared job (it is part of the job payload,
+// so of the request_sha256 that run is bound to, and of the prompt). The page never recomputes it; before prepare there is none.
+function wikiS3RpFrozen(input) {
+ if (!wikiS3RpObj(input) || !Array.isArray(input.changes)) return {known:false, changes:[], comments:[], json:''};
+ const changes = input.changes.filter(item => wikiS3RpObj(item) && typeof item.question_ref === 'string' && typeof item.field === 'string' && typeof item.researcher_value === 'string');
+ return {known:changes.length === input.changes.length, changes, comments:Array.isArray(input.comments) ? input.comments.filter(wikiS3RpObj) : [], json:JSON.stringify(input.changes)};
 }
+function wikiS3RpEdits(view) { return wikiS3RpFrozen(wikiS3RpState(view).job?.revision_input); }
 function wikiS3RpQuestion(view, ref) {
  const hit = list => Array.isArray(list) ? list.find(item => item?.question_ref === ref)?.text : '';
  const text = hit(view?.direction_context?.questions) || hit(view?.plan?.questions);
  return typeof text === 'string' && text.trim() ? text.trim() : '';
 }
 function wikiS3RpEditsGate(edits) {
- if (!edits.known) return '页面没有带回这份修订稿的内容，列不出要送出的修改，不能生成';
- if (!edits.changes.length) return '修订稿和现在显示的计划没有区别，没有要送出的修改';
+ if (!edits.known) return '后台没有给出这份作业冻结的修改清单（revision_input.changes），页面不自己拼，不能确认';
+ if (!edits.changes.length) return '后台冻结的修改清单是空的，没有要送出的修改';
  return '';
 }
+function wikiS3RpRecoverTicked(sha) { return typeof sha === 'string' && !!sha && wikiS3Rp.recoverCheck === sha; }
 function wikiS3RpTicked(job, edits) { return !!job?.request_sha256 && !!edits.known && !!wikiS3Rp.check && wikiS3Rp.check.sha === job.request_sha256 && wikiS3Rp.check.edits === edits.json; }
 
 function wikiS3RpLock() {
@@ -127,7 +111,12 @@ function wikiS3RpLine(view) {
  const edits = wikiS3RpEdits(view), editsGate = wikiS3RpEditsGate(edits), inspect = {label:'只读核对', act:'inspect', gate:lock};
  const mine = wikiS3Rp.unknown.get(rt.ref);
  if (view.submission_in_progress || job?.status === 'dispatching') return {...base, edits, tone:'run', tag:'处理中', text:'正在按修改稿重新生成计划和评审。不需要你操作', buttons:[read]};
- if (job?.status === 'execution-unknown') return {...base, edits, tone:'warn', tag:'结果未知', text:'上次生成的结果还不清楚：模型可能已经调用过。原请求已保留，不会自动重发；先只读核对', buttons:[inspect, read]};
+ if (job?.status === 'execution-unknown') {
+  const pin = job.recovery_pin_available === true;
+  return {...base, edits, tone:'warn', tag:'结果未知', recoverSha:pin ? job.request_sha256 : null,
+   text:'上次生成的结果还不清楚：模型可能已经调用过。原请求已保留，不会自动重发；先只读核对' + (pin ? '，也可以从已保存的结果恢复（只挂上已经保存的结果，不会重新生成）' : ''),
+   buttons:[inspect, ...(pin ? [{label:'从已保存结果恢复', act:'recover', gate:lock || (wikiS3RpRecoverTicked(job.request_sha256) ? '' : '请先勾选确认')}] : []), read]};
+ }
  if (job?.status === 'completed' && job.outcome === 'failed') return {...base, edits, tone:'err', tag:'规划失败', text:'规划已失败，原失败记录会保留', buttons:[{label:'看失败记录', act:'failure'}]};
  if (job?.status === 'completed' && job.outcome === 'refused-before-call') return {...base, edits, tone:'warn', tag:'已拒绝，没有调用模型', text:wikiS3RpRefusedText, buttons:[read], notice:null};
  if (job?.status === 'completed' && job.outcome === 'saved') return {...base, edits, tone:'run', tag:'计划已保存', text:'新计划已保存，正在读取', buttons:[read]};
@@ -135,7 +124,7 @@ function wikiS3RpLine(view) {
  if (job && job.status !== 'intent-recorded') return {...base, edits, tone:'warn', tag:'状态没认出来', text:'这份作业的状态页面不认识，不会发任何请求；状态码在技术细节里', buttons:[read]};
  const unknown = mine && job?.status === 'intent-recorded' && job.request_sha256 === mine.sha ? mine : null;
  if (unknown) return {...base, edits, tone:'warn', tag:'结果未知', detail:[unknown.code, ...base.detail], text:'刚才的生成请求没有收到回答，结果还不清楚：模型可能已经调用过。不会重发；先只读核对', buttons:[inspect, read]};
- if (error) {
+ if (error && !error.target) {
   const ran = error.act === 'run';
   return {...base, edits, tone:error.refused ? 'warn' : 'err', tag:error.refused ? (ran ? '已拒绝，没有调用模型' : '被拦下') : '出错',
    text:error.refused ? wikiS3RpCode(error.code) + (ran ? '没有调用模型，原来的记录没有变。' : '没有保存任何东西，也没有调用模型。') : '这一步没有完成；已保存的内容没有丢。原因代码在技术细节里，不会自动重发。', buttons:[read]};
@@ -147,11 +136,11 @@ function wikiS3RpLine(view) {
  if (job?.status === 'intent-recorded') return {...base, edits, tone:'wait', tag:'等你授权',
   text:settled && sub ? '只读核对确认：上次在调用模型之前就停了，没有执行。要生成计划，请重新看过下面的修改并勾选确认' : '请求已准备好（没有调用模型、没有花额度）。看过下面要送给规划模型的每一处修改，确认后才生成计划',
   buttons:[read], grant:{gate:lock || editsGate || (wikiS3RpTicked(job, edits) ? '' : '请先勾选确认')}};
- return {...base, edits, tone:'plain', tag:'还没请求', text:'你的决定是「按建议修改后再评审」，修订稿也改过了。可以按修改稿重新生成计划：先准备（不调用模型），再确认', buttons:[entry(lock || editsGate)]};
+ return {...base, edits, tone:'plain', tag:'还没请求', text:'你的决定是「按建议修改后再评审」，修订稿也改过了。可以按修改稿重新生成计划：先准备（不调用模型、不花额度），准备后后台会给出要送给规划模型的修改清单，你看过再确认', buttons:[entry(lock)]};
 }
 function wikiS3RpEditsMarkup(view, edits) {
- if (!edits.known) return '<p class="wiki-s1-muted" data-s3-rp-edits-unknown>这次读取没有带回修订稿的内容，页面列不出会送出的修改。</p>';
- if (!edits.changes.length) return '<p class="wiki-s1-muted" data-s3-rp-edits-none>修订稿和现在显示的计划没有区别，没有要送出的修改。</p>';
+ if (!edits.known) return '<p class="wiki-s1-muted" data-s3-rp-edits-unknown>后台没有给出这份作业冻结的修改清单，页面不自己拼，所以没有清单可看。</p>';
+ if (!edits.changes.length) return '<p class="wiki-s1-muted" data-s3-rp-edits-none>后台冻结的修改清单是空的，没有要送出的修改。</p>';
  const label = new Map(wikiS3RpFields);
  const value = (name, text) => `<div class="ws3-rp-val"><span>${name}</span><pre>${text ? wikiS3Escape(text) : '<i>（空）</i>'}</pre></div>`;
  const items = edits.changes.map(change => {
@@ -159,8 +148,47 @@ function wikiS3RpEditsMarkup(view, edits) {
   return `<li data-s3-rp-edit><b>问题：</b>${title ? wikiS3Escape(title) + ' ' : ''}<code>${wikiS3Escape(change.question_ref)}</code> · <b>项目：</b>${wikiS3Escape(label.get(change.field) || '（未知项目）')} <code>${wikiS3Escape(change.field)}</code>
    ${value('原值（模型生成的上一版）', change.model_value)}${value('你的修改', change.researcher_value)}</li>`;
  }).join('');
- const comments = edits.comments.length || edits.missing ? `<h4>同时送出的评语（${edits.comments.length}${edits.missing ? `，另有 ${edits.missing} 条这次读取没带回` : ''}）</h4><ul class="ws3-rp-comments">${edits.comments.map(item => `<li data-s3-rp-comment>${item.question_ref ? `<code>${wikiS3Escape(item.question_ref)}</code> ` : ''}${wikiS3Escape(item.text)}</li>`).join('')}</ul>` : '';
- return `<div class="ws3-rp-edits" data-s3-rp-edits><h4>将送给规划模型的修改（共 ${edits.changes.length} 处）</h4><p class="wiki-s1-muted">只有这些修改和评语算你的输入；修订稿附带的材料引用不会送出，更早几轮修订引用的评语也不会送出。规划模型要在新计划里对每一处写明采纳或不采纳，不保证采纳。</p><ol>${items}</ol>${comments}</div>`;
+ const comments = edits.comments.length ? `<h4>同时送出的评语（${edits.comments.length}）</h4><ul class="ws3-rp-comments">${edits.comments.map(item => `<li data-s3-rp-comment>${item.question_ref ? `<code>${wikiS3Escape(item.question_ref)}</code> ` : ''}${wikiS3Escape(item.text)}</li>`).join('')}</ul>` : '';
+ return `<div class="ws3-rp-edits" data-s3-rp-edits><h4>将送给规划模型的修改（共 ${edits.changes.length} 处）</h4><p class="wiki-s1-muted">这份清单是后台在「准备」时冻结的，「确认」绑定的就是它。只有这些修改和评语算你的输入；修订稿附带的材料引用不会送出，更早几轮修订引用的评语也不会送出。规划模型要在新计划里对每一处写明采纳或不采纳，不保证采纳。</p><ol>${items}</ol>${comments}</div>`;
+}
+
+// Older attempts (replan.attempts[], read-only): shown even after a new decision changed the key. A result-unknown one is
+// only checked read-only; recovery (attach the saved result, never a resend) is offered only where the Host says
+// recovery_pin_available, with its own tick. Nothing here can start a run.
+function wikiS3RpAttempts(view) {
+ const list = Array.isArray(view?.replan?.attempts) ? view.replan.attempts : [];
+ const current = view?.replan?.request?.key;
+ return list.filter(item => wikiS3RpObj(item) && typeof item.key === 'string' && typeof item.request_sha256 === 'string' && item.key !== current);
+}
+function wikiS3RpAttemptRow(item, lock) {
+ const unknown = item.result_unknown === true, pin = unknown && item.recovery_pin_available === true;
+ const buttons = unknown ? [{label:'只读核对', act:'inspect', gate:lock}, ...(pin ? [{label:'从已保存结果恢复', act:'recover', gate:lock || (wikiS3RpRecoverTicked(item.request_sha256) ? '' : '请先勾选确认')}] : [])] : [];
+ let tone = 'warn', tag, text;
+ if (wikiS3RpObj(item.job) && typeof item.job.error === 'string') { tag = '读不出来'; text = wikiS3RpCode(item.job.error) + '不会重发。'; }
+ else if (unknown) { tag = '结果未知'; text = '调用可能已经发出、额度可能已经花掉；只能只读核对，不会重发' + (pin ? '，也可以从已保存的结果恢复（只挂上已经保存的结果）' : '') + '。'; }
+ else if (item.outcome === 'refused-before-call') { tag = '已拒绝，没有调用模型'; text = '这次在调用模型之前被拒绝，没有花额度。'; }
+ else if (item.outcome === 'failed') { tone = 'err'; tag = '规划失败'; text = '这次调用过模型，规划失败；失败记录保留。'; }
+ else if (item.status === 'intent-recorded') { tone = 'wait'; tag = '已准备，没运行'; text = '这份作业只准备过，没有调用模型。'; }
+ else { tag = '状态没认出来'; text = '这份旧作业的状态页面不认识，不会发任何请求。'; }
+ return {tone, tag, text, buttons, recoverSha:pin ? item.request_sha256 : null};
+}
+function wikiS3RpRecoverBox(sha) {
+ return `<label class="ws-check" data-s3-rp-recover><input type="checkbox" data-s3-rp-recover-check data-s3-rp-sha="${wikiS3Escape(sha)}" ${wikiS3RpRecoverTicked(sha) ? 'checked' : ''}> 我确认：只把已经保存的结果挂上，不会重新生成，也不会再调用模型</label>`;
+}
+function wikiS3RpHistory(view) {
+ const items = wikiS3RpAttempts(view), omitted = Number.isSafeInteger(view?.replan?.attempts_omitted) ? view.replan.attempts_omitted : 0;
+ if (!items.length && !omitted) return '';
+ const lock = wikiS3RpLock();
+ const err = wikiS3Rp.error?.target ? `<div class="wiki-s2-conn-row" data-tone="warn" data-s3-rp-history-error><span class="wiki-s2-st" data-tone="warn">${wikiS3Rp.error.refused ? '被拦下' : '出错'}</span><p>${wikiS3Escape(wikiS3Rp.error.refused ? wikiS3RpCode(wikiS3Rp.error.code) + '没有重发，原记录没有变。' : '这一步没有完成；原记录没有变，不会自动重发。')}</p></div><details class="wiki-s2-tech"><summary>技术细节</summary><code>${wikiS3Escape(wikiS3Rp.error.code)}</code></details>` : '';
+ const rows = items.map(item => {
+  const row = wikiS3RpAttemptRow(item, lock);
+  const buttons = row.buttons.map(button => `<span><button type="button" class="hs-button" data-s3-rp="${button.act}" data-s3-rp-target="${wikiS3Escape(item.key)}" ${button.gate ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${button.gate ? `<small class="wiki-s2-reason" data-s3-rp-why>${wikiS3Escape(button.gate)}</small>` : ''}</span>`).join('');
+  const frozen = wikiS3RpFrozen(item.revision_input);
+  const list = frozen.known && frozen.changes.length ? `<details class="wiki-s2-tech"><summary>当时冻结的修改清单（${frozen.changes.length} 处，只读）</summary>${wikiS3RpEditsMarkup(view, frozen)}</details>` : '';
+  const codes = [item.key, item.status, item.outcome].filter(code => typeof code === 'string' && code);
+  return `<li data-s3-rp-attempt="${wikiS3Escape(item.key)}"><div class="wiki-s2-conn-row" data-tone="${row.tone}"><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${row.recoverSha ? wikiS3RpRecoverBox(row.recoverSha) : ''}${list}<details class="wiki-s2-tech"><summary>技术细节</summary>${codes.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details></li>`;
+ }).join('');
+ return `<div class="ws3-rp-history" data-s3-rp-history><h4>以前按修改稿生成的作业（只读，共 ${items.length} 份）</h4>${omitted ? `<p class="wiki-s1-muted">另有 ${omitted} 份更早的没有列出。</p>` : ''}${err}<ul>${rows}</ul></div>`;
 }
 function wikiS3RpMarkup(view) {
  const row = wikiS3RpLine(view);
@@ -171,7 +199,10 @@ function wikiS3RpMarkup(view) {
  }).join('');
  const job = wikiS3RpState(view).job;
  const notice = row.notice ? `<div class="wiki-s2-conn-row" data-tone="warn" data-s3-rp-notice><span class="wiki-s2-st" data-tone="warn">${wikiS3Escape(row.notice.tag)}</span><p>${wikiS3Escape(row.notice.text)}</p></div>` : '';
- const showEdits = row.edits && (row.tag === '等你授权' || row.tag === '还没请求');
+ const showEdits = row.edits && row.tag === '等你授权';
+ // After the grant stage the same frozen list stays readable (what was or would have been sent).
+ const frozen = !showEdits && row.edits?.known && row.edits.changes.length ? `<details class="wiki-s2-tech" data-s3-rp-frozen><summary>当时冻结的修改清单（${row.edits.changes.length} 处，只读）</summary>${wikiS3RpEditsMarkup(view, row.edits)}</details>` : '';
+ const recoverBox = row.recoverSha ? wikiS3RpRecoverBox(row.recoverSha) : '';
  const grant = row.grant ? `<section class="ws-grant" data-s3-rp-grant><span class="ws-label">授权：按修改稿重新生成计划</span>
   <p><b>会做：</b>把上面列出的修改和评语，连同你修改后的计划，交给规划模型调用一次，重新生成研究计划和评审。新计划保存后会替换页面上显示的计划，原来的计划、评语、修订和决定保留为历史。<b>不会做：</b>不检索、不读新的来源、不带修订稿附的材料、不启动实验；失败不会自动重试。</p>
   <p class="wiki-s1-muted">额度：准备这一步没有调用模型；确认后这一步调用一次模型，规划的调用和时长上限后台没有返回给页面。</p>
@@ -180,7 +211,7 @@ function wikiS3RpMarkup(view) {
   <span><button type="button" class="hs-button hs-button-primary" data-s3-rp="run" ${row.grant.gate ? 'disabled' : ''}>确认按修改稿生成计划</button>${row.grant.gate ? `<small class="wiki-s2-reason" data-s3-rp-why>${wikiS3Escape(row.grant.gate)}</small>` : ''}</span></section>` : '';
  const failure = row.tag === '规划失败' && wikiS3Rp.showFailure ? `<details class="wiki-s2-tech" open data-s3-rp-failure><summary>失败记录（原样）</summary><pre>${wikiS3Escape(JSON.stringify(job, null, 2))}</pre></details>` : '';
  const detail = row.detail?.length ? `<details class="wiki-s2-tech"><summary>技术细节</summary>${row.detail.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
- return `<div class="ws3-replan" data-s3-replan><h3>${wikiS3RpLabel}</h3>${notice}<div class="wiki-s2-conn-row" data-tone="${row.tone}" data-s3-rp-row><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${showEdits ? wikiS3RpEditsMarkup(view, row.edits) : ''}${grant}${failure}${detail}</div>`;
+ return `<div class="ws3-replan" data-s3-replan><h3>${wikiS3RpLabel}</h3>${notice}<div class="wiki-s2-conn-row" data-tone="${row.tone}" data-s3-rp-row><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${showEdits ? wikiS3RpEditsMarkup(view, row.edits) : ''}${recoverBox}${grant}${frozen}${failure}${detail}${wikiS3RpHistory(view)}</div>`;
 }
 // Notices shown above the decision block whatever the latest decision is: a newer plan that cannot be read, and the
 // interface's own reason texts (§7). The error code stays in the technical details; an unknown code gets the generic text.
@@ -203,39 +234,51 @@ function wikiS3RpNotices(view) {
  return out ? `<div class="ws3-rp-notices" data-s3-rp-notices>${out}</div>` : '';
 }
 
-async function wikiS3RpAction(app, act) {
+async function wikiS3RpAction(app, act, target = '') {
  const basis = v93Identity(), view = basis && v93Matches(v93.basis, basis) ? v93.view : null;
  if (!view || wikiS3Rp.busy.has(basis.project_ref)) return; // one request per topic: a double click sends one
  wikiS3RpSync();
  if (act === 'read') { wikiS3Rp.error = null; wikiS3Rp.inspected = null; wikiS3Rp.notice = null; return v93ReadSaved(app, basis); }
  if (act === 'failure') { wikiS3Rp.showFailure = !wikiS3Rp.showFailure; return livePaint(); }
  // The gate is checked again right before sending: the button may have been drawn before the state changed.
- const row = wikiS3RpLine(view);
+ // An older attempt (history block) can only be checked read-only or recovered; never run or prepared.
+ const attempt = target ? wikiS3RpAttempts(view).find(item => item.key === target) : null;
+ if (target && (!attempt || !['inspect', 'recover'].includes(act))) return;
+ const row = attempt ? wikiS3RpAttemptRow(attempt, wikiS3RpLock()) : wikiS3RpLine(view);
  const offered = row?.buttons.find(button => button.act === act);
  if (act === 'run' ? !(row?.tag === '等你授权' && row.grant && !row.grant.gate) : !offered || offered.gate) return;
  const ref = basis.project_ref, epoch = rt.epoch, job = wikiS3RpState(view).job;
- const {request_sha256, ...request} = view.replan.request; // prepare must not carry request_sha256
- const body = act === 'prepare' ? request : act === 'run' ? {...request, request_sha256:job?.request_sha256, confirmed:true} : {...request, request_sha256:job?.request_sha256};
+ let request;
+ if (attempt) {
+  const {key, request_sha256, ...source} = wikiS3RpObj(view.default_request) ? view.default_request : {};
+  const input = attempt.revision_input;
+  if (!key || !wikiS3RpObj(input)) return;
+  request = {...source, mode:wikiS3RpMode, key:attempt.key, decision_receipt_sha256:input.decision_receipt_sha256, plan_revision_receipt_sha256:input.plan_revision_receipt_sha256};
+ } else { const {request_sha256, ...rest} = view.replan.request; request = rest; } // prepare must not carry request_sha256
+ const sha = attempt ? attempt.request_sha256 : job?.request_sha256;
+ const body = act === 'prepare' ? request : act === 'run' ? {...request, request_sha256:sha, confirmed:true} : {...request, request_sha256:sha};
  if (act !== 'prepare' && !body.request_sha256) return;
  wikiS3Rp.busy.set(ref, act); wikiS3Rp.error = null; if (act === 'prepare') wikiS3Rp.notice = null; livePaint();
  try {
   const answer = await liveRequest(projectPath(ref, 'stage3/planning/' + act), body);
   if (epoch !== rt.epoch || ref !== rt.ref) return;
   const returned = answer?.kind === 'ProjectStage3PlanningSubmission' ? answer.job : answer;
-  if (!returned || returned.project_ref !== ref || returned.key !== request.key) throw Error('stage3-planning-receipt-differs');
-  if (act === 'inspect') wikiS3Rp.inspected = returned;
-  if (act === 'inspect') wikiS3Rp.unknown.delete(ref); // the read-only check answered
-  if (act === 'inspect' && returned.status === 'intent-recorded' && returned.request_sha256) wikiS3Rp.notRun.set(ref, returned.request_sha256);
-  else if (act === 'inspect') wikiS3Rp.notRun.delete(ref);
+  if (!returned || returned.project_ref !== ref || returned.key !== body.key) throw Error('stage3-planning-receipt-differs');
+  // The unknown / not-run / inspected marks belong to the current request only; an older attempt only gets its re-read.
+  if (!attempt && (act === 'inspect' || act === 'recover')) wikiS3Rp.inspected = returned;
+  if (!attempt && act === 'inspect') wikiS3Rp.unknown.delete(ref); // the read-only check answered
+  if (!attempt && act === 'inspect' && returned.status === 'intent-recorded' && returned.request_sha256) wikiS3Rp.notRun.set(ref, returned.request_sha256);
+  else if (!attempt && act === 'inspect') wikiS3Rp.notRun.delete(ref);
   if (act === 'run') wikiS3Rp.notRun.delete(ref);
-  if (act === 'run' && returned.status === 'completed' && returned.outcome === 'refused-before-call') wikiS3Rp.notice = {ref, key:request.key};
-  wikiS3Rp.check = null;
+  if (act === 'run' && returned.status === 'completed' && returned.outcome === 'refused-before-call') wikiS3Rp.notice = {ref, key:body.key};
+  wikiS3Rp.check = null; wikiS3Rp.recoverCheck = null;
  } catch (error) {
   const code = String(error.message || error), refused = Number.isInteger(error.status) && error.status >= 400 && error.status < 500;
   // A run without a clear refusal may have reached the model: unknown outcome, the tick is cleared, no resend.
+  if (act === 'recover') wikiS3Rp.recoverCheck = null;
   if (act === 'run') { wikiS3Rp.check = null; wikiS3Rp.notRun.delete(ref); if (!refused) wikiS3Rp.unknown.set(ref, {sha:body.request_sha256, code}); }
   if (epoch !== rt.epoch || ref !== rt.ref) return;
-  if (!(act === 'run' && !refused)) wikiS3Rp.error = {code, refused, act};
+  if (!(act === 'run' && !refused)) wikiS3Rp.error = {code, refused, act, target:attempt ? attempt.key : ''};
  } finally {
   wikiS3Rp.busy.delete(ref);
  }
@@ -248,7 +291,15 @@ document.addEventListener('click', event => {
  const app = apps.find(item => item.el.contains(button));
  if (!app) return;
  event.preventDefault();
- wikiS3RpAction(app, button.dataset.s3Rp);
+ wikiS3RpAction(app, button.dataset.s3Rp, button.dataset.s3RpTarget || '');
+});
+document.addEventListener('change', event => {
+ if (!event.target.matches?.('[data-s3-rp-recover-check]')) return;
+ const sha = event.target.dataset?.s3RpSha, basis = v93Identity(), view = basis && v93Matches(v93.basis, basis) ? v93.view : null;
+ // Only a request_sha256 the page itself lists (the current job or an older attempt) can be ticked.
+ const known = [wikiS3RpState(view).job?.request_sha256, ...wikiS3RpAttempts(view).map(item => item.request_sha256)];
+ wikiS3Rp.recoverCheck = event.target.checked && typeof sha === 'string' && known.includes(sha) ? sha : null;
+ livePaint();
 });
 document.addEventListener('change', event => {
  if (!event.target.matches?.('[data-s3-rp-check]')) return;
