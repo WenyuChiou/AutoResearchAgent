@@ -445,6 +445,20 @@
   Object.assign(words.en, {queryCurrentBudget: "Reserved in this input version", queryLifetimeBudget: "Reserved across all input versions", queryArchived: "Saved earlier search versions (history only)", queryVersion: "Input version"});
   Object.assign(words["zh-Hans"], {queryCurrentBudget: "此输入版本已预留", queryLifetimeBudget: "所有输入版本累计预留", queryArchived: "已保存的旧搜索版本（仅历史）", queryVersion: "输入版本"});
   Object.assign(words["zh-Hant"], {queryCurrentBudget: "此輸入版本已預留", queryLifetimeBudget: "所有輸入版本累計預留", queryArchived: "已保存的舊搜尋版本（僅歷史）", queryVersion: "輸入版本"});
+  Object.assign(words.en, {coverageNeed: "To pass the coverage gate this plan needs at least", coverageRounds: "closed rounds", coverageAttempts: "search attempts", coverageSeconds: "reserved seconds", coverageScope: "The scope now offered", coverageRoundsWord: "rounds", coverageCannot: "This scope cannot pass the coverage gate. This is only a notice; you can still authorize.", coveragePlanRounds: "The plan's own round limit is too small to pass the coverage gate (limit: ", coveragePlanRoundsEnd: "). Raising the scope will not help; this is only a notice.", coverageShort: "Not enough: ", coverageUnknown: "The coverage-gate minimum cannot be computed right now. Reason: "});
+  Object.assign(words["zh-Hans"], {coverageNeed: "按这份计划通过覆盖门，至少需要", coverageRounds: "个已关闭的轮", coverageAttempts: "次检索", coverageSeconds: "秒预留", coverageScope: "当前提供的范围", coverageRoundsWord: "轮", coverageCannot: "这个范围过不了覆盖门。这只是提示，仍可授权。", coveragePlanRounds: "这份计划自己的轮数上限太小，过不了覆盖门（上限：", coveragePlanRoundsEnd: "）。加大范围没有用；这只是提示。", coverageShort: "不够的是：", coverageUnknown: "暂时算不出覆盖门的最低需求。原因："});
+  Object.assign(words["zh-Hant"], {coverageNeed: "依這份計畫通過覆蓋門，至少需要", coverageRounds: "個已關閉的輪", coverageAttempts: "次檢索", coverageSeconds: "秒預留", coverageScope: "目前提供的範圍", coverageRoundsWord: "輪", coverageCannot: "這個範圍過不了覆蓋門。這只是提示，仍可授權。", coveragePlanRounds: "這份計畫自己的輪數上限太小，過不了覆蓋門（上限：", coveragePlanRoundsEnd: "）。加大範圍沒有用；這只是提示。", coverageShort: "不夠的是：", coverageUnknown: "暫時算不出覆蓋門的最低需求。原因："});
+  function coverageHintLines(need) {
+    if (need && typeof need.unavailable === "string") return [{text: t("coverageUnknown") + need.unavailable, warn: false}];
+    if (!need || typeof need.min_search_attempts !== "number") return [];
+    const lines = [{text: t("coverageNeed") + " " + need.min_closed_rounds + " " + t("coverageRounds") + " / " + need.min_search_attempts + " " + t("coverageAttempts") + " / " + need.min_reserved_seconds + " " + t("coverageSeconds") + " · " + t("coverageScope") + ": " + need.approved_rounds + " " + t("coverageRoundsWord") + " / " + need.approved_search_attempts + " " + t("coverageAttempts") + " / " + need.approved_seconds + " " + t("coverageSeconds"), warn: false}];
+    if (need.plan_rounds_too_small === true) lines.push({text: t("coveragePlanRounds") + need.plan_max_rounds + t("coveragePlanRoundsEnd"), warn: true});
+    else if (need.can_reach_coverage_gate === false) {
+      const short = [need.rounds_enough === false ? t("coverageRoundsWord") : "", need.search_attempts_enough === false ? t("coverageAttempts") : "", need.seconds_enough === false ? t("coverageSeconds") : ""].filter(Boolean).join(" / ");
+      lines.push({text: t("coverageCannot") + (short ? " " + t("coverageShort") + short : ""), warn: true});
+    }
+    return lines;
+  }
   function renderQueries() {
     const value = state.stage1 && state.stage1.query_execution;
     $("query-state").textContent = value ? value.status : t("queryUnavailable");
@@ -453,6 +467,7 @@
     if (!value) return;
     const allowed = value.limits || value.authorization_offer && value.authorization_offer.document && value.authorization_offer.document.limits;
     if (allowed) text(limits, "p", t("queryAttempts") + ": ≤ " + allowed.max_attempts + " · " + t("seconds") + ": ≤ " + allowed.max_reserved_seconds + " · " + t("queryResultLimit") + ": ≤ " + allowed.max_results);
+    for (const row of coverageHintLines(value.coverage_requirement)) text(limits, "p", row.text, row.warn ? "" : "subtle");
     if (value.budget) text(limits, "p", t("queryCurrentBudget") + ": " + value.budget.attempts + " " + t("queryAttempts") + " · " + value.budget.seconds + " s · " + t("queryProbes") + ": " + value.budget.probes, "subtle");
     if (value.lifetime_budget && canonical(value.lifetime_budget) !== canonical(value.budget)) text(limits, "p", t("queryLifetimeBudget") + ": " + value.lifetime_budget.attempts + " " + t("queryAttempts") + " · " + value.lifetime_budget.seconds + " s · " + t("queryProbes") + ": " + value.lifetime_budget.probes, "subtle");
     text(limits, "p", t("queryNoReading"), "subtle");

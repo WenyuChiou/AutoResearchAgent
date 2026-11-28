@@ -164,8 +164,26 @@ class ProjectQueryVersionCases(unittest.TestCase):
                 case.queries.read("alice-token", case.ref)["bootstrap_offer"]
             )
             self.confirm_compile()
+            saved_before = self.saved()
             view = case.queries.read("alice-token", case.ref)
+            self.assertEqual(self.saved(), saved_before)  # the read view writes nothing
             self.assertIsNotNone(view["authorization_offer"])
+            hint = view["coverage_requirement"]
+            limits = view["authorization_offer"]["document"]["limits"]
+            self.assertEqual(hint["approved_search_attempts"], limits["max_attempts"])
+            self.assertEqual(
+                hint["min_search_attempts"],
+                hint["min_closed_rounds"] * hint["searches_per_round"]
+                + hint["expansions_min"],
+            )
+            self.assertEqual(hint["approved_seconds"], limits["max_reserved_seconds"])
+            self.assertEqual(
+                hint["can_reach_coverage_gate"],
+                hint["rounds_enough"]
+                and hint["search_attempts_enough"]
+                and hint["seconds_enough"],
+            )
+            self.assertNotIn("coverage_requirement", view["authorization_offer"])
             self.assertIsNone(view["bootstrap_offer"])
             _, authorized = self.authorize_v2()
         old = before["stage1_query_authorization"]

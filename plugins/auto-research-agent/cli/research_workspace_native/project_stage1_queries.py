@@ -18,6 +18,7 @@ from stage1_ledger.validation import validate_run
 from stage1_retrieval.runner import execute as execute_backend
 from .planned_queries import PlannedQueryService
 from .planned_query_contract import HASH, KEY, require, tree_sha
+from .project_coverage_hint import coverage_requirement_hint
 from .project_intake_contract import BOUND_FIELDS, _fields, _text
 from .project_query_permit import (
     check_configuration,
@@ -166,8 +167,14 @@ class ProjectStage1QueryService:
                     )
                     return result
                 if authorization is None:
-                    _, _, offer = proposal(self.intake, ref, principal, self.config)
+                    binding, _, offer = proposal(
+                        self.intake, ref, principal, self.config
+                    )
                     result["authorization_offer"] = offer
+                    # Read-only hint beside the offer; it is not part of the signed document.
+                    result["coverage_requirement"] = coverage_requirement_hint(
+                        binding, offer["document"]["limits"]
+                    )
                     return result
                 _, permit = self._inspect_seal(
                     self.intake, ref, authorization, self.config, ready=False
