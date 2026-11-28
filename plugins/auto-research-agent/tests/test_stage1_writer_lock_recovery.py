@@ -395,3 +395,98 @@ class WindowsWriterLockRecoveryTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "recovered")
         self.assertEqual(_tree(self.root), self.before)
+
+
+@unittest.skipUnless(os.name == "nt", "requires Windows lock and rename semantics")
+class RealScaleManifestWriterLockTests(unittest.TestCase):
+    """A run manifest embeds the pinned runtime inventory (2.95 MB in the
+    2026-11-27 trial); 3,000 pinned files already exceed the former 256 KB."""
+
+    invoke = WindowsWriterLockRecoveryTests.invoke
+    interrupt_release = WindowsWriterLockRecoveryTests.interrupt_release
+    recover_cli = WindowsWriterLockRecoveryTests.recover_cli
+
+    @staticmethod
+    def large_pin(root, count):
+        """A synthetic merged runtime pin with `count` extra pinned files."""
+        code = root / "code"
+        package = code / "synthetic_runtime_package"
+        package.mkdir(parents=True)
+        executable, script = code / "fake-python.exe", code / "cli.py"
+        executable.write_bytes(b"not-an-executable: test-only")
+        script.write_bytes(b"raise RuntimeError('never execute fixture')\n")
+        for index in range(count):
+            (package / f"module_{index:05d}.py").write_bytes(f"V = {index}\n".encode())
+        files = {
+            str(p): digest(p.read_bytes())
+            for p in (executable, script, *sorted(package.glob("*.py")))
+        }
+        prefix = [str(executable), "-I", "-B", str(script)]
+        config = root / "config.json"
+        config.write_bytes(b"{}")
+        schema = CLI.parent / "schemas/research-hub-audit.v1.schema.json"
+        return dict(
+            code_identity=dict(
+                scope="isolated-python-import-paths-and-entry-tree",
+                mode="script",
+                argv_prefix=prefix,
+                entry=str(script),
+                roots={str(code): True},
+                files=files,
+                absent_paths=[],
+                files_sha256=digest(canonical(files)),
+            ),
+            schema_version="1.0.0",
+            revision="a" * 40,
+            status="merged",
+            version="synthetic-label-only",
+            wheel_sha256="b" * 64,
+            audit_schema_sha256=digest(schema.read_bytes()),
+            executable_sha256=files[str(executable)],
+            argv_prefix=prefix,
+            config=dict(path=str(config), sha256=digest(b"{}")),
+            cwd=str(root),
+            timeout_seconds=2,
+        )
+
+    def setUp(self):
+        from stage1_retrieval.runtime_identity import verify_identity
+
+        temp = tempfile.TemporaryDirectory(prefix="wlm-")
+        self.addCleanup(temp.cleanup)
+        base = Path(temp.name).resolve()
+        pin = self.large_pin(base, 3000)
+        self.root = base / "run"
+        with patch(
+            "stage1_retrieval.runtime_identity.verify_identity",
+            side_effect=lambda value, **kw: verify_identity(value),
+        ):
+            self.ledger = CoverageLedger.create(
+                self.root,
+                run_id="authored-lock-run",
+                objective="Offline lock test",
+                research_hub_pin=pin,
+            )
+        self.lock = self.root / ".writer-lock"
+        self.before = _tree(self.root)
+
+    def test_real_scale_manifest_is_stamped_and_recovered(self):
+        self.assertGreater((self.root / "run_manifest.json").stat().st_size, 262144)
+        raw = self.interrupt_release()
+        lock = decode(raw, "lock")
+        self.assertEqual(
+            lock["run_identity"]["manifest_sha256"],
+            digest((self.root / "run_manifest.json").read_bytes()),
+        )
+        code, outcome = self.recover_cli(digest(raw))
+        self.assertEqual(code, 0, outcome)
+        self.assertEqual(outcome["status"], "recovered")
+        self.assertEqual(_tree(self.root), self.before)
+
+    def test_manifest_over_the_cap_refuses_instead_of_legacy_lock(self):
+        size = (self.root / "run_manifest.json").stat().st_size
+        with patch.object(writer_lock, "MAX_MANIFEST_BYTES", size - 1):
+            with self.assertRaisesRegex(LedgerError, "writer-lock-manifest-too-large"):
+                with self.ledger.writing(repair=False):
+                    self.fail("wrote under a downgraded legacy lock")
+        self.assertFalse(self.lock.exists())
