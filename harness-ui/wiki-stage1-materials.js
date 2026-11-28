@@ -97,6 +97,17 @@ function wsM9Continue(materials) {
    ${wsBtn('保存接续草稿', `data-n9-save="${esc(m.id)}"`, m9.busy ? '正在保存，请稍等' : '')}<small class="wiki-s1-muted">保存目标阶段不等于该阶段已获准执行。</small></div>`;
  }).join('');
 }
+// Why 「核验并登记候选包」 cannot be used right now (acceptance S-4). A saved archive, a saved sample and a launch without a
+// Stage 2 run configuration cannot register a packet: the click used to send POST /api/v9/import-packet and get a 409.
+function wsM9ImportGate(app) {
+ const ref = typeof rt !== 'undefined' ? rt.ref : null;
+ if (typeof wikiHomeArchiveBound === 'function' && wikiHomeArchiveBound(ref)) return '这是历史归档，不能在这里改';
+ if (typeof canonicalReadonly === 'function' && canonicalReadonly()) return '这是保存的样例，不能在这里改';
+ const conn = typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
+ if (conn?.phase === 'ready' && /profile-unavailable$/.test(String(conn.code || ''))) return '这次启动没有提供 Stage 2 的运行配置，不能登记候选包';
+ if (![m9.sourcePath, m9.importPath, m9.packetHash].every(value => String(value || '').trim())) return '请先填好上面的三项';
+ return '';
+}
 m9Panel = function (app) {
  if (!(typeof v1On === 'function' && v1On(app) && app.page === 'workspace' && (app.stage === 1 || app.stage === 2))) return wsM9Previous(app);
  const materials = m9Current();
@@ -118,7 +129,7 @@ m9Panel = function (app) {
   <label>候选包清单文件（packet.json）的位置<input data-n9-field="importPath" value="${esc(m9.importPath)}"></label>
   <label>清单文件的校验值（SHA-256）<input data-n9-field="packetHash" value="${esc(m9.packetHash)}"></label></div>
   <small class="wiki-s1-muted">现在的核验接口要这三项；校验由服务做，结果写在上面。</small>
-  ${wsBtn('核验并登记候选包', 'data-n9-action="import"', m9.busy ? '正在核对原文件和来源，请稍等' : '')}</details>` : '';
+  ${wsBtn('核验并登记候选包', 'data-n9-action="import"', m9.busy ? '正在核对原文件和来源，请稍等' : wsM9ImportGate(app))}</details>` : '';
  return `<div class="n9-materials ws-m9" data-n9-material-panel>
   <section class="ws-m9-card"><div class="ws-m9-head"><h3>加入文件</h3><label class="ws-m9-pick ${m9.busy ? 'off' : ''}">选择阶段材料<input type="file" multiple data-n9-upload aria-label="选择阶段材料" accept="${wsM9Accept}" ${m9.busy ? 'disabled' : ''}></label></div>
    <p class="wiki-s1-muted">你自己登记的材料保留原件、版本和所属阶段。登记后可以恢复、核验、准备接续；不会自动标记为已读、已纳入或已批准。每个文件最多 128 MiB；压缩包按原样保存，不解包、不执行。</p>

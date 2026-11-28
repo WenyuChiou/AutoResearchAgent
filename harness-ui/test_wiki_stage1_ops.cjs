@@ -346,4 +346,24 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  assert.match(mc.m9Panel(app), /这次没有读到已保存的材料/);
  mc.m9.catalog = saved; mc.m9.error = '';
 }
+// Acceptance S-4: 「核验并登记候选包」 is grey, with a reason, wherever registering cannot work.
+{
+ const block = fs.readFileSync(path.join(__dirname,'wiki-stage1-materials.js'),'utf8');
+ const v1 = block.slice(block.indexOf('// ---------- Wiki V1 materials panel'));
+ const app = {lang:'zh', page:'workspace', stage:2};
+ const state = {archive:false, canonical:false, code:'', fields:['a', 'b', 'c']};
+ const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '', rt:{ref:'project-a'},
+  wsTag:(k, l) => `<tag>${l}</tag>`, wsBtn:(l, a, r) => `<span class="b"><button ${a} ${r ? 'disabled' : ''}>${l}</button>${r ? '<small>' + r + '</small>' : ''}</span>`, wsMaterialsDownloads:() => '',
+  wikiHomeArchiveBound:() => state.archive, canonicalReadonly:() => state.canonical,
+  v9ConnectionModel:() => ({phase:'ready', code:state.code}),
+  m9:{catalog:{materials:[], operations:[], drafts:[]}, busy:false, error:'', status:'', target:{}, notes:{}, sourcePath:'a', importPath:'b', packetHash:'c'},
+  m9Current:() => [], m9Draft:() => null});
+ vm.runInContext(v1, mc);
+ const button = () => { const html = mc.m9Panel(app), at = html.indexOf('data-n9-action="import"'); return html.slice(html.lastIndexOf('<span class="b">', at), html.indexOf('</span>', at) + 7); };
+ assert.doesNotMatch(button(), /disabled/, 'a configured, writable project with the three fields filled can register');
+ state.archive = true; assert.match(button(), /disabled.*历史归档，不能在这里改/s); state.archive = false;
+ state.canonical = true; assert.match(button(), /disabled.*保存的样例，不能在这里改/s); state.canonical = false;
+ state.code = 'stage2-controller-profile-unavailable'; assert.match(button(), /disabled.*没有提供 Stage 2 的运行配置/s); state.code = '';
+ mc.m9.sourcePath = ''; assert.match(button(), /disabled.*请先填好上面的三项/s);
+}
 console.log('PASS Stage 1 ops: scope page, auto-advance states, run table, delivery decision, paper card, evidence review, materials.');
