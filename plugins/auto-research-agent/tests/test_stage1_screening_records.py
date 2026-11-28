@@ -970,20 +970,179 @@ class ScreeningRecordsTests(unittest.TestCase):
             journal_rows(changed, journal)
 
 
-class ProvidedCandidateDeliveryTests(unittest.TestCase):
-    def test_provided_candidate_is_refused_with_a_reason_not_a_type_error(self):
-        from stage1_deliverable.common import DeliverableError
-        from stage1_deliverable.screening_records import _require_no_provided
+class ProvidedCandidateDeliveryTests(ScreeningRecordsTests):
+    """A researcher-provided saved material in the screening library (review P1-2, follow-up)."""
 
-        searched = dict(work_id="w1", discoveries=[dict(completion_id="e000003")])
-        provided = dict(
-            work_id="w2",
-            discoveries=[dict(completion_id=None, provided=dict(event_id="e000004"))],
+    # Only the new test below should run here, not the inherited ones.
+    for _name in [n for n in dir(ScreeningRecordsTests) if n.startswith("test_")]:
+        locals()[_name] = None
+    del _name
+
+    def library_with_provided(self, decision):
+        from copy import deepcopy as _copy
+        from stage1_ledger.identity import work_key
+        from stage1_ledger.journal import digest
+        from test_stage1_ledger import SYNTHETIC
+
+        case = self.case
+        created = case.intake.create(
+            "alice-token",
+            {"key": "prov-" + str(decision), "topic": "Provided delivery"},
         )
-        _require_no_provided([searched])
-        with self.assertRaises(DeliverableError) as caught:
-            _require_no_provided([searched, provided])
-        self.assertIn("provided-candidate-delivery-unsupported", str(caught.exception))
+        ref = created["project_ref"]
+        case.intake.submit(
+            "alice-token", ref, submit_body(case.intake.read("alice-token", ref))
+        )
+        case.intake.compile(
+            "alice-token", ref, compile_body(case.intake.read("alice-token", ref))
+        )
+        offer = case.stage1.read("alice-token", ref)["initialization_offer"]
+        case.stage1.initialize(
+            "alice-token",
+            ref,
+            dict(
+                bound_body(case.intake.read("alice-token", ref), "init-provided"),
+                offer_ref=offer["offer_ref"],
+                offer_sha256=offer["offer_sha256"],
+                confirmed=True,
+            ),
+        )
+        materials = case.fixture_root / ("provided-" + str(decision))
+        materials.mkdir()
+        data = b"category,value" + bytes([10]) + b"food,100" + bytes([10])
+        (materials / "table.csv").write_bytes(data)
+        record = _copy(SYNTHETIC)
+        key = work_key(record)
+        work = "work-" + digest(key.encode())
+        version = "version-" + digest(canonical([key, record["version"]]))
+        view = case.intake.read("alice-token", ref)
+        ledger_state = case.stage1.read("alice-token", ref)["ledger"]["state_sha256"]
+        case.stage1.admit_saved_candidate(
+            "alice-token",
+            ref,
+            dict(
+                bound_body(view, "admit-provided"),
+                ledger_state_sha256=ledger_state,
+                confirmed=True,
+                source_project_ref=ref,
+                source_relative="table.csv",
+                material_sha256=digest(data),
+                source_uri="https://example.org/table",
+                original_type="text/csv",
+                record=record,
+                work_id=work,
+                version_id=version,
+                reason="Explicit saved material supplied by the researcher.",
+            ),
+            materials_root=materials,
+        )
+        state = case.intake._load(case.intake._principal("alice-token"), ref)
+        run = state["stage1_runs"][state["stage1_active"]]
+        ledger = CoverageLedger(case.intake._path(ref, run["path"]))
+        if decision is not None:
+            source_ref = ledger.candidates()[work]["discoveries"][0]["source_ref"]
+            ledger.decide(
+                work,
+                decision,
+                reason="not-relevant" if decision == "exclude" else "relevant-evidence",
+                rationale="provided material decision",
+                evidence_refs=[source_ref],
+                actor="agent",
+            )
+        ledger.checkpoint()
+        report = validate_run(ledger.root)
+        self.assertTrue(report["valid"], report)
+        return _project(ref, case.intake.binding(ref), run, ledger, report), ledger
+
+    def records_for(self, library):
+        records = deepcopy(self.records)
+        records.update(
+            screening_library=library,
+            screening_artifacts=artifacts(library),
+            screening_journal=dict(
+                path="screening_events.jsonl",
+                sha256=library["binding"]["journal_sha256"],
+            ),
+        )
+        return records
+
+    def test_only_a_provided_work_that_is_not_screened_out_is_refused_with_a_reason(
+        self,
+    ):
+        from stage1_deliverable.common import DeliverableError
+        from stage1_deliverable.screening_records import (
+            _require_provided_excluded,
+            validate_extension,
+        )
+
+        for decision, refused in ((None, True), ("include", True), ("exclude", False)):
+            with self.subTest(decision=decision):
+                library, ledger = self.library_with_provided(decision)
+                row = library["rows"][0]
+                self.assertEqual(row["screening_status"], decision or "not-screened")
+                from research_workspace_native.project_stage1_delivery import (
+                    _refuse_open_provided,
+                )
+                from research_workspace_native.session_api import SessionApiError
+
+                if refused:
+                    with self.assertRaises(SessionApiError) as entry:
+                        _refuse_open_provided(ledger)
+                    self.assertEqual(
+                        entry.exception.code,
+                        "stage1-provided-candidate-delivery-unsupported",
+                    )
+                    with self.assertRaises(DeliverableError) as caught:
+                        _require_provided_excluded(library["rows"])
+                    self.assertIn(
+                        "provided-candidate-delivery-unsupported", str(caught.exception)
+                    )
+                else:
+                    _refuse_open_provided(ledger)
+                    _require_provided_excluded(library["rows"])
+                    records = self.records_for(library)
+                    records.update(
+                        topic="Provided delivery",
+                        sources=[],
+                        claims=[],
+                        core_claim_history=[],
+                        core_artifacts=[],
+                        papers=[
+                            dict(
+                                work_id=row["work_id"],
+                                version_id=row["selected_version_id"],
+                                title=row["metadata"]["title"],
+                                authors=row["metadata"]["authors"],
+                                year=row["metadata"].get("year"),
+                                doi=row["metadata"].get("doi"),
+                                venue="Unknown",
+                                url=None,
+                                evidence_level="metadata",
+                                source_ids=[],
+                                claim_ids=[],
+                                roles=[],
+                                reading_status="discovery-only",
+                                classification=dict.fromkeys(CLASSIFICATION, "Unknown"),
+                                findings=dict.fromkeys(FINDINGS, "Unknown"),
+                            )
+                            for row in library["rows"]
+                        ],
+                        screening=[
+                            dict(
+                                decision_id=d["event_id"],
+                                work_id=d["subject_id"],
+                                status=d["new_decision"],
+                                reason=d["rationale"],
+                                observed_at=d["created_at"],
+                            )
+                            for d in (
+                                row["current_decision"]
+                                for row in library["rows"]
+                                if row["current_decision"]
+                            )
+                        ],
+                    )
+                    validate_extension(records)
 
 
 if __name__ == "__main__":

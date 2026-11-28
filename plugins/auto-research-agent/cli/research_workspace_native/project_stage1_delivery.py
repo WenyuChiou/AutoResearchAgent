@@ -89,10 +89,33 @@ def _screening_library(context, records=None):
     return _project(state["project_ref"], binding, run, ledger, report)
 
 
+def _refuse_open_provided(ledger):
+    """The delivery format cannot yet describe a researcher-provided saved material.
+
+    A provided candidate the researcher has screened out is an ordinary excluded row; one that is
+    still included or undecided is refused here with a stable reason. The ledger is append-only,
+    so the candidate cannot be deleted, only screened out.
+    """
+    decisions = [
+        row["payload"]
+        for row in ledger.events()
+        if row["payload"]["kind"] == "DecisionEvent"
+    ]
+    for work, candidate in ledger.candidates().items():
+        if not any(d.get("provided") for d in candidate["discoveries"]):
+            continue
+        latest = next((d for d in reversed(decisions) if d["subject_id"] == work), None)
+        _check(
+            latest is not None and latest["new_decision"] == "exclude",
+            "stage1-provided-candidate-delivery-unsupported",
+        )
+
+
 def _records_match(
     records, ledger, root, *, check_core_archives=True, screening_library=None
 ):
     """Enrichment must refer to saved observations, never invent their history."""
+    _refuse_open_provided(ledger)
     validate_records(records)
     from stage1_deliverable.core_records import extended
 

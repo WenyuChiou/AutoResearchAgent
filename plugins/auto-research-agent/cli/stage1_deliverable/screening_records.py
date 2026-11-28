@@ -8,6 +8,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator, FormatChecker
 from stage1_ledger.contracts import check, check_payload
 from stage1_ledger.journal import canonical, decode
+from stage1_ledger.provided import discovery_order
 
 from .common import DeliverableError, read_json, safe_path, sha
 from .records import CLASSIFICATION, FINDINGS, _keys, _text, timestamp
@@ -33,19 +34,22 @@ def _require(condition, message):
         raise DeliverableError("screening library: " + message)
 
 
-def _require_no_provided(candidates):
-    """Researcher-provided saved materials have no query, attempt or result position.
+def _require_provided_excluded(rows):
+    """A researcher-provided saved material may only be delivered once it is screened out.
 
-    The discovery bindings below describe search results only; until this record format can
-    describe provided origin, a delivery that contains one is refused with this reason rather
-    than failing on the missing query ids.
+    Provided materials have no query, attempt or result position, and this record format cannot
+    yet describe their origin in the delivered source list. A work that is still included or
+    undecided is therefore refused with a reason; one the researcher screened out stays in the
+    complete candidate set as a plain excluded row.
     """
     _require(
-        not any(
-            d.get("provided") for c in candidates for d in c.get("discoveries", [])
+        all(
+            row["screening_status"] == "exclude"
+            for row in rows
+            if any(d.get("provided") for d in row["discoveries"])
         ),
         "provided-candidate-delivery-unsupported: a researcher-provided saved material "
-        "is not a search result and cannot yet be delivered in this record format",
+        "that is not screened out cannot yet be delivered in this record format",
     )
 
 
@@ -281,6 +285,17 @@ def _row(row, candidate, claims, decisions, queries, ranks):
             and all(observed[k] == v for k, v in discovery.items()),
             "discovery observation rewritten",
         )
+        if discovery.get("provided"):
+            # No query, backend attempt or result position exists for a provided material.
+            _require(
+                discovery["query_id"] is None
+                and observed["result_position"] is None
+                and observed["round_number"] is None
+                and observed["candidate_discovery_order_in_run"]
+                == ranks[discovery["discovery_id"]],
+                "provided discovery observation differs",
+            )
+            continue
         query = queries.get(discovery["query_id"])
         _require(query is not None, "discovery query omitted")
         attempt = next(
@@ -309,7 +324,9 @@ def _row(row, candidate, claims, decisions, queries, ranks):
         )
     history = [d for d in decisions if d["subject_id"] == work]
     work_claims = [c for c in claims if c["work_id"] == work]
-    query_ids = {d["query_id"] for d in candidate["discoveries"]}
+    query_ids = {
+        d["query_id"] for d in candidate["discoveries"] if d["query_id"] is not None
+    }
     _require(
         row["decision_history"] == history
         and row["current_decision"] == (history[-1] if history else None)
@@ -407,7 +424,11 @@ def _row(row, candidate, claims, decisions, queries, ranks):
             "discoveries": len(row["discoveries"]),
             "distinct_queries": len(query_ids),
             "discovery_producing_backend_attempts": len(
-                {d["attempt_id"] for d in row["discoveries"]}
+                {
+                    d["attempt_id"]
+                    for d in row["discoveries"]
+                    if d["attempt_id"] is not None
+                }
             ),
             "query_backend_attempts": sum(
                 len(queries[q]["backend_attempts"]) for q in query_ids
@@ -519,13 +540,13 @@ def validate_extension(records):
         elif key != "input_version":
             _text(value)
     core = _snapshots(library)
-    _require_no_provided(core["CandidateSnapshot"])
+    _require_provided_excluded(library["rows"])
     candidates = {c["work_id"]: c for c in core["CandidateSnapshot"]}
     _require(len(candidates) == len(core["CandidateSnapshot"]), "duplicate candidates")
     queries = _queries(library["query_history"])
     discoveries = sorted(
         (d for c in candidates.values() for d in c["discoveries"]),
-        key=lambda d: (int(d["completion_id"][1:]), d["record_index"]),
+        key=discovery_order,
     )
     ranks = {d["discovery_id"]: i for i, d in enumerate(discoveries, 1)}
     _require(len(ranks) == len(discoveries), "duplicate discoveries")
