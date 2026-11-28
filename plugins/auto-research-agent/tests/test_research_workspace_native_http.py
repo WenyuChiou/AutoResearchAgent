@@ -14,11 +14,13 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).parents[1] / "cli"))
 import test_research_workspace_native_session_api as fixtures
 from research_workspace_native.http import (
+    RequestDeadline,
     SessionHandler,
     SessionHttpServer,
     token_authenticator,
 )
 from research_workspace_native.session_api import SessionApi
+from stage1_retrieval import verification_clock
 
 
 class SessionHttpTests(unittest.TestCase):
@@ -513,6 +515,233 @@ class SessionHttpTests(unittest.TestCase):
         handler.send_response.assert_called_once_with(200)
         handler.wfile.write.assert_not_called()
         self.assertTrue(handler.close_connection)
+
+    def read_bounded(self, server, path="/api/native/projects/project-a"):
+        """GET through a bounded server; return (status or None, body, seconds)."""
+        connection = http.client.HTTPConnection(
+            "127.0.0.1", server.server_port, timeout=10
+        )
+        started = time.monotonic()
+        try:
+            connection.request(
+                "GET",
+                path,
+                headers={
+                    "Host": server.expected_host,
+                    "Origin": server.expected_origin,
+                    "Authorization": "Bearer " + self.token,
+                },
+            )
+            response = connection.getresponse()
+            return (
+                response.status,
+                json.loads(response.read()),
+                time.monotonic() - started,
+            )
+        except (http.client.HTTPException, OSError):
+            return None, None, time.monotonic() - started
+        finally:
+            connection.close()
+
+    def test_local_verification_does_not_count_against_request_deadline(self):
+        # A read whose marked local verification (1.5 s) outlasts the whole
+        # 0.8 s request deadline still answers; each request has its own meter.
+        meters = []
+
+        def view(credential, ref):
+            meters.append(verification_clock.current())
+            with verification_clock.local_verification(10):
+                time.sleep(1.5)
+            return {"status": "read", "ref": ref}
+
+        self.api.view = Mock(side_effect=view)
+        server = self.bounded_server(timeout=0.8)
+        for _ in range(2):
+            status, body, seconds = self.read_bounded(server)
+            self.assertEqual(
+                (status, body), (200, {"status": "read", "ref": "project-a"})
+            )
+            self.assertGreater(seconds, 1.4)  # well past the 0.8 s deadline
+        self.assertIsInstance(meters[0], verification_clock.Meter)
+        self.assertIsNot(meters[0], meters[1])
+
+    def test_stuck_request_work_is_still_closed_at_the_deadline(self):
+        # Unmarked work (a stuck callback or I/O) keeps the previous 0.8 s cap.
+        released = threading.Event()
+
+        def view(credential, ref):
+            released.wait(3)
+            return {"status": "late"}
+
+        self.api.view = Mock(side_effect=view)
+        server = self.bounded_server(timeout=0.8)
+        status, _, seconds = self.read_bounded(server)
+        released.set()
+        self.assertIsNone(status)
+        self.assertGreater(seconds, 0.6)
+        self.assertLess(seconds, 2.0)
+
+    def test_stuck_verification_is_closed_after_its_own_allowance(self):
+        # A marked pass that never ends extends the deadline only by the
+        # meter's allowance (0.5 s here), so the socket still closes.
+        released = threading.Event()
+
+        def view(credential, ref):
+            with verification_clock.local_verification(1):
+                released.wait(4)
+            return {"status": "late"}
+
+        self.api.view = Mock(side_effect=view)
+        with (
+            patch.object(verification_clock, "BASE_SECONDS", 0.5),
+            patch.object(verification_clock, "PASS_SECONDS", 0.0),
+            patch.object(verification_clock, "PER_FILE_SECONDS", 0.0),
+        ):
+            server = self.bounded_server(timeout=0.8)
+            status, _, seconds = self.read_bounded(server)
+        released.set()
+        self.assertIsNone(status)
+        self.assertGreater(seconds, 1.1)
+        self.assertLess(seconds, 2.6)
+
+    def test_verification_over_its_budget_fails_with_its_own_reason(self):
+        # The allowance base is the request timeout (1 s here); a pass of
+        # 1.3 s exceeds it and answers before the extended deadline (2 s).
+        def view(credential, ref):
+            with verification_clock.local_verification(1):
+                time.sleep(1.3)
+            return {"status": "read"}
+
+        self.api.view = Mock(side_effect=view)
+        with (
+            patch.object(verification_clock, "BASE_SECONDS", 0.2),
+            patch.object(verification_clock, "PASS_SECONDS", 0.0),
+            patch.object(verification_clock, "PER_FILE_SECONDS", 0.0),
+        ):
+            server = self.bounded_server(timeout=1)
+            status, body, _ = self.read_bounded(server)
+        self.assertEqual(
+            (status, body), (503, {"error": "local-verification-budget-exceeded"})
+        )
+
+    def test_write_requests_only_extend_the_deadline_never_fail_on_budget(self):
+        # Review 2026-11-28 P1-1/P1-2: a write may verify after saving its
+        # intent; a budget error there would leave execution-unknown. For
+        # non-GET requests the meter only moves the deadline: a 1.3 s pass
+        # over a 1 s allowance and past the 1 s request cap still answers.
+        meters = []
+
+        def answer(credential, ref, body):
+            meters.append(verification_clock.current())
+            with verification_clock.local_verification(1):
+                time.sleep(1.3)
+            return {"status": "saved"}
+
+        self.api.answer = Mock(side_effect=answer)
+        with (
+            patch.object(verification_clock, "BASE_SECONDS", 0.2),
+            patch.object(verification_clock, "PASS_SECONDS", 0.0),
+            patch.object(verification_clock, "PER_FILE_SECONDS", 0.0),
+            patch.object(verification_clock, "MAX_PASSES", 0),
+        ):
+            server = self.bounded_server(timeout=1)
+            connection = http.client.HTTPConnection(
+                "127.0.0.1", server.server_port, timeout=10
+            )
+            started = time.monotonic()
+            try:
+                connection.request(
+                    "POST",
+                    "/api/native/projects/project-a/answers",
+                    body=b"{}",
+                    headers={
+                        "Host": server.expected_host,
+                        "Origin": server.expected_origin,
+                        "Authorization": "Bearer " + self.token,
+                        "Content-Type": "application/json",
+                    },
+                )
+                response = connection.getresponse()
+                status, body = response.status, json.loads(response.read())
+            finally:
+                connection.close()
+        self.assertEqual((status, body), (200, {"status": "saved"}))
+        self.assertGreater(time.monotonic() - started, 1.2)
+        self.assertFalse(meters[0].enforce)
+        self.assertEqual(meters[0].snapshot()["passes"], 1)
+
+    def test_session_read_over_budget_is_503_not_a_changed_source(self):
+        # Review of 66c57004, P2-1: the session API rewrote any verifier error
+        # as 409 source-check-failed, which reads like a changed file.
+        p = self.project()
+        original = self.api._projects[p.ref]
+
+        def slow(binding):
+            raise verification_clock.LocalVerificationBudgetExceeded(
+                verification_clock.BUDGET_CODE
+            )
+
+        self.api._projects[p.ref] = (*original[:3], slow)
+        status, body, _ = self.call("GET", "/api/native/projects/" + p.ref)
+        self.assertEqual(
+            (status, body), (503, {"error": "local-verification-budget-exceeded"})
+        )
+
+    def test_verification_inside_the_old_cap_never_fails_on_budget(self):
+        # Review P1-1: a request that used to finish inside the absolute cap
+        # (here 0.7 s of verification under a 2 s cap) must not turn into a
+        # budget failure even when the file formula alone allows less (0.2 s).
+        def view(credential, ref):
+            with verification_clock.local_verification(1):
+                time.sleep(0.7)
+            return {"status": "read"}
+
+        self.api.view = Mock(side_effect=view)
+        with (
+            patch.object(verification_clock, "BASE_SECONDS", 0.2),
+            patch.object(verification_clock, "PASS_SECONDS", 0.0),
+            patch.object(verification_clock, "PER_FILE_SECONDS", 0.0),
+        ):
+            server = self.bounded_server(timeout=2)
+            status, body, _ = self.read_bounded(server)
+        self.assertEqual((status, body), (200, {"status": "read"}))
+
+    def test_deadline_timer_rearms_with_a_floor_during_a_late_pass(self):
+        # Review P1-2: a pass that starts just before the deadline keeps left()
+        # constant; the timer must not re-arm in a tight loop.
+        def view(credential, ref):
+            # Start the pass 50 ms before this request's own deadline, however
+            # long parsing and authentication took on a busy machine.
+            (until,) = [row[0] for row in server._deadlines.values()]
+            time.sleep(max(0.0, until - 0.05 - time.monotonic()))
+            with verification_clock.local_verification(1):
+                time.sleep(1.5)
+            return {"status": "read"}
+
+        self.api.view = Mock(side_effect=view)
+        server = self.bounded_server(timeout=1.0)
+        calls = []
+        original = server._expire
+
+        def counted(request):
+            calls.append(time.monotonic())
+            return original(request)
+
+        server._expire = counted
+        status, body, _ = self.read_bounded(server)
+        self.assertEqual((status, body), (200, {"status": "read"}))
+        # 1.5 s at a 0.25 s floor is about 7 timer runs; a tight loop is far more.
+        self.assertLessEqual(len(calls), 10)
+
+    def test_request_deadline_hard_bound_and_raw_float_are_kept(self):
+        with patch.object(verification_clock, "MAX_SECONDS", 7.0):
+            deadline = RequestDeadline(30)
+        self.assertAlmostEqual(deadline.hard - deadline.until, 7.0)
+        self.assertLessEqual(deadline.left(), 30)
+        with verification_clock.metering(deadline.meter):
+            with verification_clock.local_verification(1):
+                time.sleep(0.2)
+        self.assertGreater(deadline.left(), 29.9)
 
 
 if __name__ == "__main__":
