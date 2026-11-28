@@ -22,6 +22,9 @@ from stage3_plan.contracts import canonical_bytes, digest
 from stage3_plan.prompts import REVISION_INSTRUCTION
 
 
+EXTRA = {"revision_input", "recovery_pin_available"}  # added by the page-gap work
+
+
 class ReplanFixture:
     setUpClass = classmethod(base.ProjectStage3PlanningTests.setUpClass.__func__)
     service = base.ProjectStage3PlanningTests.service
@@ -540,19 +543,18 @@ class ReplanReviewFixTests(ReplanFixture, unittest.TestCase):
         ):
             view = self.view()
             self.assertEqual(view["plan"], self.original)
+            [shown] = view["unreadable_plans"]
             self.assertEqual(
-                view["unreadable_plans"],
-                [
-                    {
-                        "key": body["key"],
-                        "request_sha256": prepared["request_sha256"],
-                        "error": "stage3-replan-plan-environment-changed",
-                        "error_class": "Stage3Error",
-                        "parent_request_sha256": self.default_body["request_sha256"],
-                        "from_revision_receipt_sha256": revision["receipt_sha256"],
-                        "from_decision_receipt_sha256": decision["receipt_sha256"],
-                    }
-                ],
+                {k: v for k, v in shown.items() if k not in EXTRA},
+                {
+                    "key": body["key"],
+                    "request_sha256": prepared["request_sha256"],
+                    "error": "stage3-replan-plan-environment-changed",
+                    "error_class": "Stage3Error",
+                    "parent_request_sha256": self.default_body["request_sha256"],
+                    "from_revision_receipt_sha256": revision["receipt_sha256"],
+                    "from_decision_receipt_sha256": decision["receipt_sha256"],
+                },
             )
             self.assertEqual(
                 (view["replan"]["available"], view["replan"]["reason"]),
@@ -665,7 +667,9 @@ class ReplanViewTests(ReplanFixture, unittest.TestCase):
         )
         prepared = self.http.replan.prepare("own", self.ref, replan["request"])
         view = self.view()
-        self.assertEqual(view["replan"]["job"], prepared)
+        self.assertEqual(
+            view["replan"]["job"], dict(prepared, recovery_pin_available=False)
+        )
         self.assertEqual(
             view["replan"]["request"]["request_sha256"], prepared["request_sha256"]
         )
@@ -701,13 +705,16 @@ class ReplanViewTests(ReplanFixture, unittest.TestCase):
             old["job"]["request_sha256"], self.default_body["request_sha256"]
         )
         self.assertEqual(
-            old["replanned_by"],
+            {k: v for k, v in old["replanned_by"].items() if k not in EXTRA},
             {
                 "key": body["key"],
                 "request_sha256": prepared["request_sha256"],
                 "from_revision_receipt_sha256": revision["receipt_sha256"],
                 "from_decision_receipt_sha256": decision["receipt_sha256"],
             },
+        )
+        self.assertEqual(
+            old["replanned_by"]["revision_input"], prepared["revision_input"]
         )
         self.assertEqual(
             {r["receipt_sha256"] for r in old["feedback"]["records"]},
@@ -820,6 +827,182 @@ class ReplanHttpTests(ReplanFixture, unittest.TestCase):
         )
         self.assertEqual(self.state(), before)
         self.assertEqual(self.callback.call_count, 1)
+
+
+class ReplanInterfaceGapTests(ReplanFixture, unittest.TestCase):
+    """What the page needs: frozen edit list, recover, and attempts that stay."""
+
+    def prepare_replan(self, decision_key="d1"):
+        comment = self.comment() if decision_key == "d1" else None
+        if comment is not None:
+            self.revise(comment)
+        decision = self.decide(decision_key)
+        template = self.view()["replan"]
+        self.assertTrue(template["available"], template)
+        body = template["request"]
+        return body, self.http.replan.prepare("own", self.ref, body), decision
+
+    def run_body(self, body, prepared):
+        return dict(body, request_sha256=prepared["request_sha256"], confirmed=True)
+
+    def test_frozen_changes_are_returned_everywhere_and_are_what_was_bound(self):
+        body, prepared, _ = self.prepare_replan()
+        payload = self.item_for(body["key"])["payload"]
+        frozen = payload["revision_input"]
+        shown = prepared["revision_input"]
+        # the page gets the server list, not a recomputation
+        self.assertEqual(shown["changes"], frozen["changes"])
+        self.assertEqual(shown["comments"], frozen["comments"])
+        self.assertEqual(shown["revision_input_sha256"], frozen["sha256"])
+        self.assertNotIn("plan", shown)  # no draft body in the summary
+        # and that list is part of what request_sha256 (the run binding) covers
+        self.assertEqual(prepared["request_sha256"], digest(payload))
+        tampered = dict(payload, revision_input=dict(frozen, changes=[]))
+        self.assertNotEqual(digest(tampered), prepared["request_sha256"])
+        # every read path carries the same list
+        view = self.view()["replan"]
+        self.assertEqual(view["job"]["revision_input"], shown)
+        self.assertEqual(view["attempts"][0]["revision_input"], shown)
+        inspected = self.http.replan.inspect(
+            "own", self.ref, dict(body, request_sha256=prepared["request_sha256"])
+        )
+        self.assertEqual(inspected["revision_input"], shown)
+        self.assertEqual(
+            self.http.replan.prepare("own", self.ref, body)["revision_input"], shown
+        )
+        self.respond(body["key"], marker="NEW-PLAN-MARKER")
+        ran = self.http.replan.run("own", self.ref, self.run_body(body, prepared))
+        self.assertEqual(ran["revision_input"], shown)
+        # the prompt got exactly this list
+        prompt = self.callback.call_args.kwargs["prompt"]
+        for change in shown["changes"]:
+            self.assertIn(base.json.dumps(change["researcher_value"]), prompt)
+        # after the new plan is displayed, history keeps it too
+        history = self.view()["previous_plans"][0]["replanned_by"]
+        self.assertEqual(history["revision_input"], shown)
+
+    def test_recover_applies_to_a_replan_job_and_view_says_when(self):
+        body, prepared, _ = self.prepare_replan()
+        self.respond(body["key"], marker="NEW-PLAN-MARKER")
+        original = self.jobs._transition
+
+        def cut(key, status, evidence):
+            if status == "completed" and key == body["key"]:
+                raise OSError("authored interruption before completion receipt")
+            return original(key, status, evidence)
+
+        from pathlib import Path
+        from unittest.mock import patch
+
+        with patch.object(self.jobs, "_transition", side_effect=cut):
+            with self.assertRaises(OSError):
+                self.http.replan.run("own", self.ref, self.run_body(body, prepared))
+        self.assertEqual(self.item_for(body["key"])["status"], "dispatching")
+        calls = self.callback.call_count
+        view = self.view()["replan"]
+        self.assertFalse(view["job"]["recovery_pin_available"])
+        [attempt] = view["attempts"]
+        self.assertEqual(
+            (
+                attempt["result_unknown"],
+                attempt["read_only"],
+                attempt["recovery_pin_available"],
+            ),
+            (True, True, False),
+        )
+        # recover without a trusted pin is refused by the router
+        replies = self.post_recover(body, prepared)
+        self.assertEqual(
+            replies[0][1], {"error": "trusted-stage3-recovery-pin-required"}
+        )
+        pin = base.read_json(
+            Path(self.item_for(body["key"])["payload"]["output"]) / "plan/manifest.json"
+        )["manifest_sha256"]
+        identity = (self.ref, body["key"], prepared["request_sha256"])
+        self.http.recovery_pins[identity] = self.bridge.saved_read_pins[identity] = pin
+        before = self.journal.snapshot(self.jobs.project_id)
+        view = self.view()["replan"]
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+        self.assertTrue(view["job"]["recovery_pin_available"])
+        self.assertTrue(view["attempts"][0]["recovery_pin_available"])
+        self.assertTrue(view["attempts"][0]["result_unknown"])
+        replies = self.post_recover(body, prepared)
+        self.assertEqual(replies[0][0], 200, replies)
+        self.assertEqual(replies[0][1]["outcome"], "saved")
+        self.assertEqual(replies[0][1]["revision_input"], prepared["revision_input"])
+        self.assertEqual(self.callback.call_count, calls)  # never redispatched
+        view = self.view()
+        self.assertEqual(view["job"]["request_sha256"], prepared["request_sha256"])
+        self.assertTrue(view["recovery_pin_available"])  # the displayed job's pin
+        self.assertEqual(view["replan"]["attempts"], [])
+
+    def post_recover(self, body, prepared):
+        from test_project_stage3_planning_http import Handler
+        from research_workspace_native.project_stage3_http import handle_planning
+
+        sent = dict(body, request_sha256=prepared["request_sha256"])
+        handler = Handler(self.http, "recover", sent)
+        handler.path = "/api/projects/" + self.ref + "/stage3/planning/recover"
+        handle_planning(handler, "POST")
+        return handler.replies
+
+    def test_unknown_result_stays_in_the_view_and_blocks_new_decisions(self):
+        body, prepared, _ = self.prepare_replan()
+        self.callback.side_effect = RuntimeError("authored adapter failure")
+        failed = self.http.replan.run("own", self.ref, self.run_body(body, prepared))
+        self.assertEqual(failed["status"], "execution-unknown", failed)
+        calls = self.callback.call_count
+        self.callback.side_effect = None
+        # the journal refuses every new intent (so any new decision, any new key)
+        # until the unknown call is reconciled; the old job stays listed meanwhile
+        with self.assertRaises(Exception):
+            self.decide("d2")
+        before = self.journal.snapshot(self.jobs.project_id)
+        replan = self.view()["replan"]
+        self.assertEqual(self.journal.snapshot(self.jobs.project_id), before)
+        [old] = replan["attempts"]
+        self.assertEqual(old["key"], body["key"])
+        self.assertEqual(
+            (old["status"], old["result_unknown"], old["read_only"]),
+            ("execution-unknown", True, True),
+        )
+        self.assertEqual(old["job"]["status"], "execution-unknown")
+        self.assertEqual(old["revision_input"], prepared["revision_input"])
+        again = self.http.replan.run("own", self.ref, self.run_body(body, prepared))
+        self.assertEqual(again["status"], "execution-unknown")
+        self.assertEqual(self.callback.call_count, calls)
+
+    def test_prepared_job_stays_listed_after_a_newer_decision_changes_the_key(self):
+        body, prepared, _ = self.prepare_replan()
+        self.decide("d2")  # same revision, newer decision: new replan key
+        view = self.view()
+        replan = view["replan"]
+        self.assertNotEqual(replan["request"]["key"], body["key"])
+        self.assertIsNone(replan["job"])
+        [old] = replan["attempts"]
+        self.assertEqual(old["key"], body["key"])
+        self.assertEqual(
+            (old["status"], old["result_unknown"], old["read_only"]),
+            ("intent-recorded", False, True),
+        )
+        self.assertEqual(old["revision_input"], prepared["revision_input"])
+        # the old one cannot run any more (superseded) and calls nothing
+        calls = self.callback.call_count
+        with self.assertRaises(SessionApiError) as error:
+            self.http.replan.run("own", self.ref, self.run_body(body, prepared))
+        self.assertEqual(error.exception.code, "stage3-replan-decision-superseded")
+        self.assertEqual(self.callback.call_count, calls)
+        # the new key runs to a saved plan; the old attempt remains listed
+        new_body = replan["request"]
+        new_prepared = self.http.replan.prepare("own", self.ref, new_body)
+        self.respond(new_body["key"], marker="SECOND-PLAN")
+        saved = self.http.replan.run(
+            "own", self.ref, self.run_body(new_body, new_prepared)
+        )
+        self.assertEqual(saved["outcome"], "saved", saved)
+        view = self.view()
+        self.assertEqual(view["job"]["request_sha256"], new_prepared["request_sha256"])
+        self.assertEqual([r["key"] for r in view["replan"]["attempts"]], [body["key"]])
 
 
 class ReplanDirectionModeTests(unittest.TestCase):

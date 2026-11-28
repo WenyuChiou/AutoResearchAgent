@@ -37,7 +37,7 @@ function wikiHarnessRecord(record) {
    ${recordedBlocks ? table(['事项', '结果'], blocked.map(([key, label]) => {
     const count = record.blocked[key];
     const why = record.blockedReasons?.[key];
-    return `<tr><th scope="row">${label}</th><td>${count === 0 ? '0 次 · 没有发生' : wikiRecordNumber(count) ? count + ' 次' + (why?.length ? ' · ' + esc(why.join('；')) : '') : '未提供'}</td></tr>`;
+    return `<tr><th scope="row">${label}</th><td>${count === 0 ? '0 次 · 没有发生' : wikiRecordNumber(count) ? count + ' 次' + (why?.length ? ' · ' + wikiRecBlockedCell(why) : '') : '未提供'}</td></tr>`;
    })) : missing}${record?.blockedNote ? `<p class="wiki-record-gap">${esc(record.blockedNote)}</p>` : ''}
    <h3>关掉重开</h3>
    ${resume?.raw != null ? `<p>${esc(resume.result || '未提供')}${wikiRecordNumber(resume.newJobs) ? ' · 新增作业 ' + resume.newJobs + ' 个' : ''}</p>${raw(resume.raw)}` : record?.reopenNote ? `<p class="wiki-record-gap">${esc(record.reopenNote)}</p>` : missing}
@@ -70,8 +70,69 @@ const wikiRecLabels = {
 const wikiRecBlockedKeys = {'failed-check':'failedCheck', 'wrong-project':'wrongProject', 'stale-version':'staleVersion', 'duplicate-click':'duplicate', 'over-limit':'overLimit'};
 const wikiRecBlockedNote = '只数已保存的失败记录；在写入之前就被拒绝的请求不会留下记录，不在这些次数里。';
 
+// Saved failed or unconfirmed actions carry the raw error text the host raised (project_harness_record.py _blocked: the
+// action's `error`, else its status). Code -> plain Chinese; the raw value stays in the technical details. Every code below
+// is a string the backend really uses; the comment gives where. Codes not listed here fall back to wikiRecBlockedUnknown.
+const wikiRecBlockedReasons = new Map([
+ ['stage1-run-grant-expired', '运行许可剩余时间不够做这一步，或已过期，所以没有再继续。需要重新授权，许可不会自动续期'], // harness-ui/wiki_project_progression_http.py:81
+ ['source-grant-expired', '取得原文的许可剩余时间不够做这一步，或已过期'], // project_stage1_source_service.py:659
+ ['project-expansion-grant-expired', '扩展检索的许可剩余时间不够做这一步，或已过期'], // project_expansions.py:158
+ ['project-query-seal-expired', '检索授权剩余时间不够做这一步，或已过期'], // project_query_permit.py:258
+ ['project-query-bootstrap-expired', '检索环境的准备授权剩余时间不够做这一步，或已过期'], // project_stage1_queries.py:467
+ ['query-request-expired', '这次检索请求已过期'], // planned_queries.py:680
+ ['query-permit-expired-during-admission', '检索许可在受理途中过期了'], // planned_queries.py:844
+ ['stage1-run-grant-revoked', '运行许可已被收回'], // project_stage1_run_grant.py:294
+ ['stage1-run-grant-unavailable', '读不到这份运行许可'], // project_stage1_run_grant.py:285
+ ['stage1-run-grant-stale', '旧的运行许可已作废：课题、范围、设置或程序代码变了（程序更新后需要重新授权）'], // project_stage1_run_grant.py:354
+ ['stage1-run-budget-exceeded', '申请的运行时长超过了课题设置里的上限，没有创建许可'], // project_stage1_run_grant.py:213
+ ['stage1-run-action-bound-exhausted', '这份许可允许的操作次数已用完'], // project_stage1_run_grant.py:451
+ ['stage1-run-operation-not-authorized', '这份许可不包含这一步操作'], // project_stage1_run_actions.py:230
+ ['stage1-run-explicit-user-consent-required', '这一步需要你明确同意后才能做'], // project_stage1_run_grant.py:185
+ ['stage1-run-lane-not-consented', '这一类操作没有被同意'], // project_stage1_run_grant.py:224
+ ['stage1-run-action-execution-unknown', '上一次操作结果不确定，为避免重复，不会再发一次'], // project_stage1_run_grant.py:463
+ ['execution-interrupted', '上一次操作被中断，结果不确定，不会自动重发'], // bounded_public_source.py:585
+ ['project-query-bootstrap-requires-reconciliation', '已有检索作业，或服务正在关闭；先核对现有作业再继续'], // project_stage1_queries.py:382
+ ['project-query-bootstrap-dispatch-unobserved', '检索环境准备已发出，但没有看到结果'], // project_stage1_queries.py:678
+ ['query-worker-start-unobserved', '检索进程是否启动成功没有确认'], // planned_queries.py:718
+ ['intake-search-request-invalid', '检索计划的格式不合要求，没有发出'], // project_intake.py:638
+ ['intake-plan-topic-differs', '检索计划的主题和课题标题对不上'], // project_intake.py:643
+ ['intake-source-version-differs', '检索计划依据的课题版本已变，需要重新生成'], // project_intake.py:221
+ ['deadline-exceeded', '超过了允许的总时长，已停止'], // bounded_public_source.py:33
+ ['network-timeout', '网络请求超时'], // bounded_public_source.py:316
+ ['stage1-auto-deadline-exhausted', '自动推进用完了这次允许的时间'], // project_stage1_auto.py:325
+ ['request-deadline-exceeded', '这次请求超过了允许的时间'], // harness_ops.py:185
+ ['query-admission-deadline-expired', '检索在受理前就超过了期限'], // planned_queries.py:760
+ ['source-worker-required-module-missing', '取得原文的工具环境缺少必需的模块'], // source_worker_runner.py:470
+ ['source-profile-owned-worker-dependency-missing', '取得原文的工具环境缺少依赖'], // portable_source_worker_profile.py:83
+ ['source-worker-launch-failed', '取得原文的工具没能启动'], // source_worker_process.py:331
+ ['source-worker-platform-unavailable', '这台机器不支持取得原文的工具'], // source_worker_process.py:24
+ ['source-worker-unavailable', '取得原文的工具现在不可用'], // source_worker_runner.py:312
+ ['saved-parser-worker-unavailable', '解析已保存原文的工具现在不可用'], // source_worker_runner.py:585
+ ['saved-parser-network-or-process-unavailable', '解析已保存原文时，解析器尝试联网或起进程，被安全限制拦下'], // saved_source_parser_runtime.py:402
+ ['planned-query-unavailable', '这次启动没有提供检索功能'], // query_http.py:61
+ ['tls-verification-failed', '网络连接的证书核对没通过'], // bounded_public_source.py:310
+ ['resolver-unavailable', '域名解析现在不可用'], // bounded_public_source.py:319
+ ['stage1-ledger-state-stale', '依据的记录已经变了，需要重新读取；先到操作历史核对这条记录'], // project_agent_mutation.py:41
+ ['stage1-checkpoint-stale', '检查点已经过期，需要重新生成；先到操作历史核对这条记录'], // project_stage1_delivery.py:69
+ ['stage1-delivery-offer-stale', '交付提议已经过期，需要重新生成；先到操作历史核对这条记录'], // project_stage1_delivery.py:454
+ ['stage1-coverage-offer-stale', '覆盖检查的提议已经过期；先到操作历史核对这条记录'], // project_stage1_coverage.py:191
+ ['stage1-agent-pending-work-stale', '待处理的工作已经变了，需要重新读取；先到操作历史核对这条记录'], // project_agent_pending.py:34
+ ['intake-intent-state-differs', '这次操作依据的课题状态已变'], // project_intake.py:267
+ ['intake-operation-failed', '操作没有完成（可能超时或被拒绝），原因在技术细节里'], // project_intake.py:350
+ ['intake-action-bound-exceeded', '这个课题保存的操作次数已到上限'], // project_intake.py:185
+ ['execution-unknown', '结果不确定，不会自动重发；先核对原记录'], // project_intake.py:288
+ ['failed', '这次操作失败了，后台没有保存更具体的原因'], // project_intake.py:301
+]);
+const wikiRecBlockedUnknown = '被拦下，原因见技术细节';
+// Plain Chinese for a list of saved reasons, then the raw values inside 「技术细节」. Lookup is by Map so a reason such as
+// "constructor" or "__proto__" is just an unknown code.
+function wikiRecBlockedCell(reasons) {
+ const list = Array.isArray(reasons) ? reasons.map(String) : [];
+ const plain = [...new Set(list.map(code => wikiRecBlockedReasons.has(code) ? wikiRecBlockedReasons.get(code) : wikiRecBlockedUnknown))];
+ return esc(plain.join('；')) + (list.length ? `<details class="wiki-record-tech"><summary>技术细节</summary><code>${esc(list.join('；'))}</code></details>` : '');
+}
 function wikiRecReason(code) {
- return wikiRecReasons[code] || (code ? '原因代码 ' + code : '没有给出原因');
+ return (typeof code === 'string' && Object.hasOwn(wikiRecReasons, code) && wikiRecReasons[code]) || (code ? '原因代码 ' + code : '没有给出原因');
 }
 function wikiRecInferred(row) {
  return row?.inferred === true || row?.source?.inferred === true;
@@ -204,6 +265,18 @@ function wikiRecTag(html, ref, stage) {
 function wikiRecStrip(tone, label, text, extra) {
  return `<div class="wiki-record wiki-record-state ${tone}" data-wiki-record role="status"><strong class="wiki-record-chip">Harness 记录</strong>${label ? `<span class="wiki-record-tag ${tone}">${label}</span>` : ''}<span>${text}</span>${extra || ''}</div>`;
 }
+// Opening #project-…?stage=2 directly first paints the default Stage 1 page, then v93RestoreStageRoute switches to
+// Stage 2. The Stage 1 block's read used to go out in that gap, in front of the Stage 2 read on the host's one lock,
+// although nothing on the Stage 2 page uses it. While the address names another stage of this project the read waits
+// a moment; once the route is applied the Stage 1 block is gone and the read is dropped (wikiRecPump). If the route
+// never applies, the read still goes out after the delay, so the block is never stuck on 「读取中」.
+const wikiRecRouteDelayMs = 1500;
+function wikiRecRouteElsewhere(stage) {
+ try {
+  const route = typeof v93RouteTarget === 'function' && typeof rt !== 'undefined' && Array.isArray(rt.list) ? v93RouteTarget(rt.list) : null;
+  return !!route && route.ref === rt.ref && route.stage !== stage;
+ } catch (error) { return false; }
+}
 function wikiRecordBlock(stage) {
  const ref = typeof rt !== 'undefined' ? rt.ref : null;
  const own = stage === 1 && typeof v1S1Record === 'function' ? v1S1Record() : undefined;
@@ -212,7 +285,7 @@ function wikiRecordBlock(stage) {
  if (!wikiRecRef.test(ref || '')) return wikiHarnessRecord(basis('这份保存的记录没有后台的 Harness 记录汇总。'));
  const entry = wikiRecStore.get(ref + '|' + stage);
  if (!entry || entry.state === 'loading') {
-  if (!entry) setTimeout(() => wikiRecEnsure(ref, stage), 0);
+  if (!entry) setTimeout(() => wikiRecEnsure(ref, stage), wikiRecRouteElsewhere(stage) ? wikiRecRouteDelayMs : 0);
   return wikiRecTag(wikiRecStrip('loading', '读取中', '正在读取这一段的 Harness 记录，第一次可能要十几秒。不需要你操作。'), ref, stage);
  }
  let html;
