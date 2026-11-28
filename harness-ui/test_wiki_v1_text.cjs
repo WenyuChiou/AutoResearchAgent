@@ -49,6 +49,12 @@ for (const bad of ['預設', '信息', '資訊系統', '保存', '鏈接', '界�
  assert.ok(!twAll.includes(bad), 'tw does not use ' + bad);
 }
 
+// Terms fixed by the authorization review (1128): consent form, 呼叫 / 取得 / 重送 / 連線與設定 in Traditional text.
+for (const key of keys) {
+ if (key.includes('同意书')) assert.ok(!/consent(?! form| items)/i.test(table[key].en), 'en says consent form for 同意书: ' + key);
+ assert.ok(!/調用|獲取|重發|連接與設定/.test(table[key].tw), 'tw uses 呼叫/取得/重送/連線與設定: ' + key);
+}
+
 // 2. Source and table agree in both directions.
 function used(file) {
  const src = read(file), found = new Set();
