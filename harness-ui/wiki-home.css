@@ -128,3 +128,5 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-wiki-home-shell="true"]) {
 .wiki-record-tag.failed { background:#fbe9e7; color:#9a2f28; }
 .wiki-record-gap { color:#8a5a00; }
 .wiki-record-state small { color:#566772; }
+.wiki-home-decisions.wiki-home-flash { outline:3px solid #9cc2ee; outline-offset:4px; }
+.wiki-home-decisions:focus { outline:3px solid #9cc2ee; outline-offset:4px; }
