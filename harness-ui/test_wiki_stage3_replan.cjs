@@ -403,10 +403,10 @@ test('other states: processing, failed, saved, not available with its reason, un
 });
 
 test('no frozen edit list from the Host (missing, malformed, empty): the grant is gated with the reason and run is not sent; the page does not build one', async () => {
- for (const input of [undefined, {...frozenInput(), changes:undefined}, {...frozenInput(), changes:[{question_ref:'q1'}]}, frozenInput([])]) {
+ for (const [input, pattern] of [[undefined, /没有给出这份作业冻结的修改清单/], [{...frozenInput(), changes:undefined}, /没有给出这份作业冻结的修改清单/],
+  [{...frozenInput(), changes:[{question_ref:'q1'}]}, /没有给出这份作业冻结的修改清单/], [frozenInput([]), /冻结的修改清单是空的/]]) {
   const {ctx, posts} = load({view:withJob({}, {revision_input:input})});
-  const gate = line(ctx).grant.gate;
-  assert.match(gate, /没有给出这份作业冻结的修改清单|冻结的修改清单是空的/, JSON.stringify(input)?.slice(0, 40));
+  assert.match(line(ctx).grant.gate, pattern, JSON.stringify(input)?.slice(0, 40));
   assert.match(textOf(html(ctx)), /页面不自己拼|是空的/);
   vm.runInContext(`wikiS3Rp.check = {sha:'${SHA}', edits:''}`, ctx);
   await act(ctx, 'run');
