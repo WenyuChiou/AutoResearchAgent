@@ -174,37 +174,37 @@ async function v9ConnectionRead(view) {
 }
 function v9ConnectionReason(code, http, stage) {
   if (code === 'stage2-continuation-activation-required')
-    return rl('还差本项目的 Stage 2 启用同意。请查看本版启用记录并确认原提议。','Stage 2 needs your consent. Review this version’s activation record and confirm its original offer.');
+    return rl('还差本项目的 Stage 2 启用同意。请查看本版启用记录并确认原提议。','Stage 2 needs your consent. Review this version’s activation record and confirm its original offer.','還差本專案的 Stage 2 啟用同意。請查看本版啟用紀錄並確認原提議。');
   if (code === 'stage2-controller-current-input-required')
-    return rl('还缺本课题已接收的 Stage 2 输入包和接收回执。请先查看 Stage 1 交付。','The current Stage 2 input packet and receiving receipt are required. Check the Stage 1 delivery.');
+    return rl('还缺本课题已接收的 Stage 2 输入包和接收回执。请先查看 Stage 1 交付。','The current Stage 2 input packet and receiving receipt are required. Check the Stage 1 delivery.','還缺本專案已接收的 Stage 2 輸入包和接收回執。請先查看 Stage 1 交付。');
   if (code === 'stage3-planning-resource-unavailable')
     return rl('Stage 3 的规划登记已保存；如果上次是强行关闭，这次启动后会先显示『未接通』，点『重新接通』即可恢复，不会重复执行任何步骤，也不会新增记录。','The Stage 3 planning registration is saved. If the last session was force-closed, it first shows "not connected" after launch; choose "Reconnect" to restore it. No step is repeated and no record is added.','Stage 3 的規劃登記已儲存；如果上次是強行關閉，這次啟動後會先顯示『未接通』，點『重新接通』即可恢復，不會重複執行任何步驟，也不會新增紀錄。');
   if (code === 'stage3-current-selection-required')
-    return rl('还缺本课题当前版本的正式选案和已核验的选案回执。','A verified formal selection and receipt for this version are required.');
+    return rl('还缺本课题当前版本的正式选案和已核验的选案回执。','A verified formal selection and receipt for this version are required.','還缺本專案目前版本的正式選案和已核驗的選案回執。');
   if (code === 'stage2-controller-profile-unavailable')
     return rl('这次启动没有提供 Stage 2 运行配置。请联系原项目操作者，请其用已核验的配置从原项目目录重开。','This launch has no Stage 2 configuration. Ask the project operator to reopen the original project directory with the verified configuration.','這次啟動沒有提供 Stage 2 執行設定。請聯絡原專案操作者，請其用已核驗的設定從原專案目錄重開。');
   if (/^stage[23]-(controller|planning)-profile-unavailable$/.test(code))
-    return rl('这次启动没有提供本阶段的运行配置。请在原项目目录用已核验的配置重开。','This launch lacks the stage configuration. Reopen the original project directory with the verified configuration.');
+    return rl('这次启动没有提供本阶段的运行配置。请在原项目目录用已核验的配置重开。','This launch lacks the stage configuration. Reopen the original project directory with the verified configuration.','這次啟動沒有提供本階段的執行設定。請在原專案目錄用已核驗的設定重新開啟。');
   if (code === 'stage2-continuation-result-not-current' || /^(?:connection-project-binding-mismatch|(?:stage[23]|stage-connection)-[a-z0-9-]*(?:binding-differs|project-stale|connection-differs|path-mismatch|current-input-differs|native-input-differs|receipt-differs))$/.test(code))
-    return rl('本次核对与原记录不一致。若搬过目录，请回原物理目录，用原已核配置重开，先只读核对项目、整数输入版本、原包和回执。原路径无法恢复时保留记录，等待经核验的迁移入口。请勿重新执行、换请求键或手改回执。','The binding differs. If files moved, reopen the original physical directory with the verified configuration. Check the project, integer input version, original packet and receipt using read-only requests. If the path cannot be restored, retain the records for a verified migration. Do not rerun, change keys or edit receipts.');
+    return rl('本次核对与原记录不一致。若搬过目录，请回原物理目录，用原已核配置重开，先只读核对项目、整数输入版本、原包和回执。原路径无法恢复时保留记录，等待经核验的迁移入口。请勿重新执行、换请求键或手改回执。','The binding differs. If files moved, reopen the original physical directory with the verified configuration. Check the project, integer input version, original packet and receipt using read-only requests. If the path cannot be restored, retain the records for a verified migration. Do not rerun, change keys or edit receipts.','本次核對與原紀錄不一致。若搬過目錄，請回到原實體目錄，用原已核設定重新開啟，先唯讀核對專案、整數輸入版本、原包和回執。原路徑無法恢復時保留紀錄，等待經核驗的遷移入口。請勿重新執行、更換請求鍵或手動修改回執。');
   if (code==='stage2-activation-record-unverified')
-    return rl('已有启用提议或记录，但缺少同一项目、档案和请求键的可核回执。请保留原记录，只读复核。','The original activation offer lacks a verifiable matching request receipt. Retain the record and check again.');
+    return rl('已有启用提议或记录，但缺少同一项目、档案和请求键的可核回执。请保留原记录，只读复核。','The original activation offer lacks a verifiable matching request receipt. Retain the record and check again.','已有啟用提議或紀錄，但缺少同一專案、歸檔和請求鍵的可核回執。請保留原紀錄，唯讀複核。');
   if ((http === 404 || code === 'stage-connection-interface-unavailable') && stage === 'stage2-controller')
     return rl('这次启动没有提供 Stage 2 接通接口。请联系原项目操作者，确认能否用支持该接口的版本重开。','This launch does not expose the Stage 2 connection interface. Ask the project operator whether it can be reopened with a version that supports it.','這次啟動沒有提供 Stage 2 接通介面。請聯絡原專案操作者，確認能否用支援該介面的版本重開。');
   if (http === 404 || code === 'stage-connection-interface-unavailable')
-    return rl('这次启动没有提供本阶段接通接口，暂时无法核验。','This launch does not expose the stage connection interface.');
+    return rl('这次启动没有提供本阶段接通接口，暂时无法核验。','This launch does not expose the stage connection interface.','這次啟動沒有提供本階段接通介面，暫時無法核驗。');
   if (code === 'project-lock-busy' || code === 'project-lock-failed')
-    return rl('暂时无法取得跨标签页项目锁。请稍后只读复核。','The project lock is unavailable. Check the saved state again later.');
+    return rl('暂时无法取得跨标签页项目锁。请稍后只读复核。','The project lock is unavailable. Check the saved state again later.','暫時無法取得跨分頁專案鎖。請稍後唯讀複核。');
   if (http === 403 || code === 'cross-site-rejected' || code === 'credential-rejected')
-    return rl('访问被拒绝。请用原项目的已认证页面查看记录。','Access was refused. Check the records in the original authenticated project page.');
-  return rl('原记录暂时无法核验。请保留现有记录，查看技术详情后再只读复核。','The original record could not be verified. Retain it and check the technical details before reading again.');
+    return rl('访问被拒绝。请用原项目的已认证页面查看记录。','Access was refused. Check the records in the original authenticated project page.','存取被拒絕。請用原專案的已驗證頁面查看紀錄。');
+  return rl('原记录暂时无法核验。请保留现有记录，查看技术详情后再只读复核。','The original record could not be verified. Retain it and check the technical details before reading again.','原紀錄暫時無法核驗。請保留現有紀錄，查看技術詳情後再唯讀複核。');
 }
 function v9ConnectionPanel(app) {
   if (app !== apps[0] || app.page !== 'workspace' || canonicalReadonly() || !rt.ref) return '';
   const stage = v9ConnectionStages[app.stage], basis = v9ConnectionBasis(rt.overview?.project);
   if (!stage) return '';
-  const heading = rl('本课题的 Stage ' + app.stage, 'Stage ' + app.stage + ' connection');
-  if (!basis || rt.loading) return '<section class="hs-panel"><h2>'+heading+'</h2><p>'+rl('还没有可核对的接通记录。正在等待本课题、输入版本和摘要。','No connection record is available to check yet. Waiting for the project, input version and brief digest.')+'</p></section>';
+  const heading = rl('本课题的 Stage ' + app.stage, 'Stage ' + app.stage + ' connection','本專案的 Stage ' + app.stage);
+  if (!basis || rt.loading) return '<section class="hs-panel"><h2>'+heading+'</h2><p>'+rl('还没有可核对的接通记录。正在等待本课题、输入版本和摘要。','No connection record is available to check yet. Waiting for the project, input version and brief digest.','還沒有可核對的接通紀錄。正在等待本專案、輸入版本和摘要。')+'</p></section>';
   if (!v9ConnectionCurrent(v9ConnectionView)) {
     const next = {epoch: rt.epoch, basis, stage, reading: false, row: null, error: ''};
     v9ConnectionView = next;
@@ -215,38 +215,38 @@ function v9ConnectionPanel(app) {
   const action = v9ConnectionAction(view);
   const missingInput = !unknown && !view.error && stage==='stage2-controller' &&
     row?.status==='unavailable' && code==='stage2-controller-current-input-required';
-  let message = rl('正在核对本课题的接通记录。','Checking this project’s saved connection.');
-  if (unknown && rt.pending.path===projectPath(rt.ref,'stage2/actions')) message=rl('上次启用结果仍为 Unknown。请保留原请求，查询原启用回执。','Activation remains Unknown. Retain the request and check its original receipt.');
-  else if (unknown) message = rl('上次登记结果仍为 Unknown。原请求键已保留；请只读核对接通状态及对应的操作回执。','Registration remains Unknown. Its key is retained. Check the saved connection and the matching action receipt.');
+  let message = rl('正在核对本课题的接通记录。','Checking this project’s saved connection.','正在核對本專案的接通紀錄。');
+  if (unknown && rt.pending.path===projectPath(rt.ref,'stage2/actions')) message=rl('上次启用结果仍为 Unknown。请保留原请求，查询原启用回执。','Activation remains Unknown. Retain the request and check its original receipt.','上次啟用結果仍為 Unknown。請保留原請求，查詢原啟用回執。');
+  else if (unknown) message = rl('上次登记结果仍为 Unknown。原请求键已保留；请只读核对接通状态及对应的操作回执。','Registration remains Unknown. Its key is retained. Check the saved connection and the matching action receipt.','上次登記結果仍為 Unknown。原請求鍵已保留；請唯讀核對接通狀態及對應的操作回執。');
   else if (view.stage2Only) message = v9StaticStage3Read()
     ? rl('可查看原配置下本课题已保存的 Stage 3 规划。','Read the saved Stage 3 plan for this project under its original configuration.','可查看原設定下本課題已儲存的 Stage 3 規劃。')
     : v9ConnectionReason('stage-connection-interface-unavailable', null, stage);
-  else if (action === 'publish') message = rl('还差这个课题的 Stage 2 启用同意。先生成一份启用提议，看过再同意。','Stage 2 needs your consent. Generate an offer and review it before agreeing.');
-  else if (action === 'activate') message = rl('启用提议已生成，生成时间暂不可读。同意后只登记启用，不会启动研究。','The activation offer was generated. Its timestamp is unavailable. Agreeing records activation without starting research.');
+  else if (action === 'publish') message = rl('还差这个课题的 Stage 2 启用同意。先生成一份启用提议，看过再同意。','Stage 2 needs your consent. Generate an offer and review it before agreeing.','還差這個專案的 Stage 2 啟用同意。先產生一份啟用提議，看過再同意。');
+  else if (action === 'activate') message = rl('启用提议已生成，生成时间暂不可读。同意后只登记启用，不会启动研究。','The activation offer was generated. Its timestamp is unavailable. Agreeing records activation without starting research.','啟用提議已產生，產生時間暫不可讀。同意後只登記啟用，不會啟動研究。');
   else if (view.error || row?.status === 'consent-required' || row?.status === 'unavailable') message = v9ConnectionReason(code, view.http, stage);
-  else if (row?.status === 'connected') message = rl('本课题已接通。已核对接通登记；执行与交付须另查原记录。','This project is connected. Registration was verified. Execution and delivery have separate records.');
-  else if (row?.status === 'connectable') message = rl('本课题还没有接通。可以登记当前配置，登记不会启动研究。','This project is ready to connect. Registering the current configuration does not start research.');
+  else if (row?.status === 'connected') message = rl('本课题已接通。已核对接通登记；执行与交付须另查原记录。','This project is connected. Registration was verified. Execution and delivery have separate records.','本專案已接通。已核對接通登記；執行與交付須另查原紀錄。');
+  else if (row?.status === 'connectable') message = rl('本课题还没有接通。可以登记当前配置，登记不会启动研究。','This project is ready to connect. Registering the current configuration does not start research.','本專案還沒有接通。可以登記目前設定，登記不會啟動研究。');
   const token = rx(JSON.stringify([stage, view.epoch, ...Object.values(basis)]));
   const button = (action, label, disabled) => `<button type="button" class="hs-button" ${action === 'read' ? '' : 'data-v1-write'} data-v9-connection="${action}" data-connection-basis="${token}" ${disabled?'disabled':''}>${label}</button>`;
-  const labels={connect:rl('接通本课题','Connect this project'),reconnect:rl('重新接通','Reconnect','重新接通'),publish:rl('生成本课题的启用提议','Publish the project activation offer'),
-    activate:rl('同意这份提议并启用 Stage 2','Confirm this offer and activate Stage 2')};
+  const labels={connect:rl('接通本课题','Connect this project','接通本專案'),reconnect:rl('重新接通','Reconnect','重新接通'),publish:rl('生成本课题的启用提议','Publish the project activation offer','產生本專案的啟用提議'),
+    activate:rl('同意这份提议并启用 Stage 2','Confirm this offer and activate Stage 2','同意這份提議並啟用 Stage 2')};
   const controls=!unknown && action?button(action,labels[action],!v9ConnectionCanWrite()||v9ConnectionWriting):'';
   const lockHint = controls && (!v9ConnectionCanWrite() || v9ConnectionWriting)
     ? typeof globalThis.navigator?.locks?.request !== 'function'
-      ? rl('此浏览器缺少跨标签页项目锁，仅可查看。','This browser lacks cross-tab project locks. Readback is available.')
-      : rl('正在等待当前操作或核对完成。','Waiting for the current operation or readback to finish.')
+      ? rl('此浏览器缺少跨标签页项目锁，仅可查看。','This browser lacks cross-tab project locks. Readback is available.','此瀏覽器缺少跨分頁專案鎖，僅可查看。')
+      : rl('正在等待当前操作或核对完成。','Waiting for the current operation or readback to finish.','正在等待目前操作或核對完成。')
     : '';
   const stage1 = missingInput ? `<button type="button" class="hs-button" data-stage="1">${rl('前往 Stage 1 查看交付','Go to Stage 1 to view delivery','前往 Stage 1 查看交付')}</button>` : '';
-  const status = !unknown && (action === 'publish' ? rl('等你 · 第 1 步','Waiting for you · Step 1')
-    : action === 'activate' ? rl('等你 · 第 2 步','Waiting for you · Step 2')
-    : missingInput ? rl('缺输入包','Input packet required') : '');
+  const status = !unknown && (action === 'publish' ? rl('等你 · 第 1 步','Waiting for you · Step 1','等你 · 第 1 步')
+    : action === 'activate' ? rl('等你 · 第 2 步','Waiting for you · Step 2','等你 · 第 2 步')
+    : missingInput ? rl('缺输入包','Input packet required','缺輸入包') : '');
   const offerRef = row?.proof?.offer.offer_ref;
   const request = stage === 'stage2-controller' && v9ConnectionConnected(stage) && typeof wikiStage2RequestRow === 'function'
     ? wikiStage2RequestRow(wikiStage2State) : '';
   return `<section class="hs-panel" data-v9-connection-panel><h2 tabindex="-1">${heading}</h2><p role="status">${status ? '<strong>'+status+'</strong> ' : ''}${message} ${lockHint}</p>${controls}${stage1}
-    ${controls ? '' : button('read', unknown ? rl('核对上次提交','Check previous submission') : rl('重新读取','Read again'), view.reading || v9ConnectionWriting)}
-    ${code || offerRef ? `<details><summary>${rl('技术细节','Technical details')}</summary>${code ? '<code>'+rx(code)+'</code>' : ''}${offerRef ? '<p>'+rl('启用提议编号','Activation offer ID')+' · <code>'+rx(offerRef)+'</code></p>' : ''}</details>` : ''}
-    ${request ? '<hr><h3>'+rl('生成候选','Generate candidates')+'</h3>'+request : ''}</section>`;
+    ${controls ? '' : button('read', unknown ? rl('核对上次提交','Check previous submission','核對上次提交') : rl('重新读取','Read again','重新讀取'), view.reading || v9ConnectionWriting)}
+    ${code || offerRef ? `<details><summary>${rl('技术细节','Technical details','技術細節')}</summary>${code ? '<code>'+rx(code)+'</code>' : ''}${offerRef ? '<p>'+rl('启用提议编号','Activation offer ID','啟用提議編號')+' · <code>'+rx(offerRef)+'</code></p>' : ''}</details>` : ''}
+    ${request ? '<hr><h3>'+rl('生成候选','Generate candidates','產生候選')+'</h3>'+request : ''}</section>`;
 }
 // Read-only description of the same connection state for the Wiki V1 page. It uses the
 // panel's discovery path (one GET read) and returns plain values; it renders nothing.

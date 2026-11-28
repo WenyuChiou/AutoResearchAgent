@@ -100,14 +100,24 @@ test('connection card: the write button carries the mark and a fully translated 
 });
 
 test('connection card: text that is missing in the language gates the card; nothing is sent; zh is not affected', async () => {
- // tw: the card's own rl() calls omit most Traditional texts, so it is already gated with the current code.
- const tw = connectionScenario('tw');
+ // tw: every text of the card has a Traditional version, so the card is open and sends.
+ const twOpen = connectionScenario('tw');
+ const rtwOpen = await pressConnect(twOpen);
+ assert.equal(rtwOpen.gated, false, 'tw card is complete and open');
+ assert.ok(rtwOpen.posts >= 1, 'tw sends');
+ // tw: blank one Traditional text -> gated, nothing sent, reason in Traditional.
+ const twSource = read('v9-stage-connections.js').replace("'接通本專案'", "''");
+ assert.notEqual(twSource, read('v9-stage-connections.js'), 'the Traditional text was removed');
+ const patchedRead = fs.readFileSync;
+ fs.readFileSync = function (file, ...rest) { return String(file).endsWith('v9-stage-connections.js') ? twSource : patchedRead.call(fs, file, ...rest); };
+ let tw;
+ try { tw = connectionScenario('tw'); } finally { fs.readFileSync = patchedRead; }
  const rtw = await pressConnect(tw);
- assert.equal(rtw.gated, true, 'a card with rl() text that has no Traditional version is gated');
+ assert.equal(rtw.gated, true, 'a card with an rl() text that has no Traditional version is gated');
  assert.equal(rtw.posts, 0, 'click, Enter and submit send nothing');
  assert.match(rtw.note, /切換到簡體中文/, 'the reason is written in Traditional');
  // en: blank one English text of the card by editing the source the card is built from.
- const source = read('v9-stage-connections.js').replace("rl('接通本课题','Connect this project')", "rl('接通本课题','')");
+ const source = read('v9-stage-connections.js').replace("rl('接通本课题','Connect this project','接通本專案')", "rl('接通本课题','','接通本專案')");
  assert.notEqual(source, read('v9-stage-connections.js'), 'the English text was removed');
  const windowHandlers = [], documentHandlers = [];
  const original = vm.runInContext;
@@ -209,4 +219,36 @@ test('selection component: mutation - a gate that always says ok lets the missin
  const g = gateComponent('en', f.handle.textPairs(), mutated);
  assert.equal(g.gate.ok, true, 'the broken gate passes the card');
  assert.deepEqual(await submitFormal(f, g.host, g.windowHandlers), ['click', 'keydown', 'submit'], 'and its events are not stopped');
+});
+
+// ---------- 3. every rl() call of the modules that draw on V1 pages carries en and tw ----------
+test('rl() calls in v9-*.js and stage2_display.js all carry an English and a Traditional text', () => {
+ const SIMPLIFIED = /[这个课题还没后页点档项设为过时间导览载够发称线续决问许额检运连资护验证编选历状态观览图读写数类们针备权开关闭条红绿软户属创从应议华单规则轮稳传认计协级结构节环获说请对该进动务区参经统众优办励劳势压县双变叶号启员听团国块声处头夹奖妇学实宝层岁岛币带帮广库总惯报拥择据携损换摇断无旧显晓来杂极标样桥检楼权欢气汇浅测济满灭灯灵热爱现盖监盘码确离种积称笔系紧纪约组绍绝继维综缘缩网罗联职肤胜脑舰艺药规视觉订讨让训记论访识诉译试话详语误谁调谈贝负贡财责贤败货质购贴贸费资赛赞赶趋跃践软轻载较辅输辩边迟远递适遗邮钟钢铁银锁错键镜长门闭间闻阅队阶际陈陆险随隐难页顶须预领频题颜额风飞饭馆驱验鱼鸟麦黄齐龄]/;
+ const files = fs.readdirSync(__dirname).filter(n => /^v9-.*\.js$/.test(n) || n === 'stage2_display.js');
+ let calls = 0;
+ for (const file of files) {
+  const src = read(file), re = /\brl\(/g;
+  let m;
+  while ((m = re.exec(src))) {
+   let i = m.index + 3, depth = 1, args = [], start = i, q = null;
+   while (i < src.length && depth > 0) {
+    const c = src[i];
+    if (q) { if (c === '\\') i++; else if (c === q) q = null; }
+    else if (c === '"' || c === "'" || c === '`') q = c;
+    else if (c === '(' || c === '[' || c === '{') depth++;
+    else if (c === ')' || c === ']' || c === '}') { depth--; if (depth === 0) { args.push(src.slice(start, i)); break; } }
+    else if (c === ',' && depth === 1) { args.push(src.slice(start, i)); start = i + 1; }
+    i++;
+   }
+   const zh = (args[0] || '').trim();
+   if (!/[\u4e00-\u9fff]/.test(zh)) continue;
+   calls += 1;
+   const line = src.slice(0, m.index).split('\n').length;
+   assert.ok(args.length >= 3 && args[1].trim() && args[2].trim(), `${file}:${line} rl() has no en or no tw: ${zh.slice(0, 40)}`);
+   const lit = x => { const t = x.trim(); return /^'[^']*'$/.test(t) ? t.slice(1, -1) : null; };
+   if (lit(args[2]) !== null && lit(args[0]) !== null && lit(args[2]) === lit(args[0])) assert.ok(!SIMPLIFIED.test(lit(args[0])), `${file}:${line} tw is the Simplified text: ${zh.slice(0, 40)}`);
+   if (lit(args[1]) !== null) assert.ok(!/[\u4e00-\u9fff]/.test(lit(args[1])), `${file}:${line} en contains Chinese: ${zh.slice(0, 40)}`);
+  }
+ }
+ assert.ok(calls > 150, 'the scan saw the rl() calls: ' + calls);
 });
