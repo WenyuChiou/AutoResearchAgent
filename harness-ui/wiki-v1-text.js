@@ -2020,19 +2020,29 @@ function v1ApplyGate(card, gate, writeSelector) {
  for (const button of card.querySelectorAll ? card.querySelectorAll(writeSelector) : []) { button.disabled = true; button.dataset.v1Gated = '1'; }
 }
 // The card of a write button: the nearest [data-v1-card] or section. Called after every render (outermost hook).
+// The markup a card answers for: its own text, not the text of cards nested inside it (each card judges its own scope).
+function v1CardMarkup(card) {
+ if (typeof card.cloneNode !== 'function') return card.outerHTML;
+ const copy = card.cloneNode(true);
+ for (const inner of copy.querySelectorAll('[data-v1-card]')) inner.remove();
+ return copy.outerHTML;
+}
+function v1OwnNote(card) {
+ return card.children ? Array.from(card.children).some(child => child.hasAttribute?.('data-v1-gate-note')) : !!card.querySelector('[data-v1-gate-note]');
+}
 function v1GateCards(root) {
  if (!root || v1Locale() === 'zh') return;
  const seen = new Map();
  for (const button of root.querySelectorAll(V1_WRITE)) {
   const card = button.closest('[data-v1-card]') || button.closest('section') || button.parentElement;
   if (!card) continue;
-  if (!seen.has(card)) seen.set(card, v1CardGate(card.outerHTML));
+  if (!seen.has(card)) seen.set(card, v1CardGate(v1CardMarkup(card)));
   const gate = seen.get(card);
   if (gate.ok) continue;
   button.disabled = true;
   button.dataset.v1Gated = '1';
   card.dataset.v1Gated = '1';
-  if (!card.querySelector('[data-v1-gate-note]')) card.insertAdjacentHTML('afterbegin', `<p class="ws-why v1-gate-why" role="status" data-v1-gate-note>${gate.reason}</p>`);
+  if (!v1OwnNote(card)) card.insertAdjacentHTML('afterbegin', `<p class="ws-why v1-gate-why" role="status" data-v1-gate-note>${gate.reason}</p>`);
  }
 }
 // A card built by a separate script that does not use v1t()/rl() (the Stage 2 selection component, in its own shadow
@@ -2060,7 +2070,17 @@ function v1GateEvent(event) {
  const path = event?.composedPath ? event.composedPath() : [event?.target];
  const origin = path[0];
  if (!origin?.closest) return false;
- const card = path.find(node => node?.dataset?.v1Gated === '1') || origin.closest('[data-v1-gated]');
+ // The nearest card root decides: a gated outer card does not stop a control that sits in a clean inner card, and the other way round.
+ // A component host (shadow root) is marked itself and shows up in the composed path.
+ let card = null;
+ for (const node of path) {
+  if (node?.dataset?.v1Gated === '1') { card = node; break; }
+  if (node?.hasAttribute?.('data-v1-card') || node?.tagName === 'SECTION') break;
+ }
+ if (!card) {
+  const near = origin.closest('[data-v1-card]') || origin.closest('section');
+  if (near) { if (near.dataset?.v1Gated === '1') card = near; } else card = origin.closest('[data-v1-gated]');
+ }
  if (!card) return false;
  const write = !!origin.closest(V1_SUBMIT);
  const enter = event.type === 'keydown' && event.key === 'Enter' && !/^textarea$/i.test(origin.tagName || '');
