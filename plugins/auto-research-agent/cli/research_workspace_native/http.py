@@ -37,8 +37,10 @@ class RequestDeadline:
     caps how far the deadline may move, and never raises, so a write that
     verifies after saving its intent cannot gain a new failure point (it would
     leave execution-unknown). ``SessionHandler.parse_request`` turns enforcement
-    on for GET only: a read over its budget answers 503 with its own reason and
-    has written nothing. The allowance base is at least ``timeout``:
+    on for GET only: a read over its budget answers 503 with its own reason. GET
+    saves no intent; the only GET write is the idempotent session offer record
+    (``SessionApi.offer``), saved after its verification and only compared on a
+    repeat, so a budget error never leaves an unknown outcome. The allowance base is at least ``timeout``:
     verification that used to fit inside the old absolute cap can never fail
     here with the budget reason. The 600 s bound is a socket bound, not a work
     bound: as before, the handler thread runs on after the socket is closed. Code that opens its own nested meter inside a request (the
@@ -217,7 +219,7 @@ class SessionHandler(BaseHTTPRequestHandler):
         parsed = super().parse_request()
         extendable = getattr(self, "request_deadline", None)
         if parsed and extendable is not None and self.command == "GET":
-            extendable.meter.enforce = True  # Reads write nothing; see above.
+            extendable.meter.enforce = True  # GET saves no intent; see above.
         return parsed
 
     def _remaining(self):

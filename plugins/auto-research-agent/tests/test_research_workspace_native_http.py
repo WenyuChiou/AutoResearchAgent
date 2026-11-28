@@ -670,6 +670,23 @@ class SessionHttpTests(unittest.TestCase):
         self.assertFalse(meters[0].enforce)
         self.assertEqual(meters[0].snapshot()["passes"], 1)
 
+    def test_session_read_over_budget_is_503_not_a_changed_source(self):
+        # Review of 66c57004, P2-1: the session API rewrote any verifier error
+        # as 409 source-check-failed, which reads like a changed file.
+        p = self.project()
+        original = self.api._projects[p.ref]
+
+        def slow(binding):
+            raise verification_clock.LocalVerificationBudgetExceeded(
+                verification_clock.BUDGET_CODE
+            )
+
+        self.api._projects[p.ref] = (*original[:3], slow)
+        status, body, _ = self.call("GET", "/api/native/projects/" + p.ref)
+        self.assertEqual(
+            (status, body), (503, {"error": "local-verification-budget-exceeded"})
+        )
+
     def test_verification_inside_the_old_cap_never_fails_on_budget(self):
         # Review P1-1: a request that used to finish inside the absolute cap
         # (here 0.7 s of verification under a 2 s cap) must not turn into a
