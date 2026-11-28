@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const context = vm.createContext({esc: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'), console});
-vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8') + '\nthis.__t = {wikiHarnessRecord, wikiRecBlockedReasons, wikiRecBlockedCell, wikiRecBlockedUnknown, wikiRecReason};', context);
+vm.runInContext((fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8')) + '\nthis.__t = {wikiHarnessRecord, wikiRecBlockedReasons, wikiRecBlockedCell, wikiRecBlockedUnknown, wikiRecReason};', context);
 const {wikiHarnessRecord, wikiRecBlockedReasons, wikiRecBlockedCell, wikiRecBlockedUnknown, wikiRecReason} = context.__t;
 const withoutTech = html => html.replace(/<details class="wiki-record-tech">.*?<\/details>/gs, '').replace(/<[^>]+>/g, ' ');
 const code = /[a-z0-9]+(?:-[a-z0-9]+){2,}/;

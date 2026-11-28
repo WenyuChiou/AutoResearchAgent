@@ -17,7 +17,7 @@ function setup(route) {
   projectPath: (ref, tail) => '/api/projects/' + ref + '/' + tail,
   liveRequest: pathname => { requests.push(pathname); return new Promise(() => {}); }
  });
- vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8') + '\nthis.__t = {wikiRecordBlock, wikiRecRouteDelayMs};', context);
+ vm.runInContext((fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8')) + '\nthis.__t = {wikiRecordBlock, wikiRecRouteDelayMs};', context);
  return {context, requests, timers, app};
 }
 

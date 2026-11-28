@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const context = vm.createContext({
  esc: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 });
-vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8'), context);
+vm.runInContext((fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8')), context);
 const {wikiHarnessRecord, wikiRecordSummary} = context;
 
 assert.equal(wikiRecordSummary(), '这一段还没有运行，没有记录。');

@@ -35,7 +35,8 @@ document.addEventListener('toggle',event=>{
 },true);
 const rx = value => esc(value == null ? 'Unknown' : typeof value === 'object' ? JSON.stringify(value) : String(value));
 const rl = (zh,en,tw=zh) => translated(apps[0],[zh,en,tw]);
-const liveWikiHomeActive = () => typeof wikiHomeProjectOpened==='function' && apps[0]?.lang==='zh' && apps[0].page==='home';
+const liveWikiLang = app => typeof v1Lang==='function' ? v1Lang(app) : app?.lang==='zh';
+const liveWikiHomeActive = () => typeof wikiHomeProjectOpened==='function' && liveWikiLang(apps[0]) && apps[0].page==='home';
 const phaseNames={scope:['确认范围','Scope'],planning:['查询规划','Planning'],query:['查询与来源','Query & sources'],screening:['文献筛选','Screening'],reading:['阅读与证据','Reading'],coverage:['覆盖检查','Coverage'],delivery:['保存交付','Delivery']};
 const stateNames={recorded:'已记录',partial:'部分完成',available:'可操作',unconnected:'未接通',held:'需处理',unknown:'Unknown',pending:'待处理',planned:'未接通',running:'运行中'};
 const projectPath = (ref,tail='') => '/api/projects/'+encodeURIComponent(ref)+(tail?'/'+tail:'');
@@ -47,7 +48,7 @@ function liveWikiBrand(app){
  const badge=app.el.querySelector('.hs-preview'),brand=app.el.querySelector('.hs-brand strong');
  if(badge&&badge.textContent!=='Wiki V1')badge.textContent='Wiki V1';
  if(brand&&brand.textContent!=='Wiki V1')brand.textContent='Wiki V1';
- const title=app.page==='home'&&app.lang==='zh'?'Wiki V1 · 工作台':'Wiki V1';
+ const title=app.page==='home'&&liveWikiLang(app)?(typeof v1t==='function'?v1t('Wiki V1 · 工作台'):'Wiki V1 · 工作台'):'Wiki V1';
  if(document.title!==title)document.title=title;
 }
 if(liveWikiV1){
@@ -325,7 +326,7 @@ document.addEventListener('click',async e=>{
 rt.overview=null;rt.atlas=null;rt.loading=true;livePaint();
 Promise.all([liveRequest('/v7-case.json'),liveRequest('/api/projects')]).then(async([meta,list])=>{
  // Wiki HOME and archive links need the roster as wrapped by later modules (saved views): read it once more.
- if(typeof wikiHomeProjectOpened==='function'&&((apps[0]?.lang==='zh'&&!location.hash)||wikiHomeArchiveFragment()))list=await liveRequest('/api/projects');
+ if(typeof wikiHomeProjectOpened==='function'&&((liveWikiLang(apps[0])&&!location.hash)||wikiHomeArchiveFragment()))list=await liveRequest('/api/projects');
  rt.meta=meta;rt.list=Array.isArray(list)?list:list.projects||[];const requested=typeof v93RouteTarget==='function'?v93RouteTarget(rt.list):null;
  let linked;try{linked=decodeURIComponent(location.hash.slice(1).split('?')[0]);}catch(_){}
  rt.projectFallback=!!linked&&/^[A-Za-z0-9_-]{1,64}$/.test(linked)&&!rt.list.some(p=>p.project_ref===linked);

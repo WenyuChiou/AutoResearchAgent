@@ -6,6 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
 
+const textSource = fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8');
 const source = fs.readFileSync(path.join(__dirname, 'wiki-v1.js'), 'utf8');
 const start = source.indexOf('// ---------- Stage 3 status');
 const section = source.slice(start, source.indexOf("\ndocument.addEventListener('click'", start));
@@ -16,6 +17,7 @@ function load(conn, {basis = null, view = null} = {}) {
   v93Identity:() => basis, v93Matches:(a, b) => !!a && !!b && a.project_ref === b.project_ref,
   v9ConnectionModel:() => conn
  });
+ vm.runInContext(textSource, ctx);
  vm.runInContext(section, ctx);
  return ctx.v1PageStatus.s3({});
 }

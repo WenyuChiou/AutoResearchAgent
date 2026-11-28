@@ -1,13 +1,13 @@
 // Wiki V1 unified shell (DESIGN 2.1, 2.5, 8.1, 8.20). Display only: it reads the
 // state other modules already loaded and never sends a request of its own.
-// Simplified Chinese gets the new design everywhere; English and Traditional
-// Chinese keep the previous pages unchanged so no page is half new, half old.
+// All three languages (zh/en/tw) use the V1 pages that have text for them; copy comes from wiki-v1-text.js.
 const v1StageNames = ['文献与证据', '比较与选方向', '研究计划与评审'];
 const v1LaterNames = {4:'实验执行', 5:'分析与图表', 6:'写作与投稿'};
 const v1OriginNames = {local:'本地项目', archive:'历史归档', synthetic:'合成样例', unknown:'来历未标注'};
 
+// Batch 1 (home, project files, history, settings) is translated; Stage pages keep the previous pages in en/tw until batch 2.
 function v1On(app) {
- return !!app && app.lang === 'zh' && typeof wikiHomeProjectOpened === 'function';
+ return !!app && v1Lang(app) && (v1StageLang(app) || app.page !== 'workspace') && typeof wikiHomeProjectOpened === 'function';
 }
 
 function v1Page(app) {
@@ -31,12 +31,12 @@ function v1ProjectTitle() {
 const v1StageStatus = {};
 v1StageStatus[1] = () => {
  const row = v1CurrentRow();
- if (!row) return ['未打开课题', ''];
- if (typeof wikiS1Index === 'function' && wikiS1Index()) return ['已保存', 'done'];
+ if (!row) return [v1t('未打开课题'), ''];
+ if (typeof wikiS1Index === 'function' && wikiS1Index()) return [v1t('已保存'), 'done'];
  const p = rt.overview?.project;
- if (p?.project_ref === rt.ref && !p.intake_report?.necessary_clarification_complete) return ['等你确认范围', 'wait'];
- if (p?.project_ref === rt.ref) return ['还没有交付', ''];
- return row.stage ? ['已保存', 'done'] : ['未提供', ''];
+ if (p?.project_ref === rt.ref && !p.intake_report?.necessary_clarification_complete) return [v1t('等你确认范围'), 'wait'];
+ if (p?.project_ref === rt.ref) return [v1t('还没有交付'), ''];
+ return row.stage ? [v1t('已保存'), 'done'] : [v1t('未提供'), ''];
 };
 
 function v1StageLine(stage) {
@@ -44,7 +44,7 @@ function v1StageLine(stage) {
   const value = v1StageStatus[stage]?.();
   if (Array.isArray(value) && value[0]) return value;
  } catch (_) { /* A status line never blocks the shell. */ }
- return ['还没开始', ''];
+ return [v1t('还没开始'), ''];
 }
 
 const v1PreviousSidebar = sidebar;
@@ -57,41 +57,41 @@ sidebar = function(app) {
  const opened = !!rt.ref && !home;
  const nav = (id, label) => `<button type="button" class="v1-nav-item" data-page="${id}" aria-current="${(id === 'workspace' ? ['home', 's1', 's2', 's3', 'later'].includes(page) : app.page === id) ? 'page' : 'false'}">${label}</button>`;
  const flow = [1, 2, 3].map(stage => {
-  const [line, tone] = home ? (recent && stage <= (recent.stage || 0) ? ['有记录', 'done'] : ['还没开始', '']) : opened ? v1StageLine(stage) : ['未打开课题', ''];
+  const [line, tone] = home ? (recent && stage <= (recent.stage || 0) ? [v1t('有记录'), 'done'] : [v1t('还没开始'), '']) : opened ? v1StageLine(stage) : [v1t('未打开课题'), ''];
   const disabled = home ? (locked || !recent || stage > (recent.stage || 0)) : (!opened || locked);
   // A greyed item says why in its status line (review P2-10).
-  const why = !disabled ? null : locked ? '上次提交还没确认' : home && !recent ? '先新建或打开课题' : home ? '这个课题还没到这一段' : '先打开一个课题';
+  const why = !disabled ? null : locked ? v1t('上次提交还没确认') : home && !recent ? v1t('先新建或打开课题') : home ? v1t('这个课题还没到这一段') : v1t('先打开一个课题');
   const [shownLine, shownTone] = why ? [why, ''] : [line, tone];
-  return `<button type="button" class="v1-flow-item" data-stage="${stage}" aria-current="${page === 's' + stage ? 'page' : 'false'}" ${disabled ? 'disabled' : ''}><span class="v1-flow-num">${stage}</span><span class="v1-flow-body"><b>${v1StageNames[stage - 1]}</b><small><i class="v1-dot ${shownTone}"></i>${shownLine}</small></span></button>`;
+  return `<button type="button" class="v1-flow-item" data-stage="${stage}" aria-current="${page === 's' + stage ? 'page' : 'false'}" ${disabled ? 'disabled' : ''}><span class="v1-flow-num">${stage}</span><span class="v1-flow-body"><b>${v1t(v1StageNames[stage - 1])}</b><small><i class="v1-dot ${shownTone}"></i>${shownLine}</small></span></button>`;
  }).join('');
- const later = [4, 5, 6].map(stage => `<button type="button" class="v1-later-item" data-stage="${stage}" aria-current="${page === 'later' && app.stage === stage ? 'page' : 'false'}" ${!opened || locked ? 'disabled' : ''}>${stage} ${v1LaterNames[stage]}</button>`).join('') + (!opened || locked ? `<small class="v1-later-why">${locked ? '上次提交还没确认' : '先打开一个课题'}</small>` : '');
+ const later = [4, 5, 6].map(stage => `<button type="button" class="v1-later-item" data-stage="${stage}" aria-current="${page === 'later' && app.stage === stage ? 'page' : 'false'}" ${!opened || locked ? 'disabled' : ''}>${stage} ${v1t(v1LaterNames[stage])}</button>`).join('') + (!opened || locked ? `<small class="v1-later-why">${locked ? v1t('上次提交还没确认') : v1t('先打开一个课题')}</small>` : '');
  return `<aside class="hs-sidebar v1-side" id="v1-side" ${app.v1MenuOpen ? 'data-open' : ''}>
   <div class="hs-brand v1-brand"><span class="hs-logo">h</span><div><strong>Wiki V1</strong><small>RESEARCH WIKI</small></div></div>
-  <button type="button" class="v1-menu-btn" data-v1-menu aria-controls="v1-side" aria-expanded="${app.v1MenuOpen ? 'true' : 'false'}">菜单</button>
-  <nav class="v1-nav" aria-label="全局">${nav('workspace', '工作台')}${nav('files', '项目文件')}${nav('history', '操作历史')}${nav('settings', '连接与设置')}</nav>
-  <div class="v1-side-label">研究流程</div>
-  <nav class="v1-flow" aria-label="研究流程">${flow}</nav>
-  <details class="v1-later" ${page === 'later' || app.v1LaterOpen ? 'open' : ''} data-v1-later><summary>后续阶段（未开放）</summary><div>${later}</div></details>
-  <p class="v1-foot">你只需要点三处：确认范围和授权、选方向、对评审做决定。</p>
+  <button type="button" class="v1-menu-btn" data-v1-menu aria-controls="v1-side" aria-expanded="${app.v1MenuOpen ? 'true' : 'false'}">${v1t('菜单')}</button>
+  <nav class="v1-nav" aria-label="${v1t('全局')}">${nav('workspace', v1t('工作台'))}${nav('files', v1t('项目文件'))}${nav('history', v1t('操作历史'))}${nav('settings', v1t('连接与设置'))}</nav>
+  <div class="v1-side-label">${v1t('研究流程')}</div>
+  <nav class="v1-flow" aria-label="${v1t('研究流程')}">${flow}</nav>
+  <details class="v1-later" ${page === 'later' || app.v1LaterOpen ? 'open' : ''} data-v1-later><summary>${v1t('后续阶段（未开放）')}</summary><div>${later}</div></details>
+  <p class="v1-foot">${v1t('你只需要点三处：确认范围和授权、选方向、对评审做决定。')}</p>
  </aside>`;
 };
 
 function v1Crumb(app, page) {
- if (page === 'home') return '<b>工作台</b>';
- const stageName = page === 'later' ? `Stage ${app.stage} ${v1LaterNames[app.stage]}` :
-  page === 'other' ? ({files:'项目文件', history:'操作历史', settings:'连接与设置'})[app.page] || '' :
-  `Stage ${app.stage} ${v1StageNames[app.stage - 1]}${page === 's1' && v1ScopePending() ? ' · 确认范围' : ''}`;
+ if (page === 'home') return `<b>${v1t('工作台')}</b>`;
+ const stageName = page === 'later' ? `Stage ${app.stage} ${v1t(v1LaterNames[app.stage])}` :
+  page === 'other' ? ({files:v1t('项目文件'), history:v1t('操作历史'), settings:v1t('连接与设置')})[app.page] || '' :
+  `Stage ${app.stage} ${v1t(v1StageNames[app.stage - 1])}${page === 's1' && v1ScopePending() ? ' ' + v1t('· 确认范围') : ''}`;
  const title = v1ProjectTitle();
  return `${title ? `<details class="v1-switch" data-v1-switch ${app.v1SwitchOpen && app.v1SwitchRef === rt.ref ? 'open' : ''}><summary>${esc(title)}</summary>${v1SwitchMenu()}</details><span aria-hidden="true">›</span>` : ''}<b>${esc(stageName)}</b>`;
 }
 
 function v1SwitchMenu() {
- if (rt.loading && !rt.list.length) return '<div class="v1-menu"><p class="v1-muted">正在读取项目</p></div>';
- if (rt.error && !rt.list.length) return '<div class="v1-menu"><p>项目读取失败</p><button type="button" class="v1-btn sm" data-v1-reload>重新读取</button></div>';
- if (!rt.list.length) return '<div class="v1-menu"><p>还没有项目</p><button type="button" class="v1-link" data-v1-home>去首页新建</button></div>';
+ if (rt.loading && !rt.list.length) return `<div class="v1-menu"><p class="v1-muted">${v1t('正在读取项目')}</p></div>`;
+ if (rt.error && !rt.list.length) return `<div class="v1-menu"><p>${v1t('项目读取失败')}</p><button type="button" class="v1-btn sm" data-v1-reload>${v1t('重新读取')}</button></div>`;
+ if (!rt.list.length) return `<div class="v1-menu"><p>${v1t('还没有项目')}</p><button type="button" class="v1-link" data-v1-home>${v1t('去首页新建')}</button></div>`;
  const locked = rt.busy || rt.loading || !!rt.pending;
  const rows = rt.list.map(wikiHomeRow).slice(-8).reverse();
- return `<div class="v1-menu">${locked ? '<p class="v1-reason">上次提交的结果还没确认，先核对</p>' : ''}<ul>${rows.map(row => `<li><button type="button" data-v1-open="${esc(row.ref)}" ${locked || row.ref === rt.ref ? 'disabled' : ''}><span class="v1-origin ${row.origin}">${v1OriginNames[row.origin]}</span><span>${esc(row.title)}</span><small>${row.stage ? 'Stage ' + row.stage : '未提供'}</small></button></li>`).join('')}</ul><button type="button" class="v1-link" data-v1-home>全部项目…</button></div>`;
+ return `<div class="v1-menu">${locked ? `<p class="v1-reason">${v1t('上次提交的结果还没确认，先核对')}</p>` : ''}<ul>${rows.map(row => `<li><button type="button" data-v1-open="${esc(row.ref)}" ${locked || row.ref === rt.ref ? 'disabled' : ''}><span class="v1-origin ${row.origin}">${v1t(v1OriginNames[row.origin])}</span><span>${esc(row.title)}</span><small>${row.stage ? 'Stage ' + row.stage : v1t('未提供')}</small></button></li>`).join('')}</ul><button type="button" class="v1-link" data-v1-home>${v1t('全部项目…')}</button></div>`;
 }
 
 function v1ScopePending() {
@@ -101,10 +101,10 @@ function v1ScopePending() {
 
 function v1Topbar(app, page) {
  const row = page !== 'home' && rt.ref ? v1CurrentRow() : null;
- const origin = row ? `<span class="v1-origin ${row.origin}">${v1OriginNames[row.origin]}</span>` : '';
+ const origin = row ? `<span class="v1-origin ${row.origin}">${v1t(v1OriginNames[row.origin])}</span>` : '';
  const models = rt.meta?.model;
- const conn = rt.error && !rt.meta ? ['err', '连接：读取失败'] : models === 'unconnected' || !rt.meta ? ['wait', '连接：Codex 未接通'] : ['done', '连接：正常'];
- return `<div class="v1-crumb">${v1Crumb(app, page)}</div><div class="v1-top-right">${origin}<button type="button" class="v1-conn" data-page="settings" title="连接状态，点开看连接与设置"><i class="v1-dot ${conn[0]}"></i>${conn[1]}</button></div>`;
+ const conn = rt.error && !rt.meta ? ['err', v1t('连接：读取失败')] : models === 'unconnected' || !rt.meta ? ['wait', v1t('连接：Codex 未接通')] : ['done', v1t('连接：正常')];
+ return `<div class="v1-crumb">${v1Crumb(app, page)}</div><div class="v1-top-right">${origin}<button type="button" class="v1-conn" data-page="settings" title="${v1t('连接状态，点开看连接与设置')}"><i class="v1-dot ${conn[0]}"></i>${conn[1]}</button></div>`;
 }
 
 const v1PreviousRender = render;
@@ -132,7 +132,7 @@ render = function(app) {
 function v1PlaceKey(app) { return [app.page, app.stage, rt.ref].join('|'); }
 function v1Notice(text, recover) {
  const app = apps[0];
- app.v1Alert = {key:v1PlaceKey(app), tone:'warn', title:text, sub:'', buttons:recover ? [['核对上次提交', 'data-v1-recover']] : []};
+ app.v1Alert = {key:v1PlaceKey(app), tone:'warn', title:text, sub:'', buttons:recover ? [[v1t('核对上次提交'), 'data-v1-recover']] : []};
  livePaint();
 }
 function v1AlertMount(app) {
@@ -140,7 +140,7 @@ function v1AlertMount(app) {
  const a = app.v1Alert;
  if (!content || !a) return;
  if (a.key !== v1PlaceKey(app)) { app.v1Alert = null; return; }
- const html = `<div class="v1-alert ${a.tone}" role="${a.tone === 'err' ? 'alert' : 'status'}" data-v1-alert><div><b>${esc(a.title)}</b>${a.sub ? `<span>${esc(a.sub)}</span>` : ''}</div><div class="v1-alert-actions">${a.buttons.map(([label, attrs], i) => `<button type="button" class="v1-btn sm ${i === 0 && a.primary ? 'primary' : ''}" ${attrs}>${esc(label)}</button>`).join('')}<button type="button" class="v1-link" data-v1-alert-close>关掉提示</button></div></div>`;
+ const html = `<div class="v1-alert ${a.tone}" role="${a.tone === 'err' ? 'alert' : 'status'}" data-v1-alert><div><b>${esc(a.title)}</b>${a.sub ? `<span>${esc(a.sub)}</span>` : ''}</div><div class="v1-alert-actions">${a.buttons.map(([label, attrs], i) => `<button type="button" class="v1-btn sm ${i === 0 && a.primary ? 'primary' : ''}" ${attrs}>${esc(label)}</button>`).join('')}<button type="button" class="v1-link" data-v1-alert-close>${v1t('关掉提示')}</button></div></div>`;
  const heading = content.querySelector(':scope > .hs-heading, :scope > .v1-head, :scope > [data-v1-later-page] > .v1-head, :scope > [data-v1-global] > .v1-head');
  if (heading) heading.insertAdjacentHTML('afterend', html); else content.insertAdjacentHTML('afterbegin', html);
 }
@@ -151,11 +151,11 @@ function v1UnsavedDrafts() {
  const p = rt.overview?.project;
  if (rt.scopeDraft && typeof liveScopeBasis === 'function' && rt.scopeDraft.basis === liveScopeBasis()) {
   const v = rt.scopeDraft.values || {}, blank = {geography:'', geographyValue:'', target:'30', priority:'20', note:''};
-  if (Object.keys(blank).some(key => String(v[key] ?? blank[key]) !== blank[key])) names.push('研究范围表单');
+  if (Object.keys(blank).some(key => String(v[key] ?? blank[key]) !== blank[key])) names.push(v1t('研究范围表单'));
  }
- if (typeof realPlanDraftCurrent === 'function' && realPlanDraftCurrent()) names.push('检索规划修订');
- if (typeof rt.draft === 'string' && rt.draft.trim()) names.push('审阅意见');
- if (rt.followupDraft?.ref === rt.ref && p && rt.followupDraft.input_version === p.input_version && String(rt.followupDraft.question || '').trim()) names.push('追问');
+ if (typeof realPlanDraftCurrent === 'function' && realPlanDraftCurrent()) names.push(v1t('检索规划修订'));
+ if (typeof rt.draft === 'string' && rt.draft.trim()) names.push(v1t('审阅意见'));
+ if (rt.followupDraft?.ref === rt.ref && p && rt.followupDraft.input_version === p.input_version && String(rt.followupDraft.question || '').trim()) names.push(v1t('追问'));
  return names;
 }
 
@@ -163,16 +163,16 @@ function v1UnsavedDrafts() {
 function v1Leave(label, go) {
  const app = apps[0];
  if (rt.pending || rt.busy) {
-  app.v1Alert = {key:v1PlaceKey(app), tone:'warn', title:rt.busy ? '正在保存，请稍等。' : '上次提交的结果还没确认，已阻止切换。',
-   sub:rt.busy ? '保存结果回来之前不能切换课题。' : '先核对上次提交；原来的请求还保留着，不会自动重发。', buttons:rt.busy ? [] : [['核对上次提交', 'data-v1-recover']]};
+  app.v1Alert = {key:v1PlaceKey(app), tone:'warn', title:rt.busy ? v1t('正在保存，请稍等。') : v1t('上次提交的结果还没确认，已阻止切换。'),
+   sub:rt.busy ? v1t('保存结果回来之前不能切换课题。') : v1t('先核对上次提交；原来的请求还保留着，不会自动重发。'), buttons:rt.busy ? [] : [[v1t('核对上次提交'), 'data-v1-recover']]};
   livePaint();
   return;
  }
  const drafts = v1UnsavedDrafts();
  if (!drafts.length) { app.v1Alert = null; go(); return; }
  app.v1LeaveGo = go;
- app.v1Alert = {key:v1PlaceKey(app), tone:'warn', primary:false, title:`这一页有还没保存的内容：${drafts.join('、')}。`,
-  sub:`${label}会丢掉这些内容；后台没有草稿存储，留在这里可以先保存或提交。`, buttons:[['留在这里', 'data-v1-leave="stay"'], ['仍然离开', 'data-v1-leave="go"']]};
+ app.v1Alert = {key:v1PlaceKey(app), tone:'warn', primary:false, title:`${v1t('这一页有还没保存的内容：{drafts}。', {drafts: drafts.join(v1t('、'))})}`,
+  sub:`${v1t('{label}会丢掉这些内容；后台没有草稿存储，留在这里可以先保存或提交。', {label})}`, buttons:[[v1t('留在这里'), 'data-v1-leave="stay"'], [v1t('仍然离开'), 'data-v1-leave="go"']]};
  livePaint();
 }
 
@@ -187,32 +187,32 @@ function v1LaterPage(app) {
  if (!content || content.querySelector('[data-v1-later-page]')) return;
  const stage = app.stage;
  content.insertAdjacentHTML('afterbegin', `<div class="v1-page" data-v1-later-page>
-  <div class="v1-head"><p class="v1-eyebrow">Stage ${stage} / 6 · ${v1LaterNames[stage]}</p><h1>${v1LaterNames[stage]}</h1></div>
-  ${v1StatusMarkup({tone:'off', now:['这一段还没有开放。', '没有任何东西在运行。'], next:'等 Stage 3 的计划被接受。', you:null})}
-  <div class="wiki-record v1-record-none"><strong class="wiki-record-chip">Harness 记录</strong><span>这一段还没有运行，没有记录。</span></div>
-  <details class="v1-panel v1-fold"><summary>本阶段还需要哪些真实材料</summary><ul class="v1-needs">${v1LaterNeeds[stage].map(name => `<li><b>${name}</b><small>这是补件类别，不代表原生合同已核验。先核对核心原件和合法映射，再登记；不启动研究。</small></li>`).join('')}</ul></details>
+  <div class="v1-head"><p class="v1-eyebrow">Stage ${stage} / 6 · ${v1t(v1LaterNames[stage])}</p><h1>${v1t(v1LaterNames[stage])}</h1></div>
+  ${v1StatusMarkup({tone:'off', now:[v1t('这一段还没有开放。'), v1t('没有任何东西在运行。')], next:v1t('等 Stage 3 的计划被接受。'), you:null})}
+  <div class="wiki-record v1-record-none"><strong class="wiki-record-chip">${v1t('Harness 记录')}</strong><span>${v1t('这一段还没有运行，没有记录。')}</span></div>
+  <details class="v1-panel v1-fold"><summary>${v1t('本阶段还需要哪些真实材料')}</summary><ul class="v1-needs">${v1LaterNeeds[stage].map(name => `<li><b>${v1t(name)}</b><small>${v1t('这是补件类别，不代表原生合同已核验。先核对核心原件和合法映射，再登记；不启动研究。')}</small></li>`).join('')}</ul></details>
  </div>`);
 }
 
 // DESIGN 2.5 status bar. tone: done | wait | off | run | err.
 function v1StatusMarkup(v) {
- const you = v.you ? `${v.you.wait ? '<span class="v1-wait">等你</span> ' : ''}${esc(v.you.text)}` : '<span class="v1-muted">不需要你操作</span>';
+ const you = v.you ? `${v.you.wait ? `<span class="v1-wait">${v1t('等你')}</span> ` : ''}${esc(v.you.text)}` : `<span class="v1-muted">${v1t('不需要你操作')}</span>`;
  const button = v.button ? `<button type="button" class="v1-btn ${v.button.primary === false ? '' : 'primary'}" ${v.button.attrs || ''} ${v.button.disabled ? 'disabled' : ''}>${esc(v.button.label)}</button>${v.button.disabled ? `<small class="v1-reason">${esc(v.button.disabled)}</small>` : ''}` : '';
  return `<section class="v1-status st-${v.tone}" role="status" data-v1-status="${v.tone}">
-  <div><span class="v1-k">现在</span><p><b>${esc(v.now[0])}</b>${esc(v.now[1] || '')}</p></div>
-  <div><span class="v1-k">下一步</span><p>${esc(v.next)}</p></div>
-  <div class="v1-you"><span class="v1-k">需要你</span><p>${you}</p>${button}</div>
+  <div><span class="v1-k">${v1t('现在')}</span><p><b>${esc(v.now[0])}</b>${esc(v.now[1] || '')}</p></div>
+  <div><span class="v1-k">${v1t('下一步')}</span><p>${esc(v.next)}</p></div>
+  <div class="v1-you"><span class="v1-k">${v1t('需要你')}</span><p>${you}</p>${button}</div>
  </section>`;
 }
 
 // Non-normal states are shared by every stage page (DESIGN 3.5, 8.3).
 function v1CommonStatus(app) {
  const state = typeof wikiShellState === 'function' ? wikiShellState(app).state : '';
- if (state === 'busy') return {tone:'run', now:['正在保存。', '有一次提交正在处理。'], next:'等这次提交的保存结果回来。', you:{text:'不用重复点击'}};
- if (state === 'pending' || state === 'create-pending') return {tone:'wait', now:['上次提交的结果还没确认。', '原来的请求还保留着，不会自动重发。'], next:'先核对上次提交的结果。', you:{wait:true, text:'核对上次提交'}, button:{label:'核对上次提交', attrs:'data-v1-recover'}};
- if (state === 'foreign-pending') return {tone:'wait', now:['另一个课题有未确认的提交。', ''], next:'先回到那个课题核对。', you:{wait:true, text:'回原课题核对'}};
- if (state === 'error') return {tone:'err', now:['这次读取没有完成。', '已经读到的内容没有丢。'], next:'重新读取；原因在本页技术细节里。', you:{text:'重新读取'}, button:{label:'重新读取', attrs:'data-v1-reload', primary:false}};
- if (state === 'loading' || (!rt.overview && !rt.savedRun && rt.ref)) return {tone:'run', now:['正在读取保存记录。', ''], next:'读完后这里会写现在到了哪一步。', you:null};
+ if (state === 'busy') return {tone:'run', now:[v1t('正在保存。'), v1t('有一次提交正在处理。')], next:v1t('等这次提交的保存结果回来。'), you:{text:v1t('不用重复点击')}};
+ if (state === 'pending' || state === 'create-pending') return {tone:'wait', now:[v1t('上次提交的结果还没确认。'), v1t('原来的请求还保留着，不会自动重发。')], next:v1t('先核对上次提交的结果。'), you:{wait:true, text:v1t('核对上次提交')}, button:{label:v1t('核对上次提交'), attrs:'data-v1-recover'}};
+ if (state === 'foreign-pending') return {tone:'wait', now:[v1t('另一个课题有未确认的提交。'), ''], next:v1t('先回到那个课题核对。'), you:{wait:true, text:v1t('回原课题核对')}};
+ if (state === 'error') return {tone:'err', now:[v1t('这次读取没有完成。'), v1t('已经读到的内容没有丢。')], next:v1t('重新读取；原因在本页技术细节里。'), you:{text:v1t('重新读取')}, button:{label:v1t('重新读取'), attrs:'data-v1-reload', primary:false}};
+ if (state === 'loading' || (!rt.overview && !rt.savedRun && rt.ref)) return {tone:'run', now:[v1t('正在读取保存记录。'), ''], next:v1t('读完后这里会写现在到了哪一步。'), you:null};
  return null;
 }
 
@@ -243,7 +243,7 @@ function v1Heading(app) {
  heading.dataset.v1Head = 'true';
  const topic = v1ProjectTitle();
  const eyebrow = heading.querySelector('.hs-eyebrow');
- if (eyebrow) eyebrow.textContent = `Stage ${app.stage} / 3 · ${v1StageNames[app.stage - 1]}`;
+ if (eyebrow) eyebrow.textContent = `Stage ${app.stage} / 3 · ${v1t(v1StageNames[app.stage - 1])}`;
  const title = heading.querySelector('h1');
  if (title && topic) title.textContent = topic;
  for (const node of heading.querySelectorAll('.hs-status, h1 + p')) if (!node.matches('.v1-sub')) node.remove();
@@ -251,7 +251,7 @@ function v1Heading(app) {
  const savedTopic = typeof wikiHomeArchiveBound === 'function' && wikiHomeArchiveBound(rt.ref) ? rt.savedRun?.payload?.index?.topic : '';
  const raw = brief?.original_title || savedTopic;
  const original = typeof raw === 'string' && raw && raw !== topic ? raw : '';
- if (original && title) title.insertAdjacentHTML('afterend', `<p class="v1-sub">原题：${esc(original)}</p>`);
+ if (original && title) title.insertAdjacentHTML('afterend', `<p class="v1-sub">${v1t('原题：{title}', {title: esc(original)})}</p>`);
 }
 
 const v1PreviousAfter = v7AfterRender;
@@ -267,7 +267,7 @@ v7AfterRender = function(app) {
  // The embedded material panel keeps its handlers; its summary uses the design wording (8.12).
  for (const summary of app.el.querySelectorAll('[data-ws-materials-slot] .n9-materials > summary, .wiki-s2-fold .n9-materials > summary')) {
   const count = app.el.querySelectorAll('[data-n9-catalog] > *:not(p)').length;
-  const text = `已保存的材料 · ${count} 份`;
+  const text = `${v1t('已保存的材料 · {count} 份', {count})}`;
   if (summary.textContent !== text) summary.textContent = text;
  }
 };
@@ -283,8 +283,8 @@ document.addEventListener('click', event => {
   // Switching re-reads the whole project; nothing from the previous topic is kept.
   const ref = button.dataset.v1Open;
   app.v1SwitchOpen = false;
-  v1Leave('切换课题', () => { app.page = 'home'; wikiHomeOpen(ref); });
- } else if (button.hasAttribute('data-v1-home')) { app.v1SwitchOpen = false; v1Leave('回到首页', () => wikiHomeShow()); }
+  v1Leave(v1t('切换课题'), () => { app.page = 'home'; wikiHomeOpen(ref); });
+ } else if (button.hasAttribute('data-v1-home')) { app.v1SwitchOpen = false; v1Leave(v1t('回到首页'), () => wikiHomeShow()); }
  else if (button.hasAttribute('data-v1-leave')) {
   const go = app.v1LeaveGo;
   app.v1LeaveGo = null; app.v1Alert = null;
@@ -364,18 +364,18 @@ v1PageStatus.s1 = app => {
  const counts = v1S1Counts();
  if (v1ScopePending()) {
   const consent = typeof wsHasConsent === 'function' && wsHasConsent();
-  return {tone:'wait', now:['还没有确认范围。', '确认之前不会检索、不会调用模型。'],
-   next: consent ? '你确认范围后，Stage 1 的检索、筛选、阅读按同意书自动推进。' : '你保存范围后，到「运行与操作」逐步授权：先授权一次检索规划。',
-   you:{wait:true, text:'确认范围和授权'}, button:{label:'去确认', attrs:'data-v1-goto="scope"'}};
+  return {tone:'wait', now:[v1t('还没有确认范围。'), v1t('确认之前不会检索、不会调用模型。')],
+   next: consent ? v1t('你确认范围后，Stage 1 的检索、筛选、阅读按同意书自动推进。') : v1t('你保存范围后，到「运行与操作」逐步授权：先授权一次检索规划。'),
+   you:{wait:true, text:v1t('确认范围和授权')}, button:{label:v1t('去确认'), attrs:'data-v1-goto="scope"'}};
  }
  if (counts) {
-  const rest = `${counts.papers} 个来源、${counts.claims} 条证据定位；` + (counts.checked ? `已核对 ${counts.checked} / ${counts.claims} 条。` : '证据都还没有人核对过。');
-  return {tone:'done', now:['文献和证据已保存。', rest], next:'到 Stage 2 比较研究方向。',
-   you:{text: archive ? '这是历史归档，不能在这里改；这一段不需要你操作' : '这一段不需要你操作'}, button:{label:'去 Stage 2', attrs:'data-stage="2"'}};
+  const rest = `${v1t('{papers} 个来源、{claims} 条证据定位；', {papers: counts.papers, claims: counts.claims})}` + (counts.checked ? `${v1t('已核对 {checked} / {claims} 条。', {checked: counts.checked, claims: counts.claims})}` : v1t('证据都还没有人核对过。'));
+  return {tone:'done', now:[v1t('文献和证据已保存。'), rest], next:v1t('到 Stage 2 比较研究方向。'),
+   you:{text: archive ? v1t('这是历史归档，不能在这里改；这一段不需要你操作') : v1t('这一段不需要你操作')}, button:{label:v1t('去 Stage 2'), attrs:'data-stage="2"'}};
  }
  if (rt.overview?.project?.project_ref === rt.ref) {
-  return {tone:'done', now:['范围已确认。', '文献交付还没有生成。'], next:'到「运行与操作」看每一步现在怎样。',
-   you:{text:'有要你授权的步骤时，会在「运行与操作」里写明'}, button:{label:'去运行与操作', attrs:'data-s1-tab="ops"', primary:false}};
+  return {tone:'done', now:[v1t('范围已确认。'), v1t('文献交付还没有生成。')], next:v1t('到「运行与操作」看每一步现在怎样。'),
+   you:{text:v1t('有要你授权的步骤时，会在「运行与操作」里写明')}, button:{label:v1t('去运行与操作'), attrs:'data-s1-tab="ops"', primary:false}};
  }
  return null;
 };
@@ -417,14 +417,14 @@ function v1S1Record() {
  // Remember these counts for the home table (same wording, no extra request); cleared with the tab.
  try { sessionStorage.setItem('wiki-v1-record:' + rt.ref, JSON.stringify({papers:index.papers.length, located, checked, claims:index.claims.length})); } catch (_) { /* Optional. */ }
  return {
-  summary:`按已保存交付统计：记录了 ${index.papers.length} 篇文献的筛选决定和 ${located} 条证据的出处位置；核对了 ${checked} / ${index.claims.length} 条。`,
-  source:'这些数字是页面按已保存的交付内容数出来的，不是后台的 Harness 记录汇总（后台还没有这个汇总）。',
-  chips:[[`${index.papers.length} 篇文献`], [`核对 ${checked} / ${index.claims.length}`, checked < index.claims.length]],
+  summary:`${v1t('按已保存交付统计：记录了 {length} 篇文献的筛选决定和 {located} 条证据的出处位置；核对了 {checked} / {length2} 条。', {length: index.papers.length, located, checked, length2: index.claims.length})}`,
+  source:v1t('这些数字是页面按已保存的交付内容数出来的，不是后台的 Harness 记录汇总（后台还没有这个汇总）。'),
+  chips:[[`${v1t('{length} 篇文献', {length: index.papers.length})}`], [`${v1t('核对 {checked} / {length}', {checked, length: index.claims.length})}`, checked < index.claims.length]],
   checks:[
-   {name:'筛选决定', result:`纳入 ${by('include')} · 排除 ${by('exclude')} · 待定 ${decisions.length - by('include') - by('exclude')}（共 ${decisions.length} 条决定）`, raw:{decisions:decisions.length, include:by('include'), exclude:by('exclude')}},
-   {name:'证据出处', result:`${located} / ${index.claims.length} 条有保存位置`, raw:{claims:index.claims.length, located}},
-   {name:'出处核对', result:`核对了 ${checked} / ${index.claims.length} 条`, raw:{checked, claims:index.claims.length}},
-   {name:'覆盖和停止', result:`${groups} 个需求分组，${stopped} 个写了停止原因`, raw:(index.coverage || []).map(row => ({need_id:row.need_id, works:(row.work_ids || []).length, stop_reason:row.stop_reason ?? null}))}
+   {name:v1t('筛选决定'), result:`${v1t('纳入 {include} · 排除 {exclude} · 待定 {pending}（共 {total} 条决定）', {include: by('include'), exclude: by('exclude'), pending: decisions.length - by('include') - by('exclude'), total: decisions.length})}`, raw:{decisions:decisions.length, include:by('include'), exclude:by('exclude')}},
+   {name:v1t('证据出处'), result:`${v1t('{located} / {length} 条有保存位置', {located, length: index.claims.length})}`, raw:{claims:index.claims.length, located}},
+   {name:v1t('出处核对'), result:`${v1t('核对了 {checked} / {length} 条', {checked, length: index.claims.length})}`, raw:{checked, claims:index.claims.length}},
+   {name:v1t('覆盖和停止'), result:`${v1t('{groups} 个需求分组，{stopped} 个写了停止原因', {groups, stopped})}`, raw:(index.coverage || []).map(row => ({need_id:row.need_id, works:(row.work_ids || []).length, stop_reason:row.stop_reason ?? null}))}
   ]
  };
 }
@@ -433,15 +433,15 @@ function v1S1Record() {
 function v1Split(text) {
  const value = String(text || '');
  const at = value.indexOf('。');
- return at < 0 ? [value + '。', ''] : [value.slice(0, at + 1), value.slice(at + 1)];
+ return at < 0 ? [value + v1t('。'), ''] : [value.slice(0, at + 1), value.slice(at + 1)];
 }
 v1StageStatus[2] = () => {
  const model = typeof wikiS2Model === 'function' ? wikiS2Model() : null;
- if (model?.receipt) return ['已选定方向', 'done'];
- if (model?.missing) return ['归档里没有 Stage 2', ''];
- if (model?.blocked) return ['被拦下', 'wait'];
- if (model?.routes?.length) return model.origin === 'native' ? ['等你选方向', 'wait'] : ['候选已保存（只读）', 'done'];
- return ['还没有候选', ''];
+ if (model?.receipt) return [v1t('已选定方向'), 'done'];
+ if (model?.missing) return [v1t('归档里没有 Stage 2'), ''];
+ if (model?.blocked) return [v1t('被拦下'), 'wait'];
+ if (model?.routes?.length) return model.origin === 'native' ? [v1t('等你选方向'), 'wait'] : [v1t('候选已保存（只读）'), 'done'];
+ return [v1t('还没有候选'), ''];
 };
 v1PageStatus.s2 = app => {
  if (typeof wikiS2StatusText !== 'function') return null;
@@ -450,11 +450,11 @@ v1PageStatus.s2 = app => {
  const human = String(status.human || '');
  const waiting = /^等你/.test(human);
  const you = human === '不需要你操作' ? null : {wait:waiting, text:human.replace(/^等你\s*·\s*/, '')};
- if (model?.blocked) return {tone:'wait', now:v1Split(status.now), next:'重新读取一次。', you:null, button:{label:'重新读取', attrs:'data-v1-reload', primary:false}};
- if (model?.receipt) return {tone:'done', now:v1Split(status.now), next:status.next + '。', you, button:{label:'去 Stage 3', attrs:'data-stage="3"'}};
- if (model?.routes?.length) return {tone:waiting ? 'wait' : 'done', now:v1Split(status.now), next:status.next + '。', you,
-  button: waiting ? {label:'去选方向', attrs:'data-v1-goto="decide"'} : null};
- return {tone:waiting ? 'wait' : 'off', now:v1Split(status.now), next:String(status.next).replace(/。?$/, '。'), you};
+ if (model?.blocked) return {tone:'wait', now:v1Split(status.now), next:v1t('重新读取一次。'), you:null, button:{label:v1t('重新读取'), attrs:'data-v1-reload', primary:false}};
+ if (model?.receipt) return {tone:'done', now:v1Split(status.now), next:status.next + v1t('。'), you, button:{label:v1t('去 Stage 3'), attrs:'data-stage="3"'}};
+ if (model?.routes?.length) return {tone:waiting ? 'wait' : 'done', now:v1Split(status.now), next:status.next + v1t('。'), you,
+  button: waiting ? {label:v1t('去选方向'), attrs:'data-v1-goto="decide"'} : null};
+ return {tone:waiting ? 'wait' : 'off', now:v1Split(status.now), next:String(status.next).replace(/。?$/, v1t('。')), you};
 };
 document.addEventListener('click', event => {
  const button = event.target.closest?.('[data-v1-goto="decide"]');
@@ -470,40 +470,40 @@ function v1S3Plan() {
  return basis && v93Matches(v93.basis, basis) && v93.view?.plan ? v93.view : null;
 }
 v1StageStatus[3] = () => {
- if (v1S3Plan()) return typeof wikiS3DecStatus === 'function' && wikiS3DecStatus() ? ['已保存决定', 'done'] : ['等你做决定', 'wait'];
- return ['还没有规划', ''];
+ if (v1S3Plan()) return typeof wikiS3DecStatus === 'function' && wikiS3DecStatus() ? [v1t('已保存决定'), 'done'] : [v1t('等你做决定'), 'wait'];
+ return [v1t('还没有规划'), ''];
 };
 v1PageStatus.s3 = app => {
  if (typeof v93Identity !== 'function') return null;
  const basis = v93Identity(), view = v1S3Plan();
- if (basis && v93.busy) return {tone:'run', now:['正在读取已保存的规划。', '不会重新生成。'], next:'读完后这里会写计划和评审的情况。', you:null};
- if (basis && v93Matches(v93.errorBasis, basis) && v93.error) return {tone:'err', now:['读取规划没有完成。', '没有读到已保存的规划，也没有重新生成。'], next:'重新读取；原因在读取详情里。', you:{text:'重新读取'}, button:{label:'重新读取', attrs:'data-v93-read', primary:false}};
+ if (basis && v93.busy) return {tone:'run', now:[v1t('正在读取已保存的规划。'), v1t('不会重新生成。')], next:v1t('读完后这里会写计划和评审的情况。'), you:null};
+ if (basis && v93Matches(v93.errorBasis, basis) && v93.error) return {tone:'err', now:[v1t('读取规划没有完成。'), v1t('没有读到已保存的规划，也没有重新生成。')], next:v1t('重新读取；原因在读取详情里。'), you:{text:v1t('重新读取')}, button:{label:v1t('重新读取'), attrs:'data-v93-read', primary:false}};
  if (view) {
   const decided = typeof wikiS3DecStatus === 'function' ? wikiS3DecStatus() : null;
   if (decided) return decided;
   const review = typeof wikiS3Review === 'function' ? wikiS3Review(view) : null;
-  return {tone:'wait', now:['计划写好了。', review?.findings?.length ? `评审给了 ${review.findings.length} 条意见。` : '还没有评审意见（后台读取不返回评审）。'],
-   next:'看完计划和评审后做决定。', you:{wait:true, text:'对计划做决定'}, button:{label:'去做决定', attrs:'data-v1-goto="s3-decide"', primary:false}};
+  return {tone:'wait', now:[v1t('计划写好了。'), review?.findings?.length ? `${v1t('评审给了 {length} 条意见。', {length: review.findings.length})}` : v1t('还没有评审意见（后台读取不返回评审）。')],
+   next:v1t('看完计划和评审后做决定。'), you:{wait:true, text:v1t('对计划做决定')}, button:{label:v1t('去做决定'), attrs:'data-v1-goto="s3-decide"', primary:false}};
  }
  // Without a connected Stage 3 the saved-selection read (v93Identity) is unavailable; go by what /connections says.
  const conn = !basis && typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
  if (conn?.phase === 'ready' && !conn.unknown) {
-  if (conn.action === 'reconnect') return {tone:'wait', now:['Stage 3 未接通。', conn.reconnectError ? '上次点「重新接通」没有成功；规划登记仍然保存着。' : '规划登记已保存；如果上次是强行关闭，这次启动后会先显示未接通。'],
-  next:conn.reconnectError ? '可以再点一次下面的「重新接通」；原因代码在接通块的技术细节里。' : '点下面的「重新接通」恢复，不会重复执行任何步骤，也不会新增记录。', you:{wait:true, text:'重新接通'}};
-  if (conn.action === 'connect') return {tone:'wait', now:['还没有规划。', 'Stage 3 还没有接通；接通只是登记，不会启动研究。'], next:'在下面的接通块点「接通本课题」。', you:{wait:true, text:'接通本课题'}};
+  if (conn.action === 'reconnect') return {tone:'wait', now:[v1t('Stage 3 未接通。'), conn.reconnectError ? v1t('上次点「重新接通」没有成功；规划登记仍然保存着。') : v1t('规划登记已保存；如果上次是强行关闭，这次启动后会先显示未接通。')],
+  next:conn.reconnectError ? v1t('可以再点一次下面的「重新接通」；原因代码在接通块的技术细节里。') : v1t('点下面的「重新接通」恢复，不会重复执行任何步骤，也不会新增记录。'), you:{wait:true, text:v1t('重新接通')}};
+  if (conn.action === 'connect') return {tone:'wait', now:[v1t('还没有规划。'), v1t('Stage 3 还没有接通；接通只是登记，不会启动研究。')], next:v1t('在下面的接通块点「接通本课题」。'), you:{wait:true, text:v1t('接通本课题')}};
   // Connected but no selection read: not "cannot connect" (review P2-c).
-  if (conn.connected) return {tone:'off', now:['还没有规划。', 'Stage 3 已接通，但这次没有读到选定的方向。'], next:'重新读取一次。', you:null, button:{label:'重新读取', attrs:'data-v1-reload', primary:false}};
+  if (conn.connected) return {tone:'off', now:[v1t('还没有规划。'), v1t('Stage 3 已接通，但这次没有读到选定的方向。')], next:v1t('重新读取一次。'), you:null, button:{label:v1t('重新读取'), attrs:'data-v1-reload', primary:false}};
   // The reply carried the Stage 2 row only: this launch has no Stage 3 interface, so the page cannot tell whether a selection exists.
-  if (conn.stage2Only) return {tone:'off', now:['还没有规划。', 'Stage 3 现在接不上，原因写在下面的接通块里。'], next:'按接通块里的说法处理。', you:null};
-  if (conn.code && conn.code !== 'stage3-current-selection-required') return {tone:'off', now:['还没有规划。', 'Stage 3 现在接不上，原因写在下面的接通块里。'], next:'按接通块里的说法处理。', you:null};
+  if (conn.stage2Only) return {tone:'off', now:[v1t('还没有规划。'), v1t('Stage 3 现在接不上，原因写在下面的接通块里。')], next:v1t('按接通块里的说法处理。'), you:null};
+  if (conn.code && conn.code !== 'stage3-current-selection-required') return {tone:'off', now:[v1t('还没有规划。'), v1t('Stage 3 现在接不上，原因写在下面的接通块里。')], next:v1t('按接通块里的说法处理。'), you:null};
  }
- if (!basis) return {tone:'off', now:['还没有规划。', 'Stage 2 还没有选定方向，Stage 3 不会生成计划。'], next:'先到 Stage 2 选一个方向。', you:null, button:{label:'去 Stage 2', attrs:'data-stage="2"', primary:false}};
+ if (!basis) return {tone:'off', now:[v1t('还没有规划。'), v1t('Stage 2 还没有选定方向，Stage 3 不会生成计划。')], next:v1t('先到 Stage 2 选一个方向。'), you:null, button:{label:v1t('去 Stage 2'), attrs:'data-stage="2"', primary:false}};
  const request = typeof wikiS3RequestLine === 'function' ? wikiS3RequestLine(view || (v93.basis && v93Matches(v93.basis, basis) ? v93.view : null)) : null;
  const requestGate = request?.tag === '还没请求' ? request.buttons[0]?.gate : request?.tag === '等你授权' && request.grant?.gate !== '请先勾选确认' ? request.grant?.gate : '';
- if (request && requestGate) return {tone:'off', now:['还没有规划。', `已经接通，但现在不能生成计划：${requestGate}。`], next:'条件满足后在下面「本课题的 Stage 3」里请求生成计划。', you:null};
- if (request && ['还没请求', '等你授权'].includes(request.tag)) return {tone:'wait', now:['还没有规划。', '已经接通，还没有保存的计划。'], next:'在下面「本课题的 Stage 3」里请求生成计划；生成前会先请你授权。', you:{wait:true, text:'请求生成计划'}};
- if (request) return {tone:request.tone === 'err' ? 'err' : request.tone === 'run' ? 'run' : 'off', now:['还没有规划。', /[。]$/.test(request.text) ? request.text : request.text + '。'], next:'看下面「本课题的 Stage 3」里请求一行的说明。', you:null};
- return {tone:'off', now:['还没有规划。', '已经有选定的方向，但还没有保存的计划。'], next:'接通本课题的 Stage 3 后，请求生成计划。', you:null};
+ if (request && requestGate) return {tone:'off', now:[v1t('还没有规划。'), `${v1t('已经接通，但现在不能生成计划：{requestGate}。', {requestGate})}`], next:v1t('条件满足后在下面「本课题的 Stage 3」里请求生成计划。'), you:null};
+ if (request && ['还没请求', '等你授权'].includes(request.tag)) return {tone:'wait', now:[v1t('还没有规划。'), v1t('已经接通，还没有保存的计划。')], next:v1t('在下面「本课题的 Stage 3」里请求生成计划；生成前会先请你授权。'), you:{wait:true, text:v1t('请求生成计划')}};
+ if (request) return {tone:request.tone === 'err' ? 'err' : request.tone === 'run' ? 'run' : 'off', now:[v1t('还没有规划。'), /[。]$/.test(request.text) ? request.text : request.text + v1t('。')], next:v1t('看下面「本课题的 Stage 3」里请求一行的说明。'), you:null};
+ return {tone:'off', now:[v1t('还没有规划。'), v1t('已经有选定的方向，但还没有保存的计划。')], next:v1t('接通本课题的 Stage 3 后，请求生成计划。'), you:null};
 };
 document.addEventListener('click', event => {
  const button = event.target.closest?.('[data-v1-goto="s3-decide"]');

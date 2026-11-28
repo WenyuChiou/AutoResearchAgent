@@ -21,7 +21,7 @@ const context = vm.createContext({
  location:{hash:'#x', pathname:'/', search:''}, history:{pushState:() => {}, state:null}, window:{scrollTo:() => {}, addEventListener:() => {}},
  document:{title:'', addEventListener:(type, fn) => (listeners[type] ||= []).push(fn)}, queueMicrotask:fn => fn(), setTimeout:() => 0
 });
-vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-home.js'), 'utf8'), context);
+vm.runInContext((fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-home.js'), 'utf8')), context);
 const markup = () => context.wikiHomeMarkup();
 const click = attrs => {
  const button = {disabled:false, dataset:{}, hasAttribute:name => Object.hasOwn(attrs, name)};

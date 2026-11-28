@@ -4,45 +4,45 @@ const wikiRecordNumber = value => Number.isSafeInteger(value) && value >= 0;
 
 function wikiRecordSummary(record) {
  const parts = [];
- if (wikiRecordNumber(record?.recordCount)) parts.push(record.recordCount + ' 条记录');
- if (wikiRecordNumber(record?.blockedCount)) parts.push('拦下 ' + record.blockedCount + ' 次');
- return parts.join(' · ') || wikiRecordMissing;
+ if (wikiRecordNumber(record?.recordCount)) parts.push(v1t('{n} 条记录', {n: record.recordCount}));
+ if (wikiRecordNumber(record?.blockedCount)) parts.push(v1t('拦下 {n} 次', {n: record.blockedCount}));
+ return parts.join(' · ') || v1t(wikiRecordMissing);
 }
 
 function wikiHarnessRecord(record) {
  const checks = (record?.checks || []).filter(row => row?.name && row.result && row.raw != null);
  const timeline = (record?.timeline || []).filter(row => row?.step && row.raw != null);
  const blocked = [
-  ['failedCheck', '没通过的检查'], ['wrongProject', '错项目'], ['staleVersion', '旧版本'],
-  ['duplicate', '重复点击'], ['overLimit', '超额度']
+  ['failedCheck', v1t('没通过的检查')], ['wrongProject', v1t('错项目')], ['staleVersion', v1t('旧版本')],
+  ['duplicate', v1t('重复点击')], ['overLimit', v1t('超额度')]
  ];
  const resume = record?.resume;
  const recordedBlocks = blocked.some(([key]) => wikiRecordNumber(record?.blocked?.[key]));
  const summary = typeof record?.summary === 'string' && record.summary ? record.summary : wikiRecordSummary(record);
- const raw = value => `<details><summary>看原始记录</summary><pre>${esc(JSON.stringify(value, null, 2))}</pre></details>`;
+ const raw = value => `<details><summary>${v1t('看原始记录')}</summary><pre>${esc(JSON.stringify(value, null, 2))}</pre></details>`;
  const table = (headers, rows) => `<table><thead><tr>${headers.map(name => `<th scope="col">${name}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
- const missing = record?.summary ? '<p class="wiki-record-gap">这份交付没有保存这一项。</p>' : `<p>${wikiRecordMissing}</p>`;
- const chip = '<strong class="wiki-record-chip">Harness 记录</strong>';
+ const missing = record?.summary ? `<p class="wiki-record-gap">${v1t('这份交付没有保存这一项。')}</p>` : `<p>${v1t(wikiRecordMissing)}</p>`;
+ const chip = `<strong class="wiki-record-chip">${v1t('Harness 记录')}</strong>`;
  const chips = (record?.chips || []).map(([text, warn]) => `<span class="wiki-record-count${warn ? ' warn' : ''}">${esc(text)}</span>`).join('');
- if (summary === wikiRecordMissing && !checks.length && !timeline.length && !recordedBlocks && resume?.raw == null) {
-  return `<div class="wiki-record" data-wiki-record>${chip}<span>${wikiRecordMissing}</span></div>`;
+ if (summary === v1t(wikiRecordMissing) && !checks.length && !timeline.length && !recordedBlocks && resume?.raw == null) {
+  return `<div class="wiki-record" data-wiki-record>${chip}<span>${v1t(wikiRecordMissing)}</span></div>`;
  }
  return `<details class="wiki-record" data-wiki-record>
-  <summary>${chip}<span>${summary === wikiRecordMissing ? '有已保存的明细' : esc(summary)}</span>${chips ? `<span class="wiki-record-counts">${chips}</span>` : ''}<span class="wiki-record-expand">展开明细</span><span class="wiki-record-collapse">收起明细</span></summary>
+  <summary>${chip}<span>${summary === v1t(wikiRecordMissing) ? v1t('有已保存的明细') : esc(summary)}</span>${chips ? `<span class="wiki-record-counts">${chips}</span>` : ''}<span class="wiki-record-expand">${v1t('展开明细')}</span><span class="wiki-record-collapse">${v1t('收起明细')}</span></summary>
   <div class="wiki-record-body">
-   <p>这里只说做了哪些检查，不代表研究结论是对的。</p>${record?.source ? `<p class="wiki-record-gap">${esc(record.source)}</p>` : ''}
-   <h3>这一段查了什么、留了什么</h3>
-   ${checks.length ? table(['事项', '结果', '原始记录'], checks.map(row => `<tr><th scope="row">${esc(row.name)}</th><td>${esc(row.result)}</td><td>${raw(row.raw)}</td></tr>`)) : record?.checksNote ? `<p class="wiki-record-gap">${esc(record.checksNote)}</p>` : missing}
-   <h3>被拦下的事</h3>
-   ${recordedBlocks ? table(['事项', '结果'], blocked.map(([key, label]) => {
+   <p>${v1t('这里只说做了哪些检查，不代表研究结论是对的。')}</p>${record?.source ? `<p class="wiki-record-gap">${esc(record.source)}</p>` : ''}
+   <h3>${v1t('这一段查了什么、留了什么')}</h3>
+   ${checks.length ? table([v1t('事项'), v1t('结果'), v1t('原始记录')], checks.map(row => `<tr><th scope="row">${esc(row.name)}</th><td>${esc(row.result)}</td><td>${raw(row.raw)}</td></tr>`)) : record?.checksNote ? `<p class="wiki-record-gap">${esc(record.checksNote)}</p>` : missing}
+   <h3>${v1t('被拦下的事')}</h3>
+   ${recordedBlocks ? table([v1t('事项'), v1t('结果')], blocked.map(([key, label]) => {
     const count = record.blocked[key];
     const why = record.blockedReasons?.[key];
-    return `<tr><th scope="row">${label}</th><td>${count === 0 ? '0 次 · 没有发生' : wikiRecordNumber(count) ? count + ' 次' + (why?.length ? ' · ' + wikiRecBlockedCell(why) : '') : '未提供'}</td></tr>`;
+    return `<tr><th scope="row">${label}</th><td>${count === 0 ? v1t('0 次 · 没有发生') : wikiRecordNumber(count) ? v1t('{n} 次', {n: count}) + (why?.length ? ' · ' + wikiRecBlockedCell(why) : '') : v1t('未提供')}</td></tr>`;
    })) : missing}${record?.blockedNote ? `<p class="wiki-record-gap">${esc(record.blockedNote)}</p>` : ''}
-   <h3>关掉重开</h3>
-   ${resume?.raw != null ? `<p>${esc(resume.result || '未提供')}${wikiRecordNumber(resume.newJobs) ? ' · 新增作业 ' + resume.newJobs + ' 个' : ''}</p>${raw(resume.raw)}` : record?.reopenNote ? `<p class="wiki-record-gap">${esc(record.reopenNote)}</p>` : missing}
-   <h3>运行过程</h3>
-   ${!timeline.length && record?.timelineNote ? `<p class="wiki-record-gap">${esc(record.timelineNote)}</p>` : timeline.length ? table(['步骤', '开始–结束', '模型调用', '花费', '发生了什么', '原始记录'], timeline.map(row => `<tr><th scope="row">${esc(row.step)}</th><td>${esc(row.time || '未提供')}</td><td>${wikiRecordNumber(row.modelCalls) ? row.modelCalls : '未提供'}</td><td>${esc(row.cost ?? '未提供')}</td><td>${esc(row.result || '未提供')}</td><td>${raw(row.raw)}</td></tr>`)) : missing}
+   <h3>${v1t('关掉重开')}</h3>
+   ${resume?.raw != null ? `<p>${esc(resume.result || v1t('未提供'))}${wikiRecordNumber(resume.newJobs) ? ' · ' + v1t('新增作业 {n} 个', {n: resume.newJobs}) : ''}</p>${raw(resume.raw)}` : record?.reopenNote ? `<p class="wiki-record-gap">${esc(record.reopenNote)}</p>` : missing}
+   <h3>${v1t('运行过程')}</h3>
+   ${!timeline.length && record?.timelineNote ? `<p class="wiki-record-gap">${esc(record.timelineNote)}</p>` : timeline.length ? table([v1t('步骤'), v1t('开始–结束'), v1t('模型调用'), v1t('花费'), v1t('发生了什么'), v1t('原始记录')], timeline.map(row => `<tr><th scope="row">${esc(row.step)}</th><td>${esc(row.time || v1t('未提供'))}</td><td>${wikiRecordNumber(row.modelCalls) ? row.modelCalls : v1t('未提供')}</td><td>${esc(row.cost ?? v1t('未提供'))}</td><td>${esc(row.result || v1t('未提供'))}</td><td>${raw(row.raw)}</td></tr>`)) : missing}
   </div>
  </details>`;
 }
@@ -128,19 +128,19 @@ const wikiRecBlockedUnknown = '被拦下，原因见技术细节';
 // "constructor" or "__proto__" is just an unknown code.
 function wikiRecBlockedCell(reasons) {
  const list = Array.isArray(reasons) ? reasons.map(String) : [];
- const plain = [...new Set(list.map(code => wikiRecBlockedReasons.has(code) ? wikiRecBlockedReasons.get(code) : wikiRecBlockedUnknown))];
- return esc(plain.join('；')) + (list.length ? `<details class="wiki-record-tech"><summary>技术细节</summary><code>${esc(list.join('；'))}</code></details>` : '');
+ const plain = [...new Set(list.map(code => wikiRecBlockedReasons.has(code) ? v1t(wikiRecBlockedReasons.get(code)) : v1t(wikiRecBlockedUnknown)))];
+ return esc(plain.join(v1t('；'))) + (list.length ? `<details class="wiki-record-tech"><summary>${v1t('技术细节')}</summary><code>${esc(list.join(v1t('；')))}</code></details>` : '');
 }
 function wikiRecReason(code) {
- return (typeof code === 'string' && Object.hasOwn(wikiRecReasons, code) && wikiRecReasons[code]) || (code ? '原因代码 ' + code : '没有给出原因');
+ return (typeof code === 'string' && Object.hasOwn(wikiRecReasons, code) && v1t(wikiRecReasons[code])) || (code ? v1t('原因代码 {code}', {code}) : v1t('没有给出原因'));
 }
 function wikiRecInferred(row) {
  return row?.inferred === true || row?.source?.inferred === true;
 }
 function wikiRecScalar(value) {
- if (value === null || value === undefined) return '没有保存';
- if (value === true) return '是';
- if (value === false) return '否';
+ if (value === null || value === undefined) return v1t('没有保存');
+ if (value === true) return v1t('是');
+ if (value === false) return v1t('否');
  if (typeof value === 'object') return JSON.stringify(value);
  return String(value);
 }
@@ -149,14 +149,14 @@ function wikiRecRowText(row) {
  const value = row.value;
  const inferredKeys = Array.isArray(row.inferred_keys) ? row.inferred_keys : [];
  let text;
- if (value === null || value === undefined) text = '还没有' + (row.missing ? '：' + row.missing : '');
+ if (value === null || value === undefined) text = row.missing ? v1t('还没有：{reason}', {reason: row.missing}) : v1t('还没有');
  else {
   text = value && typeof value === 'object' && !Array.isArray(value)
-   ? Object.entries(value).map(([key, item]) => (wikiRecLabels[key] || key) + ' ' + wikiRecScalar(item) + (inferredKeys.includes(key) ? '（推算）' : '')).join(' · ')
+   ? Object.entries(value).map(([key, item]) => (wikiRecLabels[key] ? v1t(wikiRecLabels[key]) : key) + ' ' + wikiRecScalar(item) + (inferredKeys.includes(key) ? v1t('（推算）') : '')).join(' · ')
    : wikiRecScalar(value);
-  if (row.missing) text += ' · 还没有：' + row.missing;
+  if (row.missing) text += ' · ' + v1t('还没有：{reason}', {reason: row.missing});
  }
- return (wikiRecInferred(row) ? '推算 · ' : '') + text;
+ return (wikiRecInferred(row) ? v1t('推算 · {text}', {text}) : text);
 }
 // Saved failed-action counts per class with the host's own reasons, as the record block expects them.
 function wikiRecBlockedPart(stage) {
@@ -167,7 +167,7 @@ function wikiRecBlockedPart(stage) {
   blocked[key] = cell.count;
   if (Array.isArray(cell.reasons) && cell.reasons.length) reasons[key] = cell.reasons.map(String);
  }
- return {blocked, blockedReasons:reasons, blockedNote:wikiRecBlockedNote};
+ return {blocked, blockedReasons:reasons, blockedNote:v1t(wikiRecBlockedNote)};
 }
 function wikiRecMap(stage) {
  const rows = Array.isArray(stage.rows) ? stage.rows : [];
@@ -176,13 +176,13 @@ function wikiRecMap(stage) {
  const summary = wikiRecordSummary({recordCount:shown, blockedCount:stage.blocked_total});
  const withData = stage.summary?.rows_with_data;
  const chips = [];
- if (wikiRecordNumber(withData)) chips.push([`${withData} / ${rows.length} 项有数据`, withData < rows.length]);
- if (stage.summary?.checkpoint_passed === false) chips.push(['检查点没有通过', true]);
- const note = part => part?.available === false ? '后台还没有提供这一块' : part ? '后台提供了这一块，页面还没有接入' : '后台还没有提供这一块';
+ if (wikiRecordNumber(withData)) chips.push([`${v1t('{withData} / {length} 项有数据', {withData, length: rows.length})}`, withData < rows.length]);
+ if (stage.summary?.checkpoint_passed === false) chips.push([v1t('检查点没有通过'), true]);
+ const note = part => part?.available === false ? v1t('后台还没有提供这一块') : part ? v1t('后台提供了这一块，页面还没有接入') : v1t('后台还没有提供这一块');
  return {
-  summary: summary === wikiRecordMissing ? undefined : summary + (stage.summary?.inferred === true ? '（推算）' : ''),
-  source: '数字来自后台保存的记录（只读），页面没有自己加总。',
-  chips, blocked, blockedReasons: reasons, blockedNote: wikiRecBlockedNote,
+  summary: summary === v1t(wikiRecordMissing) ? undefined : summary + (stage.summary?.inferred === true ? v1t('（推算）') : ''),
+  source: v1t('数字来自后台保存的记录（只读），页面没有自己加总。'),
+  chips, blocked, blockedReasons: reasons, blockedNote: v1t(wikiRecBlockedNote),
   checks: rows.filter(row => row?.label).map(row => ({name:row.label, result:wikiRecRowText(row), raw:row})),
   reopenNote: note(stage.reopen), timelineNote: note(stage.timeline)
  };
@@ -263,7 +263,7 @@ function wikiRecTag(html, ref, stage) {
  return html.replace('data-wiki-record', `data-wiki-record data-wiki-record-stage="${stage}" data-wiki-record-ref="${esc(ref)}" data-wiki-record-state="${wikiRecToken(ref, stage)}"`);
 }
 function wikiRecStrip(tone, label, text, extra) {
- return `<div class="wiki-record wiki-record-state ${tone}" data-wiki-record role="status"><strong class="wiki-record-chip">Harness 记录</strong>${label ? `<span class="wiki-record-tag ${tone}">${label}</span>` : ''}<span>${text}</span>${extra || ''}</div>`;
+ return `<div class="wiki-record wiki-record-state ${tone}" data-wiki-record role="status"><strong class="wiki-record-chip">${v1t('Harness 记录')}</strong>${label ? `<span class="wiki-record-tag ${tone}">${label}</span>` : ''}<span>${text}</span>${extra || ''}</div>`;
 }
 // Opening #project-…?stage=2 directly first paints the default Stage 1 page, then v93RestoreStageRoute switches to
 // Stage 2. The Stage 1 block's read used to go out in that gap, in front of the Stage 2 read on the host's one lock,
@@ -281,35 +281,35 @@ function wikiRecordBlock(stage) {
  const ref = typeof rt !== 'undefined' ? rt.ref : null;
  const own = stage === 1 && typeof v1S1Record === 'function' ? v1S1Record() : undefined;
  const saved = own?.summary ? own : undefined;
- const basis = why => saved ? {...saved, source: why + '下面的数字是页面按已保存的交付内容数出来的，不是后台的 Harness 记录汇总。'} : undefined;
- if (!wikiRecRef.test(ref || '')) return wikiHarnessRecord(basis('这份保存的记录没有后台的 Harness 记录汇总。'));
+ const basis = why => saved ? {...saved, source: why + v1t('下面的数字是页面按已保存的交付内容数出来的，不是后台的 Harness 记录汇总。')} : undefined;
+ if (!wikiRecRef.test(ref || '')) return wikiHarnessRecord(basis(v1t('这份保存的记录没有后台的 Harness 记录汇总。')));
  const entry = wikiRecStore.get(ref + '|' + stage);
  if (!entry || entry.state === 'loading') {
   if (!entry) setTimeout(() => wikiRecEnsure(ref, stage), wikiRecRouteElsewhere(stage) ? wikiRecRouteDelayMs : 0);
-  return wikiRecTag(wikiRecStrip('loading', '读取中', '正在读取这一段的 Harness 记录，第一次可能要十几秒。不需要你操作。'), ref, stage);
+  return wikiRecTag(wikiRecStrip('loading', v1t('读取中'), v1t('正在读取这一段的 Harness 记录，第一次可能要十几秒。不需要你操作。')), ref, stage);
  }
  let html;
  if (entry.state === 'timeout') {
-  html = wikiRecStrip('timeout', '读取超时', '等了 30 秒还没读到。这不代表没有记录，也不代表记录有问题。',
-   `<button type="button" class="wiki-home-button" data-wiki-record-retry ${wikiRecFlight ? 'disabled' : ''}>重新读取</button>${wikiRecFlight ? '<small>上一次读取还没结束</small>' : ''}`);
+  html = wikiRecStrip('timeout', v1t('读取超时'), v1t('等了 30 秒还没读到。这不代表没有记录，也不代表记录有问题。'),
+   `<button type="button" class="wiki-home-button" data-wiki-record-retry ${wikiRecFlight ? 'disabled' : ''}>${v1t('重新读取')}</button>${wikiRecFlight ? `<small>${v1t('上一次读取还没结束')}</small>` : ''}`);
  } else if (entry.state === 'failed') {
-  html = wikiRecStrip('failed', '读取失败', '这一段的记录这次没读到，已显示的结果不受影响。',
-   `<button type="button" class="wiki-home-button" data-wiki-record-retry ${wikiRecFlight ? 'disabled' : ''}>重新读取</button>${wikiRecFlight ? '<small>上一次读取还没结束</small>' : ''}<details><summary>看原始错误</summary><pre>${esc(entry.error || '')}</pre></details>`);
+  html = wikiRecStrip('failed', v1t('读取失败'), v1t('这一段的记录这次没读到，已显示的结果不受影响。'),
+   `<button type="button" class="wiki-home-button" data-wiki-record-retry ${wikiRecFlight ? 'disabled' : ''}>${v1t('重新读取')}</button>${wikiRecFlight ? `<small>${v1t('上一次读取还没结束')}</small>` : ''}<details><summary>${v1t('看原始错误')}</summary><pre>${esc(entry.error || '')}</pre></details>`);
  } else if (entry.state === 'unsupported') {
-  html = saved ? wikiHarnessRecord(basis('这个后台没有提供 Harness 记录汇总。'))
-   : wikiRecStrip('', '', '这一段的记录现在读不到：这个后台没有提供 Harness 记录汇总。');
+  html = saved ? wikiHarnessRecord(basis(v1t('这个后台没有提供 Harness 记录汇总。')))
+   : wikiRecStrip('', '', v1t('这一段的记录现在读不到：这个后台没有提供 Harness 记录汇总。'));
  } else if (entry.data.status === 'recorded') {
   html = wikiHarnessRecord(wikiRecMap(entry.data));
  } else if (entry.data.status === 'not-run') {
   // Run counts stay hidden for a stage that has not run, but a saved blocked count is never hidden (coordinator, 11-27).
   const n = entry.data.blocked_total, part = wikiRecordNumber(n) && n > 0 ? wikiRecBlockedPart(entry.data) : null;
-  const stopped = part && {...part, chips:[[`被拦下 ${n} 次`, true]], checksNote:'这一段还没有运行，没有运行类计数。', reopenNote:'后台还没有提供这一块', timelineNote:'后台还没有提供这一块'};
-  html = saved ? wikiHarnessRecord({...basis(`后台说这一段没有保存的运行记录（${wikiRecReason(entry.data.reason)}）。`), ...(stopped ? {...part, chips:[...(saved.chips || []), ...stopped.chips]} : {})})
-   : stopped ? wikiHarnessRecord({summary:`这一段还没有运行 · 被拦下 ${n} 次`, source:'这一段还没有运行；下面只有已保存的失败记录。', ...stopped})
+  const stopped = part && {...part, chips:[[`${v1t('被拦下 {n} 次', {n})}`, true]], checksNote:v1t('这一段还没有运行，没有运行类计数。'), reopenNote:v1t('后台还没有提供这一块'), timelineNote:v1t('后台还没有提供这一块')};
+  html = saved ? wikiHarnessRecord({...basis(`${v1t('后台说这一段没有保存的运行记录（{reason}）。', {reason: wikiRecReason(entry.data.reason)})}`), ...(stopped ? {...part, chips:[...(saved.chips || []), ...stopped.chips]} : {})})
+   : stopped ? wikiHarnessRecord({summary:`${v1t('这一段还没有运行 · 被拦下 {n} 次', {n})}`, source:v1t('这一段还没有运行；下面只有已保存的失败记录。'), ...stopped})
    : wikiHarnessRecord();
  } else {
-  html = saved ? wikiHarnessRecord(basis(`后台这一段的记录现在读不到（${wikiRecReason(entry.data.reason)}）。`))
-   : wikiRecStrip('', '', '这一段的记录现在读不到：' + esc(wikiRecReason(entry.data.reason)) + '。');
+  html = saved ? wikiHarnessRecord(basis(`${v1t('后台这一段的记录现在读不到（{reason}）。', {reason: wikiRecReason(entry.data.reason)})}`))
+   : wikiRecStrip('', '', v1t('这一段的记录现在读不到：{reason}。', {reason: esc(wikiRecReason(entry.data.reason))}));
  }
  return wikiRecTag(html, ref, stage);
 }
@@ -329,8 +329,8 @@ function wikiRecHome(ref) {
   if (data.data.summary?.inferred === true) inferred = true;
  }
  if (!stages.length) return null;
- if (ran) return {text: wikiRecordSummary({recordCount:records, blockedCount:blocked}) + (inferred ? '（推算）' : ''), stages};
- return {text: '还没有运行' + (blocked > 0 ? ' · 被拦下 ' + blocked + ' 次' : ''), stages};
+ if (ran) return {text: wikiRecordSummary({recordCount:records, blockedCount:blocked}) + (inferred ? v1t('（推算）') : ''), stages};
+ return {text: v1t('还没有运行') + (blocked > 0 ? ' · ' + v1t('被拦下 {n} 次', {n: blocked}) : ''), stages};
 }
 
 // ---------- Home: bounded, sequential reads (coordinator, 11-27) ----------
@@ -339,15 +339,15 @@ function wikiRecHome(ref) {
 const wikiRecHomeLimit = 8;
 const wikiRecHomeState = {queue:[], total:0, key:'', stopped:null};
 function wikiRecHomeActive() {
- return typeof apps !== 'undefined' && apps[0]?.lang === 'zh' && apps[0].page === 'home';
+ return typeof apps !== 'undefined' && v1Lang(apps[0]) && apps[0].page === 'home';
 }
 function wikiRecHomeWaiting(ref) {
  return wikiRecHomeState.queue.some(item => item.ref === ref);
 }
 function wikiRecHomeNote() {
  const state = wikiRecHomeState;
- if (state.stopped === 'timeout') return '后台记录读取超时，已停止读取后续课题；没读到的课题写「打开课题后可见」。';
- if (state.queue.length) return `正在逐个读取前 ${state.total} 个课题的后台记录（${state.total - state.queue.length} / ${state.total}），一次只读一个。`;
+ if (state.stopped === 'timeout') return v1t('后台记录读取超时，已停止读取后续课题；没读到的课题写「打开课题后可见」。');
+ if (state.queue.length) return `${v1t('正在逐个读取前 {total} 个课题的后台记录（{length} / {total}），一次只读一个。', {total: state.total, length: state.total - state.queue.length, total: state.total})}`;
  return '';
 }
 function wikiRecHomeRepaint() {

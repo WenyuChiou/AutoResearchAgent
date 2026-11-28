@@ -19,7 +19,7 @@ const context = vm.createContext({
  clearTimeout: id => { if (timers[id - 1]) timers[id - 1].fn = null; },
  v1S1Record: () => ({summary:'按已保存交付统计：记录了 30 篇文献。', source:'旧说明', chips:[], checks:[{name:'筛选决定', result:'纳入 1', raw:{a:1}}]})
 });
-vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8'), context);
+vm.runInContext((fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8')), context);
 const {wikiRecordBlock, wikiRecHome} = context;
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const runTimer = ms => { for (const timer of timers) if (timer.fn && timer.ms === ms) { const fn = timer.fn; timer.fn = null; fn(); } };

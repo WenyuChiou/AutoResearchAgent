@@ -2,7 +2,7 @@
 // The real layout is checked in a browser by check_wiki_v1_narrow_browser.cjs.
 const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const test = require('node:test');
-const source = fs.readFileSync(path.join(__dirname, 'wiki-v1.js'), 'utf8');
+const source = (fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-v1.js'), 'utf8'));
 const css = fs.readFileSync(path.join(__dirname, 'wiki-v1.css'), 'utf8');
 const start = source.indexOf('function v1MenuSet('), end = source.indexOf("document.addEventListener('toggle'", start);
 assert(start > 0 && end > start, 'the narrow menu block must exist');

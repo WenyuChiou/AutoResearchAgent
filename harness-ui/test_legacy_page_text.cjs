@@ -23,5 +23,5 @@ for (const name of ['renderer/src/runtime.js', 'renderer/src/base.js']) {
  assert.ok(!text.includes('</strong><small>'), name + ' glues a title and its note together');
 }
 assert.ok(!runtime.includes('</span><span><strong>${rx(phaseLabel'), 'step number and step name are separated');
-assert.match(fs.readFileSync(path.join(__dirname, 'wiki-v1-global.js'), 'utf8'), /繁體中文（旧版界面，功能不全）/);
+assert.doesNotMatch(fs.readFileSync(path.join(__dirname, 'wiki-v1-global.js'), 'utf8'), /旧版界面，功能不全/, 'the language list no longer marks a language as the old interface');
 console.log('PASS old page text.');

@@ -12,7 +12,7 @@ const app = {lang:'zh', page:'files', stage:1, el:{contains:() => true}};
 const esc = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const context = vm.createContext({
  rt, apps:[app], esc, setTimeout:() => {}, Date, JSON, Number, String, Object, Array, Promise, Math,
- v1On:a => a.lang === 'zh', v1OriginNames:{local:'本地项目', archive:'历史归档', synthetic:'合成样例', unknown:'来历未标注'},
+ v1On:a => ['zh', 'en', 'tw'].includes(a.lang), v1OriginNames:{local:'本地项目', archive:'历史归档', synthetic:'合成样例', unknown:'来历未标注'},
  v1CurrentRow:() => rt.ref ? {origin:'local'} : null, v1ProjectTitle:() => rt.overview?.project?.brief?.original_description || '',
  wikiHomeArchiveBound:ref => /^view:/.test(ref || '') && rt.savedRun?.entry?.project_ref === ref,
  otherPage:() => '<section class="old">old</section>', livePaint:() => {}, liveRequest:() => { throw Error('no request in markup'); },
@@ -20,7 +20,7 @@ const context = vm.createContext({
  window:{RESEARCH_PROJECTS:{credential:'c'}}, location:{protocol:'http:'},
  document:{addEventListener:(type, fn) => (listeners[type] ||= []).push(fn)}
 });
-vm.runInContext(diag + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-v1-global.js'), 'utf8'), context);
+vm.runInContext(diag + '\n' + (fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-v1-global.js'), 'utf8')), context);
 const page = name => { app.page = name; return context.otherPage(app); };
 const text = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
@@ -149,35 +149,33 @@ assert.match(context.v1gEnvAlerts()[0].title, /这个页面不是从 Wiki 服务
 rt.error = ''; context.window.RESEARCH_PROJECTS = undefined;
 assert.equal(context.v1gEnvAlerts()[0].raw, 'no-service-bootstrap');
 
-// Acceptance S-1: English and Traditional Chinese keep the old interface and say so at the top, in their own language.
+// English and Traditional Chinese use the same V1 pages: no "old interface" note, and the three languages are equal choices.
 {
- const noteFor = lang => {
+ for (const lang of ['en', 'tw', 'zh']) {
   const inserted = [];
   const content = {querySelector:() => null, insertAdjacentHTML:(where, html) => inserted.push([where, html])};
-  const legacy = {lang, el:{dataset:{}, querySelector:selector => selector === '.hs-content' ? content : null}};
-  context.apps[0] = legacy;
-  context.render(legacy);
-  context.render(legacy);
+  const plain = {lang, el:{dataset:{}, querySelector:selector => selector === '.hs-content' ? content : null}};
+  context.apps[0] = plain;
+  context.render(plain);
   context.apps[0] = app;
-  return inserted;
- };
- const en = noteFor('en'), tw = noteFor('tw');
- assert.equal(en.length, 2, 'inserted when the content has no note yet (the stub never shows one)');
- assert.match(en[0][1], /still uses the old interface/);
- assert.match(en[0][1], /switch to Simplified Chinese/);
- assert.match(en[0][1], /data-v1g-lang-zh/);
- assert.match(tw[0][1], /這個語言目前仍是舊版介面，功能不全/);
- assert.match(tw[0][1], /新版介面請切換到簡體中文/);
- assert.match(tw[0][1], /data-v1g-lang-zh/);
- assert.equal(noteFor('zh').length, 0, 'Simplified Chinese on a legacy element gets no note');
- assert.equal(noteFor('constructor').length, 0, 'a language name is looked up as an own key only');
- // The button changes the language through the page's own select.
- const events = [], select = {value:'en', dispatchEvent:event => events.push([select.value, event.type, event.bubbles])};
- context.apps[0] = {el:{querySelector:selector => selector === 'select[data-language]' ? select : null}};
- context.Event = class { constructor(type, init) { this.type = type; this.bubbles = init?.bubbles; } };
- for (const fn of listeners.click) fn({target:{closest:selector => selector === '[data-v1g-lang-zh]' ? {} : null}});
- context.apps[0] = app;
- assert.deepEqual(events, [['zh', 'change', true]]);
+  assert.equal(inserted.length, 0, lang + ' on a non-V1 element gets no language note');
+ }
+ assert.ok(!/v1-lang-note|data-v1g-lang-zh|v1gLegacy/.test(fs.readFileSync(path.join(__dirname, 'wiki-v1-global.js'), 'utf8')), 'the legacy note is gone');
+ const before = app.lang;
+ for (const lang of ['zh', 'en', 'tw']) {
+  app.lang = lang;
+  const settings = page('settings');
+  assert.match(settings, new RegExp('<option value="' + lang + '" selected>'));
+  assert.match(settings, /<option value="zh" [^>]*>简体中文<\/option><option value="tw" [^>]*>繁體中文<\/option><option value="en" [^>]*>English<\/option>/);
+  assert.doesNotMatch(settings, /旧版界面|old interface|舊版介面/);
+ }
+ // The same page in English and Traditional Chinese carries no Simplified-only wording.
+ for (const [lang, word] of [['en', /Project files|Connection, permits and quota/], ['tw', /連線、許可與額度/]]) {
+  app.lang = lang;
+  assert.match(text(page('settings')), word);
+  assert.doesNotMatch(text(page('files')), lang === 'en' ? /[一-鿿]/ : /[这个课题还没后页点档项设为过时间导览载够发称线续]/, lang + ' files page has no Simplified text of its own');
+ }
+ app.lang = before;
 }
 console.log('PASS Wiki V1 global pages: environment bar, no topic, loading, refused, error, empty, files, history filters and raw rows, settings blocks, archives.');
 })().catch(error => { console.error(error); process.exit(1); });

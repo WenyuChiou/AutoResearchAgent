@@ -17,7 +17,7 @@ const context = vm.createContext({
  liveRequest: (...args) => new Promise((resolve, reject) => { calls.push(args[0]); pending.push({resolve, reject}); }),
  setTimeout: () => 0, clearTimeout: () => {}
 });
-vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8'), context);
+vm.runInContext((fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8')), context);
 const {wikiRecEnsure} = context;
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const answer = (ref, stage) => ({kind:'HarnessRecordSummary', project_ref:ref, read_only:true, stages:{[stage]:{status:'not-run', blocked:[], blocked_total:0}}});

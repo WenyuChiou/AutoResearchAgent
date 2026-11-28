@@ -17,7 +17,7 @@ const context = vm.createContext({
  clearTimeout: id => { if (timers[id - 1]) timers[id - 1].fn = null; },
  wikiHomeRow: project => ({origin:project.origin || 'local', stage:project.stage === undefined ? 1 : project.stage})
 });
-vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8'), context);
+vm.runInContext((fs.readFileSync(path.join(__dirname, 'wiki-v1-text.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'wiki-harness-record.js'), 'utf8')), context);
 const {wikiRecHomeStart, wikiRecHomeVisible, wikiRecHomeLeave, wikiRecHomeNote, wikiRecHomeWaiting, wikiRecHome} = context;
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const answer = (ref, extra = {}) => ({
