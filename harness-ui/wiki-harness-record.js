@@ -265,6 +265,18 @@ function wikiRecTag(html, ref, stage) {
 function wikiRecStrip(tone, label, text, extra) {
  return `<div class="wiki-record wiki-record-state ${tone}" data-wiki-record role="status"><strong class="wiki-record-chip">Harness 记录</strong>${label ? `<span class="wiki-record-tag ${tone}">${label}</span>` : ''}<span>${text}</span>${extra || ''}</div>`;
 }
+// Opening #project-…?stage=2 directly first paints the default Stage 1 page, then v93RestoreStageRoute switches to
+// Stage 2. The Stage 1 block's read used to go out in that gap, in front of the Stage 2 read on the host's one lock,
+// although nothing on the Stage 2 page uses it. While the address names another stage of this project the read waits
+// a moment; once the route is applied the Stage 1 block is gone and the read is dropped (wikiRecPump). If the route
+// never applies, the read still goes out after the delay, so the block is never stuck on 「读取中」.
+const wikiRecRouteDelayMs = 1500;
+function wikiRecRouteElsewhere(stage) {
+ try {
+  const route = typeof v93RouteTarget === 'function' && typeof rt !== 'undefined' && Array.isArray(rt.list) ? v93RouteTarget(rt.list) : null;
+  return !!route && route.ref === rt.ref && route.stage !== stage;
+ } catch (error) { return false; }
+}
 function wikiRecordBlock(stage) {
  const ref = typeof rt !== 'undefined' ? rt.ref : null;
  const own = stage === 1 && typeof v1S1Record === 'function' ? v1S1Record() : undefined;
@@ -273,7 +285,7 @@ function wikiRecordBlock(stage) {
  if (!wikiRecRef.test(ref || '')) return wikiHarnessRecord(basis('这份保存的记录没有后台的 Harness 记录汇总。'));
  const entry = wikiRecStore.get(ref + '|' + stage);
  if (!entry || entry.state === 'loading') {
-  if (!entry) setTimeout(() => wikiRecEnsure(ref, stage), 0);
+  if (!entry) setTimeout(() => wikiRecEnsure(ref, stage), wikiRecRouteElsewhere(stage) ? wikiRecRouteDelayMs : 0);
   return wikiRecTag(wikiRecStrip('loading', '读取中', '正在读取这一段的 Harness 记录，第一次可能要十几秒。不需要你操作。'), ref, stage);
  }
  let html;
