@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import threading
 
 from stage1_ledger.journal import LedgerError, canonical, digest
@@ -226,8 +226,15 @@ def verify_identity(pin, *, probe=False, process_options=None):
     if prefix[1:3] != ["-I", "-B"]:
         raise LedgerError("runtime-requires-isolated-python-and-no-bytecode-writes")
     executable = str(absolute(prefix[0]))
-    # Pure local read/hash of the pinned inventory; no process or network.
-    with local_verification(len(files)):
+    # Pure local read/hash of the pinned inventory; no process or network. A
+    # read request that already hashed every root (request_scope) reuses them
+    # and only re-reads the executable, so that is not counted as a pass.
+    trees = getattr(_scope, "trees", None)
+    reused = trees is not None and all(
+        (str(root), bool(code_only)) in trees
+        for root, code_only in identity["roots"].items()
+    )
+    with nullcontext() if reused else local_verification(len(files)):
         actual = {executable: digest(Path(executable).read_bytes())}
         for root, code_only in identity["roots"].items():
             actual.update(tree_files(root, code_only=code_only))

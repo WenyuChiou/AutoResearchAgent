@@ -624,6 +624,52 @@ class SessionHttpTests(unittest.TestCase):
             (status, body), (503, {"error": "local-verification-budget-exceeded"})
         )
 
+    def test_write_requests_only_extend_the_deadline_never_fail_on_budget(self):
+        # Review 2026-11-28 P1-1/P1-2: a write may verify after saving its
+        # intent; a budget error there would leave execution-unknown. For
+        # non-GET requests the meter only moves the deadline: a 1.3 s pass
+        # over a 1 s allowance and past the 1 s request cap still answers.
+        meters = []
+
+        def answer(credential, ref, body):
+            meters.append(verification_clock.current())
+            with verification_clock.local_verification(1):
+                time.sleep(1.3)
+            return {"status": "saved"}
+
+        self.api.answer = Mock(side_effect=answer)
+        with (
+            patch.object(verification_clock, "BASE_SECONDS", 0.2),
+            patch.object(verification_clock, "PASS_SECONDS", 0.0),
+            patch.object(verification_clock, "PER_FILE_SECONDS", 0.0),
+            patch.object(verification_clock, "MAX_PASSES", 0),
+        ):
+            server = self.bounded_server(timeout=1)
+            connection = http.client.HTTPConnection(
+                "127.0.0.1", server.server_port, timeout=10
+            )
+            started = time.monotonic()
+            try:
+                connection.request(
+                    "POST",
+                    "/api/native/projects/project-a/answers",
+                    body=b"{}",
+                    headers={
+                        "Host": server.expected_host,
+                        "Origin": server.expected_origin,
+                        "Authorization": "Bearer " + self.token,
+                        "Content-Type": "application/json",
+                    },
+                )
+                response = connection.getresponse()
+                status, body = response.status, json.loads(response.read())
+            finally:
+                connection.close()
+        self.assertEqual((status, body), (200, {"status": "saved"}))
+        self.assertGreater(time.monotonic() - started, 1.2)
+        self.assertFalse(meters[0].enforce)
+        self.assertEqual(meters[0].snapshot()["passes"], 1)
+
     def test_verification_inside_the_old_cap_never_fails_on_budget(self):
         # Review P1-1: a request that used to finish inside the absolute cap
         # (here 0.7 s of verification under a 2 s cap) must not turn into a

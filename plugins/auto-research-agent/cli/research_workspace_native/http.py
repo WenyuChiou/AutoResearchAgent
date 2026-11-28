@@ -33,9 +33,15 @@ class RequestDeadline:
     any marked verification it equals the previous absolute deadline.
 
     One meter per connection; every reply closes the connection, so it is one
-    meter per request. The allowance base is at least ``timeout``: verification
-    that used to fit inside the old absolute cap can never fail here with the
-    budget reason. Code that opens its own nested meter inside a request (the
+    meter per request. The meter starts non-enforcing: it only measures and
+    caps how far the deadline may move, and never raises, so a write that
+    verifies after saving its intent cannot gain a new failure point (it would
+    leave execution-unknown). ``SessionHandler.parse_request`` turns enforcement
+    on for GET only: a read over its budget answers 503 with its own reason and
+    has written nothing. The allowance base is at least ``timeout``:
+    verification that used to fit inside the old absolute cap can never fail
+    here with the budget reason. The 600 s bound is a socket bound, not a work
+    bound: as before, the handler thread runs on after the socket is closed. Code that opens its own nested meter inside a request (the
     query/bootstrap workers do) measures against that meter instead, so its
     verification does not move this deadline -- the previous behaviour.
     """
@@ -49,6 +55,7 @@ class RequestDeadline:
         self.meter = verification_clock.Meter(
             base_seconds=max(verification_clock.BASE_SECONDS, timeout),
             max_passes=4 * verification_clock.MAX_PASSES,
+            enforce=False,
         )
         self.until = time.monotonic() + timeout
         self.hard = self.until + self.meter.max_seconds
@@ -205,6 +212,13 @@ class SessionHandler(BaseHTTPRequestHandler):
         # (they keep their previous, conservative timing).
         self.deadline, self.request_deadline = entry[0], entry[2]
         self._remaining()
+
+    def parse_request(self):
+        parsed = super().parse_request()
+        extendable = getattr(self, "request_deadline", None)
+        if parsed and extendable is not None and self.command == "GET":
+            extendable.meter.enforce = True  # Reads write nothing; see above.
+        return parsed
 
     def _remaining(self):
         now = time.monotonic()

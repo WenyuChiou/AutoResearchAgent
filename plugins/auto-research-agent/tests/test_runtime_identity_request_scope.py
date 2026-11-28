@@ -113,6 +113,34 @@ class RequestScopeTests(unittest.TestCase):
             self.assertEqual(real.call_count, 4)  # nothing kept between requests
         self.assertEqual(calls, [("GET", True), ("POST", False), ("GET", True)])
 
+    def test_a_reused_runtime_verification_is_not_counted_as_a_pass(self):
+        # Review 2026-11-28 P1-3: inside one read request the second
+        # verification of the same pin reuses every root and costs no hashing;
+        # it must not use up the request's pass bound.
+        from stage1_retrieval import verification_clock as clock
+
+        executable = str(Path(sys.executable).resolve())
+        pin = dict(
+            argv_prefix=[executable, "-I", "-B", str(self.root / "a.py")],
+            code_identity=dict(
+                argv_prefix=[executable, "-I", "-B", str(self.root / "a.py")],
+                absent_paths=[],
+                roots={str(self.root): False},
+                files={},
+            ),
+        )
+        pin["code_identity"]["files_sha256"] = ri.digest(ri.canonical({}))
+        meter = clock.Meter()
+        with clock.metering(meter), ri.request_scope():
+            for _ in range(3):
+                with self.assertRaises(LedgerError):  # files differ on purpose
+                    ri.verify_identity(pin)
+        self.assertEqual(meter.snapshot()["passes"], 1)
+        with clock.metering(meter):
+            with self.assertRaises(LedgerError):
+                ri.verify_identity(pin)  # outside a read scope: a real pass
+        self.assertEqual(meter.snapshot()["passes"], 2)
+
     def test_another_thread_does_not_see_this_threads_scope(self):
         seen = []
         with patch.object(ri, "_tree_files", wraps=ri._tree_files) as real:
