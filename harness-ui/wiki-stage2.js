@@ -67,6 +67,8 @@ function wikiS2NativeModel() {
 function wikiS2ArchiveModel() {
  if (!canonicalReadonly() || !rt.savedRun) return null;
  const checked = canonicalStage2Validate(rt.savedRun.payload, rt.savedRun.binding);
+ // An archive saved before Stage 2 has no Stage 2 result at all: that is not a failed check (acceptance M-11).
+ if (!checked.ok && checked.reason === 'stage2-saved-result-missing') return {origin:'archive', missing:true, routes:[]};
  if (!checked.ok) return {origin:'archive', blocked:checked.reason, routes:[]};
  const attachment = checked.payload.stage2, view = checked.payload.stage2_comparison;
  const routes = view.directions.map((row, index) => wikiS2Route({
@@ -355,6 +357,7 @@ function wikiS2InputTable() {
 }
 
 function wikiS2CompareTab(app, model, state) {
+ if (model?.missing) return '<section class="wiki-s2-empty" data-s2-missing><h2>这份归档没有 Stage 2 的结果</h2><p>归档保存时还没有到 Stage 2，所以这里没有候选。</p></section>';
  if (model?.blocked) return `<section class="wiki-s2-empty" data-s2-blocked role="alert"><h2>保存的结果没有通过核对</h2><p>保存的结果没有通过核对，没有显示，也不会用示例内容补上。</p><button type="button" class="hs-button" data-wiki-stage2-action="read">重新读取</button><details class="wiki-s2-tech"><summary>技术细节</summary><code>${esc(model.blocked)}</code></details></section>`;
  if (!model || !model.routes.length) return wikiS2InputTable();
  return `${wikiS2Opinions(model)}${wikiS2CompareTable(app, model, state)}${wikiS2Reviews(model)}${wikiS2Decision(app, model, state)}`;
@@ -519,6 +522,7 @@ stage2 = function (app) {
 
 function wikiS2StatusText(app) {
  const model = wikiS2Model();
+ if (model?.missing) return {now:'这份归档没有保存 Stage 2 的结果', next:'没有可看的候选', human:'不需要你操作'};
  if (model?.blocked) return {now:'保存的结果没有通过核对，没有显示', next:'点「重新读取」再读一次', human:'不需要你操作'};
  if (model?.receipt) return {now:'你已选定方向', next:'进入 Stage 3 请求生成研究计划', human:'不需要你操作'};
  if (model?.routes.length && model.origin === 'archive') return {now:`${model.routes.length} 个候选已保存（${model.synthetic ? '合成样例' : '历史归档'}）`, next:'只读查看比较', human:'不需要你操作'};
