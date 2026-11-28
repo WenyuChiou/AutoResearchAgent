@@ -59,6 +59,9 @@ for (const key of keys) {
 // declared - reserved; project_stage1_run_grant.py max_seconds <= budgets.seconds), never "per call".
 for (const key of keys) assert.ok(!key.includes('每次最多'), 'no quota text says 每次最多: ' + key);
 for (const file of TRANSLATED) assert.ok(!read(file).includes('每次最多'), file + ' has no 每次最多');
+// The Stage 1 quota bar number is models.calls_reserved (wsBudget), so it says reserved, like the settings page.
+assert.ok(!Object.hasOwn(table, '已用 {n} /') && /Reserved/.test(table['已预留 {n} /']?.en) && /已預留/.test(table['已预留 {n} /']?.tw), 'the quota bar says reserved, not used');
+assert.ok(read('wiki-stage1-ops.js').includes("v1t('已预留 {n} /'"), 'wiki-stage1-ops.js shows the reserved count');
 {
  const quotaLine = '模型调用 {usedPart}上限 {n} · 检索 上限 {n2} · 总共最多 {n3} 秒';
  assert.ok(Object.hasOwn(table, quotaLine) && /in total/.test(table[quotaLine].en) && /總共/.test(table[quotaLine].tw), 'the quota line says the seconds are a total in en and tw');

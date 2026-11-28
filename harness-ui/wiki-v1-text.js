@@ -756,7 +756,7 @@ const v1Text = {
  "还没有这一段的运行许可，服务没有给出这一步的上限和有效期": {en:"There is no run permit for this stage yet, and the service has not given the limits or validity period for this step", tw:"還沒有這一段的執行許可，服務沒有給出這一步的上限和有效期"},
  "每一步的上限写在那一步的授权卡里": {en:"The limits for each step are written on that step’s authorization card", tw:"每一步的上限寫在那一步的授權卡裡"},
  "还没有这一段的运行许可": {en:"There is no run permit for this stage yet", tw:"還沒有這一段的執行許可"},
- "已用 {n} /": {en:"Used {n} /", tw:"已用 {n} /"},
+ "已预留 {n} /": {en:"Reserved {n} /", tw:"已預留 {n} /"},
  "模型调用 {usedPart}上限 {n} · 检索 上限 {n2} · 总共最多 {n3} 秒": {en:"Model calls {usedPart}limit {n} · search limit {n2} · at most {n3} seconds in total", tw:"模型呼叫 {usedPart}上限 {n} · 檢索 上限 {n2} · 總共最多 {n3} 秒"},
  "有效期以服务读到的运行许可为准，页面没有读到到期时间": {en:"The validity period follows the run permit as read by the service; the page did not read an expiry time", tw:"有效期以服務讀到的執行許可為準，頁面沒有讀到到期時間"},
  "地域范围": {en:"Geographic scope", tw:"地域範圍"},
