@@ -151,6 +151,20 @@ assert.equal(ctx.wsPhaseRows()[2].reason, '查询执行还没接通');
 assert.doesNotMatch(ctx.wsPhaseRows()[2].reason, /运行许可/);
 rt.overview.stage1.progress.phases[2] = {phase_id:'query', status:'required', reason:'query-permission-required'};
 assert.equal(ctx.wsPhaseRows()[2].reason, '没有这一段的运行许可', 'with a query service, the permission reason still applies');
+// Follow-up 3 / 2: ledger present, no query count, no query service: the host says 「unknown」, the buttons say 「还没接通」.
+rt.overview.stage1.progress.phases[2] = {phase_id:'query', status:'unknown', reason:'query-permission-required'};
+assert.equal(rt.overview.stage1.query_execution, undefined);
+{
+ const row = ctx.wsPhaseRows()[2];
+ assert.equal(row.reason, '查询执行还没接通');
+ assert.equal(row.kind, 'idle', 'not connected is not 被拦下');
+ assert.equal(row.label, '还没接通');
+ assert.equal(row.raw.status, 'unknown', 'the host own word stays in the raw record');
+}
+rt.overview.stage1.query_execution = {authorization_offer:null};
+assert.equal(ctx.wsPhaseRows()[2].kind, 'block', 'with a query service an unknown count is still unknown');
+assert.equal(ctx.wsPhaseRows()[2].reason, '没有这一段的运行许可');
+delete rt.overview.stage1.query_execution;
 // Scope not confirmed: the plan row is not asking for you yet.
 rt = makeRt(false, {wsProg:{state:'absent'}}); ctx = load(rt);
 assert.equal(ctx.wsPhaseRows()[0].label, '等你');
