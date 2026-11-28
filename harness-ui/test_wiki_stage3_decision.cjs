@@ -98,7 +98,7 @@ test('the reason is counted in UTF-8 bytes; over 4096 bytes keeps the text and g
 });
 
 test('confirm then save sends the binding, a new key, the choice, the text and confirmed; the follow-up is shown', async () => {
- for (const [decision, follow] of [['accept', /你接受了这版计划/], ['revise-then-review', /已保存你的意图。接下来可以用上面的「评语与修订」改计划。现在还不能针对修改后的计划再生成一次：后台生成计划时只读选方向时的材料，不读你修改过的版本。这个功能需要后台新增。/], ['return-to-stage2', /Stage 2 的选择一经保存不能更改；要换方向，目前需要新建课题。/]]) {
+ for (const [decision, follow] of [['accept', /你接受了这版计划/], ['revise-then-review', /已保存你的意图。接下来可以用上面的「评语与修订」改计划；改完后可以在下面「按修改稿重新生成计划」。/], ['return-to-stage2', /Stage 2 的选择一经保存不能更改；要换方向，目前需要新建课题。/]]) {
   const t = load();
   t.pick(decision);
   t.state().text = '因为';
@@ -121,7 +121,7 @@ test('confirm then save sends the binding, a new key, the choice, the text and c
   if (decision === 'revise-then-review') {
    assert.match(t.html(), /data-s3-dec="feedback">去「评语与修订」/);
    assert.doesNotMatch(t.text(), /再点「请求生成计划」/, 'review P1-2: never sends the user to the grayed button');
-   assert.ok(t.html().includes('disabled>请求生成计划</button><small class="wiki-s2-reason">现在还不能针对修改后的计划再生成一次：后台生成计划时只读选方向时的材料，不读你修改过的版本。这个功能需要后台新增。</small>'));
+   assert.doesNotMatch(t.text(), /需要后台新增|只读选方向时的材料/, 'the old disabled stub is gone; the replan entry is its own module (test_wiki_stage3_replan.cjs)');
   }
  }
 });

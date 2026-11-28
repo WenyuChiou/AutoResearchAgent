@@ -94,3 +94,12 @@
 .ws3-dec-reason textarea { width:100%; box-sizing:border-box; }
 .ws3-dec-confirm { border:1px solid #2f7a70; border-radius:6px; background:#fffefa; padding:12px 16px; margin:8px 0; }
 .ws3-dec-saved { margin:8px 0; }
+.ws3-replan { border-top:1px solid #e3ebe8; margin:12px 0 0; padding-top:8px; }
+.ws3-replan h3 { margin:0 0 6px; font-size:16px; }
+.ws3-rp-edits { margin:8px 0; }
+.ws3-rp-edits ol { padding-left:20px; margin:8px 0; }
+.ws3-rp-edits li { margin:0 0 12px; }
+.ws3-rp-val { margin:4px 0 0; }
+.ws3-rp-val span { font-size:12px; color:#566772; }
+.ws3-rp-val pre { white-space:pre-wrap; overflow-wrap:anywhere; margin:2px 0 0; padding:6px 8px; background:#f6f9f8; border:1px solid #e3ebe8; border-radius:4px; max-height:240px; overflow:auto; font:inherit; }
+.ws3-rp-comments { margin:4px 0 8px; padding-left:20px; }

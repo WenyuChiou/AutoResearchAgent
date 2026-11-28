@@ -22,6 +22,7 @@ const wikiS3DecCodes = {
  'stage3-decision-key-payload-differs':'同一个操作编号的内容不同，没有保存；再点一次保存会用新的编号。',
  'stage3-decision-plan-not-ready':'计划还有未填完的内容，或设计评审认为还缺信息，不能接受；你可以选「按建议修改后再评审」。',
  'stage3-decision-planning-status-missing':'保存的计划缺少规划状态，不能接受；你可以选「按建议修改后再评审」。',
+ 'stage3-decision-newer-plan-unreadable':'有一份更新的计划还读不出来，不能接受这一版；请等维护者恢复那份计划后再决定。',
  'stage3-decision-revision-ambiguous':'这份计划有两份并列的修订稿，请先在其中一份基础上继续修订，再做决定。',
  'stage3-planning-project-busy':'这个课题的另一次 Stage 3 保存正在进行，没有保存；稍后再试。',
  'stage3-planning-input-rejected':'同时有另一次保存，这次没有保存；请重新读取后再试。',
@@ -33,7 +34,7 @@ const wikiS3DecCodes = {
 };
 const wikiS3DecFollow = {
  'accept':'已保存：你接受了这版计划（本机页面记录，未经原生核验）。接受也不会启动实验。',
- 'revise-then-review':'已保存你的意图。接下来可以用上面的「评语与修订」改计划。现在还不能针对修改后的计划再生成一次：后台生成计划时只读选方向时的材料，不读你修改过的版本。这个功能需要后台新增。保存这个决定本身不会修改计划，也不会启动新评审。',
+ 'revise-then-review':'已保存你的意图。接下来可以用上面的「评语与修订」改计划；改完后可以在下面「按修改稿重新生成计划」。保存这个决定本身不会修改计划，也不会启动新评审。',
  'return-to-stage2':'已保存你的意图。Stage 2 的选择一经保存不能更改；要换方向，目前需要新建课题。'
 };
 const wikiS3DecHonest = '本机页面记录，未核验身份，不授权执行';
@@ -122,7 +123,8 @@ function wikiS3DecModel(app) {
  // hold, the parent plan says nothing about it, so the backend decides.
  const revisionReceipt = hd.binding.plan_revision_receipt_sha256;
  const shown = local && !local.ambiguous && local.receipt_sha256 === revisionReceipt ? local : null;
- out.acceptWhy = revisionReceipt && !shown ? '' : wikiS3DecAcceptWhy(view, shown);
+ // A newer replanned plan that cannot be read: the shown plan is already replaced, never accept it (the backend refuses too).
+ out.acceptWhy = hd.newer_plan_unreadable === true ? wikiS3DecCodes['stage3-decision-newer-plan-unreadable'] : revisionReceipt && !shown ? '' : wikiS3DecAcceptWhy(view, shown);
  return out;
 }
 
@@ -178,8 +180,7 @@ function wikiS3DecMarkup(app) {
  if (latest) {
   const d = latest.record?.decision;
   const fresh = state.saved && state.saved === latest.receipt_sha256;
-  const goto = d === 'revise-then-review' ? `<div class="wiki-s2-actions"><span><button type="button" class="hs-button" data-s3-dec="feedback">去「评语与修订」</button></span>
-   <span><button type="button" class="hs-button" disabled>请求生成计划</button><small class="wiki-s2-reason">现在还不能针对修改后的计划再生成一次：后台生成计划时只读选方向时的材料，不读你修改过的版本。这个功能需要后台新增。</small></span></div>` : '';
+  const goto = d === 'revise-then-review' ? `<div class="wiki-s2-actions"><span><button type="button" class="hs-button" data-s3-dec="feedback">去「评语与修订」</button></span></div>${typeof wikiS3RpMarkup === 'function' ? wikiS3RpMarkup(m.view) : ''}` : '';
   saved = `<div class="ws3-dec-saved" data-s3-dec-saved role="status">${line('done', fresh ? '已保存' : '已有决定', wikiS3DecFollow[d] || '已保存。')}${goto}</div>`;
  }
  // Two tied revisions: the backend cannot tell which one a decision is for; that is not "no decision".
@@ -206,7 +207,7 @@ function wikiS3DecMarkup(app) {
  const read = m.stale ? `<div class="wiki-s2-actions"><button type="button" class="hs-button" data-v93-read ${v93.busy ? 'disabled' : ''}>重新读取这一版</button></div>` : '';
  return `<section class="ws3-decide" data-s3-decision><span class="ws3-label">你的决定</span><h2>这份计划怎么处理？</h2>
  <p class="ws3-note">接受也不会启动实验。系统的评审不是你的选择。决定只记在这台电脑的页面记录里：${wikiS3DecHonest}。</p>
- ${result}${saved}${records}${history}${again}
+ ${typeof wikiS3RpNotices === 'function' ? wikiS3RpNotices(m.view) : ''}${result}${saved}${records}${history}${again}
  <fieldset class="ws3-dec-form"><legend class="wiki-home-visually-hidden">三个选项，没有预选</legend>${choices}</fieldset>
  <label class="ws3-dec-reason">理由（可选）<textarea data-s3-dec-text rows="3" ${off ? 'disabled' : ''}>${wikiS3Escape(state.text)}</textarea>${count}</label>
  ${confirm || `<span><button type="button" class="hs-button hs-button-primary" data-s3-dec="confirm" ${gate ? 'disabled' : ''}>${pick ? `确认：${wikiS3DecLabels[pick]}…` : '请先选一个'}</button>${gate && gate !== '请先选一个' ? `<small class="wiki-s2-reason" data-s3-dec-why>${wikiS3Escape(gate)}</small>` : ''}</span>`}
