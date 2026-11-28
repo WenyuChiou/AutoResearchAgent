@@ -90,6 +90,27 @@ def _changes(parent, revised):
     return changes
 
 
+def _frozen_view(frozen):
+    """What the job froze for the page: the server-computed edit list, no bodies.
+
+    ``changes`` is the very list that went into the job payload, so into
+    ``request_sha256`` (the run binding), the prompt and the self-verifying
+    planning request. The page shows this list and never recomputes it.
+    """
+    return {
+        "plan_revision_receipt_sha256": frozen["plan_revision_receipt_sha256"],
+        "decision_receipt_sha256": frozen["decision_receipt_sha256"],
+        "parent_request_sha256": frozen["parent_request_sha256"],
+        "parent_plan_manifest_sha256": frozen["parent_plan_manifest_sha256"],
+        "changes": deepcopy(frozen["changes"]),
+        "comments": deepcopy(frozen["comments"]),
+        "revision_input_sha256": frozen["sha256"],
+    }
+
+
+MAX_ATTEMPTS = 16
+
+
 def _saved(item):
     return (
         item["status"] == "completed"
@@ -158,7 +179,7 @@ def newest(transport, credential, ref, jobs, result, check_deadline=None):
         body.pop("request_sha256", None)
         frozen = kid["payload"]["revision_input"]
         try:
-            body, child, plan, _ = transport._saved_job(
+            body, child, plan, pinned = transport._saved_job(
                 credential, ref, jobs, body, kid, check_deadline
             )
         except (SessionApiError, Stage3Error, OSError) as error:
@@ -176,6 +197,13 @@ def newest(transport, credential, ref, jobs, result, check_deadline=None):
                         "plan_revision_receipt_sha256"
                     ],
                     "from_decision_receipt_sha256": frozen["decision_receipt_sha256"],
+                    "revision_input": _frozen_view(frozen),
+                    "recovery_pin_available": (
+                        ref,
+                        kid["payload"]["key"],
+                        digest(kid["payload"]),
+                    )
+                    in transport.recovery_pins,
                 }
             ]
             break
@@ -190,10 +218,12 @@ def newest(transport, credential, ref, jobs, result, check_deadline=None):
                         "plan_revision_receipt_sha256"
                     ],
                     "from_decision_receipt_sha256": frozen["decision_receipt_sha256"],
+                    "revision_input": _frozen_view(frozen),
                 },
             }
         )
         result["job"], result["plan"] = child, plan
+        result["recovery_pin_available"] = pinned  # describes the displayed job
     if previous:
         result["previous_plans"] = previous
         for entry in previous:  # oldest bodies give way first; say so
@@ -353,6 +383,7 @@ class ProjectStage3Replan:
                 result = service._create(
                     configured, source, body["key"], revision_input=revision_input
                 )
+                frozen = revision_input
             else:
                 configured, _, _ = service._job(current, body["key"])
                 result = configured["jobs"].inspect(
@@ -360,7 +391,12 @@ class ProjectStage3Replan:
                     expected_request_sha256=digest(item["payload"]),
                     current_checkpoint=item["payload"]["checkpoint"],
                 )
-            return service._public(ref, result)
+                frozen = item["payload"]["revision_input"]
+            return self._with_frozen(service._public(ref, result), frozen)
+
+    @staticmethod
+    def _with_frozen(public, frozen):
+        return dict(public, revision_input=_frozen_view(frozen))
 
     def _prepared(self, credential, ref, body, check_deadline):
         with self.service.intake._lock:
@@ -370,9 +406,12 @@ class ProjectStage3Replan:
 
     def inspect(self, credential, ref, body, *, check_deadline=None):
         self._shape(body, {"request_sha256"})
-        self._prepared(credential, ref, body, check_deadline)
-        return self.service.inspect(
-            credential, ref, _source(body), check_deadline=check_deadline
+        item = self._prepared(credential, ref, body, check_deadline)
+        return self._with_frozen(
+            self.service.inspect(
+                credential, ref, _source(body), check_deadline=check_deadline
+            ),
+            item["payload"]["revision_input"],
         )
 
     def check_current(self, credential, ref, payload, check_deadline=None):
@@ -415,15 +454,18 @@ class ProjectStage3Replan:
     def run(self, credential, ref, body, *, check_deadline=None):
         self._shape(body, {"request_sha256", "confirmed"})
         _check(body["confirmed"] is True, "explicit-stage3-planning-required", 400)
-        self._prepared(credential, ref, body, check_deadline)
-        return self.service.run(
-            credential,
-            ref,
-            _source(body, {"confirmed"}),
-            check_deadline=check_deadline,
-            before_dispatch=lambda payload: self.check_current(
-                credential, ref, payload, check_deadline
+        item = self._prepared(credential, ref, body, check_deadline)
+        return self._with_frozen(
+            self.service.run(
+                credential,
+                ref,
+                _source(body, {"confirmed"}),
+                check_deadline=check_deadline,
+                before_dispatch=lambda payload: self.check_current(
+                    credential, ref, payload, check_deadline
+                ),
             ),
+            item["payload"]["revision_input"],
         )
 
     def recover(
@@ -436,14 +478,88 @@ class ProjectStage3Replan:
         check_deadline=None,
     ):
         self._shape(body, {"request_sha256"})
-        self._prepared(credential, ref, body, check_deadline)
-        return self.service.recover(
-            credential,
-            ref,
-            _source(body),
-            expected_plan_manifest_sha256=expected_plan_manifest_sha256,
-            check_deadline=check_deadline,
+        item = self._prepared(credential, ref, body, check_deadline)
+        return self._with_frozen(
+            self.service.recover(
+                credential,
+                ref,
+                _source(body),
+                expected_plan_manifest_sha256=expected_plan_manifest_sha256,
+                check_deadline=check_deadline,
+            ),
+            item["payload"]["revision_input"],
         )
+
+    def _pinned(self, ref, item, key):
+        return (ref, key, digest(item["payload"])) in self.transport.recovery_pins
+
+    def _attempts(self, ref, view, jobs, check_deadline, credential):
+        """Every replan job prepared from a plan on the displayed chain that has
+        no saved plan: not yet run, refused before the call, failed, or with an
+        unknown result. They stay readable after a newer decision changes the
+        key, so a call that may have spent quota never vanishes from the page.
+
+        Read-only: an uncertain job is never resent; only a trusted recovery pin
+        (``recovery_pin_available``) can attach its saved result.
+        """
+        chain = [entry["job"] for entry in view.get("previous_plans", ())]
+        if view.get("job") is not None:
+            chain.append(view["job"])
+        parents = {
+            (job["request_sha256"], job["plan_manifest_sha256"]) for job in chain
+        }
+        rows = []
+        for item in jobs.journal.snapshot(jobs.project_id)["intents"].values():
+            frozen = (
+                item["payload"].get("revision_input")
+                if item["method"] == jobs.method
+                else None
+            )
+            if (
+                frozen is None
+                or _saved(item)
+                or (
+                    frozen["parent_request_sha256"],
+                    frozen["parent_plan_manifest_sha256"],
+                )
+                not in parents
+            ):
+                continue
+            rows.append(item)
+        omitted = max(0, len(rows) - MAX_ATTEMPTS)
+        entries = []
+        for item in rows[-MAX_ATTEMPTS:]:
+            payload = item["payload"]
+            key = payload["key"]
+            body = dict(
+                _source(view["default_request"]),
+                key=key,
+                request_sha256=digest(payload),
+            )
+            try:
+                job = self._with_frozen(
+                    self.service.inspect(
+                        credential, ref, _source(body), check_deadline=check_deadline
+                    ),
+                    payload["revision_input"],
+                )
+            except (SessionApiError, Stage3Error) as error:
+                job = {"error": getattr(error, "code", "stage3-replan-job-unreadable")}
+            entries.append(
+                {
+                    "key": key,
+                    "request_sha256": digest(payload),
+                    "status": item["status"],
+                    "outcome": (item["evidence"] or {}).get("outcome"),
+                    "result_unknown": item["status"]
+                    in {"dispatching", "execution-unknown"},
+                    "read_only": True,
+                    "recovery_pin_available": self._pinned(ref, item, key),
+                    "revision_input": _frozen_view(payload["revision_input"]),
+                    "job": job,
+                }
+            )
+        return entries, omitted
 
     def describe(self, credential, ref, view, jobs, check_deadline=None):
         """The ``replan`` view field, or None when nothing about it has changed."""
@@ -453,7 +569,13 @@ class ProjectStage3Replan:
         except SessionApiError as error:
             return {"error": error.code}
         receipt = binding[REVISION]
-        if receipt is None and not ambiguous and "previous_plans" not in view:
+        attempts, omitted = self._attempts(ref, view, jobs, check_deadline, credential)
+        if (
+            receipt is None
+            and not ambiguous
+            and "previous_plans" not in view
+            and not attempts
+        ):
             return None
         latest = None if ambiguous else _latest(rows, binding)
         decisions = (
@@ -471,6 +593,8 @@ class ProjectStage3Replan:
             "from_decision_receipt_sha256": None
             if ambiguous or not decisions
             else decisions[-1],
+            "attempts": attempts,
+            "attempts_omitted": omitted,
         }
         if view.get("planning_mode") == "direction-intent":
             out["reason"] = "stage3-replan-direction-mode-unsupported"
@@ -500,8 +624,17 @@ class ProjectStage3Replan:
             if item is not None:
                 request["request_sha256"] = digest(item["payload"])
                 try:
-                    out["job"] = self.service.inspect(
-                        credential, ref, _source(request), check_deadline=check_deadline
+                    out["job"] = self._with_frozen(
+                        self.service.inspect(
+                            credential,
+                            ref,
+                            _source(request),
+                            check_deadline=check_deadline,
+                        ),
+                        item["payload"]["revision_input"],
+                    )
+                    out["job"]["recovery_pin_available"] = self._pinned(
+                        ref, item, request["key"]
                     )
                 except (SessionApiError, Stage3Error) as error:
                     out["job"] = {
