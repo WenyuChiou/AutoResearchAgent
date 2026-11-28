@@ -85,12 +85,13 @@ function wikiS1Metrics(index, state) {
  const included = state.sources.filter(row=>row.decision?.status==='include').length;
  const count = (amount,total) => index ? `<strong>${amount}</strong>${total !== undefined ? ' / '+total : ''}` : '<strong class="wiki-s1-none">还没有</strong>';
  const cells = [
-  [count(included,state.sources.length),'来源已纳入','分母是这份交付的文献数','工程记录'],
-  [count(located),'条证据定位','有保存出处位置的证据条目','工程记录'],
-  [count(evaluated,claims.length),'证据已核对','核对后才能当作研究依据','研究结果'],
-  [count(state.groups.length),'个需求分组','一篇文献可以属于多个分组','工程记录']
+  [count(included,state.sources.length),'来源已纳入','分母是这份交付的文献数','工程记录','来源已纳入'],
+  [count(located),'条证据定位','有保存出处位置的证据条目','工程记录','证据定位'],
+  [count(evaluated,claims.length),'证据已核对','核对后才能当作研究依据','研究结果','证据已核对'],
+  [count(state.groups.length),'个需求分组','一篇文献可以属于多个分组','工程记录','需求分组']
  ];
- return `<div class="wiki-s1-metrics">${cells.map(([value,title,note,tag])=>`<div><div>${value} <b>${title}</b></div><small>${note}</small><span class="${tag==='研究结果'?'wiki-s1-res':''}">${tag}</span></div>`).join('')}</div>`;
+ // Without a saved delivery there is no number: 「还没有 个需求分组」 read badly, so the label comes first and carries no unit.
+ return `<div class="wiki-s1-metrics">${cells.map(([value,title,note,tag,plain])=>`<div><div>${index ? `${value} <b>${title}</b>` : `<b>${plain}</b> ${value}`}</div><small>${note}</small><span class="${tag==='研究结果'?'wiki-s1-res':''}">${tag}</span></div>`).join('')}</div>`;
 }
 
 function wikiS1PaperMeta(row) {

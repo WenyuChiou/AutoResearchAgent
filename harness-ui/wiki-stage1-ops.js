@@ -333,7 +333,7 @@ function wsCoverageDetail() {
  const s = rt.overview.stage1, a = s.coverage_actions, lock = wsLock(), ro = wsReadonly();
  const blockers = (a?.blockers || []).map(x => typeof x === 'string' ? x : x.code);
  const round = a?.offers?.find(o => o.document?.round_number != null)?.document?.round_number;
- return `<p class="wiki-s1-muted">${esc(blockers.length ? '现在卡着：' + blockers.map(wsPlain).join('、') : '暂时没有阻塞记录')} · 目前第 ${esc(round ?? '未提供')} 轮 · <button type="button" class="ws-link" data-s1-tab="synthesis">看综合</button></p>${wsRaw(blockers)}
+ return `<p class="wiki-s1-muted">${esc(blockers.length ? '现在卡着：' + blockers.map(wsPlain).join('、') : '暂时没有阻塞记录')} · ${round == null ? '还没有读到当前是第几轮' : '目前第 ' + esc(round) + ' 轮'} · <button type="button" class="ws-link" data-s1-tab="synthesis">看综合</button></p>${wsRaw(blockers)}
  <div class="ws-actions">${wsBtn('检查当前覆盖与状态', 'data-v7-workflow="checkpoint"', ro ? '这是历史归档，不能在这里改' : lock || (s.ledger ? '' : '现在还不能做这一步：还没有检索记录'))}</div>
  ${ro ? '' : wsCoverageForm()}<p class="ws-note">数量不能代替研究覆盖验收</p>`;
 }

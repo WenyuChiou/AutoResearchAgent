@@ -346,6 +346,16 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  assert.match(mc.m9Panel(app), /这次没有读到已保存的材料/);
  mc.m9.catalog = saved; mc.m9.error = '';
 }
+// Acceptance M-7: no sentence is built from an empty value.
+{
+ const rt2 = makeRt(false), c2 = load(rt2);
+ rt2.overview.stage1.coverage_actions = {blockers:[], offers:[]};
+ const text = c2.wsCoverageDetail();
+ assert.doesNotMatch(text, /第 未提供 轮|未提供/);
+ assert.match(text, /还没有读到当前是第几轮/);
+ rt2.overview.stage1.coverage_actions = {blockers:[], offers:[{document:{round_number:3}}]};
+ assert.match(c2.wsCoverageDetail(), /目前第 3 轮/);
+}
 // Acceptance S-4: 「核验并登记候选包」 is grey, with a reason, wherever registering cannot work.
 {
  const block = fs.readFileSync(path.join(__dirname,'wiki-stage1-materials.js'),'utf8');
