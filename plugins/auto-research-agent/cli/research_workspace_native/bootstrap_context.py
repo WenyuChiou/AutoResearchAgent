@@ -9,11 +9,33 @@ from pathlib import Path
 import time
 
 from stage1_deliverable.common import canonical, sha
+from stage1_retrieval import verification_clock
 from .frame_journal import FrameJournal, _validated
 from .recording import RecordingChannel, records
 from .store import _require, _invalidate
 from .transport import JsonRpcTransport, _key, _encode
 from .runtime_spec import _thread_config
+
+
+def _now():
+    """Business monotonic time: metered local verification is not counted."""
+    return time.monotonic() - verification_clock.excluded()
+
+
+def _failure_type(error):
+    """Outer exception type, except a local verification budget overrun.
+
+    Transport and channel layers wrap whatever a binding check raised (for
+    example TransportError or DispatchUnknown). The overrun is a distinct,
+    non-timeout reason, so it is reported even when it is only the cause.
+    """
+    seen, current = set(), error
+    while current is not None and id(current) not in seen:
+        if isinstance(current, verification_clock.LocalVerificationBudgetExceeded):
+            return type(current).__name__
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return type(error).__name__
 
 
 def _rpc_id(value):
@@ -350,41 +372,43 @@ class BootstrapContext:
                 message=message, raw_utf8=(_encode(message) + b"\n").decode(), step=step
             )
         if rpc_id is None:
-            self.transport.notify(method, timeout=max(0, deadline - time.monotonic()))
+            self.transport.notify(method, timeout=max(0, deadline - _now()))
         else:
             self.transport.send_request(
                 method,
                 params,
                 request_id=rpc_id,
-                timeout=max(0, deadline - time.monotonic()),
+                timeout=max(0, deadline - _now()),
             )
         self._written(first)
         if rpc_id is not None:
             reply = self.transport.wait_response(
-                rpc_id, timeout=max(0, deadline - time.monotonic())
+                rpc_id, timeout=max(0, deadline - _now())
             )
-            _require(time.monotonic() < deadline, "bootstrap RPC deadline expired")
+            _require(
+                _now() < deadline,
+                "bootstrap RPC deadline expired",
+            )
             _require(
                 "error" not in reply and isinstance(reply.get("result"), dict),
                 "bootstrap RPC rejected",
             )
             return reply["result"]
-        _require(time.monotonic() < deadline, "bootstrap RPC deadline expired")
+        _require(_now() < deadline, "bootstrap RPC deadline expired")
 
     def _fail(self, error):
         self.failure = "bootstrap failed; no automatic resend"
+        failure_type = _failure_type(error)
         try:
             with self.store._edit(
                 self.project_id,
                 self.owner,
                 None,
                 "bootstrap-failed",
-                {"exception_type": type(error).__name__},
+                {"exception_type": failure_type},
             ) as state:
                 _invalidate(state)
-                state["bootstrap"].update(
-                    phase="failed", failure_type=type(error).__name__
-                )
+                state["bootstrap"].update(phase="failed", failure_type=failure_type)
         except BaseException:
             self.failure += "; failure persistence unobserved"
         finally:

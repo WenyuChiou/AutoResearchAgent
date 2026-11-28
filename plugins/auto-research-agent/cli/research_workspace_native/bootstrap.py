@@ -7,6 +7,7 @@ is provided. A trusted server records a version-bound thread/start intent first.
 import os
 
 from stage1_deliverable.common import canonical, sha
+from stage1_retrieval import verification_clock
 from .bootstrap_context import BootstrapContext, _rpc_id
 from .frame_journal import _validated
 from .store import _require
@@ -67,7 +68,13 @@ def _account(value):
 
 
 class BootstrapSession(BootstrapContext):
-    def open_thread(
+    def open_thread(self, client_info, **options):
+        # Step and total handshake deadlines bound RPC I/O; local integrity
+        # passes have their own budget (stage1_retrieval.verification_clock).
+        with verification_clock.metering(verification_clock.Meter()):
+            return self._open_thread(client_info, **options)
+
+    def _open_thread(
         self,
         client_info,
         *,

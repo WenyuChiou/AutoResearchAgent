@@ -18,6 +18,7 @@ import tomllib
 
 from stage1_brief.brief import validate_brief
 from stage1_deliverable.common import private_output
+from stage1_retrieval.verification_clock import local_verification
 from . import atlas_local_source as source
 from .runtime_spec import DENIED_THREAD_CONFIG, _thread_config
 from .stage_inputs import snapshot_inputs, source_digest
@@ -248,18 +249,22 @@ class OwnAccountProjectModelFactory:
             self.authenticate(self.credential) == "local-viewer",
             "local principal changed",
         )
-        source.pinned(self.user_path, self.user_sha256)
-        source.pinned(self.executable, self.executable_sha256, 512 * 1024 * 1024)
-        source.require(
-            source.inventory(self.plugin) == self.plugin_files,
-            "project model plugin inventory changed",
-        )
-        if not self.test_seam:
+        # Pure local pinned-byte, inventory and module-origin checks (no
+        # callback, process or network): excluded from business deadlines.
+        with local_verification(len(self.plugin_files) + 2):
+            source.pinned(self.user_path, self.user_sha256)
+            source.pinned(self.executable, self.executable_sha256, 512 * 1024 * 1024)
             source.require(
-                self.loader in sys.meta_path and self.loader.files == self.plugin_files,
-                "raw loader no longer installed",
+                source.inventory(self.plugin) == self.plugin_files,
+                "project model plugin inventory changed",
             )
-        self._owned_origins()
+            if not self.test_seam:
+                source.require(
+                    self.loader in sys.meta_path
+                    and self.loader.files == self.plugin_files,
+                    "raw loader no longer installed",
+                )
+            self._owned_origins()
 
     def __call__(self, *, context, admit, output_root):
         self._guard()
@@ -502,10 +507,11 @@ class OwnAccountProjectModelFactory:
 
         def verify():
             self._guard()
-            source.require(
-                source.inventory(input_root) == manifest["source_files"],
-                "frozen model input changed",
-            )
+            with local_verification(len(manifest["source_files"])):
+                source.require(
+                    source.inventory(input_root) == manifest["source_files"],
+                    "frozen model input changed",
+                )
 
         def guarded_admit(event):
             verify()

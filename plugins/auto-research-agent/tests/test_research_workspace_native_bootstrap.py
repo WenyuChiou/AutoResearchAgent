@@ -1,5 +1,6 @@
 """Synthetic channels and real SQLite; no native process, model or network."""
 
+from contextlib import nullcontext
 import json
 from pathlib import Path
 import sys
@@ -153,6 +154,55 @@ class BootstrapTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             boot.open_thread(dict(name="synthetic-client", version="1"))
         self.assertEqual(len(self.channel.sent), 0)
+
+    def _metered_open(self, seconds, **limits):
+        from stage1_retrieval import verification_clock
+
+        boot = self.bootstrap()
+        self.responses()
+        clock = [0.0]
+        controlled = SimpleNamespace(monotonic=lambda: clock[0], time_ns=time.time_ns)
+        checks = [0]
+
+        def verify():  # a pure local pass over 1,500 pinned files
+            with verification_clock.local_verification(1500):
+                checks[0] += 1
+                clock[0] += seconds
+            return True
+
+        boot.verify_binding = verify
+        with (
+            patch.object(transport, "time", controlled),
+            patch.object(bootstrap_context, "time", controlled),
+            patch.object(recording, "time", controlled),
+            patch.object(verification_clock, "time", controlled),
+            patch.multiple(verification_clock, **limits) if limits else nullcontext(),
+        ):
+            boot.open_thread(
+                dict(name="synthetic-client", version="1"),
+                timeout=0.3,
+                total_timeout=1.2,
+            )
+        return clock[0], checks[0]
+
+    def test_local_verification_does_not_spend_step_or_total_deadline(self):
+        elapsed, checks = self._metered_open(0.5)
+        self.assertGreater(checks, 4)
+        self.assertGreater(elapsed, 1.2)  # longer than the whole handshake budget
+        self.assertEqual(self.state()["bootstrap"]["phase"], "ready")
+        self.assertEqual(len(self.channel.sent), 4)
+
+    def test_verification_over_its_own_budget_fails_before_thread_start(self):
+        with self.assertRaises(ValueError):
+            self._metered_open(0.5, BASE_SECONDS=0, PASS_SECONDS=0, PER_FILE_SECONDS=0)
+        state = self.state()
+        self.assertEqual(state["bootstrap"]["phase"], "failed")
+        self.assertEqual(
+            state["bootstrap"]["failure_type"], "LocalVerificationBudgetExceeded"
+        )
+        self.assertNotIn(
+            "thread/start", [json.loads(raw).get("method") for raw in self.channel.sent]
+        )
 
     def test_legacy_total_deadline_still_stops_without_resend(self):
         boot = self.bootstrap()

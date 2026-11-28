@@ -11,6 +11,7 @@ import time
 from stage1_deliverable.common import canonical, sha
 from stage1_coverage.run import CoverageLedger
 from stage1_ledger.validation import validate_run
+from stage1_retrieval import verification_clock
 from stage1_retrieval.runner import execute as execute_backend, identifier_for
 from stage1_retrieval.receipt import command
 from research_workspace_native.planned_query_contract import (
@@ -722,6 +723,13 @@ class PlannedQueryService:
             return deepcopy(row)
 
     def _run(self, ref, p, key, deadline):
+        # The admission deadline bounds callbacks and I/O; metered local
+        # integrity passes in gate() have their own budget. Permit expiry
+        # (time.time() against expires) stays a hard raw-clock check.
+        with verification_clock.metering(verification_clock.Meter()):
+            self._run_metered(ref, p, key, deadline)
+
+    def _run_metered(self, ref, p, key, deadline):
         with self._lock:
             row = deepcopy(self.store.snapshot(p["pid"])["intents"][key])
             self._check_control()
@@ -757,7 +765,9 @@ class PlannedQueryService:
 
             def gate(event):
                 require(
-                    time.monotonic() < deadline, "query-admission-deadline-expired", 408
+                    time.monotonic() - verification_clock.excluded() < deadline,
+                    "query-admission-deadline-expired",
+                    408,
                 )
                 self._check_storage()
                 item, permit, _, pin = authority(event)
@@ -837,7 +847,9 @@ class PlannedQueryService:
                         "query-owner-lost",
                     )
                 require(
-                    time.monotonic() < deadline, "query-admission-deadline-expired", 408
+                    time.monotonic() - verification_clock.excluded() < deadline,
+                    "query-admission-deadline-expired",
+                    408,
                 )
                 require(
                     time.time() + pin["timeout_seconds"] < expires,
@@ -873,7 +885,9 @@ class PlannedQueryService:
                         "query-owner-lost",
                     )
                 require(
-                    time.monotonic() < deadline, "query-admission-deadline-expired", 408
+                    time.monotonic() - verification_clock.excluded() < deadline,
+                    "query-admission-deadline-expired",
+                    408,
                 )
                 require(
                     time.time() + pin["timeout_seconds"] < expires,

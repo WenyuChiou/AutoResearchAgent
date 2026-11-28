@@ -10,6 +10,7 @@ from contextlib import contextmanager
 import threading
 
 from stage1_ledger.journal import LedgerError, canonical, digest
+from stage1_retrieval.verification_clock import local_verification
 
 
 def absolute(value):
@@ -156,7 +157,7 @@ def _tree_files(root, *, code_only=False):
         return dict(row for part in workers.map(hash_chunk, chunks) for row in part)
 
 
-def capture_identity(prefix, *, process_options=None):
+def capture_identity(prefix, *, process_options=None, verification_files=0):
     mode, entry, info = inspect_python(
         prefix, **({"process_options": process_options} if process_options else {})
     )
@@ -184,9 +185,12 @@ def capture_identity(prefix, *, process_options=None):
             for parent, parent_code_only in roots.items()
         )
     }
-    files = {str(absolute(prefix[0])): digest(Path(prefix[0]).read_bytes())}
-    for root, code_only in roots.items():
-        files.update(tree_files(root, code_only=code_only))
+    # The import-path probe above is an external action; only this local
+    # read/hash pass is excluded from business deadlines (verification_clock).
+    with local_verification(verification_files):
+        files = {str(absolute(prefix[0])): digest(Path(prefix[0]).read_bytes())}
+        for root, code_only in roots.items():
+            files.update(tree_files(root, code_only=code_only))
     if entry not in files:
         raise LedgerError("runtime-entry-not-in-inventory")
     return dict(
@@ -222,9 +226,11 @@ def verify_identity(pin, *, probe=False, process_options=None):
     if prefix[1:3] != ["-I", "-B"]:
         raise LedgerError("runtime-requires-isolated-python-and-no-bytecode-writes")
     executable = str(absolute(prefix[0]))
-    actual = {executable: digest(Path(executable).read_bytes())}
-    for root, code_only in identity["roots"].items():
-        actual.update(tree_files(root, code_only=code_only))
+    # Pure local read/hash of the pinned inventory; no process or network.
+    with local_verification(len(files)):
+        actual = {executable: digest(Path(executable).read_bytes())}
+        for root, code_only in identity["roots"].items():
+            actual.update(tree_files(root, code_only=code_only))
     if actual != files:
         changed = sorted(
             k for k in set(actual) | set(files) if actual.get(k) != files.get(k)
@@ -246,7 +252,9 @@ def verify_identity(pin, *, probe=False, process_options=None):
     if probe:
         # Recheck import resolution before launch; replay itself starts no process.
         fresh = capture_identity(
-            prefix, **({"process_options": process_options} if process_options else {})
+            prefix,
+            verification_files=len(files),
+            **({"process_options": process_options} if process_options else {}),
         )
         if fresh != identity:
             raise LedgerError("runtime-import-resolution-changed")

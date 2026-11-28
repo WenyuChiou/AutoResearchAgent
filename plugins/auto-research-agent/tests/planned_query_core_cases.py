@@ -39,6 +39,53 @@ class PlannedQueryTests(QueryCase):
         self.assertEqual(self.ledger.candidates().__len__(), 1)
         self.assertIsNotNone(result["result"]["execution_ref"])
 
+    def _timed_execute(self, *, verify_seconds=0, admit_seconds=0):
+        # One controlled clock for the admission deadline and the meter.
+        from stage1_retrieval import runtime_identity, verification_clock
+
+        clock = SimpleNamespace(offset=0.0)
+        fake = SimpleNamespace(
+            monotonic=lambda: time.monotonic() + clock.offset,
+            time=lambda: time.time() + clock.offset,
+        )
+        original_tree = runtime_identity.tree_files
+
+        def slow_tree(*args, **kwargs):
+            # Only the admitted worker's passes: the synchronous request-path
+            # checks before the worker starts are an HTTP request concern.
+            if verification_clock.current() is not None:
+                clock.offset += verify_seconds
+            return original_tree(*args, **kwargs)
+
+        def admit(event):
+            clock.offset += admit_seconds  # an unmetered admission callback
+            return True
+
+        service = self.service(admit=admit)
+        request = self.request(service)
+        with (
+            self.no_probe(),
+            self.fake_runner(),
+            patch("research_workspace_native.planned_queries.time", fake),
+            patch.object(verification_clock, "time", fake),
+            patch.object(runtime_identity, "tree_files", slow_tree),
+            # The fixture pins far fewer files than a real runtime: scale it.
+            patch.object(verification_clock, "PER_FILE_SECONDS", 0.05),
+        ):
+            service.execute("secret", "case", request, deadline=fake.monotonic() + 20)
+            result = self.wait(service)
+        return result, clock.offset
+
+    def test_admission_deadline_excludes_metered_local_verification(self):
+        result, elapsed = self._timed_execute(verify_seconds=8)
+        self.assertEqual(result["outcome"], "observed", result)
+        self.assertGreater(elapsed, 20)  # longer than the whole admission deadline
+
+    def test_admission_deadline_still_counts_callbacks(self):
+        result, _ = self._timed_execute(admit_seconds=21)
+        self.assertEqual(result["outcome"], "refused-known-unsent", result)
+        self.assertEqual(result["error"]["code"], "query-admission-deadline-expired")
+
     def test_same_key_tabs_response_loss_and_changed_payload(self):
         service = self.service()
         request = self.request(service)
