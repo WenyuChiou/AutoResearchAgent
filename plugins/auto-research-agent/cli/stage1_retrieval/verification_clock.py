@@ -177,3 +177,23 @@ def excluded():
     """Seconds the active meter lets a business clock skip (0 without one)."""
     meter = _METER.get()
     return 0.0 if meter is None else meter.excluded()
+
+
+def scope_store(name):
+    """A dict that lives exactly as long as the active meter, or None.
+
+    The HTTP server activates one meter per request (one request per
+    connection), so this is request-scoped memory: it is never shared with
+    another request and disappears with the meter. Without an active meter it
+    returns None and callers must not reuse anything. Callers keep only
+    results of pure local reads here and must re-check their own change
+    evidence before reusing one.
+    """
+    if type(name) is not str or not name:
+        raise ValueError("scope store name required")
+    meter = _METER.get()
+    if meter is None:
+        return None
+    with meter._lock:
+        stores = meter.__dict__.setdefault("_scope_stores", {})
+        return stores.setdefault(name, {})

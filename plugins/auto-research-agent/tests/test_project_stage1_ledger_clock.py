@@ -11,6 +11,7 @@ from unittest import mock
 
 sys.path[:0] = [str(Path(__file__).resolve().parents[1] / "cli")]
 from research_workspace_native import project_stage1
+from stage1_ledger import validation
 from stage1_retrieval import verification_clock
 
 
@@ -37,13 +38,14 @@ class LedgerReplayClockTests(unittest.TestCase):
                 intake=SimpleNamespace(_path=lambda ref, rel: Path(raw) / rel)
             )
 
-            def replay(path):
+            def replay(path, **kwargs):
                 time.sleep(0.2)  # reading and hashing the saved ledger
                 return {"valid": True}
 
             meter = verification_clock.Meter()
             with (
                 mock.patch.object(project_stage1, "validate_run", replay),
+                mock.patch.object(validation, "validate_run", replay),
                 mock.patch.object(
                     project_stage1,
                     "CoverageLedger",

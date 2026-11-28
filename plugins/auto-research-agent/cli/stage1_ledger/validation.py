@@ -1,6 +1,9 @@
 """Replay references and derived records. This does not judge scientific truth."""
 
+from copy import deepcopy
 from datetime import datetime
+import os
+from pathlib import Path
 
 from .bindings import claim_binding, completion_binding, import_binding
 
@@ -23,6 +26,7 @@ from .verification import comparison
 from .sources import SourceReads
 from stage1_coverage.rounds import CoverageReplay
 from stage1_coverage.policy import evaluate
+from stage1_retrieval import verification_clock
 
 
 COUNT_NAMES = (
@@ -448,6 +452,71 @@ def validate_run(root, *, verify_runtime=True):
         report["coverage"] = coverage_report
     if sources.starts:
         report["source_reads"] = sources.report() if not errors else None
+    return report
+
+
+REPLAY_STORE = "stage1-ledger-replay"
+
+
+def _replay_evidence(root, verify_runtime):
+    """Change evidence for everything ``validate_run`` reads under ``root``.
+
+    Replay reads only files inside the ledger root (manifest, stage_events.jsonl,
+    record streams, artifacts, coverage view); the runtime pin it may verify is
+    embedded in the manifest, whose bytes are hashed here. Every file's relative
+    path, size and mtime is included, so an append, rewrite, addition or removal
+    changes the key. Runtime tree bytes outside the ledger are not re-read: like
+    runtime_identity's request scope, one request trusts one runtime reading.
+    Returns (key, file count); key is None if the evidence is unreadable.
+    """
+    root = Path(root).resolve()
+    files = []
+    try:
+        for base, directories, names in os.walk(root):
+            directories.sort()
+            for name in sorted(names):
+                info = os.lstat(os.path.join(base, name))
+                relative = Path(base, name).relative_to(root).as_posix()
+                files.append((relative, info.st_size, info.st_mtime_ns))
+        manifest = digest((root / "run_manifest.json").read_bytes())
+        events = os.lstat(root / "stage_events.jsonl")
+    except OSError:
+        return None, len(files)
+    key = (
+        str(root),
+        bool(verify_runtime),
+        manifest,
+        (events.st_size, events.st_mtime_ns),
+        tuple(files),
+    )
+    return key, len(files)
+
+
+def validate_run_scoped(root, *, verify_runtime=True):
+    """``validate_run`` that replays one unchanged ledger once per request.
+
+    Reuse needs an active verification meter (one per HTTP request; see
+    stage1_retrieval.verification_clock.scope_store); without one this is
+    exactly ``validate_run``. A cached report is reused only when the ledger's
+    change evidence still equals the evidence taken before and after the
+    replay that produced it, and only valid reports are kept. Callers get a
+    deep copy. The replay itself is a pure local read/hash pass and is marked
+    as local verification.
+    """
+    store = verification_clock.scope_store(REPLAY_STORE)
+    if store is None:
+        return validate_run(root, verify_runtime=verify_runtime)
+    key, files = _replay_evidence(root, verify_runtime)
+    if key is not None and key in store:
+        return deepcopy(store[key])
+    with verification_clock.local_verification(files):
+        report = validate_run(root, verify_runtime=verify_runtime)
+    if (
+        key is not None
+        and report.get("valid") is True
+        and _replay_evidence(root, verify_runtime)[0] == key
+    ):
+        store[key] = deepcopy(report)
     return report
 
 

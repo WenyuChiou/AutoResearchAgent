@@ -10,7 +10,7 @@ import time
 
 from stage1_deliverable.common import canonical, sha
 from stage1_coverage.run import CoverageLedger
-from stage1_ledger.validation import validate_run
+from stage1_ledger.validation import validate_run, validate_run_scoped
 from stage1_retrieval import verification_clock
 from stage1_retrieval.runner import execute as execute_backend, identifier_for
 from stage1_retrieval.receipt import command
@@ -337,7 +337,7 @@ class PlannedQueryService:
             ),
             "query-pending-write",
         )
-        report = validate_run(ledger.root)
+        report = validate_run_scoped(ledger.root)
         require(report["valid"], "query-saved-ledger-invalid")
         events = ledger.events()
         current = tree_sha(ledger.root)
