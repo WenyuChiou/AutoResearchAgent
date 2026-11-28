@@ -15,6 +15,7 @@ from stage1_export.bundle import export_run, validate_export
 from stage1_ledger.journal import canonical
 from stage1_ledger.readiness import readiness
 from stage1_ledger.validation import validate_run
+from stage1_retrieval.verification_clock import local_verification
 
 from .project_intake import ProjectIntakeService
 from .project_intake_contract import _fields, _text
@@ -95,7 +96,12 @@ class ProjectStage1Service:
             == run["manifest_sha256"],
             "stage1-ledger-manifest-differs",
         )
-        report = validate_run(ledger.root)
+        # Replay only reads and hashes the saved ledger files: a pure local
+        # integrity pass, so it is measured apart from the request deadline.
+        with local_verification(
+            sum(len(names) for _, _, names in os.walk(ledger.root))
+        ):
+            report = validate_run(ledger.root)
         _check(report["valid"], "stage1-ledger-replay-failed")
         if run.get("query_owned") and run.get("last_checkpoint") is not None:
             _check(
