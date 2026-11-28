@@ -22,7 +22,8 @@ from .project_intake_contract import _fields
 from .project_stage3_decision import REVISION, _binding
 from .project_stage3_decision import _rows as _decision_rows
 from .project_stage3_decision import read_decisions
-from .project_stage3_feedback import _reference, fits_response, read_feedback
+from .project_stage3_feedback import EDIT_FIELDS, _reference, fits_response
+from .project_stage3_feedback import read_feedback
 from .project_stage3_feedback import _rows as _feedback_rows
 from .project_stage3_planning import SOURCE_FIELDS, default_key
 from .session_api import SessionApiError, _check
@@ -32,6 +33,7 @@ DECISION = "revise-then-review"
 RECEIPTS = ("decision_receipt_sha256", "plan_revision_receipt_sha256")
 FIELDS = SOURCE_FIELDS | {"mode", *RECEIPTS}
 MAX_CHAIN = 32
+UNREADABLE = "stage3-replan-plan-unreadable"
 
 
 def replan_key(base_key, decision_receipt, revision_receipt):
@@ -53,6 +55,38 @@ def _latest(rows, binding):
     """
     current = [row for row in rows if row["record"]["binding"] == binding]
     return max(current, key=lambda row: row["record"]["sequence"], default=None)
+
+
+def _changes(parent, revised):
+    """Every place the researcher's draft differs from the model's saved plan.
+
+    Manual revisions can only replace question-level text fields (EDIT_FIELDS),
+    and they can form a chain (parent_revision). Comparing the final draft with
+    the saved (model-generated) parent plan gives the net edits relative to that
+    previous plan, whatever the chain looked like.
+    """
+    before = {
+        row.get("question_ref"): row
+        for row in parent.get("question_plans", [])
+        if type(row) is dict
+    }
+    changes = []
+    for row in revised.get("question_plans", []):
+        old = before.get(row.get("question_ref"), {})
+        for field in sorted(EDIT_FIELDS):
+            value = row.get(field)
+            if type(value) is str and value != old.get(field):
+                changes.append(
+                    {
+                        "question_ref": row["question_ref"],
+                        "field": field,
+                        "model_value": old.get(field)
+                        if type(old.get(field)) is str
+                        else "",
+                        "researcher_value": value,
+                    }
+                )
+    return changes
 
 
 def _saved(item):
@@ -92,10 +126,28 @@ def newest(transport, credential, ref, jobs, result, check_deadline=None):
         kid = kids[0]
         body = _source(dict(result["default_request"], key=kid["payload"]["key"]))
         body.pop("request_sha256", None)
-        body, child, plan, _ = transport._saved_job(
-            credential, ref, jobs, body, kid, check_deadline
-        )
         frozen = kid["payload"]["revision_input"]
+        try:
+            body, child, plan, _ = transport._saved_job(
+                credential, ref, jobs, body, kid, check_deadline
+            )
+        except (SessionApiError, Stage3Error, KeyError, ValueError, OSError) as error:
+            # One unreadable new plan (for example after a Core upgrade without a
+            # trusted pin) is reported on its own; the rest of the view and the
+            # comment/revise/decide writes on the displayed plan keep working.
+            result["unreadable_plans"] = [
+                {
+                    "key": kid["payload"]["key"],
+                    "request_sha256": digest(kid["payload"]),
+                    "error": getattr(error, "code", UNREADABLE),
+                    "parent_request_sha256": frozen["parent_request_sha256"],
+                    "from_revision_receipt_sha256": frozen[
+                        "plan_revision_receipt_sha256"
+                    ],
+                    "from_decision_receipt_sha256": frozen["decision_receipt_sha256"],
+                }
+            ]
+            break
         previous.append(
             {
                 "job": job,
@@ -220,6 +272,7 @@ class ProjectStage3Replan:
             "parent_plan_manifest_sha256": base["parent_plan_manifest_sha256"],
             "parent_request_sha256": base["plan_request_sha256"],
             "plan": deepcopy(plan),
+            "changes": _changes(view["plan"], plan),
             "comments": [
                 {"question_ref": row["question_ref"], "text": row["text"]}
                 for row in comments
@@ -257,6 +310,8 @@ class ProjectStage3Replan:
                     credential, ref, check_deadline=check_deadline
                 )
                 jobs = current[4]["jobs"]
+                # A newer plan exists but cannot be read: never fork its parent.
+                _check(not view.get("unreadable_plans"), UNREADABLE, 409)
                 revision_input = self._revision_input(jobs, ref, view, body)
                 _, source, _ = service._job(current, body["key"])
                 self._fits(source, body["key"], revision_input)
@@ -308,8 +363,12 @@ class ProjectStage3Replan:
                 409,
             )
             latest = _latest(_decision_rows(jobs, base), binding)
+            # The frozen decision itself must still be the latest one: a later
+            # decision (even another revise-then-review) needs a new prepare.
             _check(
-                latest is not None and latest["record"]["decision"] == DECISION,
+                latest is not None
+                and latest["record"]["decision"] == DECISION
+                and latest["receipt_sha256"] == frozen["decision_receipt_sha256"],
                 "stage3-replan-decision-superseded",
                 409,
             )
@@ -384,6 +443,8 @@ class ProjectStage3Replan:
         }
         if view.get("planning_mode") == "direction-intent":
             out["reason"] = "stage3-replan-direction-mode-unsupported"
+        elif view.get("unreadable_plans"):
+            out["reason"] = UNREADABLE
         elif ambiguous:
             out["reason"] = "stage3-decision-revision-ambiguous"
         elif receipt is None:

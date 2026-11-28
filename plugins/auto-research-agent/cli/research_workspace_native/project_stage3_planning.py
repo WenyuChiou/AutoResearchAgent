@@ -253,6 +253,13 @@ class ProjectStage3PlanningService:
                 credential, project_ref, body, check_deadline=check_deadline
             )
         _fields(body, SOURCE_FIELDS)
+        # Replan keys belong to mode "replan-from-revision"; a plain prepare must
+        # not occupy one first.
+        _check(
+            not body["key"].startswith("stage3-replan-"),
+            "stage3-replan-key-reserved",
+            400,
+        )
         with self.intake._lock:
             current = self._current(
                 credential, project_ref, body, check_deadline, write=True
@@ -371,6 +378,10 @@ class ProjectStage3PlanningService:
             def callback(**request):
                 with self.intake._lock:
                     self._saved(credential, project_ref, body, check_deadline)
+                    if "revision_input" in item["payload"]:
+                        # Re-check under the lock right before the model call, so
+                        # a direct service caller cannot slip a change in between.
+                        before_dispatch(item["payload"])
                 response = configured["callback"](**request)
                 publication.enter_context(self.intake._lock)
                 self._saved(credential, project_ref, body, check_deadline)

@@ -190,6 +190,18 @@ class ReplanHostTests(ReplanFixture, unittest.TestCase):
         self.assertEqual(
             frozen["parent_request_sha256"], self.default_body["request_sha256"]
         )
+        model_text = self.original["question_plans"][0]["minimum_deliverable"]
+        self.assertEqual(
+            frozen["changes"],
+            [
+                {
+                    "question_ref": self.question,
+                    "field": "minimum_deliverable",
+                    "model_value": model_text,
+                    "researcher_value": "REVISED-MARKER bounded deliverable",
+                }
+            ],
+        )
         # same key replays the same job
         self.assertEqual(self.http.replan.prepare("own", self.ref, body), prepared)
 
@@ -202,6 +214,8 @@ class ReplanHostTests(ReplanFixture, unittest.TestCase):
         self.assertIn(REVISION_INSTRUCTION, prompt)
         self.assertIn("REVISED-MARKER bounded deliverable", prompt)
         self.assertIn("COMMENT-MARKER keep access unknown.", prompt)
+        self.assertIn('"researcher_value":"REVISED-MARKER bounded deliverable"', prompt)
+        self.assertIn('"model_value":' + base.json.dumps(model_text), prompt)
         self.assertNotIn("NEW-PLAN-MARKER", prompt)
         # replays never call again
         self.assertEqual(self.http.replan.run("own", self.ref, run_body), result)
@@ -391,9 +405,151 @@ class ReplanLatestDecisionTests(ReplanFixture, unittest.TestCase):
         )
         self.assertEqual(self.item_for(body["key"])["status"], "intent-recorded")
         self.assertEqual(self.callback.call_count, 1)
-        self.decide("d-again")  # latest is revise-then-review again
-        result = self.http.replan.run("own", self.ref, run_body)
+        # A later revise-then-review is a new decision: the old job stays refused
+        # and the page's template moves to a new key that needs its own prepare.
+        again = self.decide("d-again")
+        self.assert_refused(
+            lambda: self.http.replan.run("own", self.ref, run_body),
+            "stage3-replan-decision-superseded",
+            409,
+        )
+        request = self.view()["replan"]["request"]
+        self.assertEqual(request, self.replan_body(again, revision))
+        self.assertNotEqual(request["key"], body["key"])
+        fresh = self.http.replan.prepare("own", self.ref, request)
+        self.respond(request["key"])
+        result = self.http.replan.run(
+            "own",
+            self.ref,
+            dict(request, request_sha256=fresh["request_sha256"], confirmed=True),
+        )
         self.assertEqual(result["outcome"], "saved", result)
+        self.assertEqual(self.callback.call_count, 2)
+
+
+class ReplanReviewFixTests(ReplanFixture, unittest.TestCase):
+    """Fixes from the 2026-11-27 independent review."""
+
+    def test_chained_revision_sends_net_edits_relative_to_the_model_plan(self):
+        comment = self.comment()
+        first = self.revise(comment, value="FIRST edit")
+        second = self.revise(comment, key="r2", value="SECOND edit", parent=first)
+        decision = self.decide()
+        body = self.replan_body(decision, second)
+        self.http.replan.prepare("own", self.ref, body)
+        frozen = self.item_for(body["key"])["payload"]["revision_input"]
+        self.assertEqual(
+            frozen["changes"],
+            [
+                {
+                    "question_ref": self.question,
+                    "field": "minimum_deliverable",
+                    "model_value": self.original["question_plans"][0][
+                        "minimum_deliverable"
+                    ],
+                    "researcher_value": "SECOND edit",
+                }
+            ],
+        )
+
+    def test_plain_prepare_cannot_occupy_a_replan_key(self):
+        body = dict(self.body(), key="stage3-replan-" + "0" * 64)
+        self.assert_refused(
+            lambda: self.bridge.prepare("own", self.ref, body),
+            "stage3-replan-key-reserved",
+            400,
+        )
+
+    def test_direct_service_run_rechecks_inside_the_callback_before_the_model(self):
+        from unittest.mock import patch
+        from research_workspace_native.project_stage3_replan import (
+            ProjectStage3Replan,
+        )
+
+        _, revision, decision = self.revised_and_decided()
+        body = self.replan_body(decision, revision)
+        prepared = self.http.replan.prepare("own", self.ref, body)
+        self.respond(body["key"])
+        original = ProjectStage3Replan.check_current
+        calls = []
+
+        def second_fails(replan, *args, **kwargs):
+            calls.append(1)
+            if len(calls) == 2:  # a change slipped in after the first check
+                raise SessionApiError("stage3-replan-revision-changed", 409)
+            return original(replan, *args, **kwargs)
+
+        with patch.object(ProjectStage3Replan, "check_current", second_fails):
+            result = self.http.replan.run(
+                "own",
+                self.ref,
+                dict(body, request_sha256=prepared["request_sha256"], confirmed=True),
+            )
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(self.callback.call_count, 1)  # the adapter was never called
+        self.assertNotEqual(result["outcome"], "saved")
+
+    def test_unreadable_new_plan_is_marked_and_writes_keep_working(self):
+        from unittest.mock import patch
+        from stage3_plan.jobs import _runtime
+
+        _, revision, decision = self.revised_and_decided()
+        body = self.replan_body(decision, revision)
+        prepared = self.http.replan.prepare("own", self.ref, body)
+        self.respond(body["key"], marker="NEW-PLAN")
+        self.http.replan.run(
+            "own",
+            self.ref,
+            dict(body, request_sha256=prepared["request_sha256"], confirmed=True),
+        )
+        # After a Core upgrade only the first job has a trusted pin.
+        identity = (self.ref, self.key, self.default_body["request_sha256"])
+        pin = self.item_for(self.key)["evidence"]["plan"]["manifest_sha256"]
+        self.http.recovery_pins[identity] = self.bridge.saved_read_pins[identity] = pin
+        upgraded = _runtime()
+        upgraded["stage3_sources"]["jobs.py"] = "b" * 64
+        with (
+            patch("stage3_plan.jobs._runtime", return_value=upgraded),
+            patch("stage3_plan.planner._producer_sha256", return_value="c" * 64),
+        ):
+            view = self.view()
+            self.assertEqual(view["plan"], self.original)
+            self.assertEqual(
+                view["unreadable_plans"],
+                [
+                    {
+                        "key": body["key"],
+                        "request_sha256": prepared["request_sha256"],
+                        "error": "stage3-replan-plan-unreadable",
+                        "parent_request_sha256": self.default_body["request_sha256"],
+                        "from_revision_receipt_sha256": revision["receipt_sha256"],
+                        "from_decision_receipt_sha256": decision["receipt_sha256"],
+                    }
+                ],
+            )
+            self.assertEqual(
+                (view["replan"]["available"], view["replan"]["reason"]),
+                (False, "stage3-replan-plan-unreadable"),
+            )
+            self.assertEqual(len(view["feedback"]["records"]), 2)
+            comment = self.comment(key="c-after", text="Still writable.")
+            self.revise(
+                comment, key="r-after", value="Still revisable", parent=revision
+            )
+            decided = self.decide(key="d-after")
+            self.assertEqual(decided["record"]["decision"], "revise-then-review")
+            self.assertRaises(
+                SessionApiError,
+                self.http.replan.prepare,
+                "own",
+                self.ref,
+                self.replan_body(
+                    decided,
+                    self.view()["host_decision"]["binding"][
+                        "plan_revision_receipt_sha256"
+                    ],
+                ),
+            )
         self.assertEqual(self.callback.call_count, 2)
 
 
