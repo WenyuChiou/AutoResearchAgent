@@ -17,4 +17,11 @@ assert.doesNotMatch(make({result: {status: 'ready'}}, false), /在等/);
 assert.match(make(undefined, false), /Stage 2 在等这个课题的 Stage 1 文献包/, 'nothing received: still waiting');
 assert.match(make({error: 'stage2-controller-not-connected'}, false), /在等/, 'an error is not a receipt');
 assert.match(make({result: {status: 'ready'}}, true), /Stage 1 文献包已交付/, 'a delivered package keeps its own wording');
+for (const status of ['request-saved', 'running', 'no-candidate']) assert.match(make({result: {status}}, false), /已接收这个课题的文献包/, status);
+// Follow-up 3 review P2: blocked and unconfirmed requests do not claim a receipt.
+const blocked = make({result: {status: 'blocked'}}, false), unknown = make({result: {status: 'execution-unknown'}}, false);
+assert.doesNotMatch(blocked, /已接收/);
+assert.match(blocked, /被拦下.*检查交接/);
+assert.doesNotMatch(unknown, /已接收/);
+assert.match(unknown, /结果还不清楚.*核对原运行记录/);
 console.log('PASS Stage 2 empty candidates follow the continuation answer.');

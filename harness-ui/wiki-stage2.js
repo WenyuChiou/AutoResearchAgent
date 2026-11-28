@@ -341,8 +341,12 @@ function wikiS2InputTable() {
   const delivered = rt.overview?.stage1?.delivery?.canonical_package;
   // The connection row above says 「文献包已接收」 from the continuation answer; this empty state must not contradict it.
   const state = typeof wikiStage2State === 'undefined' ? null : wikiStage2State;
-  const received = !state?.error && ['ready', 'request-saved', 'running', 'no-candidate', 'execution-unknown', 'blocked'].includes(state?.result?.status);
-  if (received && !delivered) return '<section class="wiki-s2-empty" data-s2-input><h2>Stage 1 输入文献</h2><p>Stage 2 已接收这个课题的文献包，候选还没有生成。</p></section>';
+  // Only the four states that mean the package was received say so; a blocked or unconfirmed request says what it is.
+  const status = state?.error ? null : state?.result?.status;
+  const empty = text => `<section class="wiki-s2-empty" data-s2-input><h2>Stage 1 输入文献</h2><p>${text}</p></section>`;
+  if (!delivered && ['ready', 'request-saved', 'running', 'no-candidate'].includes(status)) return empty('Stage 2 已接收这个课题的文献包，候选还没有生成。');
+  if (!delivered && status === 'blocked') return empty('已保存的候选请求被拦下，暂时无法继续，请由管理员检查交接。候选还没有生成。');
+  if (!delivered && status === 'execution-unknown') return empty('候选请求的结果还不清楚，请由管理员核对原运行记录。候选还没有生成。');
   return `<section class="wiki-s2-empty" data-s2-input><h2>Stage 1 输入文献</h2><p>${delivered ? '这个课题的 Stage 1 文献包已交付，这里还没有读取它的文献清单。Stage 2 的研究方向还没有生成。' : 'Stage 2 在等这个课题的 Stage 1 文献包。'}</p></section>`;
  }
  const latest = new Map();
