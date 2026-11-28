@@ -46,7 +46,7 @@ document.addEventListener('click',async e=>{
   if(!project||!ledger||!d.year?.trim()||!Number.isInteger(year)||!d.title?.trim()||!d.authors?.trim()||!d.version?.trim()||!d.url?.trim()||!d.type?.trim()||!d.reason?.trim())throw Error('provided-source-fields-and-current-ledger-required');
   const record={title:d.title.trim(),authors:d.authors.split('\n').map(s=>s.trim()).filter(Boolean),year,version:d.version.trim()};
   if(d.doi?.trim())record.doi=d.doi.trim();
-  const body={project_ref:rt.ref,revision:project.revision,input_version:project.input_version,brief_sha256:project.brief_sha256,ledger_state_sha256:ledger.state_sha256,confirmed:true,material_id:id,material_sha256:material.sha256,record,source_uri:d.url.trim(),original_type:d.type.trim(),reason:d.reason.trim()};
+  const body={project_ref:rt.ref,revision:project.revision,input_version:project.input_version,brief_sha256:project.brief_sha256,ledger_state_sha256:ledger.state_sha256,confirmed:true,consequence_acknowledged:true,material_id:id,material_sha256:material.sha256,record,source_uri:d.url.trim(),original_type:d.type.trim(),reason:d.reason.trim()};
   const signature=JSON.stringify(Object.fromEntries(Object.entries(body).filter(([k])=>!['revision','ledger_state_sha256'].includes(k)))),prior=s1Provided.requests[id];
   const request=prior?.signature===signature?prior.body:{...body,key:crypto.randomUUID()};
   s1Provided.requests[id]={signature,body:request};s1ProvidedSave();s1Provided.busy=true;livePaint();

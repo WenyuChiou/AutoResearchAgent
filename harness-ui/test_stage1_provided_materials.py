@@ -75,6 +75,7 @@ class ProvidedMaterialHttpTests(unittest.TestCase):
             source_uri="https://example.org/authored-test",
             original_type="text/plain",
             reason="Existing authored engineering material; not research.",
+            consequence_acknowledged=True,
         )
 
     def state(self):
@@ -111,6 +112,7 @@ class ProvidedMaterialHttpTests(unittest.TestCase):
         original = self.body()
         variants = [
             dict(confirmed=False),
+            dict(consequence_acknowledged=False),
             dict(input_version="1"),
             dict(input_version=2),
             dict(material_sha256="0" * 64),

@@ -13,6 +13,7 @@ FIELDS = {
     "input_version",
     "brief_sha256",
     "confirmed",
+    "consequence_acknowledged",
     "ledger_state_sha256",
     "project_ref",
     "material_id",
@@ -34,6 +35,12 @@ def admit_material(host, store, credential, body, *, check_deadline):
     if not callable(getattr(service, "admit_saved_candidate", None)):
         raise SessionApiError("stage1-provided-admission-unconnected", 409)
     require(set(body) == FIELDS, "provided-material-fields-differ")
+    # The consequence (no deletion; no formal delivery until screened out) is stated in the form;
+    # the server asks for the same acknowledgement so a direct call cannot skip it.
+    require(
+        body["consequence_acknowledged"] is True,
+        "provided-consequence-ack-required",
+    )
     ref = body["project_ref"]
     require(type(ref) is str, "provided-project-required")
     # Authenticate before looking up any material or its original bytes.
