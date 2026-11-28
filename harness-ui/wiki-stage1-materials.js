@@ -108,6 +108,19 @@ function wsM9ImportGate(app) {
  if (![m9.sourcePath, m9.importPath, m9.packetHash].every(value => String(value || '').trim())) return '请先填好上面的三项';
  return '';
 }
+function wsM9ImportButton(app) {
+ return wsBtn('核验并登记候选包', 'data-n9-action="import"', m9.busy ? '正在核对原文件和来源，请稍等' : wsM9ImportGate(app));
+}
+// Typing in the three fields only stores the value (v9-materials.js); the button was judged once at render, so it stayed
+// grey after the last field was filled. Re-judge it on every input and replace only that button: no repaint, so the field
+// being typed in keeps its focus and caret.
+document.addEventListener('input', event => {
+ const field = event.target?.matches?.('[data-n9-field]') ? event.target.dataset.n9Field : null;
+ if (!field || typeof apps === 'undefined') return;
+ m9[field] = event.target.value;
+ const button = apps[0]?.el?.querySelector?.('[data-n9-action="import"]'), wrap = button?.closest?.('.ws-btn');
+ if (wrap) wrap.outerHTML = wsM9ImportButton(apps[0]);
+}, true);
 m9Panel = function (app) {
  if (!(typeof v1On === 'function' && v1On(app) && app.page === 'workspace' && (app.stage === 1 || app.stage === 2))) return wsM9Previous(app);
  const materials = m9Current();
@@ -129,7 +142,7 @@ m9Panel = function (app) {
   <label>候选包清单文件（packet.json）的位置<input data-n9-field="importPath" value="${esc(m9.importPath)}"></label>
   <label>清单文件的校验值（SHA-256）<input data-n9-field="packetHash" value="${esc(m9.packetHash)}"></label></div>
   <small class="wiki-s1-muted">现在的核验接口要这三项；校验由服务做，结果写在上面。</small>
-  ${wsBtn('核验并登记候选包', 'data-n9-action="import"', m9.busy ? '正在核对原文件和来源，请稍等' : wsM9ImportGate(app))}</details>` : '';
+  ${wsM9ImportButton(app)}</details>` : '';
  return `<div class="n9-materials ws-m9" data-n9-material-panel>
   <section class="ws-m9-card"><div class="ws-m9-head"><h3>加入文件</h3><label class="ws-m9-pick ${m9.busy ? 'off' : ''}">选择阶段材料<input type="file" multiple data-n9-upload aria-label="选择阶段材料" accept="${wsM9Accept}" ${m9.busy ? 'disabled' : ''}></label></div>
    <p class="wiki-s1-muted">你自己登记的材料保留原件、版本和所属阶段。登记后可以恢复、核验、准备接续；不会自动标记为已读、已纳入或已批准。每个文件最多 128 MiB；压缩包按原样保存，不解包、不执行。</p>

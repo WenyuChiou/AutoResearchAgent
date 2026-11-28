@@ -325,7 +325,7 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  const block = fs.readFileSync(path.join(__dirname,'wiki-stage1-materials.js'),'utf8');
  const v1 = block.slice(block.indexOf('// ---------- Wiki V1 materials panel'));
  const app = {lang:'zh', page:'workspace', stage:1};
- const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '',
+ const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '', document:{addEventListener:() => {}},
   wsTag:(k, l) => `<tag>${l}</tag>`, wsBtn:(l, a, r) => `<button ${a}>${l}</button>${r || ''}`, wsMaterialsDownloads:() => '',
   m9:{catalog:{materials:[], operations:[], drafts:[]}, busy:false, error:'', status:'', target:{}, notes:{}, sourcePath:'', importPath:'', packetHash:''},
   m9Current:() => mc.m9.catalog?.materials || [], m9Draft:() => null});
@@ -362,7 +362,10 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  const v1 = block.slice(block.indexOf('// ---------- Wiki V1 materials panel'));
  const app = {lang:'zh', page:'workspace', stage:2};
  const state = {archive:false, canonical:false, code:'', fields:['a', 'b', 'c']};
- const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '', rt:{ref:'project-a'},
+ const listeners = [], patched = [];
+ const wrap = {set outerHTML(html) { patched.push(html); }};
+ app.el = {querySelector:selector => selector === '[data-n9-action="import"]' ? {closest:() => wrap} : null};
+ const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '', rt:{ref:'project-a'}, document:{addEventListener:(type, fn) => { if (type === 'input') listeners.push(fn); }},
   wsTag:(k, l) => `<tag>${l}</tag>`, wsBtn:(l, a, r) => `<span class="b"><button ${a} ${r ? 'disabled' : ''}>${l}</button>${r ? '<small>' + r + '</small>' : ''}</span>`, wsMaterialsDownloads:() => '',
   wikiHomeArchiveBound:() => state.archive, canonicalReadonly:() => state.canonical,
   v9ConnectionModel:() => ({phase:'ready', code:state.code}),
@@ -375,5 +378,18 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  state.canonical = true; assert.match(button(), /disabled.*保存的样例，不能在这里改/s); state.canonical = false;
  state.code = 'stage2-controller-profile-unavailable'; assert.match(button(), /disabled.*没有提供 Stage 2 的运行配置/s); state.code = '';
  mc.m9.sourcePath = ''; assert.match(button(), /disabled.*请先填好上面的三项/s);
+ // P1: the three fields start empty and are filled by typing. Drive the real input listener (not the state): the button is
+ // re-judged on each input, only the button is replaced, and nothing repaints the page.
+ mc.m9.sourcePath = ''; mc.m9.importPath = ''; mc.m9.packetHash = '';
+ const type = (field, value) => { const target = {dataset:{n9Field:field}, value, matches:selector => selector === '[data-n9-field]'}; for (const fn of listeners) fn({target}); return patched[patched.length - 1]; };
+ assert.equal(listeners.length, 1);
+ assert.match(type('sourcePath', 'D:/pkg'), /disabled.*请先填好上面的三项/s, 'one of three filled: still grey, with the reason');
+ assert.match(type('importPath', 'D:/pkg/packet.json'), /disabled.*请先填好上面的三项/s);
+ assert.doesNotMatch(type('packetHash', 'a'.repeat(64)), /disabled/, 'all three filled: the button becomes usable');
+ assert.equal(mc.m9.packetHash, 'a'.repeat(64), 'the typed value is stored');
+ assert.match(type('packetHash', '  '), /disabled.*请先填好上面的三项/s, 'clearing a field greys it again');
+ type('packetHash', 'b'.repeat(64));
+ state.archive = true; assert.match(type('packetHash', 'b'.repeat(64)), /disabled.*历史归档/s, 'an archive stays grey whatever is typed'); state.archive = false;
+ state.code = 'stage2-controller-profile-unavailable'; assert.match(type('packetHash', 'b'.repeat(64)), /disabled.*运行配置/s, 'a launch without configuration stays grey'); state.code = '';
 }
 console.log('PASS Stage 1 ops: scope page, auto-advance states, run table, delivery decision, paper card, evidence review, materials.');
