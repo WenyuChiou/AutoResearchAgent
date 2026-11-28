@@ -313,10 +313,32 @@ function v1gEnvAlerts() {
  }
  return [];
 }
+// ---------------- 英文、繁体：仍是旧版界面的说明 (acceptance S-1) ----------------
+// V1 is Simplified Chinese only for now. In English and Traditional Chinese the old interface is shown; say so at the top,
+// in that language, with a way to the new interface. The button changes the language through the page's own language
+// select, so the saved language, the address and the repaint all follow the normal path.
+const v1gLegacyTexts = {
+ en:{title:'This language still uses the old interface, and it has fewer features.', sub:'For the new interface, switch to Simplified Chinese.', button:'Switch to Simplified Chinese (简体中文)'},
+ tw:{title:'這個語言目前仍是舊版介面，功能不全。', sub:'新版介面請切換到簡體中文。', button:'切換到簡體中文（简体中文）'}
+};
+function v1gLegacyNote(app) {
+ const text = Object.hasOwn(v1gLegacyTexts, app.lang) ? v1gLegacyTexts[app.lang] : null;
+ const content = app === apps[0] ? app.el.querySelector?.('.hs-content') : null;
+ if (!text || !content || content.querySelector?.('[data-v1-legacy-note]')) return;
+ content.insertAdjacentHTML('afterbegin', `<div class="v1-lang-note" data-v1-legacy-note role="note"><div><b>${esc(text.title)}</b> <span>${esc(text.sub)}</span></div><button type="button" class="hs-button" data-v1g-lang-zh>${esc(text.button)}</button></div>`);
+}
+document.addEventListener('click', event => {
+ if (!event.target.closest?.('[data-v1g-lang-zh]')) return;
+ const select = apps[0]?.el?.querySelector?.('select[data-language]');
+ if (!select) return;
+ select.value = 'zh';
+ select.dispatchEvent(new Event('change', {bubbles:true}));
+}, true);
+
 const v1gPrevRender = render;
 render = function (app) {
  v1gPrevRender(app);
- if (!app.el.dataset.v1) return;
+ if (!app.el.dataset.v1) { v1gLegacyNote(app); return; }
  // The Codex chat drawer (wiki-chat.js) owns the right-edge tab; no second placeholder tag is drawn here.
  const content = app.el.querySelector('.hs-content');
  const alerts = v1gEnvAlerts();
