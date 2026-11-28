@@ -48,6 +48,15 @@ if (files.length > 50) {
  const text = files.map(file => fs.readFileSync(file, 'utf8')).join('\n');
  for (const key of wikiRecBlockedReasons.keys()) assert.ok(new RegExp('["\']' + key + '["\']').test(text), key + ' is not a code the backend uses');
 }
+// Review P2-1: wording that matches the condition the backend really checks.
+const said = key => wikiRecBlockedReasons.get(key);
+assert.match(said('saved-parser-network-or-process-unavailable'), /解析器尝试联网或起进程，被安全限制拦下/, 'the parser overstepped; the environment is not missing anything');
+assert.doesNotMatch(said('saved-parser-network-or-process-unavailable'), /不可用/);
+assert.match(said('stage1-run-budget-exceeded'), /没有创建许可/, 'refused at creation, not a used-up grant');
+assert.doesNotMatch(said('stage1-run-budget-exceeded'), /超出这份许可/);
+for (const key of ['stage1-run-grant-expired', 'source-grant-expired', 'project-expansion-grant-expired', 'project-query-seal-expired', 'project-query-bootstrap-expired']) assert.match(said(key), /剩余时间不够.*已过期/, key + ' may be remaining time, not expiry');
+assert.match(said('project-query-bootstrap-requires-reconciliation'), /已有检索作业，或服务正在关闭/);
+for (const key of ['stage1-ledger-state-stale', 'stage1-checkpoint-stale', 'stage1-delivery-offer-stale', 'stage1-coverage-offer-stale', 'stage1-agent-pending-work-stale']) assert.match(said(key), /先到操作历史核对这条记录/, key + ' is held until checked');
 for (const [key, zh] of wikiRecBlockedReasons) {
  assert.match(zh, /[一-龥]/, key + ' has Chinese text');
  assert.doesNotMatch(zh, code, key + ' text carries no code');

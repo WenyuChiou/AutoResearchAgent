@@ -74,24 +74,24 @@ const wikiRecBlockedNote = '只数已保存的失败记录；在写入之前就�
 // action's `error`, else its status). Code -> plain Chinese; the raw value stays in the technical details. Every code below
 // is a string the backend really uses; the comment gives where. Codes not listed here fall back to wikiRecBlockedUnknown.
 const wikiRecBlockedReasons = new Map([
- ['stage1-run-grant-expired', '运行许可已过期，没有再继续。许可不会自动续期'], // harness-ui/wiki_project_progression_http.py:81
- ['source-grant-expired', '取得原文的许可已过期'], // project_stage1_source_service.py:659
- ['project-expansion-grant-expired', '扩展检索的许可已过期'], // project_expansions.py:158
- ['project-query-seal-expired', '检索授权已过期'], // project_query_permit.py:258
- ['project-query-bootstrap-expired', '检索环境的准备授权已过期'], // project_stage1_queries.py:467
+ ['stage1-run-grant-expired', '运行许可剩余时间不够做这一步，或已过期，所以没有再继续。需要重新授权，许可不会自动续期'], // harness-ui/wiki_project_progression_http.py:81
+ ['source-grant-expired', '取得原文的许可剩余时间不够做这一步，或已过期'], // project_stage1_source_service.py:659
+ ['project-expansion-grant-expired', '扩展检索的许可剩余时间不够做这一步，或已过期'], // project_expansions.py:158
+ ['project-query-seal-expired', '检索授权剩余时间不够做这一步，或已过期'], // project_query_permit.py:258
+ ['project-query-bootstrap-expired', '检索环境的准备授权剩余时间不够做这一步，或已过期'], // project_stage1_queries.py:467
  ['query-request-expired', '这次检索请求已过期'], // planned_queries.py:680
  ['query-permit-expired-during-admission', '检索许可在受理途中过期了'], // planned_queries.py:844
  ['stage1-run-grant-revoked', '运行许可已被收回'], // project_stage1_run_grant.py:294
  ['stage1-run-grant-unavailable', '读不到这份运行许可'], // project_stage1_run_grant.py:285
  ['stage1-run-grant-stale', '旧的运行许可已作废：课题、范围、设置或程序代码变了（程序更新后需要重新授权）'], // project_stage1_run_grant.py:354
- ['stage1-run-budget-exceeded', '超出这份许可允许的额度'], // project_stage1_run_grant.py:213
+ ['stage1-run-budget-exceeded', '申请的运行时长超过了课题设置里的上限，没有创建许可'], // project_stage1_run_grant.py:213
  ['stage1-run-action-bound-exhausted', '这份许可允许的操作次数已用完'], // project_stage1_run_grant.py:451
  ['stage1-run-operation-not-authorized', '这份许可不包含这一步操作'], // project_stage1_run_actions.py:230
  ['stage1-run-explicit-user-consent-required', '这一步需要你明确同意后才能做'], // project_stage1_run_grant.py:185
  ['stage1-run-lane-not-consented', '这一类操作没有被同意'], // project_stage1_run_grant.py:224
  ['stage1-run-action-execution-unknown', '上一次操作结果不确定，为避免重复，不会再发一次'], // project_stage1_run_grant.py:463
  ['execution-interrupted', '上一次操作被中断，结果不确定，不会自动重发'], // bounded_public_source.py:585
- ['project-query-bootstrap-requires-reconciliation', '检索环境准备的结果不确定，要先核对再继续'], // project_stage1_queries.py:382
+ ['project-query-bootstrap-requires-reconciliation', '已有检索作业，或服务正在关闭；先核对现有作业再继续'], // project_stage1_queries.py:382
  ['project-query-bootstrap-dispatch-unobserved', '检索环境准备已发出，但没有看到结果'], // project_stage1_queries.py:678
  ['query-worker-start-unobserved', '检索进程是否启动成功没有确认'], // planned_queries.py:718
  ['intake-search-request-invalid', '检索计划的格式不合要求，没有发出'], // project_intake.py:638
@@ -108,15 +108,15 @@ const wikiRecBlockedReasons = new Map([
  ['source-worker-platform-unavailable', '这台机器不支持取得原文的工具'], // source_worker_process.py:24
  ['source-worker-unavailable', '取得原文的工具现在不可用'], // source_worker_runner.py:312
  ['saved-parser-worker-unavailable', '解析已保存原文的工具现在不可用'], // source_worker_runner.py:585
- ['saved-parser-network-or-process-unavailable', '解析已保存原文需要的进程或网络不可用'], // saved_source_parser_runtime.py:402
+ ['saved-parser-network-or-process-unavailable', '解析已保存原文时，解析器尝试联网或起进程，被安全限制拦下'], // saved_source_parser_runtime.py:402
  ['planned-query-unavailable', '这次启动没有提供检索功能'], // query_http.py:61
  ['tls-verification-failed', '网络连接的证书核对没通过'], // bounded_public_source.py:310
  ['resolver-unavailable', '域名解析现在不可用'], // bounded_public_source.py:319
- ['stage1-ledger-state-stale', '依据的记录已经变了，需要重新读取'], // project_agent_mutation.py:41
- ['stage1-checkpoint-stale', '检查点已经过期，需要重新生成'], // project_stage1_delivery.py:69
- ['stage1-delivery-offer-stale', '交付提议已经过期，需要重新生成'], // project_stage1_delivery.py:454
- ['stage1-coverage-offer-stale', '覆盖检查的提议已经过期'], // project_stage1_coverage.py:191
- ['stage1-agent-pending-work-stale', '待处理的工作已经变了，需要重新读取'], // project_agent_pending.py:34
+ ['stage1-ledger-state-stale', '依据的记录已经变了，需要重新读取；先到操作历史核对这条记录'], // project_agent_mutation.py:41
+ ['stage1-checkpoint-stale', '检查点已经过期，需要重新生成；先到操作历史核对这条记录'], // project_stage1_delivery.py:69
+ ['stage1-delivery-offer-stale', '交付提议已经过期，需要重新生成；先到操作历史核对这条记录'], // project_stage1_delivery.py:454
+ ['stage1-coverage-offer-stale', '覆盖检查的提议已经过期；先到操作历史核对这条记录'], // project_stage1_coverage.py:191
+ ['stage1-agent-pending-work-stale', '待处理的工作已经变了，需要重新读取；先到操作历史核对这条记录'], // project_agent_pending.py:34
  ['intake-intent-state-differs', '这次操作依据的课题状态已变'], // project_intake.py:267
  ['intake-operation-failed', '操作没有完成（可能超时或被拒绝），原因在技术细节里'], // project_intake.py:350
  ['intake-action-bound-exceeded', '这个课题保存的操作次数已到上限'], // project_intake.py:185
