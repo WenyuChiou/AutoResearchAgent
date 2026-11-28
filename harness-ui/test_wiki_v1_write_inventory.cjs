@@ -109,6 +109,7 @@ live('rendered V1 pages (zh, en, tw): every control that can write is inside a g
    await go(1); await record('project 1: stage 1');
    for (const tab of ['sources', 'evidence', 'synthesis', 'ops', 'materials']) { const el = await page.$(`[data-s1-tab="${tab}"]`); if (el) { await el.click(); await page.waitForTimeout(1200); await record('project 1: stage 1 ' + tab); } }
    { const el = await page.$('[data-wc-open]'); if (el) { await el.click(); await page.waitForTimeout(900); await record('project 1: chat drawer open'); } }
+   for (const stage of [2, 3]) { await go(1, [`.v1-flow-item[data-stage="${stage}"]`]); await record(`project 1: stage ${stage} (connection card)`); }
    await go(3); for (const tab of ['sources', 'evidence', 'materials']) { const el = await page.$(`[data-s1-tab="${tab}"]`); if (el) { await el.click(); await page.waitForTimeout(1200); await record('archive: ' + tab); } }
    await go(4); await record('synthetic: stage 2');
    for (const tab of ['literature', 'materials']) { const el = await page.$(`[data-s2-tab="${tab}"]`); if (el) { await el.click(); await page.waitForTimeout(1200); await record('synthetic: stage 2 ' + tab); } }
