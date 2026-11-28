@@ -43,15 +43,22 @@ class RequestDeadline:
     REARM_SECONDS = 0.25
 
     def __init__(self, timeout):
+        # A read can verify several runtimes per request (each view checks its
+        # own seal); the pass bound is widened so the count alone never fails
+        # a request that used to answer. The 600 s cap still bounds the time.
         self.meter = verification_clock.Meter(
-            base_seconds=max(verification_clock.BASE_SECONDS, timeout)
+            base_seconds=max(verification_clock.BASE_SECONDS, timeout),
+            max_passes=4 * verification_clock.MAX_PASSES,
         )
         self.until = time.monotonic() + timeout
         self.hard = self.until + self.meter.max_seconds
 
     def rearm_delay(self, left):
         # While a pass is open, left() stays constant; a floor stops the timer
-        # from re-arming in a tight loop. It may close up to this much late.
+        # from re-arming in a tight loop. It may close up to this much late,
+        # and only once verification has moved the deadline at all.
+        if self.meter.excluded() <= 0:
+            return left
         return max(left, min(self.REARM_SECONDS, self.hard - time.monotonic()))
 
     def left(self):

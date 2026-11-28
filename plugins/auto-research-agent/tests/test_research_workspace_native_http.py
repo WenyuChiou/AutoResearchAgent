@@ -647,13 +647,16 @@ class SessionHttpTests(unittest.TestCase):
         # Review P1-2: a pass that starts just before the deadline keeps left()
         # constant; the timer must not re-arm in a tight loop.
         def view(credential, ref):
-            time.sleep(0.48)
+            # Start the pass 50 ms before this request's own deadline, however
+            # long parsing and authentication took on a busy machine.
+            (until,) = [row[0] for row in server._deadlines.values()]
+            time.sleep(max(0.0, until - 0.05 - time.monotonic()))
             with verification_clock.local_verification(1):
                 time.sleep(1.5)
             return {"status": "read"}
 
         self.api.view = Mock(side_effect=view)
-        server = self.bounded_server(timeout=0.5)
+        server = self.bounded_server(timeout=1.0)
         calls = []
         original = server._expire
 
