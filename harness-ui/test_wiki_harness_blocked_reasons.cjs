@@ -22,7 +22,7 @@ for (const [raw, word] of [['stage1-run-grant-expired', '过期'], ['stage1-run-
 }
 // Several reasons, a repeated one and an unknown one.
 const many = render(['stage1-run-grant-expired', 'stage1-run-grant-expired', 'something-nobody-listed']);
-assert.equal((withoutTech(many).match(/运行许可已过期/g) || []).length, 1, 'the same explanation is not repeated');
+assert.equal((withoutTech(many).match(/运行许可剩余时间不够做这一步/g) || []).length, 1, 'the same explanation is not repeated');
 assert.match(withoutTech(many), /被拦下，原因见技术细节/);
 assert.doesNotMatch(withoutTech(many), /something-nobody-listed/);
 assert.ok(many.includes('something-nobody-listed'), 'unknown raw value still available in the details');
