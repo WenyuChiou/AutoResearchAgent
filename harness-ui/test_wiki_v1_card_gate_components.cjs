@@ -252,3 +252,71 @@ test('rl() calls in v9-*.js and stage2_display.js all carry an English and a Tra
  }
  assert.ok(calls > 150, 'the scan saw the rl() calls: ' + calls);
 });
+
+// ---------- 4. the remaining write controls: citation expansion, Stage 3 comments/revisions, material upload, job controls ----------
+const WRITE_CLASSES = [
+ {name: 'citation expansion', file: 'renderer/src/expansion-ui.js', controls: ['data-v1-write data-v7-expansion="${action}"'], root: 'data-v1-card data-v7-expansion-panel', events: ['click', 'keydown'], tag: 'button'},
+ {name: 'Stage 3 comments and revisions', file: 'v9-stage3-feedback.js', controls: ['<button class="hs-button" type="submit" data-v1-write>', 'data-v1-write data-v94f-inspect', 'data-v1-write data-v94f-retry'], root: '<section class="hs-panel n9f-panel" data-v94f-panel', events: ['click', 'submit'], tag: 'button'},
+ {name: 'Stage 3 material upload', file: 'v9-stage3-materials.js', controls: ['<input type="file" data-v1-write data-v95-material-file', 'data-v1-write data-v95-material-resume', 'data-v1-write data-v95-material-abort'], root: '<section class="n9f-details">', events: ['change', 'click'], tag: 'input'},
+ {name: 'job and archive controls', file: 'renderer/src/retirement-ui.js', controls: ['data-v1-write data-v7-control="recover"', 'data-v1-write data-v7-control="archive"', 'data-v1-write data-v7-control="archive-recover"', 'data-v1-write data-v7-control="retire"'], root: 'data-v1-card data-v7-panel="model-retirement"', events: ['click'], tag: 'button'}
+];
+test('every remaining write control carries the write mark and sits in a card root', () => {
+ for (const c of WRITE_CLASSES) {
+  const src = read(c.file);
+  for (const control of c.controls) assert.ok(src.includes(control), `${c.name}: ${c.file} marks ${control}`);
+  assert.ok(src.includes(c.root), `${c.name}: card root ${c.root}`);
+ }
+});
+
+function classScenario(lang, cls, {dropTw = false, dropEn = false, text = TEXT} = {}) {
+ const windowHandlers = [];
+ const apps = [{lang}];
+ const context = vm.createContext({apps, console: {warn() {}}, window: {addEventListener: (type, fn) => windowHandlers.push({type, fn})}});
+ vm.runInContext(text + '\nthis.__t = {v1RlMark, v1GateCards};', context);
+ const rl = (zh, en, tw) => { const l = apps[0].lang; const v = l === 'en' ? en : l === 'tw' ? tw : zh; return context.__t.v1RlMark(v, zh); };
+ // the first Chinese label of the real module, run through rl() as the module does
+ const zh = /rl\('([^']*[一-鿿][^']*)'/.exec(read(cls.file))[1];
+ const label = rl(zh, dropEn ? '' : 'An English label', dropTw ? '' : '一個繁體標籤');
+ const card = {dataset: {}, outerHTML: `<section>${label}<${cls.tag} data-v1-write></${cls.tag}></section>`, notes: [],
+  querySelector(selector) { return selector === '[data-v1-gate-note]' && this.notes.length ? this.notes[0] : null; },
+  insertAdjacentHTML(where, markup) { this.outerHTML += markup; this.notes.push(markup); }};
+ const control = {disabled: false, dataset: {}, tagName: cls.tag.toUpperCase(),
+  closest(selector) {
+   if (selector === '[data-v1-card]') return null;
+   if (selector === 'section') return card;
+   if (selector === '[data-v1-gated]') return card.dataset.v1Gated === '1' ? card : null;
+   if (selector.startsWith('[data-v1-write]')) return control;
+   return null;
+  }};
+ context.__t.v1GateCards({querySelectorAll: selector => selector === '[data-v1-write]' ? [control] : []});
+ control.disabled = false; // a re-render of the control must not matter
+ let reached = 0;
+ const chain = eventChain(windowHandlers, cls.events.map(type => ({type, fn: () => { reached += 1; }})));
+ return (async () => {
+  for (const type of cls.events) await chain({type, key: 'Enter', target: control});
+  return {gated: card.dataset.v1Gated === '1', disabled: control.disabled, reached, note: card.notes[0] || ''};
+ })();
+}
+for (const cls of WRITE_CLASSES) {
+ test(`${cls.name}: complete text keeps the control open; a deleted translation gates it and nothing is sent; zh is not affected`, async () => {
+  for (const lang of ['zh', 'en', 'tw']) {
+   const r = await classScenario(lang, cls);
+   assert.equal(r.gated, false, `${lang}: complete card is open`);
+   assert.equal(r.reached, cls.events.length, `${lang}: events reach the control handler`);
+  }
+  const en = await classScenario('en', cls, {dropEn: true});
+  assert.equal(en.gated, true, 'en: a missing English text gates the card');
+  assert.equal(en.reached, 0, 'en: ' + cls.events.join(', ') + ' send nothing');
+  assert.ok(!/[一-鿿]/.test(en.note), 'en: reason is not Simplified Chinese');
+  const tw = await classScenario('tw', cls, {dropTw: true});
+  assert.equal(tw.gated, true, 'tw: a missing Traditional text gates the card');
+  assert.equal(tw.reached, 0);
+  assert.match(tw.note, /切換到簡體中文/);
+  const zh = await classScenario('zh', cls, {dropEn: true, dropTw: true});
+  assert.equal(zh.gated, false, 'zh is not affected');
+  assert.equal(zh.reached, cls.events.length);
+  // mutation: a gate that always says ok lets the card through
+  const bad = await classScenario('en', cls, {dropEn: true, text: TEXT.replace('function v1CardGate(markup) {', "function v1CardGate(markup) {\n return {ok:true, reason:''};")});
+  assert.ok(!bad.gated && bad.reached > 0, 'the broken gate lets the card send (this test would fail)');
+ });
+}

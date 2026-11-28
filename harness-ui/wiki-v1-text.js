@@ -2053,7 +2053,7 @@ function v1GateComponent(host, pairs, writeSelector) {
  if (gate.ok && note) note.remove();
  return gate;
 }
-// Click, Enter and submit inside a gated card never reach the card's own handlers, so no request can be sent from it.
+// Click, Enter, submit and change (file inputs) inside a gated card never reach the card's own handlers, so no request can be sent from it.
 // Shadow roots: the event is retargeted to the host at window level, so the real origin and the gated card come from
 // the composed path.
 function v1GateEvent(event) {
@@ -2070,7 +2070,7 @@ function v1GateEvent(event) {
  return true;
 }
 if (typeof window !== 'undefined' && window.addEventListener) {
- for (const type of ['click', 'keydown', 'submit']) window.addEventListener(type, v1GateEvent, true);
+ for (const type of ['click', 'keydown', 'submit', 'change']) window.addEventListener(type, v1GateEvent, true);
 }
 // Hook order: modules wrap v7AfterRender as they load, so this wrapper (installed after the last module) runs last.
 if (typeof queueMicrotask === 'function' && typeof v7AfterRender !== 'undefined') {
