@@ -16,6 +16,7 @@ from stage3_plan.jobs import POLICY
 from stage3_plan.preparation import sha256
 from stage3_plan.storage import inspect_package
 
+from stage1_retrieval import verification_clock
 from .session_api import SessionApiError
 from .http import MAX_BODY
 from .transport import _decode
@@ -372,6 +373,11 @@ def handle_planning(handler, method):
         if sent:
             transport.failed(ref, body, "stage3-planning-deadline-or-io-failed")
         handler.close_connection = True
+    except verification_clock.LocalVerificationBudgetExceeded:
+        if sent:
+            transport.failed(ref, body, verification_clock.BUDGET_CODE)
+        else:
+            handler._reply(503, {"error": verification_clock.BUDGET_CODE})
     except Exception:
         if sent:
             transport.failed(ref, body, "stage3-planning-operation-failed")

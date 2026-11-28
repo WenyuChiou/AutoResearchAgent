@@ -31,12 +31,28 @@ class RequestDeadline:
     this request's meter and push the deadline out by at most the meter's own
     allowance; the raw clock never runs past ``timeout + MAX_SECONDS``. Without
     any marked verification it equals the previous absolute deadline.
+
+    One meter per connection; every reply closes the connection, so it is one
+    meter per request. The allowance base is at least ``timeout``: verification
+    that used to fit inside the old absolute cap can never fail here with the
+    budget reason. Code that opens its own nested meter inside a request (the
+    query/bootstrap workers do) measures against that meter instead, so its
+    verification does not move this deadline -- the previous behaviour.
     """
 
+    REARM_SECONDS = 0.25
+
     def __init__(self, timeout):
-        self.meter = verification_clock.Meter()
+        self.meter = verification_clock.Meter(
+            base_seconds=max(verification_clock.BASE_SECONDS, timeout)
+        )
         self.until = time.monotonic() + timeout
         self.hard = self.until + self.meter.max_seconds
+
+    def rearm_delay(self, left):
+        # While a pass is open, left() stays constant; a floor stops the timer
+        # from re-arming in a tight loop. It may close up to this much late.
+        return max(left, min(self.REARM_SECONDS, self.hard - time.monotonic()))
 
     def left(self):
         now = time.monotonic()
@@ -138,7 +154,9 @@ class SessionHttpServer(ThreadingHTTPServer):
                 return  # Already released.
             left = entry[2].left()
             if left > 0:
-                timer = threading.Timer(left, self._expire, (request,))
+                timer = threading.Timer(
+                    entry[2].rearm_delay(left), self._expire, (request,)
+                )
                 timer.daemon = True
                 self._deadlines[request] = (entry[0], timer, entry[2])
                 timer.start()

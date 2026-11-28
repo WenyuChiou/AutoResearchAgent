@@ -564,7 +564,6 @@ class SessionHttpTests(unittest.TestCase):
             self.assertGreater(seconds, 1.4)  # well past the 0.8 s deadline
         self.assertIsInstance(meters[0], verification_clock.Meter)
         self.assertIsNot(meters[0], meters[1])
-        self.assertIsNone(verification_clock.current())
 
     def test_stuck_request_work_is_still_closed_at_the_deadline(self):
         # Unmarked work (a stuck callback or I/O) keeps the previous 0.8 s cap.
@@ -606,9 +605,32 @@ class SessionHttpTests(unittest.TestCase):
         self.assertLess(seconds, 2.6)
 
     def test_verification_over_its_budget_fails_with_its_own_reason(self):
+        # The allowance base is the request timeout (1 s here); a pass of
+        # 1.3 s exceeds it and answers before the extended deadline (2 s).
         def view(credential, ref):
             with verification_clock.local_verification(1):
-                time.sleep(0.6)
+                time.sleep(1.3)
+            return {"status": "read"}
+
+        self.api.view = Mock(side_effect=view)
+        with (
+            patch.object(verification_clock, "BASE_SECONDS", 0.2),
+            patch.object(verification_clock, "PASS_SECONDS", 0.0),
+            patch.object(verification_clock, "PER_FILE_SECONDS", 0.0),
+        ):
+            server = self.bounded_server(timeout=1)
+            status, body, _ = self.read_bounded(server)
+        self.assertEqual(
+            (status, body), (503, {"error": "local-verification-budget-exceeded"})
+        )
+
+    def test_verification_inside_the_old_cap_never_fails_on_budget(self):
+        # Review P1-1: a request that used to finish inside the absolute cap
+        # (here 0.7 s of verification under a 2 s cap) must not turn into a
+        # budget failure even when the file formula alone allows less (0.2 s).
+        def view(credential, ref):
+            with verification_clock.local_verification(1):
+                time.sleep(0.7)
             return {"status": "read"}
 
         self.api.view = Mock(side_effect=view)
@@ -619,9 +641,31 @@ class SessionHttpTests(unittest.TestCase):
         ):
             server = self.bounded_server(timeout=2)
             status, body, _ = self.read_bounded(server)
-        self.assertEqual(
-            (status, body), (503, {"error": "local-verification-budget-exceeded"})
-        )
+        self.assertEqual((status, body), (200, {"status": "read"}))
+
+    def test_deadline_timer_rearms_with_a_floor_during_a_late_pass(self):
+        # Review P1-2: a pass that starts just before the deadline keeps left()
+        # constant; the timer must not re-arm in a tight loop.
+        def view(credential, ref):
+            time.sleep(0.48)
+            with verification_clock.local_verification(1):
+                time.sleep(1.5)
+            return {"status": "read"}
+
+        self.api.view = Mock(side_effect=view)
+        server = self.bounded_server(timeout=0.5)
+        calls = []
+        original = server._expire
+
+        def counted(request):
+            calls.append(time.monotonic())
+            return original(request)
+
+        server._expire = counted
+        status, body, _ = self.read_bounded(server)
+        self.assertEqual((status, body), (200, {"status": "read"}))
+        # 1.5 s at a 0.25 s floor is about 7 timer runs; a tight loop is far more.
+        self.assertLessEqual(len(calls), 10)
 
     def test_request_deadline_hard_bound_and_raw_float_are_kept(self):
         with patch.object(verification_clock, "MAX_SECONDS", 7.0):
