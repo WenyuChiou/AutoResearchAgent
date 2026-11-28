@@ -24,6 +24,8 @@ from stage3_plan.planner import (  # noqa: E402
     inspect_saved_plan,
 )
 from stage3_plan.prompts import (  # noqa: E402
+    ADMITTED_ONLY,
+    ADMITTED_WITH_REVISION,
     MAX_CONTEXT_BYTES,
     REVISION_INSTRUCTION,
     RevisionContextTooLarge,
@@ -65,6 +67,14 @@ def revision(plan, text="Researcher comment: keep access unknown.", **changes):
         "parent_plan_manifest_sha256": "3" * 64,
         "parent_request_sha256": "4" * 64,
         "plan": plan,
+        "changes": [
+            {
+                "question_ref": "q1",
+                "field": "minimum_deliverable",
+                "model_value": "Model text before the edit.",
+                "researcher_value": "CHANGE-MARKER researcher text.",
+            }
+        ],
         "comments": [{"question_ref": None, "text": text}],
         **changes,
     }
@@ -128,11 +138,16 @@ class PromptAndRequestBytesTests(unittest.TestCase):
         value, prompt, _, _ = request(golden_intake(), "1.1.0", value_in)
         self.assertEqual(value["revision_input"], value_in)
         self.assertIn(REVISION_INSTRUCTION, prompt)
-        self.assertIn("不要把草稿里的断言当作已核验事实", prompt)
+        self.assertIn("只有 changes 和 comments 来自研究者", prompt)
+        # The source rule is reworded only in the revision branch.
+        self.assertIn(ADMITTED_WITH_REVISION, prompt)
+        self.assertNotIn(ADMITTED_ONLY, prompt)
         head, tail = prompt.split("\nRESEARCHER_REVISION\n")
         self.assertIn("ADMITTED_CONTEXT", head)
         self.assertIn("DRAFT-MARKER-42", tail)
         self.assertIn("COMMENT-MARKER-7", tail)
+        self.assertIn("CHANGE-MARKER researcher text.", tail)
+        self.assertIn("Model text before the edit.", tail)
         # The declaration sits with the instructions, before the source context.
         self.assertLess(
             prompt.index(REVISION_INSTRUCTION), prompt.index("ADMITTED_CONTEXT")
@@ -142,8 +157,11 @@ class PromptAndRequestBytesTests(unittest.TestCase):
         )
         plain, plain_prompt, _, _ = request(golden_intake(), "1.1.0")
         self.assertNotEqual(plain["prompt_sha256"], value["prompt_sha256"])
+        self.assertIn(ADMITTED_ONLY, plain_prompt)
         self.assertTrue(
-            prompt.startswith(plain_prompt.split("End of instructions.")[0])
+            prompt.replace(ADMITTED_WITH_REVISION, ADMITTED_ONLY).startswith(
+                plain_prompt.split("End of instructions.")[0]
+            )
         )
 
     def test_oversized_revision_is_refused_not_trimmed(self):
@@ -160,7 +178,30 @@ class PromptAndRequestBytesTests(unittest.TestCase):
         extra = dict(good, execution_authorized=True)
         bad_comment = revision({"a": 1}, comments=[{"text": "no question field"}])
         bad_hash = revision({"a": 1}, decision_receipt_sha256="not-a-hash")
-        for value in (bad_digest, extra, bad_comment, bad_hash, None, []):
+        bad_change = revision({"a": 1}, changes=[{"question_ref": "q1"}])
+        bad_value = revision(
+            {"a": 1},
+            changes=[
+                {
+                    "question_ref": "q1",
+                    "field": "minimum_deliverable",
+                    "model_value": None,
+                    "researcher_value": "x",
+                }
+            ],
+        )
+        no_changes = {k: v for k, v in good.items() if k != "changes"}
+        for value in (
+            bad_digest,
+            extra,
+            bad_comment,
+            bad_hash,
+            bad_change,
+            bad_value,
+            no_changes,
+            None,
+            [],
+        ):
             with self.subTest(value=value), self.assertRaises(Stage3Error):
                 check_revision_input(value)
 
@@ -280,6 +321,16 @@ class ReplanJobTests(unittest.TestCase):
             self.jobs._saved(forged, pin)
         with self.assertRaises(Stage3Error):
             inspect_saved_plan(forged, pin)
+        edited = copy.deepcopy(payload)
+        changes = edited["revision_input"]["changes"]
+        changes[0]["researcher_value"] = "EDITED"
+        edited["revision_input"] = revision(
+            edited["revision_input"]["plan"], changes=changes
+        )
+        with self.assertRaises(Stage3Error):
+            self.jobs._saved(edited, pin)
+        with self.assertRaises(Stage3Error):
+            inspect_saved_plan(edited, pin)
         dropped = {k: v for k, v in payload.items() if k != "revision_input"}
         with self.assertRaises(Stage3Error):
             inspect_saved_plan(dropped, pin)
