@@ -32,14 +32,23 @@ def get_source_proof():
     return deepcopy(RAW_SOURCE_PROOF)
 
 
-def saved_pin(root):
+def saved_pin(root, extra_files=0):
     code = root / "code"
     code.mkdir()
     executable, script = code / "fake-python.exe", code / "cli.py"
     executable.write_bytes(b"not-an-executable: test-only")
     script.write_bytes(b"raise RuntimeError('never execute fixture')\n")
+    # Optional real-scale inventory: real runtimes pin about 13,700 files.
+    package = code / "synthetic_runtime_package"
+    if extra_files:
+        package.mkdir()
+    for index in range(extra_files):
+        (package / f"module_{index:05d}.py").write_bytes(f"V = {index}\n".encode())
     prefix = [str(executable), "-I", "-B", str(script)]
-    files = {str(p): sha(p.read_bytes()) for p in (executable, script)}
+    files = {
+        str(p): sha(p.read_bytes())
+        for p in (executable, script, *sorted(package.glob("*.py")))
+    }
     config = root / "config.json"
     config.write_bytes(b"{}")
     identity = dict(
@@ -71,11 +80,13 @@ def saved_pin(root):
 
 
 class QueryCase(unittest.TestCase):
+    RUNTIME_EXTRA_FILES = 0
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="pq-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name).resolve()
-        self.pin = saved_pin(self.root)
+        self.pin = saved_pin(self.root, self.RUNTIME_EXTRA_FILES)
         pending = prepare_formal_intake(
             brief("unrestricted"),
             project_id="project-a",

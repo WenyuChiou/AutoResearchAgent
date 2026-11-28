@@ -19,7 +19,7 @@ const context = vm.createContext({
  liveRecover:() => calls.push(['recover']), livePaint:() => calls.push(['paint']), livePost:(...args) => calls.push(['post', ...args]),
  v1Notice:(text, recover) => calls.push(['notice', text, recover]),
  location:{hash:'#x', pathname:'/', search:''}, history:{pushState:() => {}, state:null}, window:{scrollTo:() => {}, addEventListener:() => {}},
- document:{title:'', addEventListener:(type, fn) => (listeners[type] ||= []).push(fn)}, queueMicrotask:fn => fn()
+ document:{title:'', addEventListener:(type, fn) => (listeners[type] ||= []).push(fn)}, queueMicrotask:fn => fn(), setTimeout:() => 0
 });
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-home.js'), 'utf8'), context);
 const markup = () => context.wikiHomeMarkup();
@@ -66,7 +66,7 @@ let html = markup();
 assert.match(html, /编号尾号 111111/);
 assert.match(html, /打开 同名课题 · 编号尾号 222222/);
 assert.match(html, /有 Stage 1 记录，打开课题后可见/);
-assert.match(html, /还没有运行/);
+assert.match(html, /<td class="wiki-home-muted" data-wiki-home-record-ref="project-aaaa111111">打开课题后可见<\/td>/); // not read yet: no claim either way
 store.set('wiki-v1-record:project-bbbb222222', JSON.stringify({papers:30, located:149, checked:0, claims:149}));
 assert.match(markup(), /按已保存交付统计：30 篇文献 · 核对 0 \/ 149/);
 
@@ -102,4 +102,17 @@ assert.doesNotMatch(markup(), /data-wiki-home-guide/);
 store.delete('wiki-v1-guide-closed');
 assert.match(markup(), /data-wiki-home-guide/, 'settings can show it again by clearing the mark');
 
+// Acceptance M-6: 「看这三处」 visibly responds (focus moves to the list and it is marked), not only a scroll.
+{
+ const classes = new Set(), attrs = {};
+ let focused = false;
+ const decisions = {scrollIntoView() {}, focus() { focused = true; }, setAttribute(name, value) { attrs[name] = value; }, classList:{add:name => classes.add(name), remove:name => classes.delete(name)}};
+ const saved = app.el.querySelector;
+ app.el.querySelector = selector => selector === '.wiki-home-decisions' ? decisions : null;
+ click({'data-wiki-home-focus':'decisions'});
+ app.el.querySelector = saved;
+ assert.equal(focused, true, 'focus moves to the three decisions');
+ assert.equal(attrs.tabindex, '-1');
+ assert.ok(classes.has('wiki-home-flash'), 'the list is marked for a moment');
+}
 console.log('PASS Wiki home: first-visit guide, create 4xx/5xx shown with list kept, saving and unknown create wording, read-only recovery, foreign pending, same titles, record column, 工作台 rule.');

@@ -6,7 +6,7 @@ const WSG_OPS = [
  ['query', '检索（联网搜索公开文献）'], ['source', '取原文（读取公开来源）'], ['analyze-full-paper', '模型阅读全文'],
  ['records', '整理记录'], ['delivery', '生成交付']];
 const WSG_REASONS = {
- 'stage1-run-grant-zero-limits': '这次启动的运行上限是 0（或没有可用秒数），不会创建运行许可。要真实运行，需带非零的 --run-limits 重新启动。',
+ 'stage1-run-grant-zero-limits': '这次启动的运行上限是 0（或没有可用秒数），不会创建运行许可。要真实运行，请本机操作者用非零的运行上限重新启动。',
  'stage1-run-grant-not-enabled': '这次启动没有开启整轮运行（--enable-stage1-run，需要内容模型和公开来源），所以不能创建运行许可。',
  'stage1-run-grant-scope-not-ready': '这个课题还没有确认范围或检索计划，先确认范围。',
  'stage1-run-grant-renewal-refused': '这个版本已经有运行许可（有效、已过期或已撤销都算），不会续期或重复创建。',
@@ -86,7 +86,7 @@ function wsgDuration(seconds) {
 // ---------- scope page: explicit consent boxes (replaces "limit > 0 means consent") ----------
 function wsgConsentRow(field, key, label, count, detail) {
  const form = wsgFormFor(rt.ref), limits = wsgLimits(), allowed = wsgPositive(limits?.seconds) && wsgPositive(count);
- const why = allowed ? '' : '这次启动的这项上限是 0，不能勾选；要用需带非零的 --run-limits 重新启动';
+ const why = allowed ? '' : '这次启动的这项上限是 0，不能勾选；要用请本机操作者用非零的运行上限重新启动';
  return `<label class="ws-check"><input type="checkbox" data-wsg-consent="${field}" ${form[key] && allowed ? 'checked' : ''} ${allowed ? '' : 'disabled'}>
  <span><b>${label}</b>：${detail(count, limits?.seconds)}${why ? `<small class="ws-why" role="note">${esc(why)}</small>` : ''}</span></label>`;
 }
