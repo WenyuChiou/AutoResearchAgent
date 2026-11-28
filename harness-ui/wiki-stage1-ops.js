@@ -160,7 +160,7 @@ function wsPatchScopeButtons(app) {
  const gate = wsScopeGate(app);
  for (const button of app.el.querySelectorAll('[data-ws-confirm]')) {
   const reason = gate || (button.hasAttribute('data-ws-needs-check') && !app.wikiS1?.wsConsentOk ? v1t('请先勾选确认') : '');
-  button.disabled = !!reason;
+  button.disabled = !!reason || button.dataset.v1Gated === '1';
   const why = button.parentElement.querySelector('.ws-why');
   if (why) { why.textContent = reason; why.hidden = !reason; }
  }
@@ -212,7 +212,7 @@ function wsScopePage(app) {
  }
  const note = rt.error ? `<div class="live-error ws-err" role="alert">${v1t('{n} 没有保存：{n2}，表单内容保留。', {n: wsTag('err',v1t('出错')), n2: esc(rt.error)})}</div>` : '';
  const busy = rt.busy ? `<p class="ws-run" role="status">${v1t('{n} 正在保存范围', {n: wsTag('run',v1t('进行中'))})}</p>` : '';
- return `<section data-wiki-ops="scope" aria-label="${v1t('确认范围')}">${note}${busy}${form}${card}</section>`;
+ return `<section data-v1-card data-wiki-ops="scope" aria-label="${v1t('确认范围')}">${note}${busy}${form}${card}</section>`;
 }
 
 // ---------- run tab: seven-row process table (8.7) ----------
@@ -345,7 +345,7 @@ function wsCoverageDetail() {
 }
 function wsCoverageForm() {
  const html = realCoverage();
- return html ? html.replace('<details class="real-workflow">', '<details class="real-workflow ws-cov" open>') : `<p class="wiki-s1-muted">${v1t('现在没有服务给出的覆盖审阅操作。')}</p>`;
+ return html ? html.replace('<details class="real-workflow">', '<details class="real-workflow ws-cov" open data-v1-card>').replace('data-v7-workflow="coverage-save"', 'data-v1-write data-v7-workflow="coverage-save"') : `<p class="wiki-s1-muted">${v1t('现在没有服务给出的覆盖审阅操作。')}</p>`;
 }
 // ---------- delivery (8.11) ----------
 function wsDeliveryDetail(app) {
@@ -422,7 +422,7 @@ function wsRaw(values) {
 function wsOpsActive(app) {
  return wikiS1Active(app) && !!rt.ref && (!!rt.overview?.project || wsReadonly());
 }
-wikiS1Tabs.ops = v1t('运行与操作');
+wikiS1Tabs.ops = '运行与操作';
 const wsPrevResults = wikiS1Results;
 wikiS1Results = function (app) {
  if (!wsOpsActive(app)) return wsPrevResults(app);
@@ -556,8 +556,8 @@ document.addEventListener('change', event => {
 
 // ---------- 8.8 / 8.9 / 8.10: per-paper processing, evidence review, relation names ----------
 // Seven relation names from DESIGN 8.9 (the old "不支持" becomes "相互矛盾").
-Object.assign(wikiS1Relations, {contradicts:v1t('相互矛盾'), pending:v1t('未核对'), unclear:v1t('不清楚'), unverifiable:v1t('无法核实'), context:v1t('只是背景')});
-Object.assign(wikiS1Checks, {contradicts:v1t('✕ 相互矛盾'), unclear:v1t('? 不清楚'), unverifiable:v1t('⊘ 无法核实'), context:v1t('· 只是背景')});
+Object.assign(wikiS1Relations, {contradicts:'相互矛盾', pending:'未核对', unclear:'不清楚', unverifiable:'无法核实', context:'只是背景'});
+Object.assign(wikiS1Checks, {contradicts:'✕ 相互矛盾', unclear:'? 不清楚', unverifiable:'⊘ 无法核实', context:'· 只是背景'});
 const wsPrevCheck = wikiS1Check;
 wikiS1Check = function (claim) {
  const base = wsPrevCheck(claim);
@@ -701,7 +701,7 @@ document.addEventListener('change', event => {
  if (!wsOpsActive(app)) return;
  const patch = (button, reason) => {
   if (!button) return;
-  button.disabled = !!reason;
+  button.disabled = !!reason || button.dataset.v1Gated === '1';
   const why = button.parentElement.querySelector('.ws-why');
   if (why) { why.textContent = reason; why.hidden = !reason; }
  };

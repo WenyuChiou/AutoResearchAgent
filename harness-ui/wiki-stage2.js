@@ -191,9 +191,10 @@ function wikiS2ConnBlock(app) {
     || kind === 'connect' && button.attr === 'read' && (m.reading || m.writing)
     || kind === 'request' && button.act && (rt.busy || rt.loading || rt.pending || rt.controlHeld || wikiStage2State?.busy);
    const cls = 'hs-button' + (button.primary ? ' hs-button-primary' : '');
+   const write = button.attr && button.attr !== 'read' || button.act === 'request' ? ' data-v1-write' : '';
    const data = button.attr ? `data-v9-connection="${button.attr}" data-connection-basis="${esc(m.token)}"`
     : button.act ? `data-wiki-stage2-action="${button.act}"` : button.stage ? `data-stage="${button.stage}"` : `data-page="${button.page}"`;
-   return `<span><button type="button" class="${cls}" ${data} ${blocked ? 'disabled' : ''}>${esc(button.label)}</button>${blocked ? `<small class="wiki-s2-reason">${esc(gate)}</small>` : ''}</span>`;
+   return `<span><button type="button" class="${cls}"${write} ${data} ${blocked ? 'disabled' : ''}>${esc(button.label)}</button>${blocked ? `<small class="wiki-s2-reason">${esc(gate)}</small>` : ''}</span>`;
   }).join('')}</div></div>`;
  const detail = m.code || m.offerRef
   ? `<details class="wiki-s2-tech"><summary>${v1t('技术细节')}</summary>${m.code ? `<code>${esc(m.code)}</code>` : ''}${m.offerRef ? `<p>${v1t('启用提议编号 ·')} <code>${esc(m.offerRef)}</code></p>` : ''}</details>` : '';

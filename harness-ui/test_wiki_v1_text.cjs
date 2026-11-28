@@ -75,6 +75,11 @@ function used(file) {
  for (const m of src.matchAll(/v1t\('((?:[^'\\\n]|\\.)*)'/g)) found.add(unesc(m[1]));
  if (file === 'wiki-v1-text.js') return found;
  const lines = src.split('\n');
+ // Labels added to a lazy table at load time hold the Simplified text (translated when read), e.g. Object.assign(wikiS1Checks, {...}).
+ for (const line of lines) {
+  if (!/^(Object\.assign\(wiki|wikiS1Tabs\.)/.test(line)) continue;
+  for (const q of line.matchAll(/'((?:[^'\\]|\\.)*)'/g)) { const text = unesc(q[1]); if (CJK.test(text)) found.add(text); }
+ }
  for (let n = 0; n < lines.length; n++) {
   if (!/^(const|let|var)\s+[\w$]+\s*=/.test(lines[n])) continue;
   const fn = /^(const|let|var)\s+[\w$]+\s*=\s*(async\s+)?(function\b|\([^)]*\)\s*=>|[\w$]+\s*=>)/.test(lines[n]);

@@ -1,7 +1,7 @@
 // Wiki V1 Stage 1 "材料" tab (DESIGN 8.12). Loaded after wiki-stage1-ops.js.
 // The upload / register / verify / draft machinery stays in v9-materials.js; this tab frames it with the
 // designed wording and moves that panel into place. Nothing here talks to the service.
-wikiS1Tabs.materials = v1t('材料');
+wikiS1Tabs.materials = '材料';
 
 function wsMaterialFiles() {
  const files = rt.atlas?.files;
@@ -122,7 +122,11 @@ document.addEventListener('input', event => {
  if (!field || typeof apps === 'undefined') return;
  m9[field] = event.target.value;
  const button = apps[0]?.el?.querySelector?.('[data-n9-action="import"]'), wrap = button?.closest?.('.ws-btn');
- if (wrap) wrap.outerHTML = wsM9ImportButton(apps[0]);
+ if (wrap) {
+  wrap.outerHTML = wsM9ImportButton(apps[0]);
+  const fresh = apps[0]?.el?.querySelector?.('[data-n9-action="import"]');
+  if (fresh && fresh.closest?.('[data-v1-gated]')) fresh.disabled = true;
+ }
 }, true);
 m9Panel = function (app) {
  if (!(typeof v1On === 'function' && v1On(app) && app.page === 'workspace' && (app.stage === 1 || app.stage === 2))) return wsM9Previous(app);
@@ -147,7 +151,7 @@ m9Panel = function (app) {
   <small class="wiki-s1-muted">${v1t('现在的核验接口要这三项；校验由服务做，结果写在上面。')}</small>
   ${wsM9ImportButton(app)}</details>` : '';
  return `<div class="n9-materials ws-m9" data-n9-material-panel>
-  <section class="ws-m9-card"><div class="ws-m9-head"><h3>${v1t('加入文件')}</h3><label class="ws-m9-pick ${m9.busy ? 'off' : ''}">${v1t('选择阶段材料')}<input type="file" multiple data-n9-upload aria-label="${v1t('选择阶段材料')}" accept="${wsM9Accept}" ${m9.busy ? 'disabled' : ''}></label></div>
+  <section class="ws-m9-card"><div class="ws-m9-head"><h3>${v1t('加入文件')}</h3><label class="ws-m9-pick ${m9.busy ? 'off' : ''}">${v1t('选择阶段材料')}<input type="file" multiple data-v1-write data-n9-upload aria-label="${v1t('选择阶段材料')}" accept="${wsM9Accept}" ${m9.busy ? 'disabled' : ''}></label></div>
    <p class="wiki-s1-muted">${v1t('你自己登记的材料保留原件、版本和所属阶段。登记后可以恢复、核验、准备接续；不会自动标记为已读、已纳入或已批准。每个文件最多 128 MiB；压缩包按原样保存，不解包、不执行。')}</p>
    ${m9.busy ? `<small class="ws-why">${v1t('正在保存，请稍等')}</small>` : ''}${progress}</section>
   <section class="ws-m9-card ws-m9-flush"><div class="ws-m9-head"><h3>${v1t('已保存的材料')}</h3><small class="wiki-s1-muted">${loading ? v1t('正在读取') : unread ? v1t('没有读到') : materials.length ? v1t('{n} 份。文件已按原始字节保存，没有启动研究。', {n: materials.length}) : v1t('还没有登记材料。')}</small></div>${table}

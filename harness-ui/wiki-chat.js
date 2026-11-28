@@ -407,7 +407,7 @@ function wikiChatSync(app) {
  if (send) {
   const why = !p.canSend ? p.sendReason : ctl.sending ? v1t('本轮进行中') : wikiChatDraftReason(draft);
   const bad = !p.canSend || ctl.sending || !!wikiChatDraftReason(draft) || !rt.overview?.project || rt.overview.project.project_ref !== rt.ref;
-  send.disabled = bad;
+  send.disabled = bad || send.dataset.v1Gated === '1';
   const reason = !bad ? '' : why || v1t('课题还在读取，读完才能发送');
   const line = root.querySelector('[data-wc-reason]');
   if (line) { line.textContent = reason; line.hidden = !reason; }

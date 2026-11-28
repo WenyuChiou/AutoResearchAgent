@@ -187,7 +187,7 @@ const v1Text = {
  "回到首页": {en:"Going home", tw:"回到首頁"},
  "还没有确认范围。": {en:"The scope is not confirmed yet.", tw:"還沒有確認範圍。"},
  "确认之前不会检索、不会调用模型。": {en:"Nothing is searched and no model is called until you confirm.", tw:"確認之前不會檢索、不會呼叫模型。"},
- "你确认范围后，Stage 1 的检索、筛选、阅读按同意书自动推进。": {en:"After you confirm the scope, Stage 1 searching, screening and reading proceed automatically under your authorization.", tw:"你確認範圍後，Stage 1 的檢索、篩選、閱讀依授權書自動推進。"},
+ "你确认范围后，Stage 1 的检索、筛选、阅读按同意书自动推进。": {en:"After you confirm the scope, Stage 1 searching, screening and reading proceed automatically under the consent form.", tw:"你確認範圍後，Stage 1 的檢索、篩選、閱讀依同意書自動推進。"},
  "你保存范围后，到「运行与操作」逐步授权：先授权一次检索规划。": {en:"After you save the scope, authorize step by step in Run & actions: first authorize one search plan.", tw:"你儲存範圍後，到「執行與操作」逐步授權：先授權一次檢索規劃。"},
  "确认范围和授权": {en:"Confirm scope and authorization", tw:"確認範圍和授權"},
  "去确认": {en:"Go confirm", tw:"去確認"},

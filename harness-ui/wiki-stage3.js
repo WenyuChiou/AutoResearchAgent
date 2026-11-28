@@ -414,7 +414,7 @@ function wikiS3ConnBlock(app) {
  const buttons = row.buttons.map(button => {
   const data = button.attr ? `data-v9-connection="${button.attr}" data-connection-basis="${wikiS3Escape(m.token)}"` : button.read ? 'data-v93-read' : button.stage ? `data-stage="${button.stage}"` : `data-page="${button.page}"`;
   const off = blocked(button);
-  return `<span><button type="button" class="hs-button${button.primary ? ' hs-button-primary' : ''}" ${data} ${off ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${off ? `<small class="wiki-s2-reason">${wikiS3Escape(why)}</small>` : ''}</span>`;
+  return `<span><button type="button" class="hs-button${button.primary ? ' hs-button-primary' : ''}"${button.attr && button.attr !== 'read' ? ' data-v1-write' : ''} ${data} ${off ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${off ? `<small class="wiki-s2-reason">${wikiS3Escape(why)}</small>` : ''}</span>`;
  }).join('');
  const codes = [m.code, m.action === 'reconnect' && m.reconnectError?.code].filter(Boolean);
  const detail = codes.length ? `<details class="wiki-s2-tech"><summary>${v1t('技术细节')}</summary>${codes.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
