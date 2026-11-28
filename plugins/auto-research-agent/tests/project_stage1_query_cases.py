@@ -85,6 +85,175 @@ class ProjectQueryCases(QueryCase):
         receipt = self.queries.authorize("alice-token", self.ref, body)
         return body, receipt
 
+    def test_inspect_seal_verifies_the_runtime_once_per_call(self):
+        from research_workspace_native import project_query_permit as permit_module
+
+        self.authorize()
+        authorization = self.intake._load("alice", self.ref)[
+            "stage1_query_authorization"
+        ]
+        with patch.object(
+            permit_module,
+            "verify_identity",
+            wraps=permit_module.verify_identity,
+        ) as verified:
+            binding, permit = permit_module.inspect_seal(
+                self.intake, self.ref, authorization, self.queries.config
+            )
+        self.assertEqual(verified.call_count, 1)
+        self.assertEqual(permit, authorization["permit"])
+        # Compare with what was persisted at authorization time, not with itself:
+        # the recomputed offer must equal the saved snapshot file byte for byte.
+        snapshot_raw = self.intake._path(
+            self.ref, authorization["snapshot_path"]
+        ).read_bytes()
+        _, offered, _ = permit_module.proposal(
+            self.intake, self.ref, permit["principals"][0], self.queries.config
+        )
+        self.assertEqual(
+            json.loads(snapshot_raw), {**offered, "kind": "ProjectQueryInputSnapshot"}
+        )
+        self.assertEqual(
+            sha(self.intake._path(self.ref, authorization["path"]).read_bytes()),
+            authorization["sha256"],
+        )
+
+    def _guard_events(self, change_at=None):
+        from research_workspace_native import project_query_permit as permit_module
+
+        if "stage1_query_authorization" not in self.intake._load("alice", self.ref):
+            self.authorize()
+        authorization = self.intake._load("alice", self.ref)[
+            "stage1_query_authorization"
+        ]
+        events = []
+        changed = []
+        real = permit_module.verify_identity
+
+        def identity(pin, **kwargs):
+            events.append("runtime")
+            if changed:
+                raise SessionApiError("synthetic-runtime-bytes-changed")
+            return real(pin, **kwargs)
+
+        def mark(name):
+            events.append(name)
+            if name == change_at:
+                changed.append(True)
+
+        def source(event):
+            mark("source")
+            return get_source_proof()
+
+        def admit(event):
+            mark("admit")
+            return True
+
+        self.queries.verify_source = source
+        self.queries.admit = admit
+        with patch.object(permit_module, "verify_identity", identity):
+            try:
+                self.queries._guard(
+                    "alice-token", self.ref, authorization, "before-bootstrap-probe"
+                )
+                error = None
+            except SessionApiError as raised:
+                error = raised
+        return events, error
+
+    def test_guard_keeps_a_runtime_check_after_every_callback(self):
+        events, error = self._guard_events()
+        self.assertIsNone(error)
+        # check, source, check, admission, check, source, check: no bracket lost
+        self.assertEqual(
+            events,
+            ["runtime", "source", "runtime", "admit", "runtime", "source", "runtime"],
+        )
+
+    def _guard_with_real_edit(self, point):
+        """Really rewrite the pinned runtime file inside a callback."""
+        authorization = self.intake._load("alice", self.ref)[
+            "stage1_query_authorization"
+        ]
+        runtime_file = self.root / "code" / "cli.py"
+        original = runtime_file.read_bytes()
+        seen = []
+
+        def source(event):
+            seen.append("source")
+            if point == "source" and seen.count("source") == 1:
+                runtime_file.write_bytes(original + b"# changed in source callback\n")
+            return get_source_proof()
+
+        def admit(event):
+            seen.append("admit")
+            if point == "admit":
+                runtime_file.write_bytes(original + b"# changed in admission\n")
+            return True
+
+        self.queries.verify_source = source
+        self.queries.admit = admit
+        try:
+            self.queries._guard(
+                "alice-token", self.ref, authorization, "before-bootstrap-probe"
+            )
+            error = None
+        except Exception as raised:  # LedgerError / SessionApiError
+            error = raised
+        finally:
+            runtime_file.write_bytes(original)
+        return error, seen
+
+    def test_runtime_file_really_changed_in_a_callback_is_refused_by_the_next_check(
+        self,
+    ):
+        if "stage1_query_authorization" not in self.intake._load("alice", self.ref):
+            self.authorize()
+        for point, expected in (
+            ("source", ["source"]),
+            ("admit", ["source", "admit"]),
+        ):
+            with self.subTest(changed_during=point):
+                error, seen = self._guard_with_real_edit(point)
+                self.assertIsNotNone(error)
+                self.assertIn("runtime-code-changed", str(error))
+                self.assertEqual(seen, expected)
+        error, seen = self._guard_with_real_edit(None)
+        self.assertIsNone(error)
+        self.assertEqual(seen, ["source", "admit", "source"])
+
+    def test_change_between_the_two_points_of_one_call_is_caught_by_the_next_call(
+        self,
+    ):
+        """Documents the accepted timing change: one call lets it pass, the next refuses."""
+        from research_workspace_native import project_query_permit as permit_module
+
+        if "stage1_query_authorization" not in self.intake._load("alice", self.ref):
+            self.authorize()
+        authorization = self.intake._load("alice", self.ref)[
+            "stage1_query_authorization"
+        ]
+        runtime_file = self.root / "code" / "cli.py"
+        original = runtime_file.read_bytes()
+        real = permit_module.run_adapter.check_seal
+
+        def mutate(*args, **kwargs):
+            runtime_file.write_bytes(original + b"# changed between the two points\n")
+            return real(*args, **kwargs)
+
+        try:
+            with patch.object(permit_module.run_adapter, "check_seal", mutate):
+                permit_module.inspect_seal(
+                    self.intake, self.ref, authorization, self.queries.config
+                )  # passes: the second point reuses the first verification
+            with self.assertRaises(Exception) as raised:
+                permit_module.inspect_seal(
+                    self.intake, self.ref, authorization, self.queries.config
+                )
+            self.assertIn("runtime-code-changed", str(raised.exception))
+        finally:
+            runtime_file.write_bytes(original)
+
     def bootstrap(self):
         body = self.body("bootstrap_offer", "bootstrap")
         with patch(

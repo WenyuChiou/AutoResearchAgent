@@ -39,7 +39,7 @@ def project_basis(intake, ref):
     return binding, dict(_basis(binding), plan_sha256=tree_sha(binding["plan_root"]))
 
 
-def proposal(intake, ref, principal, config):
+def proposal(intake, ref, principal, config, *, runtime_digest=None):
     binding, basis = project_basis(intake, ref)
     settings = binding["settings"]
     require(
@@ -72,7 +72,11 @@ def proposal(intake, ref, principal, config):
         project_ref=ref,
         principal=principal,
         binding=basis,
-        runtime_sha256=configured_pin(config["pin"]),
+        runtime_sha256=(
+            configured_pin(config["pin"])
+            if runtime_digest is None
+            else runtime_digest()
+        ),
         execution_source_sha256=config["execution_source_sha256"],
         server_configuration_sha256=configuration_sha(config),
         limits=dict(
@@ -184,7 +188,29 @@ def inspect_seal(intake, ref, authorization, config, *, ready=True, run_grants=N
     )
     binding, basis = project_basis(intake, ref)
     principal = permit["principals"][0]
-    _, offered, _ = proposal(intake, ref, principal, config)
+    verified = []
+
+    def runtime_digest():
+        # One inspect_seal verifies the runtime at two points of the SAME call:
+        # inside proposal() (the offer it recomputes) and in the final binding
+        # comparison. Between them there is no callback, no process, no write to
+        # the runtime and the intake lock is held; but a 1.1.0 seal also goes
+        # through run_adapter.check_seal, which writes one run-lease sqlite row,
+        # and reads the saved authorization. The first verification is reused for
+        # the second point. Cost of that choice: if a runtime file changes between
+        # the two points the old code refused immediately, this code lets this one
+        # call pass and leaves the refusal to the next check (the next _guard
+        # bracket or CoverageLedger.create's verify_identity(probe=True)), so the
+        # last confirmation inside a call is about one hash pass earlier. The
+        # digest lives on this call stack only. Brackets around callbacks are
+        # separate inspect_seal calls and each still verifies on its own.
+        if not verified:
+            verified.append(configured_pin(config["pin"]))
+        return verified[0]
+
+    _, offered, _ = proposal(
+        intake, ref, principal, config, runtime_digest=runtime_digest
+    )
     require(
         decode(snapshot_raw, "query input snapshot")
         == {**offered, "kind": "ProjectQueryInputSnapshot"},
@@ -240,7 +266,7 @@ def inspect_seal(intake, ref, authorization, config, *, ready=True, run_grants=N
         type(binding["input_version"]) is int
         and permit["binding"]["project_input_version"] == binding["input_version"]
         and permit["binding"]["input_bytes_sha256"] == binding["brief_sha256"]
-        and configured_pin(config["pin"]) == permit["binding"]["runtime_sha256"]
+        and runtime_digest() == permit["binding"]["runtime_sha256"]
         and config["execution_source_root"]
         == permit["binding"]["execution_source_root"]
         and config["execution_source_sha256"]
