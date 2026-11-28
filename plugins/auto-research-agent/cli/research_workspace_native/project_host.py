@@ -53,6 +53,7 @@ from .project_stage1_library_http import (
 from .session_api import SessionApiError
 from .transport import _decode
 from stage1_deliverable.common import canonical, sha
+from stage1_retrieval import verification_clock
 
 ROUTE = re.compile(
     r"/api/projects(?:/([A-Za-z0-9_-]{1,64})"
@@ -1117,6 +1118,8 @@ class ProjectHandler(AtlasHandler):
             self.close_connection = True
         except (ValueError, UnicodeError, KeyError, TypeError):
             self._reply(400, {"error": "project-input-rejected"})
+        except verification_clock.LocalVerificationBudgetExceeded:
+            self._reply(503, {"error": verification_clock.BUDGET_CODE})
         except Exception:
             self._reply(500, {"error": "project-operation-failed"})
 
