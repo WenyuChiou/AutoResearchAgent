@@ -170,3 +170,50 @@ assert.match(archive, /这是历史归档（或合成样例），不能在这里
 }
 
 console.log('PASS Wiki chat drawer: 11 states, byte limit, quota, readable rows, turn endings, ask card, gray reasons.');
+
+// 9. Polling rule (design addendum): open = while a turn works; collapsed = also while a result is unknown; otherwise
+// collapsing stops it; leaving the stage page / language switch always stops it.
+(async () => {
+ const timers = [];
+ let nextId = 1, snapshot = null;
+ Object.assign(context, {
+  window:{RESEARCH_PROJECTS:{credential:'x'}},
+  setTimeout:(fn, ms) => { const id = nextId++; timers.push({id, ms, fn}); return id; },
+  clearTimeout:id => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); },
+  fetch:async () => ({ok:true, status:200, json:async () => snapshot}),
+  wikiChatCurrent:() => ({ref:'p', archive:false, stage:1}), wikiChatPaint() {}
+ });
+ const app = {stage:1}, ctl = context.wikiChatCtl(app);
+ const reset = (state, open, page) => {
+  timers.length = 0; snapshot = state; context.v1Page = () => page ?? 's1';
+  Object.assign(ctl, {key:'p|1', open, state:null, phase:'ready', loading:false, pollTimer:0, root:{isConnected:true, querySelector:() => null, v1Markup:''}});
+ };
+ const working = base({turns:[{id:'t', status:'running', user_text:'q', outputs:[]}]});
+ const asking = base({turns:[{id:'t', status:'waiting', user_text:'q', outputs:[], pending:{answer:null}}]});
+ const unknown = base({panel_state:'unknown-result', turns:[{id:'t', status:'unknown', user_text:'q', outputs:[]}]});
+ const idle = base();
+ const poll = async (state, open, page) => { reset(state, open, page); await context.wikiChatLoad(app); ctl.pollTimer = timers.length ? timers[timers.length - 1].id : 0; return timers.map(t => t.ms); };
+
+ assert.deepEqual(await poll(working, true), [2000], 'open drawer, working turn: 2 s');
+ assert.deepEqual(await poll(working, false), [2000], 'collapsed, working turn: keeps polling');
+ assert.deepEqual(await poll(asking, false), [10000], 'collapsed, waiting for a person: 10 s');
+ assert.deepEqual(await poll(unknown, false), [10000], 'collapsed, unknown result: keeps polling slowly');
+ assert.deepEqual(await poll(unknown, true), [], 'open drawer with an unknown result shows it; no polling');
+ assert.deepEqual(await poll(idle, false), [], 'collapsed, nothing running: no polling');
+ assert.deepEqual(await poll(working, false, ''), [], 'not a stage page (language switch): no polling');
+
+ // Collapsing: a timer set while open is cleared unless a turn is working or unknown.
+ for (const [state, kept] of [[idle, false], [working, true], [unknown, true], [asking, true]]) {
+  await poll(state, true);
+  if (!timers.length) timers.push({id:99, ms:1, fn() {}}), ctl.pollTimer = 99; // an old timer that collapsing must handle
+  ctl.state = state;
+  context.wikiChatOpen(app, false);
+  assert.equal(timers.some(t => t.id === ctl.pollTimer), kept, 'collapsing with ' + state.turns.map(t => t.status).join() + ' keeps the timer: ' + kept);
+ }
+ // A fired timer re-checks: it does not read after the page is left.
+ await poll(working, false);
+ const fired = timers[0]; ctl.state = working; context.v1Page = () => ''; let reads = 0; snapshot = working;
+ context.fetch = async () => { reads++; return {ok:true, status:200, json:async () => working}; };
+ fired.fn();
+ assert.equal(reads, 0, 'timer fired after leaving the stage page reads nothing');
+})().then(() => console.log('PASS chat drawer polling rule.'), error => { console.error(error); process.exit(1); });

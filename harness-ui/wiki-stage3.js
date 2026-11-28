@@ -395,6 +395,10 @@ function wikiS3ConnectionLine(m) {
  if (reason === 'stage3-current-selection-required') return line('warn', '缺正式选择', '还缺这个课题当前版本的正式选择和核对过的选择回执。请先在 Stage 2 选定方向', [{label:'前往 Stage 2', stage:2}]);
  if (/profile-unavailable$/.test(reason)) return line('warn', '缺运行配置', '这次启动没有提供这一段的运行配置。请在原目录用核对过的配置重开', [{label:'去连接与设置', page:'settings'}]);
  if (typeof v9StaticStage3Read === 'function' && v9StaticStage3Read()) return line('idle', '只能看旧规划', '可以查看原配置下这个课题已保存的 Stage 3 规划，不能生成新的', [{label:'查看已保存的规划', read:true}]);
+ // /connections answered with the Stage 2 row only: this launch has no Stage 3 planning interface. Say what the Stage 2
+ // row reports (no run configuration) or that the interface is missing, never the generic 「核对不了」.
+ if (m.stage2Only && /profile-unavailable$/.test(String(m.stage2Reason || ''))) return line('warn', '缺运行配置', '这次启动没有提供这一段的运行配置。请在原目录用核对过的配置重开', [{label:'去连接与设置', page:'settings'}]);
+ if (m.stage2Only) return line('warn', '没带接通功能', '这次启动没有提供 Stage 3 的接通功能。请联系原来的管理员，确认能不能换支持的版本重开');
  if (m.connected) return line('done', '已接通', '这个课题已接通');
  return shared();
 }
@@ -449,7 +453,7 @@ function wikiS3Page(app, base) {
   ${feedback ? `<section class="ws3-block" data-s3-feedback>${wikiS3FeedbackLead(feedback, feedbackState, revision)}${panelHtml}</section>` : ''}
   ${wikiS3Decision()}${typeof v93PublicArchive === 'function' ? `<details class="ws3-archive"><summary>已发布的研究设计案例</summary>${v93PublicArchive()}</details>` : ''}${wikiS3TechDetails(view)}`;
  }
- return `${wikiS3Heading()}${panel}<div data-wiki-s3-record>${typeof wikiHarnessRecord === 'function' ? wikiHarnessRecord() : ''}</div>
+ return `${wikiS3Heading()}${panel}<div data-wiki-s3-record>${typeof wikiRecordBlock === 'function' ? wikiRecordBlock(3) : typeof wikiHarnessRecord === 'function' ? wikiHarnessRecord() : ''}</div>
  <section data-wiki-s3 aria-label="研究计划与评审">${tabs}<div role="tabpanel" aria-labelledby="ws3-tab-${state.tab}">${body}</div></section>`;
 }
 

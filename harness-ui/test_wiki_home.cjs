@@ -66,7 +66,7 @@ let html = markup();
 assert.match(html, /编号尾号 111111/);
 assert.match(html, /打开 同名课题 · 编号尾号 222222/);
 assert.match(html, /有 Stage 1 记录，打开课题后可见/);
-assert.match(html, /还没有运行/);
+assert.match(html, /<td class="wiki-home-muted" data-wiki-home-record-ref="project-aaaa111111">打开课题后可见<\/td>/); // not read yet: no claim either way
 store.set('wiki-v1-record:project-bbbb222222', JSON.stringify({papers:30, located:149, checked:0, claims:149}));
 assert.match(markup(), /按已保存交付统计：30 篇文献 · 核对 0 \/ 149/);
 
