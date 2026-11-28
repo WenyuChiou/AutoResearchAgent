@@ -227,7 +227,9 @@ function wsPhaseRows() {
   if (kind === 'wait' && !before) { kind = 'idle'; label = '未开始'; }
   if (kind === 'wait' && id === 'scope') label = '等你';
   rows.push({id, name:wsPhaseNames[id], kind, label, raw:found || null,
-   reason:wsReasons[found?.reason] || (found?.reason ? '' : '还没有读到这一步的状态')});
+   // Status 「unconnected」 means this launch has no query service (project_host.stage1_view: query_execution is null);
+   // the default reason the host attaches then is the permission one, which is not the cause. Say what the buttons say.
+   reason:id === 'query' && found?.status === 'unconnected' ? '查询执行还没接通' : wsReasons[found?.reason] || (found?.reason ? '' : '还没有读到这一步的状态')});
   before = before && kind === 'done';
  }
  return rows;
@@ -331,7 +333,7 @@ function wsCoverageDetail() {
  const s = rt.overview.stage1, a = s.coverage_actions, lock = wsLock(), ro = wsReadonly();
  const blockers = (a?.blockers || []).map(x => typeof x === 'string' ? x : x.code);
  const round = a?.offers?.find(o => o.document?.round_number != null)?.document?.round_number;
- return `<p class="wiki-s1-muted">${esc(blockers.length ? '现在卡着：' + blockers.map(wsPlain).join('、') : '暂时没有阻塞记录')} · 目前第 ${esc(round ?? '未提供')} 轮 · <button type="button" class="ws-link" data-s1-tab="synthesis">看综合</button></p>${wsRaw(blockers)}
+ return `<p class="wiki-s1-muted">${esc(blockers.length ? '现在卡着：' + blockers.map(wsPlain).join('、') : '暂时没有阻塞记录')} · ${round == null ? '还没有读到当前是第几轮' : '目前第 ' + esc(round) + ' 轮'} · <button type="button" class="ws-link" data-s1-tab="synthesis">看综合</button></p>${wsRaw(blockers)}
  <div class="ws-actions">${wsBtn('检查当前覆盖与状态', 'data-v7-workflow="checkpoint"', ro ? '这是历史归档，不能在这里改' : lock || (s.ledger ? '' : '现在还不能做这一步：还没有检索记录'))}</div>
  ${ro ? '' : wsCoverageForm()}<p class="ws-note">数量不能代替研究覆盖验收</p>`;
 }

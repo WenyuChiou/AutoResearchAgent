@@ -10,7 +10,7 @@ const {chromium} = require(playwrightPath);
 const widths = (widthsArg || '390,600,900,1440').split(',').map(Number);
 const P1 = process.env.WIKI_V1_PROJECT, P2 = process.env.WIKI_V1_EMPTY || P1;
 const scenarios = [
- {n:'home', p:'/#lang=zh-CN'}, {n:'stage1', p:`/#${P1}?stage=1&lang=zh-CN`}, {n:'stage1-scope', p:`/#${P2}?stage=1&lang=zh-CN`},
+ {n:'home', p:'/#lang=zh-CN'}, {n:'home-root', p:'/'}, {n:'stage1', p:`/#${P1}?stage=1&lang=zh-CN`}, {n:'stage1-scope', p:`/#${P2}?stage=1&lang=zh-CN`},
  {n:'stage2', p:`/#${P1}?stage=2&lang=zh-CN`}, {n:'stage3', p:`/#${P1}?stage=3&lang=zh-CN`, inject:true},
  {n:'settings', p:`/#${P1}?stage=1&lang=zh-CN`, click:'[data-page="settings"]'},
 ];
@@ -27,7 +27,7 @@ const metrics = () => {
 (async () => {
  const browser = await chromium.launch({headless: true, executablePath: chrome, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']});
  let failed = 0; const report = (ok, text) => { if (!ok) failed++; console.log((ok ? 'ok   ' : 'FAIL ') + text); };
- for (const s of process.env.ONLY_OLD_LANGS ? [] : scenarios) for (const w of widths) {
+ for (const s of process.env.ONLY_OLD_LANGS ? [] : scenarios.filter(x => !process.env.WIKI_V1_ONLY || process.env.WIKI_V1_ONLY.split(',').includes(x.n))) for (const w of widths) {
   const page = await browser.newPage({viewport: {width: w, height: w >= 1280 ? 1000 : 844}});
   const errors = [], writes = [];
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text().slice(0, 160)); });

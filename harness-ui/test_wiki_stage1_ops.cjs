@@ -146,6 +146,11 @@ assert.match(buttonOf(tab, 'data-real-action="plan"'), /没有本课题的运行
 assert.match(tab, /请先勾选确认|我确认只授权这一次、这一件事/);
 assert.equal(ctx.wsPhaseRows()[1].kind, 'wait');
 assert.equal(ctx.wsPhaseRows()[2].kind, 'idle', 'unconnected row is not started');
+// Query row on a launch without a query service: the row and the three query buttons give one reason (acceptance S-3).
+assert.equal(ctx.wsPhaseRows()[2].reason, '查询执行还没接通');
+assert.doesNotMatch(ctx.wsPhaseRows()[2].reason, /运行许可/);
+rt.overview.stage1.progress.phases[2] = {phase_id:'query', status:'required', reason:'query-permission-required'};
+assert.equal(ctx.wsPhaseRows()[2].reason, '没有这一段的运行许可', 'with a query service, the permission reason still applies');
 // Scope not confirmed: the plan row is not asking for you yet.
 rt = makeRt(false, {wsProg:{state:'absent'}}); ctx = load(rt);
 assert.equal(ctx.wsPhaseRows()[0].label, '等你');
@@ -320,7 +325,7 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  const block = fs.readFileSync(path.join(__dirname,'wiki-stage1-materials.js'),'utf8');
  const v1 = block.slice(block.indexOf('// ---------- Wiki V1 materials panel'));
  const app = {lang:'zh', page:'workspace', stage:1};
- const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '',
+ const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '', document:{addEventListener:() => {}},
   wsTag:(k, l) => `<tag>${l}</tag>`, wsBtn:(l, a, r) => `<button ${a}>${l}</button>${r || ''}`, wsMaterialsDownloads:() => '',
   m9:{catalog:{materials:[], operations:[], drafts:[]}, busy:false, error:'', status:'', target:{}, notes:{}, sourcePath:'', importPath:'', packetHash:''},
   m9Current:() => mc.m9.catalog?.materials || [], m9Draft:() => null});
@@ -340,5 +345,51 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  assert.doesNotMatch(mc.m9Panel(app), /还没有登记材料/);
  assert.match(mc.m9Panel(app), /这次没有读到已保存的材料/);
  mc.m9.catalog = saved; mc.m9.error = '';
+}
+// Acceptance M-7: no sentence is built from an empty value.
+{
+ const rt2 = makeRt(false), c2 = load(rt2);
+ rt2.overview.stage1.coverage_actions = {blockers:[], offers:[]};
+ const text = c2.wsCoverageDetail();
+ assert.doesNotMatch(text, /第 未提供 轮|未提供/);
+ assert.match(text, /还没有读到当前是第几轮/);
+ rt2.overview.stage1.coverage_actions = {blockers:[], offers:[{document:{round_number:3}}]};
+ assert.match(c2.wsCoverageDetail(), /目前第 3 轮/);
+}
+// Acceptance S-4: 「核验并登记候选包」 is grey, with a reason, wherever registering cannot work.
+{
+ const block = fs.readFileSync(path.join(__dirname,'wiki-stage1-materials.js'),'utf8');
+ const v1 = block.slice(block.indexOf('// ---------- Wiki V1 materials panel'));
+ const app = {lang:'zh', page:'workspace', stage:2};
+ const state = {archive:false, canonical:false, code:'', fields:['a', 'b', 'c']};
+ const listeners = [], patched = [];
+ const wrap = {set outerHTML(html) { patched.push(html); }};
+ app.el = {querySelector:selector => selector === '[data-n9-action="import"]' ? {closest:() => wrap} : null};
+ const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '', rt:{ref:'project-a'}, document:{addEventListener:(type, fn) => { if (type === 'input') listeners.push(fn); }},
+  wsTag:(k, l) => `<tag>${l}</tag>`, wsBtn:(l, a, r) => `<span class="b"><button ${a} ${r ? 'disabled' : ''}>${l}</button>${r ? '<small>' + r + '</small>' : ''}</span>`, wsMaterialsDownloads:() => '',
+  wikiHomeArchiveBound:() => state.archive, canonicalReadonly:() => state.canonical,
+  v9ConnectionModel:() => ({phase:'ready', code:state.code}),
+  m9:{catalog:{materials:[], operations:[], drafts:[]}, busy:false, error:'', status:'', target:{}, notes:{}, sourcePath:'a', importPath:'b', packetHash:'c'},
+  m9Current:() => [], m9Draft:() => null});
+ vm.runInContext(v1, mc);
+ const button = () => { const html = mc.m9Panel(app), at = html.indexOf('data-n9-action="import"'); return html.slice(html.lastIndexOf('<span class="b">', at), html.indexOf('</span>', at) + 7); };
+ assert.doesNotMatch(button(), /disabled/, 'a configured, writable project with the three fields filled can register');
+ state.archive = true; assert.match(button(), /disabled.*历史归档，不能在这里改/s); state.archive = false;
+ state.canonical = true; assert.match(button(), /disabled.*保存的样例，不能在这里改/s); state.canonical = false;
+ state.code = 'stage2-controller-profile-unavailable'; assert.match(button(), /disabled.*没有提供 Stage 2 的运行配置/s); state.code = '';
+ mc.m9.sourcePath = ''; assert.match(button(), /disabled.*请先填好上面的三项/s);
+ // P1: the three fields start empty and are filled by typing. Drive the real input listener (not the state): the button is
+ // re-judged on each input, only the button is replaced, and nothing repaints the page.
+ mc.m9.sourcePath = ''; mc.m9.importPath = ''; mc.m9.packetHash = '';
+ const type = (field, value) => { const target = {dataset:{n9Field:field}, value, matches:selector => selector === '[data-n9-field]'}; for (const fn of listeners) fn({target}); return patched[patched.length - 1]; };
+ assert.equal(listeners.length, 1);
+ assert.match(type('sourcePath', 'D:/pkg'), /disabled.*请先填好上面的三项/s, 'one of three filled: still grey, with the reason');
+ assert.match(type('importPath', 'D:/pkg/packet.json'), /disabled.*请先填好上面的三项/s);
+ assert.doesNotMatch(type('packetHash', 'a'.repeat(64)), /disabled/, 'all three filled: the button becomes usable');
+ assert.equal(mc.m9.packetHash, 'a'.repeat(64), 'the typed value is stored');
+ assert.match(type('packetHash', '  '), /disabled.*请先填好上面的三项/s, 'clearing a field greys it again');
+ type('packetHash', 'b'.repeat(64));
+ state.archive = true; assert.match(type('packetHash', 'b'.repeat(64)), /disabled.*历史归档/s, 'an archive stays grey whatever is typed'); state.archive = false;
+ state.code = 'stage2-controller-profile-unavailable'; assert.match(type('packetHash', 'b'.repeat(64)), /disabled.*运行配置/s, 'a launch without configuration stays grey'); state.code = '';
 }
 console.log('PASS Stage 1 ops: scope page, auto-advance states, run table, delivery decision, paper card, evidence review, materials.');

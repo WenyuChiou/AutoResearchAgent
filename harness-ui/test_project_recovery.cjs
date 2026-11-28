@@ -71,7 +71,9 @@ async function page({storage=new Map(),url='http://localhost/',list=projects,lis
   const first=await page();const html=first.run('liveTop(apps[0])');
   const labels=[...html.matchAll(/<option[^>]*>([^<]*)<\/option>/g)].map(x=>x[1]);
   assert.equal(new Set(labels).size,3,'same-title project labels must be distinct');
-  refs.forEach(ref=>assert(labels.some(label=>label.includes(ref)),'visible option identifies '+ref));
+  // The raw reference is shown only where two projects would otherwise get the same label.
+  const bases=labels.map(label=>label.replace(/ · project-[A-Za-z0-9]+$/,''));
+  labels.forEach((label,i)=>assert.equal(/ · project-/.test(label),bases.filter(b=>b===bases[i]).length>1,'reference only for look-alikes: '+label));
   first.run('v7AfterRender(apps[0])');assert.equal(new Set(first.options.map(o=>o.textContent)).size,3,'retained read-only selectors also get unique labels');
   assert(html.includes('data-live-project-identity'),'current project identity is visible');
   await first.choose(refs[1]);assert.equal(first.run('rt.ref'),refs[1]);assert.equal(first.run('liveBound().input_version'),2);

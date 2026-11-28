@@ -202,7 +202,7 @@ const stage = (status, extra = {}) => { const one = {
  html = wikiRecordBlock(3);
  assert.match(html, /<details/);
  assert.match(html, /被拦下 1 次/);
- assert.match(html, /没通过的检查<\/th><td>1 次 · bad&lt;b&gt;x&lt;\/b&gt;/);
+ assert.match(html, /没通过的检查<\/th><td>1 次 · 被拦下，原因见技术细节<details class="wiki-record-tech"><summary>技术细节<\/summary><code>bad&lt;b&gt;x&lt;\/b&gt;<\/code>/);
  assert.match(html, /这一段还没有运行，没有运行类计数/);
  assert.doesNotMatch(html, /179|项有数据|<b>x<\/b>/);
 
