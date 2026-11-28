@@ -35,6 +35,27 @@ POLICY = dict.fromkeys(
 )
 
 
+REFUSED_BEFORE_CALL = "refused-before-call"
+
+
+class DispatchRefused(Stage3Error):
+    """Raised by a host callback that refused before calling the adapter.
+
+    The job is then completed with outcome ``refused-before-call``: the model was
+    never called, the same request is never resent, and a new key may be prepared.
+    """
+
+
+def _refused(error):
+    for _ in range(8):
+        if isinstance(error, DispatchRefused):
+            return True
+        if error.__cause__ is None:
+            return False
+        error = error.__cause__
+    return False
+
+
 def _ref(path):
     return {
         "path": str(safe_path(path)),
@@ -551,6 +572,23 @@ class PlanningJobs:
         except BaseException as error:
             failure = self._failure(payload, error)
             failure_value = file_binding(failure["path"], failure["sha256"])
+            if _refused(error) and not self._known_failure(payload):
+                # Known outcome: refused before the adapter, no model call.
+                self._transition(
+                    key,
+                    "completed",
+                    {
+                        "outcome": REFUSED_BEFORE_CALL,
+                        "failure": failure,
+                        "model_called": False,
+                        "policy": dict(POLICY),
+                    },
+                )
+                return self.inspect(
+                    key,
+                    expected_request_sha256=expected_request_sha256,
+                    current_checkpoint=current_checkpoint,
+                )
             known = self._known_failure(payload) or (
                 type(failure_value["returncode"]) is int
                 and failure_value["returncode"] != 0

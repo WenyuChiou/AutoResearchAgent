@@ -487,7 +487,33 @@ class ReplanReviewFixTests(ReplanFixture, unittest.TestCase):
             )
         self.assertEqual(len(calls), 2)
         self.assertEqual(self.callback.call_count, 1)  # the adapter was never called
-        self.assertNotEqual(result["outcome"], "saved")
+        self.assertEqual(
+            (result["status"], result["outcome"]), ("completed", "refused-before-call")
+        )
+        item = self.item_for(body["key"])
+        self.assertIs(item["evidence"]["model_called"], False)
+        # never resent: the same request replays the refusal without a call
+        replay = self.http.replan.run(
+            "own",
+            self.ref,
+            dict(body, request_sha256=prepared["request_sha256"], confirmed=True),
+        )
+        self.assertEqual(replay, result)
+        self.assertEqual(self.view()["plan"], self.original)  # not treated as saved
+        # a new decision gives a new key, which can be prepared and run
+        again = self.decide("d-again")
+        request = self.view()["replan"]["request"]
+        self.assertEqual(request, self.replan_body(again, revision))
+        fresh = self.http.replan.prepare("own", self.ref, request)
+        self.assertEqual(fresh["status"], "intent-recorded")
+        self.respond(request["key"])
+        saved = self.http.replan.run(
+            "own",
+            self.ref,
+            dict(request, request_sha256=fresh["request_sha256"], confirmed=True),
+        )
+        self.assertEqual(saved["outcome"], "saved", saved)
+        self.assertEqual(self.callback.call_count, 2)
 
     def test_unreadable_new_plan_is_marked_and_writes_keep_working(self):
         from unittest.mock import patch
@@ -520,7 +546,8 @@ class ReplanReviewFixTests(ReplanFixture, unittest.TestCase):
                     {
                         "key": body["key"],
                         "request_sha256": prepared["request_sha256"],
-                        "error": "stage3-replan-plan-unreadable",
+                        "error": "stage3-replan-plan-environment-changed",
+                        "error_class": "Stage3Error",
                         "parent_request_sha256": self.default_body["request_sha256"],
                         "from_revision_receipt_sha256": revision["receipt_sha256"],
                         "from_decision_receipt_sha256": decision["receipt_sha256"],
@@ -532,6 +559,22 @@ class ReplanReviewFixTests(ReplanFixture, unittest.TestCase):
                 (False, "stage3-replan-plan-unreadable"),
             )
             self.assertEqual(len(view["feedback"]["records"]), 2)
+            self.assertIs(view["host_decision"]["newer_plan_unreadable"], True)
+            # accepting the parent while a newer plan exists is refused
+            from research_workspace_native.project_stage3_decision import (
+                accept_condition,
+            )
+
+            with patch(
+                "research_workspace_native.project_stage3_decision.accept_condition",
+                return_value=(True, "fixture-accept", None),
+            ):
+                self.assert_refused(
+                    lambda: self.decide(key="d-accept", decision="accept"),
+                    "stage3-decision-newer-plan-unreadable",
+                    409,
+                )
+            self.assertTrue(callable(accept_condition))
             comment = self.comment(key="c-after", text="Still writable.")
             self.revise(
                 comment, key="r-after", value="Still revisable", parent=revision
@@ -550,6 +593,27 @@ class ReplanReviewFixTests(ReplanFixture, unittest.TestCase):
                     ],
                 ),
             )
+        self.assertEqual(self.callback.call_count, 2)
+
+    def test_damaged_new_plan_is_reported_as_data_damaged(self):
+        _, revision, decision = self.revised_and_decided()
+        body = self.replan_body(decision, revision)
+        prepared = self.http.replan.prepare("own", self.ref, body)
+        self.respond(body["key"], marker="NEW-PLAN")
+        self.http.replan.run(
+            "own",
+            self.ref,
+            dict(body, request_sha256=prepared["request_sha256"], confirmed=True),
+        )
+        plan = Path(self.item_for(body["key"])["payload"]["output"]) / "plan/plan.json"
+        plan.write_bytes(plan.read_bytes() + b" ")
+        view = self.view()
+        self.assertEqual(view["plan"], self.original)
+        [entry] = view["unreadable_plans"]
+        self.assertEqual(entry["error"], "stage3-replan-plan-data-damaged")
+        self.assertEqual(entry["error_class"], "Stage3Error")
+        self.assertIs(view["host_decision"]["newer_plan_unreadable"], True)
+        self.assertNotIn("newer_plan_unreadable", self.decide(key="d-intent")["record"])
         self.assertEqual(self.callback.call_count, 2)
 
 

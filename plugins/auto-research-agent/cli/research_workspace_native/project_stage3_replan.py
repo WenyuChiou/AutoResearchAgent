@@ -12,6 +12,7 @@ needs no write happens before the checkpoint or journal intent is written.
 """
 
 from copy import deepcopy
+from pathlib import Path
 
 from stage3_plan.contracts import Stage3Error, digest
 from stage3_plan.intake import admit_intake
@@ -96,6 +97,35 @@ def _saved(item):
     )
 
 
+ENVIRONMENT_CHANGED = "stage3-replan-plan-environment-changed"
+DATA_DAMAGED = "stage3-replan-plan-data-damaged"
+
+
+def _unreadable_reason(error, payload):
+    """Tell an environment upgrade apart from damaged saved data.
+
+    Environment: the planning runtime recorded in the job (Python, jsonschema,
+    stage3 sources) or the producer fingerprint in its saved request differs from
+    this process; a trusted pin restores the read. Otherwise the saved bytes,
+    files or journal no longer match: data damaged. Host refusals keep their code.
+    """
+    if isinstance(error, SessionApiError):
+        return error.code
+    import stage3_plan.jobs as core_jobs
+    import stage3_plan.planner as core_planner
+    from stage3_plan.storage import read_json
+
+    if payload.get("runtime") != core_jobs._runtime():
+        return ENVIRONMENT_CHANGED
+    try:
+        saved = read_json(Path(payload["output"]) / "plan/request.json")
+    except (Stage3Error, OSError, ValueError):
+        return DATA_DAMAGED
+    if saved.get("producer_sha256") != core_planner._producer_sha256():
+        return ENVIRONMENT_CHANGED
+    return DATA_DAMAGED
+
+
 def newest(transport, credential, ref, jobs, result, check_deadline=None):
     """Point the view at the newest saved replan; earlier plans become history.
 
@@ -131,15 +161,16 @@ def newest(transport, credential, ref, jobs, result, check_deadline=None):
             body, child, plan, _ = transport._saved_job(
                 credential, ref, jobs, body, kid, check_deadline
             )
-        except (SessionApiError, Stage3Error, KeyError, ValueError, OSError) as error:
-            # One unreadable new plan (for example after a Core upgrade without a
-            # trusted pin) is reported on its own; the rest of the view and the
-            # comment/revise/decide writes on the displayed plan keep working.
+        except (SessionApiError, Stage3Error, OSError) as error:
+            # One unreadable new plan is reported on its own; the rest of the view
+            # and the comment/revise/decide writes on the displayed plan keep
+            # working. Anything else (a programming error) still fails loudly.
             result["unreadable_plans"] = [
                 {
                     "key": kid["payload"]["key"],
                     "request_sha256": digest(kid["payload"]),
-                    "error": getattr(error, "code", UNREADABLE),
+                    "error": _unreadable_reason(error, kid["payload"]),
+                    "error_class": type(error).__name__,
                     "parent_request_sha256": frozen["parent_request_sha256"],
                     "from_revision_receipt_sha256": frozen[
                         "plan_revision_receipt_sha256"

@@ -255,6 +255,13 @@ def record_decision(jobs, ref, view, body, check_deadline=None):
     check_shape(body)
     base, binding, revised, ambiguous = _binding(jobs, ref, view)
     _check(not ambiguous, "stage3-decision-revision-ambiguous", 409)
+    # The view stays on the parent while a newer replanned plan is unreadable;
+    # never accept a plan that has already been replaced.
+    _check(
+        body["decision"] != "accept" or not view.get("unreadable_plans"),
+        "stage3-decision-newer-plan-unreadable",
+        409,
+    )
     _check(
         all(
             type(body[name]) is type(binding[name]) and body[name] == binding[name]

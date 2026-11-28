@@ -84,6 +84,10 @@ class ProjectStage3Http:
                         # A damaged decision log must not take the whole plan page
                         # down; say so in the field instead.
                         decided = {"error": error.code}
+                    if view.get("unreadable_plans") and "error" not in decided:
+                        # A newer replanned plan exists but cannot be read; the
+                        # page shows this and "accept" is refused meanwhile.
+                        decided = dict(decided, newer_plan_unreadable=True)
                     candidate = dict(view, host_decision=decided)
                     if fits_response(candidate):
                         view = candidate

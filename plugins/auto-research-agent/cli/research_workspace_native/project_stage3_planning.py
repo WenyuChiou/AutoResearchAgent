@@ -11,7 +11,7 @@ from contextlib import ExitStack
 import math
 
 from stage3_plan.contracts import digest
-from stage3_plan.jobs import POLICY, PlanningJobs
+from stage3_plan.jobs import POLICY, DispatchRefused, PlanningJobs
 from stage3_plan.preparation import closed, sha256, text
 from stage3_plan.storage import safe_path
 from stage3_plan.workflow import source_binding, start_workflow
@@ -19,7 +19,7 @@ from stage3_plan.workflow import source_binding, start_workflow
 from .project_intake_contract import BOUND_FIELDS, _fields
 from .project_selection_read_context import verified_selection_read
 from .project_stage2_selection_view import ProjectStage2SelectionView
-from .session_api import _check
+from .session_api import SessionApiError, _check
 
 
 SOURCE_FIELDS = BOUND_FIELDS | {"selection_request_sha256"}
@@ -381,7 +381,11 @@ class ProjectStage3PlanningService:
                     if "revision_input" in item["payload"]:
                         # Re-check under the lock right before the model call, so
                         # a direct service caller cannot slip a change in between.
-                        before_dispatch(item["payload"])
+                        try:
+                            before_dispatch(item["payload"])
+                        except SessionApiError as error:
+                            # Core records a known "refused-before-call" outcome.
+                            raise DispatchRefused(error.code) from error
                 response = configured["callback"](**request)
                 publication.enter_context(self.intake._lock)
                 self._saved(credential, project_ref, body, check_deadline)
