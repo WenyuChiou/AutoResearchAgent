@@ -331,6 +331,7 @@ document.addEventListener('toggle', event => {
 document.addEventListener('change', event => {
  if (!event.target.matches('[data-language]')) return;
  const app = apps[0], target = event.target.value;
+ app.v1Alert = null; app.v1LeaveGo = null; // a notice written in the old language is dropped, not shown untranslated
  // Write the choice into the topic link at once. While the topic's first read is still running, the runtime
  // re-applies the link's language when that read finishes, which switched a language chosen meanwhile back.
  const at = location.hash.indexOf('?'), tag = {zh:'zh-CN', tw:'zh-TW', en:'en'}[target];

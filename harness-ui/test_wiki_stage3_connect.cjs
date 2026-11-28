@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+require('./v1_text_shim.cjs');
 
 const source = fs.readFileSync(path.join(__dirname, 'wiki-stage3.js'), 'utf8');
 const start = source.indexOf('function wikiS3ConnectionLine(m) {'), end = source.indexOf('\n}\n', start) + 3;

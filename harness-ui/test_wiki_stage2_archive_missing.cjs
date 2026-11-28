@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+require('./v1_text_shim.cjs');
 const source = fs.readFileSync(path.join(__dirname, 'wiki-stage2.js'), 'utf8');
 const cut = (name, until) => { const start = source.indexOf('function ' + name + '('); return source.slice(start, source.indexOf(until, start)); };
 let reason = 'stage2-saved-result-missing';

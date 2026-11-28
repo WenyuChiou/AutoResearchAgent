@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+require('./v1_text_shim.cjs');
 const test = require('node:test');
 
 const basis = {project_ref:'project-p', input_version:1, revision:9, brief_sha256:'a'.repeat(64)};

@@ -18,10 +18,10 @@ function wikiS3ReqTicked(job) { return !!job?.request_sha256 && wikiS3Req.check 
 function wikiS3ReqRecoverTicked(job) { return !!job?.request_sha256 && wikiS3Req.recoverCheck === job.request_sha256; }
 
 function wikiS3ReqLock() {
- if (rt.loading) return '正在读取保存记录';
- if (rt.busy || wikiS3Req.busy.has(rt.ref)) return '正在保存，请稍等';
- if (rt.pending) return '上次提交的结果还没确认，先核对';
- if (rt.controlHeld) return '有一条回执还没核对，先到操作历史里核对';
+ if (rt.loading) return v1t('正在读取保存记录');
+ if (rt.busy || wikiS3Req.busy.has(rt.ref)) return v1t('正在保存，请稍等');
+ if (rt.pending) return v1t('上次提交的结果还没确认，先核对');
+ if (rt.controlHeld) return v1t('有一条回执还没核对，先到操作历史里核对');
  return '';
 }
 function wikiS3ReqState(view) {
@@ -33,63 +33,63 @@ function wikiS3ReqState(view) {
 }
 // Returns {tone, tag, text, buttons, grant, detail} for the lower row, or null when there is nothing to request.
 function wikiS3RequestLine(view) {
- if (!view) return v93.busy ? {tone:'run', tag:'正在读取', text:'正在读取规划状态，不会重新生成', buttons:[]} : null;
+ if (!view) return v93.busy ? {tone:'run', tag:v1t('正在读取'), text:v1t('正在读取规划状态，不会重新生成'), buttons:[]} : null;
  if (view.plan) return null; // saved plan: the block collapses into the status bar (8.13)
  const {job, error} = wikiS3ReqState(view);
- const read = {label:'查看保存状态', act:'read'};
+ const read = {label:v1t('查看保存状态'), act:'read'};
  const lock = wikiS3ReqLock();
  // Only what the planning view itself says decides the gate (review P1-3). Planning has its own profile; the run's
  // run_limits do not bind it, so a "planning configured, all run limits 0" start must not lock this entry.
  const configured = view.planning_configured === true && view.dispatch_action === 'prepare-then-confirm-run' && view.default_request;
  const blockers = Array.isArray(view.planning_blockers) ? view.planning_blockers : [];
- const gate = lock || (view.dispatch_action === 'needs-information' ? '还缺规划需要的信息，原因在技术细节里' : !configured ? '这次启动没有提供规划配置，不能生成计划' : '');
+ const gate = lock || (view.dispatch_action === 'needs-information' ? v1t('还缺规划需要的信息，原因在技术细节里') : !configured ? v1t('这次启动没有提供规划配置，不能生成计划') : '');
  const detail = [error?.code, view.submission_error?.code, job?.status, job?.outcome, ...blockers.map(item => typeof item === 'string' ? item : JSON.stringify(item))].filter(Boolean);
  // The saved job comes first (review P1-1): a submission_error next to an execution-unknown or completed job must
  // not turn an uncertain or finished result into "blocked", nor hide the read-only check.
- if (view.submission_in_progress || job?.status === 'dispatching') return {tone:'run', tag:'处理中', detail, text:'正在生成计划和评审。不需要你操作', buttons:[read]};
- const inspect = {label:'只读核对', act:'inspect', gate:lock};
- if (job?.status === 'execution-unknown') return {tone:'warn', tag:'结果未知', detail,
-  text:'上次生成的结果还不清楚。原请求已保留，不会自动重发；先只读核对' + (view.recovery_pin_available ? '，也可以从已保存的结果恢复（只挂上已经保存的结果，不会重新生成）' : ''),
+ if (view.submission_in_progress || job?.status === 'dispatching') return {tone:'run', tag:v1t('处理中'), detail, text:v1t('正在生成计划和评审。不需要你操作'), buttons:[read]};
+ const inspect = {label:v1t('只读核对'), act:'inspect', gate:lock};
+ if (job?.status === 'execution-unknown') return {tone:'warn', tag:v1t('结果未知'), detail,
+  text:view.recovery_pin_available ? v1t('上次生成的结果还不清楚。原请求已保留，不会自动重发；先只读核对，也可以从已保存的结果恢复（只挂上已经保存的结果，不会重新生成）') : v1t('上次生成的结果还不清楚。原请求已保留，不会自动重发；先只读核对'),
   // Recovery is a persistent write (review P2-7): it needs its own tick, like the grant.
   recoverConfirm:!!view.recovery_pin_available,
-  buttons:[inspect, ...(view.recovery_pin_available ? [{label:'从已保存结果恢复', act:'recover', gate:lock || (wikiS3ReqRecoverTicked(job) ? '' : '请先勾选确认')}] : []), read]};
- if (job?.status === 'completed' && job.outcome === 'failed') return {tone:'err', tag:'规划失败', detail, text:'规划已失败，原失败记录会保留', buttons:[{label:'看失败记录', act:'failure'}]};
- if (job?.status === 'completed' && job.outcome === 'saved') return {tone:'run', tag:'计划已保存', detail, text:'计划已保存，正在读取', buttons:[read]};
+  buttons:[inspect, ...(view.recovery_pin_available ? [{label:v1t('从已保存结果恢复'), act:'recover', gate:lock || (wikiS3ReqRecoverTicked(job) ? '' : v1t('请先勾选确认'))}] : []), read]};
+ if (job?.status === 'completed' && job.outcome === 'failed') return {tone:'err', tag:v1t('规划失败'), detail, text:v1t('规划已失败，原失败记录会保留'), buttons:[{label:v1t('看失败记录'), act:'failure'}]};
+ if (job?.status === 'completed' && job.outcome === 'saved') return {tone:'run', tag:v1t('计划已保存'), detail, text:v1t('计划已保存，正在读取'), buttons:[read]};
  const mine = wikiS3Req.unknown.get(rt.ref);
  const unknown = mine && (!job || job.status === 'intent-recorded') && job?.request_sha256 === mine.sha ? mine : null;
- if (unknown) return {tone:'warn', tag:'结果未知', detail:[unknown.code, ...detail],
-  text:'刚才的生成请求没有收到回答，结果还不清楚：模型可能已经调用过。不会重发；先只读核对', buttons:[inspect, read]};
- if (error) return {tone:error.refused ? 'warn' : 'err', tag:error.refused ? '被拦下' : '出错', detail,
-  text:(error.refused ? '请求被拒绝：服务没有接受这一步，原来的记录没有变。' : '这一步没有完成；已保存的内容没有丢。') + '原因代码在技术细节里，不会自动重发。', buttons:[read]};
+ if (unknown) return {tone:'warn', tag:v1t('结果未知'), detail:[unknown.code, ...detail],
+  text:v1t('刚才的生成请求没有收到回答，结果还不清楚：模型可能已经调用过。不会重发；先只读核对'), buttons:[inspect, read]};
+ if (error) return {tone:error.refused ? 'warn' : 'err', tag:error.refused ? v1t('被拦下') : v1t('出错'), detail,
+  text:(error.refused ? v1t('请求被拒绝：服务没有接受这一步，原来的记录没有变。') : v1t('这一步没有完成；已保存的内容没有丢。')) + v1t('原因代码在技术细节里，不会自动重发。'), buttons:[read]};
  // A timeout or I/O failure after the run was accepted is an unknown outcome (DESIGN 8.0), never "blocked" -- until a
  // read-only inspect of that same request says it is still intent-recorded, i.e. it stopped before the model call.
  const settled = job?.status === 'intent-recorded' && !!job.request_sha256 && wikiS3Req.notRun.get(rt.ref) === job.request_sha256
   // A submission_error without its request_sha256 cannot be matched, so it is not released (review P2-5).
   && (!view.submission_error || view.submission_error.request_sha256 === job.request_sha256);
- if (view.submission_error && !settled && /deadline-or-io-failed$/.test(String(view.submission_error.code || ''))) return {tone:'warn', tag:'结果未知', detail,
-  text:'上次生成的结果还不清楚：模型可能已经调用过。原请求已保留，不会自动重发；先只读核对', buttons:[...(job?.request_sha256 ? [inspect] : []), read]};
- if (view.submission_error && !settled) return {tone:'warn', tag:'被拦下', detail, text:'上次生成没有完成，原因代码在技术细节里。原记录保留，不会自动重试', buttons:[read]};
- if (job?.status === 'intent-recorded') return {tone:'wait', tag:'等你授权', detail,
-  text:settled && view.submission_error ? '只读核对确认：上次在调用模型之前就停了，没有执行。要生成计划，请重新看过授权并勾选确认' : '请求已保存，还没有调用模型。看过下面的授权，确认后才生成计划',
-  buttons:[read], grant:{gate:gate || (wikiS3ReqTicked(job) ? '' : '请先勾选确认')}};
- return {tone:'plain', tag:'还没请求', detail, text:'你选的方向已保存。可以请求生成研究计划', buttons:[{label:'请求生成计划', act:'prepare', primary:true, gate}, read]};
+ if (view.submission_error && !settled && /deadline-or-io-failed$/.test(String(view.submission_error.code || ''))) return {tone:'warn', tag:v1t('结果未知'), detail,
+  text:v1t('上次生成的结果还不清楚：模型可能已经调用过。原请求已保留，不会自动重发；先只读核对'), buttons:[...(job?.request_sha256 ? [inspect] : []), read]};
+ if (view.submission_error && !settled) return {tone:'warn', tag:v1t('被拦下'), detail, text:v1t('上次生成没有完成，原因代码在技术细节里。原记录保留，不会自动重试'), buttons:[read]};
+ if (job?.status === 'intent-recorded') return {tone:'wait', tag:v1t('等你授权'), detail,
+  text:settled && view.submission_error ? v1t('只读核对确认：上次在调用模型之前就停了，没有执行。要生成计划，请重新看过授权并勾选确认') : v1t('请求已保存，还没有调用模型。看过下面的授权，确认后才生成计划'),
+  buttons:[read], grant:{gate:gate || (wikiS3ReqTicked(job) ? '' : v1t('请先勾选确认'))}};
+ return {tone:'plain', tag:v1t('还没请求'), detail, text:v1t('你选的方向已保存。可以请求生成研究计划'), buttons:[{label:v1t('请求生成计划'), act:'prepare', primary:true, gate}, read]};
 }
 function wikiS3RequestMarkup(view) {
  const row = wikiS3RequestLine(view);
  if (!row) return '';
  const buttons = row.buttons.map(button => {
   const off = button.gate ? button.gate : '';
-  return `<span><button type="button" class="hs-button${button.primary ? ' hs-button-primary' : ''}" data-s3-plan="${button.act}" ${off ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${off ? `<small class="wiki-s2-reason">${wikiS3Escape(off)}</small>` : ''}</span>`;
+  return `<span><button type="button" class="hs-button${button.primary ? ' hs-button-primary' : ''}" data-v1-write data-s3-plan="${button.act}" ${off ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${off ? `<small class="wiki-s2-reason">${wikiS3Escape(off)}</small>` : ''}</span>`;
  }).join('');
- const grant = row.grant ? `<section class="ws-grant" data-s3-plan-grant><span class="ws-label">授权：生成研究计划</span>
-  <p><b>会做：</b>按你选的方向调用一次模型，生成研究计划和评审，保存到这个课题。<b>不会做：</b>不检索、不读新的来源、不启动实验；失败不会自动重试。</p>
-  <p class="wiki-s1-muted">额度：这一步调用一次模型；规划的调用和时长上限后台没有返回给页面。</p>
-  <p class="wiki-s1-muted">授权理由：现在的规划接口没有理由这一项，页面不收集。</p>
-  <label class="ws-check"><input type="checkbox" data-s3-plan-check ${wikiS3ReqTicked(wikiS3ReqState(view).job) ? 'checked' : ''}> 我确认只授权这一次、这一件事</label>
-  <span><button type="button" class="hs-button hs-button-primary" data-s3-plan="run" ${row.grant.gate ? 'disabled' : ''}>确认生成计划</button>${row.grant.gate ? `<small class="wiki-s2-reason">${wikiS3Escape(row.grant.gate)}</small>` : ''}</span></section>` : '';
- const recoverConfirm = row.recoverConfirm ? `<label class="ws-check" data-s3-plan-recover><input type="checkbox" data-s3-plan-recover-check ${wikiS3ReqRecoverTicked(wikiS3ReqState(view).job) ? 'checked' : ''}> 我确认：只把已经保存的结果挂上，不会重新生成，也不会再调用模型</label>` : '';
- const failure = row.tag === '规划失败' && wikiS3Req.showFailure ? `<details class="wiki-s2-tech" open data-s3-plan-failure><summary>失败记录（原样）</summary><pre>${wikiS3Escape(JSON.stringify(wikiS3ReqState(view).job, null, 2))}</pre></details>` : '';
- const detail = row.detail?.length ? `<details class="wiki-s2-tech"><summary>技术细节</summary>${row.detail.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
+ const grant = row.grant ? `<section class="ws-grant" data-s3-plan-grant><span class="ws-label">${v1t('授权：生成研究计划')}</span>
+  <p><b>${v1t('会做：')}</b>${v1t('按你选的方向调用一次模型，生成研究计划和评审，保存到这个课题。')}<b>${v1t('不会做：')}</b>${v1t('不检索、不读新的来源、不启动实验；失败不会自动重试。')}</p>
+  <p class="wiki-s1-muted">${v1t('额度：这一步调用一次模型；规划的调用和时长上限后台没有返回给页面。')}</p>
+  <p class="wiki-s1-muted">${v1t('授权理由：现在的规划接口没有理由这一项，页面不收集。')}</p>
+  <label class="ws-check"><input type="checkbox" data-s3-plan-check ${wikiS3ReqTicked(wikiS3ReqState(view).job) ? 'checked' : ''}> ${v1t('我确认只授权这一次、这一件事')}</label>
+  <span><button type="button" class="hs-button hs-button-primary" data-v1-write data-s3-plan="run" ${row.grant.gate ? 'disabled' : ''}>${v1t('确认生成计划')}</button>${row.grant.gate ? `<small class="wiki-s2-reason">${wikiS3Escape(row.grant.gate)}</small>` : ''}</span></section>` : '';
+ const recoverConfirm = row.recoverConfirm ? `<label class="ws-check" data-s3-plan-recover><input type="checkbox" data-s3-plan-recover-check ${wikiS3ReqRecoverTicked(wikiS3ReqState(view).job) ? 'checked' : ''}> ${v1t('我确认：只把已经保存的结果挂上，不会重新生成，也不会再调用模型')}</label>` : '';
+ const failure = row.tag === v1t('规划失败') && wikiS3Req.showFailure ? `<details class="wiki-s2-tech" open data-s3-plan-failure><summary>${v1t('失败记录（原样）')}</summary><pre>${wikiS3Escape(JSON.stringify(wikiS3ReqState(view).job, null, 2))}</pre></details>` : '';
+ const detail = row.detail?.length ? `<details class="wiki-s2-tech"><summary>${v1t('技术细节')}</summary>${row.detail.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details>` : '';
  return `<hr><div class="wiki-s2-conn-row" data-tone="${row.tone}" data-s3-plan-row><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${recoverConfirm}${grant}${failure}${detail}`;
 }
 async function wikiS3PlanAction(app, act) {
@@ -100,7 +100,7 @@ async function wikiS3PlanAction(app, act) {
  // Check the gate again right before sending (review P2-1): the button may have been drawn before the state changed.
  const row = wikiS3RequestLine(view);
  const offered = row?.buttons.find(button => button.act === act);
- if (act === 'run' ? !(row?.tag === '等你授权' && row.grant && !row.grant.gate) : !offered || offered.gate) return;
+ if (act === 'run' ? !(row?.tag === v1t('等你授权') && row.grant && !row.grant.gate) : !offered || offered.gate) return;
  const ref = basis.project_ref, epoch = rt.epoch, job = wikiS3ReqState(view).job;
  const request = {...view.default_request};
  const body = act === 'prepare' ? request : act === 'run' ? {...request, request_sha256:job?.request_sha256, confirmed:true} : {...request, request_sha256:job?.request_sha256};

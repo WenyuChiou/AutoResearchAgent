@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+require('./v1_text_shim.cjs');
 
 const paper = {work_id:'work-a', version_id:'v1', title:'<a> paper', year:2024};
 const claim = {work_id:'work-a', version_id:'v1', text:'<b> observation',

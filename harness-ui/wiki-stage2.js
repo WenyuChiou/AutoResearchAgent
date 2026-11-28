@@ -1,25 +1,25 @@
 // Wiki V1 Stage 2 (choose a direction). Presents saved, project-bound records only.
 // Every control here is a read, a local draft, or one of the existing connection/request
 // controls (same data attributes, same handlers). Nothing in this file calls a write route.
-const wikiS2Tabs = {compare:'候选比较', literature:'文献与证据', materials:'材料'};
-const wikiS2Opinion = {recommend:['系统建议','rec'], park:['系统暂缓','park'], revise:['系统建议先修订','rev']};
-const wikiS2CheckNames = {answerability:'可回答性', execution:'执行条件', materials:'材料条件', opportunity:'研究缺口', value:'研究价值'};
-const wikiS2ReviewNames = {opportunity:'机会定位', value:'研究价值', answerability:'可回答性', materials:'资料与材料', execution:'执行可行性'};
-const wikiS2ReviewStatus = {complete:'评语已交付', resolved:'已裁决', pending:'待裁决', failed:'失败', missing:'缺件',
- unavailable:'不可用', interrupted:'已中断', empty:'空回复'};
+const wikiS2Tabs = v1Lazy({compare:'候选比较', literature:'文献与证据', materials:'材料'});
+const wikiS2Opinion = v1Lazy({recommend:['系统建议','rec'], park:['系统暂缓','park'], revise:['系统建议先修订','rev']});
+const wikiS2CheckNames = v1Lazy({answerability:'可回答性', execution:'执行条件', materials:'材料条件', opportunity:'研究缺口', value:'研究价值'});
+const wikiS2ReviewNames = v1Lazy({opportunity:'机会定位', value:'研究价值', answerability:'可回答性', materials:'资料与材料', execution:'执行可行性'});
+const wikiS2ReviewStatus = v1Lazy({complete:'评语已交付', resolved:'已裁决', pending:'待裁决', failed:'失败', missing:'缺件',
+ unavailable:'不可用', interrupted:'已中断', empty:'空回复'});
 const wikiS2PageSize = 8, wikiS2ChipPage = 12;
 
 function wikiS2Active(app) {
- return app.wikiS2Enabled === true && app.page === 'workspace' && app.stage === 2 && app.lang === 'zh';
+ return app.wikiS2Enabled === true && app.page === 'workspace' && app.stage === 2 && v1StageLang(app);
 }
 
 function wikiS2Text(value) {
  if (value === undefined || value === null || value === '') return null;
- if (Array.isArray(value)) return value.length ? value.map(row => typeof row === 'string' ? row : JSON.stringify(row)).join('；') : null;
+ if (Array.isArray(value)) return value.length ? value.map(row => typeof row === 'string' ? row : JSON.stringify(row)).join(v1t('；')) : null;
  return typeof value === 'string' ? value : JSON.stringify(value);
 }
 function wikiS2Missing(note) {
- return `<span class="wiki-s2-missing">未提供</span>${note ? `<small>${esc(note)}</small>` : ''}`;
+ return `<span class="wiki-s2-missing">${v1t('未提供')}</span>${note ? `<small>${esc(note)}</small>` : ''}`;
 }
 function wikiS2Cell(value, limit = 220) {
  const text = wikiS2Text(value);
@@ -80,7 +80,7 @@ function wikiS2ArchiveModel() {
  const literature = view.literature.map(row => ({key:wikiS2Key(row.work_id, row.version_id), title:row.title || row.work_id,
   tag:wikiS2Level(row.evidence_level), workId:row.work_id, versionId:row.version_id,
   rows:{author:row.authors ?? null, level:wikiS2Level(row.evidence_level), role:null,
-   notes:[row.cells?.findings?.text, row.cells?.limitations?.text].filter(Boolean).join('；') || null,
+   notes:[row.cells?.findings?.text, row.cells?.limitations?.text].filter(Boolean).join(v1t('；')) || null,
    method:row.cells?.method?.text ?? null, title:row.title, access:row.work_id + ' · ' + row.version_id}, raw:row}));
  return {origin:'archive', routes, literature, evidence:view.evidence, comparisonText:typeof view.comparison === 'string' ? view.comparison : null,
   reviews:null, hasEvaluation:Object.keys(attachment.evaluation).length > 0, receipt:null, opinionsKnown:true, bound:false,
@@ -113,60 +113,60 @@ function wikiS2Model() {
 
 // --- Connection and request block (8.13) ---------------------------------------------------
 function wikiS2Why(m) {
- if (m.noLocks) return '这个浏览器不支持跨页面锁，只能查看，不能接通';
- if (m.writing) return '正在保存，请稍等';
- if (m.reading || rt.loading) return '正在读取保存记录';
- if (rt.pending) return '上次提交的结果还没确认，先核对';
- if (rt.controlHeld) return '有一条回执还没核对，先到操作历史里核对';
- if (rt.busy) return '正在保存，请稍等';
- return '现在还不能做这一步';
+ if (m.noLocks) return v1t('这个浏览器不支持跨页面锁，只能查看，不能接通');
+ if (m.writing) return v1t('正在保存，请稍等');
+ if (m.reading || rt.loading) return v1t('正在读取保存记录');
+ if (rt.pending) return v1t('上次提交的结果还没确认，先核对');
+ if (rt.controlHeld) return v1t('有一条回执还没核对，先到操作历史里核对');
+ if (rt.busy) return v1t('正在保存，请稍等');
+ return v1t('现在还不能做这一步');
 }
 function wikiS2ConnectionLine(m) {
  const reason = String(m.code || '');
  const line = (tone, tag, text, extra = {}) => ({tone, tag, text, buttons:[], ...extra});
- if (m.phase === 'waiting') return line('run', '正在核对', '正在核对这个课题的接通记录');
- if (m.unknown) return line('warn', '结果未确认', '上次启用（或登记）的结果还没确认。原请求已保留，请核对原回执', {buttons:[{label:'核对上次提交', attr:'read'}]});
- if (m.reading && !m.row && !m.view.error) return line('run', '正在核对', '正在核对这个课题的接通记录');
- if (m.noLocks && m.action) return line('idle', '只能查看', '这个浏览器不支持跨页面锁，只能查看，不能接通', {buttons:[{label:'接通本课题', attr:'connect'}]});
- if (m.action === 'connect') return line('wait', '可以接通', '这个课题还没有接通。可以登记当前配置，登记不会启动研究', {buttons:[{label:'接通本课题', attr:'connect', primary:true}]});
- if (m.action === 'publish') return line('wait', '等你 · 第 1 步', '还差这个课题的 Stage 2 启用同意。先生成一份启用提议，看过再同意', {buttons:[{label:'生成本课题的启用提议', attr:'publish', primary:true}]});
- if (m.action === 'activate') return line('wait', '等你 · 第 2 步', '启用提议已生成（生成时间：还没有，后台没有给出）。同意后只登记启用，不会启动研究', {buttons:[{label:'同意这份提议并启用 Stage 2', attr:'activate', primary:true}]});
- if (m.connected) return line('done', '已接通', '这个课题已接通。接通只是登记，执行和交付各有自己的记录');
- if (reason === 'stage2-controller-current-input-required') return line('warn', '缺输入包', '还缺这个课题已接收的 Stage 2 输入包和接收回执。请先看 Stage 1 的交付', {buttons:[{label:'前往 Stage 1 查看交付', stage:1}]});
- if (/profile-unavailable$/.test(reason)) return line('warn', '缺运行配置', '这次启动没有提供 Stage 2 的运行配置。请联系原来的管理员，用核对过的配置从原目录重开', {buttons:[{label:'去连接与设置', page:'settings'}]});
- if (m.http === 404 || reason === 'stage-connection-interface-unavailable') return line('warn', '没带接通功能', '这次启动没有提供 Stage 2 的接通功能。请联系原来的管理员，确认能不能换支持的版本重开');
- if (reason === 'stage2-activation-record-unverified') return line('warn', '启用记录缺回执', '已有启用提议或记录，但缺少对得上的回执。请保留原记录，再只读核对一次', {buttons:[{label:'重新读取', attr:'read'}]});
- if (reason === 'project-lock-busy' || reason === 'project-lock-failed') return line('warn', '暂时拿不到锁', '另一个页面正在处理这个课题，暂时不能操作。请稍后再只读核对', {buttons:[{label:'重新读取', attr:'read'}]});
- if (m.http === 403 || reason === 'cross-site-rejected' || reason === 'credential-rejected') return line('warn', '访问被拒', '访问被拒绝。请从原来打开这个课题的页面查看记录');
+ if (m.phase === 'waiting') return line('run', v1t('正在核对'), v1t('正在核对这个课题的接通记录'));
+ if (m.unknown) return line('warn', v1t('结果未确认'), v1t('上次启用（或登记）的结果还没确认。原请求已保留，请核对原回执'), {buttons:[{label:v1t('核对上次提交'), attr:'read'}]});
+ if (m.reading && !m.row && !m.view.error) return line('run', v1t('正在核对'), v1t('正在核对这个课题的接通记录'));
+ if (m.noLocks && m.action) return line('idle', v1t('只能查看'), v1t('这个浏览器不支持跨页面锁，只能查看，不能接通'), {buttons:[{label:v1t('接通本课题'), attr:'connect'}]});
+ if (m.action === 'connect') return line('wait', v1t('可以接通'), v1t('这个课题还没有接通。可以登记当前配置，登记不会启动研究'), {buttons:[{label:v1t('接通本课题'), attr:'connect', primary:true}]});
+ if (m.action === 'publish') return line('wait', v1t('等你 · 第 1 步'), v1t('还差这个课题的 Stage 2 启用同意。先生成一份启用提议，看过再同意'), {buttons:[{label:v1t('生成本课题的启用提议'), attr:'publish', primary:true}]});
+ if (m.action === 'activate') return line('wait', v1t('等你 · 第 2 步'), v1t('启用提议已生成（生成时间：还没有，后台没有给出）。同意后只登记启用，不会启动研究'), {buttons:[{label:v1t('同意这份提议并启用 Stage 2'), attr:'activate', primary:true}]});
+ if (m.connected) return line('done', v1t('已接通'), v1t('这个课题已接通。接通只是登记，执行和交付各有自己的记录'));
+ if (reason === 'stage2-controller-current-input-required') return line('warn', v1t('缺输入包'), v1t('还缺这个课题已接收的 Stage 2 输入包和接收回执。请先看 Stage 1 的交付'), {buttons:[{label:v1t('前往 Stage 1 查看交付'), stage:1}]});
+ if (/profile-unavailable$/.test(reason)) return line('warn', v1t('缺运行配置'), v1t('这次启动没有提供 Stage 2 的运行配置。请联系原来的管理员，用核对过的配置从原目录重开'), {buttons:[{label:v1t('去连接与设置'), page:'settings'}]});
+ if (m.http === 404 || reason === 'stage-connection-interface-unavailable') return line('warn', v1t('没带接通功能'), v1t('这次启动没有提供 Stage 2 的接通功能。请联系原来的管理员，确认能不能换支持的版本重开'));
+ if (reason === 'stage2-activation-record-unverified') return line('warn', v1t('启用记录缺回执'), v1t('已有启用提议或记录，但缺少对得上的回执。请保留原记录，再只读核对一次'), {buttons:[{label:v1t('重新读取'), attr:'read'}]});
+ if (reason === 'project-lock-busy' || reason === 'project-lock-failed') return line('warn', v1t('暂时拿不到锁'), v1t('另一个页面正在处理这个课题，暂时不能操作。请稍后再只读核对'), {buttons:[{label:v1t('重新读取'), attr:'read'}]});
+ if (m.http === 403 || reason === 'cross-site-rejected' || reason === 'credential-rejected') return line('warn', v1t('访问被拒'), v1t('访问被拒绝。请从原来打开这个课题的页面查看记录'));
  if (reason === 'stage2-continuation-result-not-current' || /binding-differs|project-stale|connection-differs|path-mismatch|current-input-differs|native-input-differs|receipt-differs|binding-mismatch/.test(reason))
-  return line('warn', '记录对不上', '这次核对和原记录不一致。如果搬过目录，请回到原来的目录、用原配置重开，先只读核对。不要重新执行，也不要手改回执', {buttons:[{label:'重新读取', attr:'read'}]});
- return line('warn', '核对不了', '原记录暂时无法核对。请保留现有记录，看过技术细节后再只读核对', {buttons:[{label:'重新读取', attr:'read'}]});
+  return line('warn', v1t('记录对不上'), v1t('这次核对和原记录不一致。如果搬过目录，请回到原来的目录、用原配置重开，先只读核对。不要重新执行，也不要手改回执'), {buttons:[{label:v1t('重新读取'), attr:'read'}]});
+ return line('warn', v1t('核对不了'), v1t('原记录暂时无法核对。请保留现有记录，看过技术细节后再只读核对'), {buttons:[{label:v1t('重新读取'), attr:'read'}]});
 }
 
 function wikiS2RequestLine() {
  const state = typeof wikiStage2State === 'undefined' ? null : wikiStage2State;
  const line = (tone, tag, text, buttons = []) => ({tone, tag, text, buttons});
- const readButton = {label:'查看保存状态', act:'read'};
- if (!state || state.busy) return line('run', '正在读取', '正在读取请求状态');
+ const readButton = {label:v1t('查看保存状态'), act:'read'};
+ if (!state || state.busy) return line('run', v1t('正在读取'), v1t('正在读取请求状态'));
  const code = state.error, status = state.result?.status;
  const byCode = {
-  'stage2-continuation-original-admission-unavailable':['warn','许可缺失或过期','原运行许可缺失或已过期，请联系项目管理员',[{label:'去连接与设置', page:'settings'}]],
-  'stage2-continuation-project-stale':['warn','版本不一致','课题的输入版本和已接入的作业不一致，请重新打开课题',[{label:'重新读取', act:'read'}]],
-  'stage2-continuation-result-not-current':['warn','候选和记录不一致','保存的候选和当前记录不一致，请联系项目管理员。不会用示例内容补上',[]],
-  'stage2-continuation-worker-busy':['warn','另一个请求在处理','另一个请求正在处理，请稍后再试',[readButton]],
-  'stage2-continuation-request-exists':['warn','请求已保存','已有请求，请查看保存状态',[readButton]]};
+  'stage2-continuation-original-admission-unavailable':['warn',v1t('许可缺失或过期'),v1t('原运行许可缺失或已过期，请联系项目管理员'),[{label:v1t('去连接与设置'), page:'settings'}]],
+  'stage2-continuation-project-stale':['warn',v1t('版本不一致'),v1t('课题的输入版本和已接入的作业不一致，请重新打开课题'),[{label:v1t('重新读取'), act:'read'}]],
+  'stage2-continuation-result-not-current':['warn',v1t('候选和记录不一致'),v1t('保存的候选和当前记录不一致，请联系项目管理员。不会用示例内容补上'),[]],
+  'stage2-continuation-worker-busy':['warn',v1t('另一个请求在处理'),v1t('另一个请求正在处理，请稍后再试'),[readButton]],
+  'stage2-continuation-request-exists':['warn',v1t('请求已保存'),v1t('已有请求，请查看保存状态'),[readButton]]};
  if (code && byCode[code]) return line(...byCode[code]);
- if (code) return line('warn', '读不到回执', '暂时无法读取回执，请再查一次保存状态', [readButton]);
+ if (code) return line('warn', v1t('读不到回执'), v1t('暂时无法读取回执，请再查一次保存状态'), [readButton]);
  const mayRequest = typeof v9AllowsCandidateRequest !== 'function' || v9AllowsCandidateRequest();
  const byStatus = {
-  ready:['plain','还没请求','文献包已接收，可以请求生成候选', [...(mayRequest ? [{label:'请求生成候选', act:'request', primary:true}] : []), readButton]],
-  'request-saved':['run','请求已保存','请求已保存，可以查看处理状态',[readButton]],
-  running:['run','处理中','正在处理这个请求。不需要你操作',[readButton]],
-  'no-candidate':['warn','候选还没保存','后台已经回执，候选交付还没有保存',[readButton]],
-  'execution-unknown':['warn','需要核对','请求已保存，结果还不清楚，请由管理员核对原运行记录',[readButton]],
-  blocked:['warn','请求受阻','已保存的请求受阻，暂时无法继续，请由管理员检查交接',[readButton]]};
+  ready:['plain',v1t('还没请求'),v1t('文献包已接收，可以请求生成候选'), [...(mayRequest ? [{label:v1t('请求生成候选'), act:'request', primary:true}] : []), readButton]],
+  'request-saved':['run',v1t('请求已保存'),v1t('请求已保存，可以查看处理状态'),[readButton]],
+  running:['run',v1t('处理中'),v1t('正在处理这个请求。不需要你操作'),[readButton]],
+  'no-candidate':['warn',v1t('候选还没保存'),v1t('后台已经回执，候选交付还没有保存'),[readButton]],
+  'execution-unknown':['warn',v1t('需要核对'),v1t('请求已保存，结果还不清楚，请由管理员核对原运行记录'),[readButton]],
+  blocked:['warn',v1t('请求受阻'),v1t('已保存的请求受阻，暂时无法继续，请由管理员检查交接'),[readButton]]};
  if (byStatus[status]) return line(...byStatus[status]);
- return line('plain', '待核对', '候选请求状态待核对，原记录仍保留', [readButton]);
+ return line('plain', v1t('待核对'), v1t('候选请求状态待核对，原记录仍保留'), [readButton]);
 }
 
 function wikiS2CandidatesSaved() {
@@ -196,8 +196,8 @@ function wikiS2ConnBlock(app) {
    return `<span><button type="button" class="${cls}" ${data} ${blocked ? 'disabled' : ''}>${esc(button.label)}</button>${blocked ? `<small class="wiki-s2-reason">${esc(gate)}</small>` : ''}</span>`;
   }).join('')}</div></div>`;
  const detail = m.code || m.offerRef
-  ? `<details class="wiki-s2-tech"><summary>技术细节</summary>${m.code ? `<code>${esc(m.code)}</code>` : ''}${m.offerRef ? `<p>启用提议编号 · <code>${esc(m.offerRef)}</code></p>` : ''}</details>` : '';
- return `<section class="wiki-s2-conn" data-wiki-s2-conn aria-label="本课题的 Stage 2"><h2 tabindex="-1">本课题的 Stage 2</h2>
+  ? `<details class="wiki-s2-tech"><summary>${v1t('技术细节')}</summary>${m.code ? `<code>${esc(m.code)}</code>` : ''}${m.offerRef ? `<p>${v1t('启用提议编号 ·')} <code>${esc(m.offerRef)}</code></p>` : ''}</details>` : '';
+ return `<section class="wiki-s2-conn" data-wiki-s2-conn aria-label="${v1t('本课题的 Stage 2')}"><h2 tabindex="-1">${v1t('本课题的 Stage 2')}</h2>
   ${render(top, 'connect')}${lower ? '<hr>' + render(lower, 'request') : ''}${detail}</section>`;
 }
 
@@ -205,32 +205,32 @@ function wikiS2ConnBlock(app) {
 function wikiS2Opinions(model) {
  const known = model.routes.filter(route => route.opinion);
  if (!known.length) {
-  return `<section class="wiki-s2-advice" data-s2-advice><b>系统建议 · 不是你的选择</b><p>还没有：这份保存的结果没有给出每条路线的系统意见。页面不会自己归类。</p></section>`;
+  return `<section class="wiki-s2-advice" data-s2-advice><b>${v1t('系统建议 · 不是你的选择')}</b><p>${v1t('还没有：这份保存的结果没有给出每条路线的系统意见。页面不会自己归类。')}</p></section>`;
  }
  const part = key => known.filter(route => route.opinion === key);
- const names = rows => rows.map(route => '方向 ' + route.letter).join('、');
+ const names = rows => rows.map(route => v1t('方向 {letter}', {letter: route.letter})).join(v1t('、'));
  const bits = [];
- if (part('recommend').length) bits.push('建议 ' + names(part('recommend')) + (model.opinionsKnown ? '' : '（保存的结果只列出了建议的方向，没有给其他方向的系统意见）'));
- if (part('revise').length) bits.push(names(part('revise')) + ' 建议先修订');
- if (part('park').length) bits.push(names(part('park')) + ' 暂缓');
- const reasons = known.filter(route => route.reason).map(route => `<li><b>方向 ${esc(route.letter)}</b> · ${esc(wikiS2Opinion[route.opinion][0])}：${wikiS2Cell(route.reason, 180)}</li>`).join('');
- return `<section class="wiki-s2-advice" data-s2-advice><b>系统建议 · 不是你的选择</b><p>${esc(bits.join('；'))}。页面没有预选任何方向。</p>${reasons ? `<ul>${reasons}</ul>` : ''}</section>`;
+ if (part('recommend').length) bits.push(model.opinionsKnown ? v1t('建议 {names}', {names: names(part('recommend'))}) : v1t('建议 {names}（保存的结果只列出了建议的方向，没有给其他方向的系统意见）', {names: names(part('recommend'))}));
+ if (part('revise').length) bits.push(v1t('{names} 建议先修订', {names: names(part('revise'))}));
+ if (part('park').length) bits.push(v1t('{names} 暂缓', {names: names(part('park'))}));
+ const reasons = known.filter(route => route.reason).map(route => `<li><b>${v1t('方向 {n}', {n: esc(route.letter)})}</b> ${v1t('· {n}：{n2}', {n: esc(wikiS2Opinion[route.opinion][0]), n2: wikiS2Cell(route.reason, 180)})}</li>`).join('');
+ return `<section class="wiki-s2-advice" data-s2-advice><b>${v1t('系统建议 · 不是你的选择')}</b><p>${v1t('{n}。页面没有预选任何方向。', {n: esc(bits.join(v1t('；')))})}</p>${reasons ? `<ul>${reasons}</ul>` : ''}</section>`;
 }
 
 function wikiS2CheckCell(route) {
- if (!route.checks) return '<span class="wiki-s2-missing">还没有</span><small>这份保存的结果里没有这条路线的五项检查</small>';
- const tag = check => check?.blocking === true ? ['卡住','block'] : check?.blocking === false ? ['不卡','free'] : ['未提供','unk'];
+ if (!route.checks) return `<span class="wiki-s2-missing">${v1t('还没有')}</span><small>${v1t('这份保存的结果里没有这条路线的五项检查')}</small>`;
+ const tag = check => check?.blocking === true ? [v1t('卡住'),'block'] : check?.blocking === false ? [v1t('不卡'),'free'] : [v1t('未提供'),'unk'];
  const keys = Object.keys(wikiS2CheckNames);
  const next = keys.map(key => route.checks[key]?.next_check).filter(Boolean);
  return `<ul class="wiki-s2-checks">${keys.map(key => {
   const [label, tone] = tag(route.checks[key]);
   return `<li><span>${wikiS2CheckNames[key]}</span><b data-tone="${tone}">${label}</b></li>`;
- }).join('')}</ul>${next.length ? `<p class="wiki-s2-next"><b>待核实的下一步</b>${wikiS2Cell(next, 180)}</p>` : ''}`;
+ }).join('')}</ul>${next.length ? `<p class="wiki-s2-next"><b>${v1t('待核实的下一步')}</b>${wikiS2Cell(next, 180)}</p>` : ''}`;
 }
 
 function wikiS2EvidenceCell(route) {
- if (!route.evidenceIds) return '<span class="wiki-s2-missing">还没有</span><small>这份保存的结果没有给出这条路线引用的证据</small>';
- return route.evidenceIds.length ? `<span>${route.evidenceIds.length} 条保存的证据</span><small>编号见本页技术细节</small>` : '<span>没有引用证据</span>';
+ if (!route.evidenceIds) return `<span class="wiki-s2-missing">${v1t('还没有')}</span><small>${v1t('这份保存的结果没有给出这条路线引用的证据')}</small>`;
+ return route.evidenceIds.length ? `<span>${v1t('{length} 条保存的证据', {length: route.evidenceIds.length})}</span><small>${v1t('编号见本页技术细节')}</small>` : `<span>${v1t('没有引用证据')}</span>`;
 }
 
 function wikiS2CompareTable(app, model, state) {
@@ -240,60 +240,60 @@ function wikiS2CompareTable(app, model, state) {
  const tentative = state.tentative?.key;
  const picked = model.receipt?.candidate_id ? wikiS2Key(model.receipt.candidate_id, model.receipt.candidate_version ?? model.receipt.version) : null;
  const head = route => {
-  const [opinion, tone] = route.opinion ? wikiS2Opinion[route.opinion] : ['系统意见未提供', 'none'];
+  const [opinion, tone] = route.opinion ? wikiS2Opinion[route.opinion] : [v1t('系统意见未提供'), 'none'];
   const flagged = state.flags.has(route.key);
   return `<th scope="col" ${route.key === picked ? 'class="picked"' : ''}><b class="wiki-s2-letter">${esc(route.letter)}</b>
-   ${route.title ? `<span class="wiki-s2-name">${esc(route.title)}</span>` : ''}<span class="wiki-s2-opinion" data-tone="${tone}">${opinion}</span>${route.key === tentative ? '<span class="wiki-s2-opinion" data-tone="draft">暂定</span>' : ''}
+   ${route.title ? `<span class="wiki-s2-name">${esc(route.title)}</span>` : ''}<span class="wiki-s2-opinion" data-tone="${tone}">${opinion}</span>${route.key === tentative ? `<span class="wiki-s2-opinion" data-tone="draft">${v1t('暂定')}</span>` : ''}
 
-   <button type="button" class="wiki-s2-flag" data-s2-flag="${esc(route.key)}" aria-pressed="${flagged}">${flagged ? '已标记待审' : '标记待审'}</button>
-   <small>仅本机草稿，未提交 Harness</small></th>`;
+   <button type="button" class="wiki-s2-flag" data-s2-flag="${esc(route.key)}" aria-pressed="${flagged}">${flagged ? v1t('已标记待审') : v1t('标记待审')}</button>
+   <small>${v1t('仅本机草稿，未提交 Harness')}</small></th>`;
  };
  const row = (title, cell) => `<tr><th scope="row">${title}</th>${shown.map(route => `<td ${route.key === picked ? 'class="picked"' : ''}>${cell(route)}</td>`).join('')}</tr>`;
  const risks = route => wikiS2Cell(route.risks);
- return `<div class="wiki-s2-scroll" tabindex="0" aria-label="候选比较表${shown.length > 4 ? '，可以横向滚动，第一列固定' : ''}">
-  <table class="wiki-s2-compare" data-s2-compare><thead><tr><th scope="col">维度</th>${shown.map(head).join('')}</tr></thead><tbody>
-  ${row('研究问题', route => wikiS2Cell(route.question))}
-  ${row('和最接近研究的区别', route => wikiS2Cell(route.differs))}
-  ${row('数据能不能拿到', route => `<span class="wiki-s2-avail">未提供</span><small>后台没有保存这条路线的数据可获得性结论，不替它判断</small>`)}
-  ${row('工具和投入', route => wikiS2Cell(route.tools))}
-  ${row('风险和退路', risks)}
-  ${row('卡住的条件', wikiS2CheckCell)}
-  ${row('依据的证据', wikiS2EvidenceCell)}
+ return `<div class="wiki-s2-scroll" tabindex="0" aria-label="${v1t('候选比较表{n}', {n: shown.length > 4 ? v1t('，可以横向滚动，第一列固定') : ''})}">
+  <table class="wiki-s2-compare" data-s2-compare><thead><tr><th scope="col">${v1t('维度')}</th>${shown.map(head).join('')}</tr></thead><tbody>
+  ${row(v1t('研究问题'), route => wikiS2Cell(route.question))}
+  ${row(v1t('和最接近研究的区别'), route => wikiS2Cell(route.differs))}
+  ${row(v1t('数据能不能拿到'), route => `<span class="wiki-s2-avail">${v1t('未提供')}</span><small>${v1t('后台没有保存这条路线的数据可获得性结论，不替它判断')}</small>`)}
+  ${row(v1t('工具和投入'), route => wikiS2Cell(route.tools))}
+  ${row(v1t('风险和退路'), risks)}
+  ${row(v1t('卡住的条件'), wikiS2CheckCell)}
+  ${row(v1t('依据的证据'), wikiS2EvidenceCell)}
   </tbody></table></div>
-  ${pages > 1 ? `<div class="wiki-s2-pager"><button type="button" class="hs-button" data-s2-page="-1" ${state.page === 0 ? 'disabled' : ''}>上一页</button><span>第 ${state.page + 1} 页，共 ${pages} 页</span><button type="button" class="hs-button" data-s2-page="1" ${state.page + 1 === pages ? 'disabled' : ''}>下一页</button></div>` : ''}`;
+  ${pages > 1 ? `<div class="wiki-s2-pager"><button type="button" class="hs-button" data-s2-page="-1" ${state.page === 0 ? 'disabled' : ''}>${v1t('上一页')}</button><span>${v1t('第 {n} 页，共 {pages} 页', {n: state.page + 1, pages})}</span><button type="button" class="hs-button" data-s2-page="1" ${state.page + 1 === pages ? 'disabled' : ''}>${v1t('下一页')}</button></div>` : ''}`;
 }
 
 function wikiS2Reviews(model) {
  const reading = model.reviews;
  const have = model.routes.filter(route => route.checks).length;
- if (!reading && !model.hasEvaluation) return `<details class="wiki-s2-fold" data-s2-reviews><summary>独立复核与可行性评估 · <span class="wiki-s2-muted">这份归档没有保存独立评估</span></summary></details>`;
- if (!reading) return `<details class="wiki-s2-fold" data-s2-reviews><summary>独立复核与可行性评估 · ${have} 个候选有可行性评估</summary><p>评估原文在归档里，这个页面还没有读取它的逐条复核意见。</p><p class="wiki-s2-muted">这是报告质量评审，不是路线效果排名。评分未提供。</p></details>`;
+ if (!reading && !model.hasEvaluation) return `<details class="wiki-s2-fold" data-s2-reviews><summary>${v1t('独立复核与可行性评估 ·')} <span class="wiki-s2-muted">${v1t('这份归档没有保存独立评估')}</span></summary></details>`;
+ if (!reading) return `<details class="wiki-s2-fold" data-s2-reviews><summary>${v1t('独立复核与可行性评估 · {have} 个候选有可行性评估', {have})}</summary><p>${v1t('评估原文在归档里，这个页面还没有读取它的逐条复核意见。')}</p><p class="wiki-s2-muted">${v1t('这是报告质量评审，不是路线效果排名。评分未提供。')}</p></details>`;
  const records = reading.records, source = reading.source;
- const status = record => wikiS2ReviewStatus[record.status] || '状态未知';
+ const status = record => wikiS2ReviewStatus[record.status] || v1t('状态未知');
  const cards = model.routes.map(route => {
   const mine = records.filter(record => record.candidate_id === route.id && record.candidate_version === route.version);
   const checks = route.checks ? Object.keys(wikiS2ReviewNames).map(key => {
    const check = route.checks[key];
-   return `<li><b>${wikiS2ReviewNames[key]}</b> <span class="wiki-s2-st" data-tone="idle">${check ? esc(check.status === 'assessed' ? '已有评估' : check.status ?? '状态未知') : '未提供'}</span> ${check ? `理由：${wikiS2Cell(check.rationale, 160)}` : ''}</li>`;
-  }).join('') : '<li>这个候选没有保存可行性评估</li>';
+   return `<li><b>${wikiS2ReviewNames[key]}</b> <span class="wiki-s2-st" data-tone="idle">${check ? esc(check.status === 'assessed' ? v1t('已有评估') : check.status ?? v1t('状态未知')) : v1t('未提供')}</span> ${check ? `${v1t('理由：{n}', {n: wikiS2Cell(check.rationale, 160)})}` : ''}</li>`;
+  }).join('') : `<li>${v1t('这个候选没有保存可行性评估')}</li>`;
   const reviewer = mine.map(record => {
    const assessment = record.review?.assessment;
-   const role = record.role === 'challenger' ? '挑战审查' : record.role === 'feasibility' ? '可行性审查' : record.role;
+   const role = record.role === 'challenger' ? v1t('挑战审查') : record.role === 'feasibility' ? v1t('可行性审查') : record.role;
    const todo = Object.values(assessment?.checks || {}).map(check => check?.next_check).filter(Boolean);
-   return `<div class="wiki-s2-reviewer"><h4>${esc(role)} · ${esc(status(record))}</h4><p>理由：${wikiS2Cell(assessment?.reason ?? record.error)}</p>
-    ${todo.length ? `<p><b>需要补查</b> ${wikiS2Cell(todo, 200)}</p>` : ''}<p><b>下一步</b> ${wikiS2Cell(assessment?.next_step)}</p>
-    <details><summary>完整原始记录</summary><pre>${esc(JSON.stringify(record, null, 2))}</pre></details></div>`;
+   return `<div class="wiki-s2-reviewer"><h4>${esc(role)} · ${esc(status(record))}</h4><p>${v1t('理由：{n}', {n: wikiS2Cell(assessment?.reason ?? record.error)})}</p>
+    ${todo.length ? `<p><b>${v1t('需要补查')}</b> ${wikiS2Cell(todo, 200)}</p>` : ''}<p><b>${v1t('下一步')}</b> ${wikiS2Cell(assessment?.next_step)}</p>
+    <details><summary>${v1t('完整原始记录')}</summary><pre>${esc(JSON.stringify(record, null, 2))}</pre></details></div>`;
   }).join('');
-  return `<article class="wiki-s2-reviewcard"><h3>方向 ${esc(route.letter)}</h3><ul>${checks}</ul>${reviewer}</article>`;
+  return `<article class="wiki-s2-reviewcard"><h3>${v1t('方向 {n}', {n: esc(route.letter)})}</h3><ul>${checks}</ul>${reviewer}</article>`;
  }).join('');
- const state = source.delivery_status === 'draft-not-ready' ? '草稿 · 尚未选案' : '保存报告 · 尚未选案';
- return `<details class="wiki-s2-fold" data-s2-reviews><summary>独立复核与可行性评估 · ${have} 个候选有可行性评估 · 复核意见 ${records.length} 条</summary>
-  <p class="wiki-s2-muted">这是报告质量评审，不是路线效果排名。评分未提供。 <span class="wiki-s2-opinion" data-tone="draft">${state}</span></p>${cards}
-  <details><summary>来源与版本（技术细节）</summary><pre>${esc(JSON.stringify({packet_sha256:source.packet_sha256, delivery_manifest_sha256:source.delivery_manifest_sha256, reviews_file_sha256:source.reviews_file_sha256}, null, 2))}</pre></details></details>`;
+ const state = source.delivery_status === 'draft-not-ready' ? v1t('草稿 · 尚未选案') : v1t('保存报告 · 尚未选案');
+ return `<details class="wiki-s2-fold" data-s2-reviews><summary>${v1t('独立复核与可行性评估 · {have} 个候选有可行性评估 · 复核意见 {length} 条', {have, length: records.length})}</summary>
+  <p class="wiki-s2-muted">${v1t('这是报告质量评审，不是路线效果排名。评分未提供。')} <span class="wiki-s2-opinion" data-tone="draft">${state}</span></p>${cards}
+  <details><summary>${v1t('来源与版本（技术细节）')}</summary><pre>${esc(JSON.stringify({packet_sha256:source.packet_sha256, delivery_manifest_sha256:source.delivery_manifest_sha256, reviews_file_sha256:source.reviews_file_sha256}, null, 2))}</pre></details></details>`;
 }
 
 function wikiS2DraftStatus(state) {
- return ({'saved':'已保存本机草稿','unsaved':'本机草稿未保存','cleared':'本机草稿已清除','error':'本机保存失败'})[state.draftStatus] || '本地待审 · 未提交 Harness';
+ return ({'saved':v1t('已保存本机草稿'),'unsaved':v1t('本机草稿未保存'),'cleared':v1t('本机草稿已清除'),'error':v1t('本机保存失败')})[state.draftStatus] || v1t('本地待审 · 未提交 Harness');
 }
 function wikiS2Decision(app, model, state) {
  if (model.receipt) return ''; // After a selection the decision area is closed; the receipt above replaces it.
@@ -301,38 +301,38 @@ function wikiS2Decision(app, model, state) {
  const blocked = wikiS2DecisionReason(model);
  let formal;
  if (blocked === null) formal = '<div data-v93-choice></div>';
- else formal = `<fieldset class="wiki-s2-choices"><legend>你选哪一个方向？（没有预选）</legend>${model.routes.map(route =>
-  `<label class="wiki-s2-choice"><input type="radio" name="wiki-s2-pick" data-s2-pick="${esc(route.key)}" ${route.key === state.pick ? 'checked' : ''}> <b>方向 ${esc(route.letter)}</b> ${esc(wikiS2Text(route.question)?.slice(0, 80) ?? '问题未提供')}</label>`).join('')}</fieldset>
-  <label class="wiki-s2-reasonbox">理由（可选）<textarea data-s2-note rows="3" maxlength="4096">${esc(state.note)}</textarea></label>
-  ${pick && ['park','revise'].includes(pick.opinion) ? `<p class="wiki-s2-warnline">你选的是「${wikiS2Opinion[pick.opinion][0]}」的方向。这不会被拦下，但请确认已看过理由。</p>` : ''}
-  <div class="wiki-s2-actions"><span><button type="button" class="hs-button hs-button-primary" disabled>${pick ? `确认选择方向 ${esc(pick.letter)}…` : '请先选一个'}</button><small class="wiki-s2-reason">${esc(blocked)}</small></span></div>`;
- const tentative = `<details class="wiki-s2-tentative" data-s2-tentative ${state.tentOpen ? 'open' : ''}><summary>先存一个暂定偏好（不是正式选择）</summary>
-  <p class="wiki-s2-muted">暂定偏好只存在这台电脑的这个浏览器里，不会提交 Harness，也不能触发进入 Stage 3。</p>
-  <div class="wiki-s2-actions"><button type="button" class="hs-button" data-s2-tentative-save ${pick ? '' : 'disabled'}>保存暂定偏好</button>${pick ? '' : '<small class="wiki-s2-reason">请先在上面选一个方向</small>'}</div>
-  ${state.tentative ? `<p>当前暂定偏好：方向 ${esc(state.tentative.letter)}${state.tentative.note ? ' · ' + esc(state.tentative.note) : ''} · 本机草稿</p>` : ''}</details>`;
- const localDraft = blocked === null ? '' : `<div class="wiki-s2-actions"><button type="button" class="hs-button" data-s2-save ${pick ? '' : 'disabled'}>保存本地草稿</button><button type="button" class="hs-button" data-s2-clear>清除本地草稿</button>
-  <small aria-live="polite">${wikiS2DraftStatus(state)}</small>${pick ? '' : '<small class="wiki-s2-reason">请先选一个方向</small>'}</div>`;
- if (model.origin === 'archive') return `<section class="wiki-s2-decide" data-s2-decide><span class="wiki-s2-label">你的决定</span>
-  <h2>选一个研究方向，带进 Stage 3</h2><p class="wiki-s2-muted">这是${model.synthetic ? '合成样例' : '历史归档'}，不能在这里改。归档里${model.receipt ? '已有选择回执，见上方' : '没有真人选择记录'}。</p></section>`;
- return `<section class="wiki-s2-decide" data-s2-decide><span class="wiki-s2-label">你的决定</span>
-  <h2>选一个研究方向，带进 Stage 3</h2><p class="wiki-s2-muted">这一步由你来选，系统建议只是参考。选了以后，Stage 3 才能接着规划。</p>${formal}${localDraft}${tentative}</section>`;
+ else formal = `<fieldset class="wiki-s2-choices"><legend>${v1t('你选哪一个方向？（没有预选）')}</legend>${model.routes.map(route =>
+  `<label class="wiki-s2-choice"><input type="radio" name="wiki-s2-pick" data-s2-pick="${esc(route.key)}" ${route.key === state.pick ? 'checked' : ''}> <b>${v1t('方向 {n}', {n: esc(route.letter)})}</b> ${esc(wikiS2Text(route.question)?.slice(0, 80) ?? v1t('问题未提供'))}</label>`).join('')}</fieldset>
+  <label class="wiki-s2-reasonbox">${v1t('理由（可选）')}<textarea data-s2-note rows="3" maxlength="4096">${esc(state.note)}</textarea></label>
+  ${pick && ['park','revise'].includes(pick.opinion) ? `<p class="wiki-s2-warnline">${v1t('你选的是「{n}」的方向。这不会被拦下，但请确认已看过理由。', {n: wikiS2Opinion[pick.opinion][0]})}</p>` : ''}
+  <div class="wiki-s2-actions"><span><button type="button" class="hs-button hs-button-primary" disabled>${pick ? `${v1t('确认选择方向 {n}…', {n: esc(pick.letter)})}` : v1t('请先选一个')}</button><small class="wiki-s2-reason">${esc(blocked)}</small></span></div>`;
+ const tentative = `<details class="wiki-s2-tentative" data-s2-tentative ${state.tentOpen ? 'open' : ''}><summary>${v1t('先存一个暂定偏好（不是正式选择）')}</summary>
+  <p class="wiki-s2-muted">${v1t('暂定偏好只存在这台电脑的这个浏览器里，不会提交 Harness，也不能触发进入 Stage 3。')}</p>
+  <div class="wiki-s2-actions"><button type="button" class="hs-button" data-s2-tentative-save ${pick ? '' : 'disabled'}>${v1t('保存暂定偏好')}</button>${pick ? '' : `<small class="wiki-s2-reason">${v1t('请先在上面选一个方向')}</small>`}</div>
+  ${state.tentative ? `<p>${v1t('当前暂定偏好：方向 {n}{n2} · 本机草稿', {n: esc(state.tentative.letter), n2: state.tentative.note ? ' · ' + esc(state.tentative.note) : ''})}</p>` : ''}</details>`;
+ const localDraft = blocked === null ? '' : `<div class="wiki-s2-actions"><button type="button" class="hs-button" data-s2-save ${pick ? '' : 'disabled'}>${v1t('保存本地草稿')}</button><button type="button" class="hs-button" data-s2-clear>${v1t('清除本地草稿')}</button>
+  <small aria-live="polite">${wikiS2DraftStatus(state)}</small>${pick ? '' : `<small class="wiki-s2-reason">${v1t('请先选一个方向')}</small>`}</div>`;
+ if (model.origin === 'archive') return `<section class="wiki-s2-decide" data-s2-decide><span class="wiki-s2-label">${v1t('你的决定')}</span>
+  <h2>${v1t('选一个研究方向，带进 Stage 3')}</h2><p class="wiki-s2-muted">${v1t('这是{n}，不能在这里改。归档里{n2}。', {n: model.synthetic ? v1t('合成样例') : v1t('历史归档'), n2: model.receipt ? v1t('已有选择回执，见上方') : v1t('没有真人选择记录')})}</p></section>`;
+ return `<section class="wiki-s2-decide" data-s2-decide><span class="wiki-s2-label">${v1t('你的决定')}</span>
+  <h2>${v1t('选一个研究方向，带进 Stage 3')}</h2><p class="wiki-s2-muted">${v1t('这一步由你来选，系统建议只是参考。选了以后，Stage 3 才能接着规划。')}</p>${formal}${localDraft}${tentative}</section>`;
 }
 
 function wikiS2DecisionReason(model) {
- if (model.origin === 'archive') return '这是历史归档，不能在这里改';
- if (model.origin === 'import') return '这是接入的候选包，不是本课题自己的 Stage 2。没有这个课题的接通记录和 Stage 1 绑定，不能提交正式选择';
+ if (model.origin === 'archive') return v1t('这是历史归档，不能在这里改');
+ if (model.origin === 'import') return v1t('这是接入的候选包，不是本课题自己的 Stage 2。没有这个课题的接通记录和 Stage 1 绑定，不能提交正式选择');
  if (typeof v93ChoiceIdentity === 'function' && v93ChoiceIdentity()) return null;
  const connected = typeof v9ConnectionConnected === 'function' && v9ConnectionConnected('stage2-controller');
- return connected ? '现在还不能做这一步：这次启动没有提供当前交付的正式选择入口' : '现在还不能做这一步：Stage 2 还没有接通';
+ return connected ? v1t('现在还不能做这一步：这次启动没有提供当前交付的正式选择入口') : v1t('现在还不能做这一步：Stage 2 还没有接通');
 }
 
 function wikiS2Receipt(model) {
  if (!model?.receipt) return '';
- const receipt = model.receipt, field = (name, value, why) => `<div><dt>${name}</dt><dd>${value ? esc(value) : `<span class="wiki-s2-missing">还没有</span><small>${why}</small>`}</dd></div>`;
- return `<section class="wiki-s2-receipt" data-s2-receipt role="status"><span class="wiki-s2-tick" aria-hidden="true">✓</span><div><h2>你已选定方向${receipt.candidate_id ? ' ' + esc(receipt.candidate_id) : ''}</h2>
-  <dl>${field('理由', receipt.reason, '选择回执里没有保存这一项')}${field('和系统建议是否一致', receipt.agrees_with_recommendation === true ? '一致' : receipt.agrees_with_recommendation === false ? '不一致' : '', '选择回执里没有保存这一项')}
-  ${field('带进下一段的限制', Number.isSafeInteger(receipt.limitation_count) ? receipt.limitation_count + ' 条' : '', '选择回执里没有保存这一项')}${field('时间', receipt.recorded_at || receipt.created_at, '选择回执里没有保存这一项')}</dl>
-  <button type="button" class="hs-button hs-button-primary" data-stage="3">进入下一段：Stage 3</button></div></section>`;
+ const receipt = model.receipt, field = (name, value, why) => `<div><dt>${name}</dt><dd>${value ? esc(value) : `<span class="wiki-s2-missing">${v1t('还没有')}</span><small>${why}</small>`}</dd></div>`;
+ return `<section class="wiki-s2-receipt" data-s2-receipt role="status"><span class="wiki-s2-tick" aria-hidden="true">✓</span><div><h2>${v1t('你已选定方向{n}', {n: receipt.candidate_id ? ' ' + esc(receipt.candidate_id) : ''})}</h2>
+  <dl>${field(v1t('理由'), receipt.reason, v1t('选择回执里没有保存这一项'))}${field(v1t('和系统建议是否一致'), receipt.agrees_with_recommendation === true ? v1t('一致') : receipt.agrees_with_recommendation === false ? v1t('不一致') : '', v1t('选择回执里没有保存这一项'))}
+  ${field(v1t('带进下一段的限制'), Number.isSafeInteger(receipt.limitation_count) ? v1t('{n} 条', {n: receipt.limitation_count}) : '', v1t('选择回执里没有保存这一项'))}${field(v1t('时间'), receipt.recorded_at || receipt.created_at, v1t('选择回执里没有保存这一项'))}</dl>
+  <button type="button" class="hs-button hs-button-primary" data-stage="3">${v1t('进入下一段：Stage 3')}</button></div></section>`;
 }
 
 function wikiS2InputTable() {
@@ -343,30 +343,30 @@ function wikiS2InputTable() {
   const state = typeof wikiStage2State === 'undefined' ? null : wikiStage2State;
   // Only the four states that mean the package was received say so; a blocked or unconfirmed request says what it is.
   const status = state?.error ? null : state?.result?.status;
-  const empty = text => `<section class="wiki-s2-empty" data-s2-input><h2>Stage 1 输入文献</h2><p>${text}</p></section>`;
-  if (!delivered && ['ready', 'request-saved', 'running', 'no-candidate'].includes(status)) return empty('Stage 2 已接收这个课题的文献包，候选还没有生成。');
-  if (!delivered && status === 'blocked') return empty('已保存的候选请求被拦下，暂时无法继续，请由管理员检查交接。候选还没有生成。');
-  if (!delivered && status === 'execution-unknown') return empty('候选请求的结果还不清楚，请由管理员核对原运行记录。候选还没有生成。');
-  return `<section class="wiki-s2-empty" data-s2-input><h2>Stage 1 输入文献</h2><p>${delivered ? '这个课题的 Stage 1 文献包已交付，这里还没有读取它的文献清单。Stage 2 的研究方向还没有生成。' : 'Stage 2 在等这个课题的 Stage 1 文献包。'}</p></section>`;
+  const empty = text => `<section class="wiki-s2-empty" data-s2-input><h2>${v1t('Stage 1 输入文献')}</h2><p>${text}</p></section>`;
+  if (!delivered && ['ready', 'request-saved', 'running', 'no-candidate'].includes(status)) return empty(v1t('Stage 2 已接收这个课题的文献包，候选还没有生成。'));
+  if (!delivered && status === 'blocked') return empty(v1t('已保存的候选请求被拦下，暂时无法继续，请由管理员检查交接。候选还没有生成。'));
+  if (!delivered && status === 'execution-unknown') return empty(v1t('候选请求的结果还不清楚，请由管理员核对原运行记录。候选还没有生成。'));
+  return `<section class="wiki-s2-empty" data-s2-input><h2>${v1t('Stage 1 输入文献')}</h2><p>${delivered ? v1t('这个课题的 Stage 1 文献包已交付，这里还没有读取它的文献清单。Stage 2 的研究方向还没有生成。') : v1t('Stage 2 在等这个课题的 Stage 1 文献包。')}</p></section>`;
  }
  const latest = new Map();
  for (const row of index.screening || []) {
   const key = JSON.stringify([row.work_id, row.version_id]), prior = latest.get(key);
   if (!prior || row.observed_at >= prior.observed_at) latest.set(key, row);
  }
- const decisions = {include:'纳入', exclude:'排除', pending:'待定'};
+ const decisions = {include:v1t('纳入'), exclude:v1t('排除'), pending:v1t('待定')};
  const rows = index.papers.map(paper => {
   const key = JSON.stringify([paper.work_id, paper.version_id]);
   const claims = (index.claims || []).filter(claim => claim.work_id === paper.work_id && claim.version_id === paper.version_id);
-  return `<tr><th scope="row">${esc(paper.title)}</th><td>${decisions[latest.get(key)?.status] || '未提供'}</td><td>${claims.length ? claims.length + ' 条保存的证据' : '还没有阅读记录'}</td><td><span class="wiki-s2-missing">未提供</span></td></tr>`;
+  return `<tr><th scope="row">${esc(paper.title)}</th><td>${decisions[latest.get(key)?.status] || v1t('未提供')}</td><td>${claims.length ? v1t('{n} 条保存的证据', {n: claims.length}) : v1t('还没有阅读记录')}</td><td><span class="wiki-s2-missing">${v1t('未提供')}</span></td></tr>`;
  }).join('');
- return `<section class="wiki-s2-empty" data-s2-input><h2>Stage 1 输入文献</h2><p>这是交接过来的输入，Stage 2 的研究方向还没有生成。</p>
-  <div class="wiki-s2-scroll"><table class="wiki-s2-compare"><thead><tr><th scope="col">标题</th><th scope="col">筛选</th><th scope="col">阅读</th><th scope="col">已记录的限制</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+ return `<section class="wiki-s2-empty" data-s2-input><h2>${v1t('Stage 1 输入文献')}</h2><p>${v1t('这是交接过来的输入，Stage 2 的研究方向还没有生成。')}</p>
+  <div class="wiki-s2-scroll"><table class="wiki-s2-compare"><thead><tr><th scope="col">${v1t('标题')}</th><th scope="col">${v1t('筛选')}</th><th scope="col">${v1t('阅读')}</th><th scope="col">${v1t('已记录的限制')}</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 
 function wikiS2CompareTab(app, model, state) {
- if (model?.missing) return '<section class="wiki-s2-empty" data-s2-missing><h2>这份归档没有 Stage 2 的结果</h2><p>归档里没有保存 Stage 2 的结果，所以这里没有候选。</p></section>';
- if (model?.blocked) return `<section class="wiki-s2-empty" data-s2-blocked role="alert"><h2>保存的结果没有通过核对</h2><p>保存的结果没有通过核对，没有显示，也不会用示例内容补上。</p><button type="button" class="hs-button" data-wiki-stage2-action="read">重新读取</button><details class="wiki-s2-tech"><summary>技术细节</summary><code>${esc(model.blocked)}</code></details></section>`;
+ if (model?.missing) return `<section class="wiki-s2-empty" data-s2-missing><h2>${v1t('这份归档没有 Stage 2 的结果')}</h2><p>${v1t('归档里没有保存 Stage 2 的结果，所以这里没有候选。')}</p></section>`;
+ if (model?.blocked) return `<section class="wiki-s2-empty" data-s2-blocked role="alert"><h2>${v1t('保存的结果没有通过核对')}</h2><p>${v1t('保存的结果没有通过核对，没有显示，也不会用示例内容补上。')}</p><button type="button" class="hs-button" data-wiki-stage2-action="read">${v1t('重新读取')}</button><details class="wiki-s2-tech"><summary>${v1t('技术细节')}</summary><code>${esc(model.blocked)}</code></details></section>`;
  if (!model || !model.routes.length) return wikiS2InputTable();
  return `${wikiS2Opinions(model)}${wikiS2CompareTable(app, model, state)}${wikiS2Reviews(model)}${wikiS2Decision(app, model, state)}`;
 }
@@ -374,53 +374,53 @@ function wikiS2CompareTab(app, model, state) {
 // --- Literature and evidence tab (8.15, 8.17) ----------------------------------------------
 // Saved reading levels are codes (full-text, abstract…); the page shows their words (2.6). Unknown codes stay as saved.
 function wikiS2Level(value) {
- const own = {abstract:'摘要', metadata:'仅书目', 'title-only':'仅标题'};
+ const own = {abstract:v1t('摘要'), metadata:v1t('仅书目'), 'title-only':v1t('仅标题')};
  if (typeof value !== 'string') return value;
  return own[value] || (typeof n9UiLabel === 'function' ? n9UiLabel(value) : value);
 }
-const wikiS2LitRows = [['author','作者／机构'],['level','阅读层级'],['role','在本报告里的用途'],['notes','来源卡说明与限制'],
- ['excerpt','原文摘录／保存的证据'],['title','题名'],['access','访问与版本'],['method','研究方法与样本']];
+const wikiS2LitRows = v1Lazy([['author','作者／机构'],['level','阅读层级'],['role','在本报告里的用途'],['notes','来源卡说明与限制'],
+ ['excerpt','原文摘录／保存的证据'],['title','题名'],['access','访问与版本'],['method','研究方法与样本']]);
 
 function wikiS2Metrics(model) {
  const text = model.comparisonText || '';
  const match = text.match(/(?:^|\n)#{2,4}\s*(?:建議指標|建议指标|Metrics|Proposed metrics)[^\n]*\n([\s\S]*?)(?=\n#{1,4}\s|$)/i);
  const lines = match ? match[1].split(/\r?\n/).map(line => line.replace(/^\s*[-*]\s*/, '').trim()).filter(Boolean) : [];
- return `<section class="wiki-s2-card" data-s2-metrics><h2>指标与可比条件</h2>
-  <p class="wiki-s2-muted">下面是交付报告里的验证计划。目前没有统一的实测数值和可比条件，<b>不画效果排名</b>。单位、条件和可比性还没核实，不画图。</p>
-  ${lines.length ? `<table class="wiki-s2-compare"><thead><tr><th scope="col">指标</th><th scope="col">准备测什么</th><th scope="col">实测值</th><th scope="col">对照实验</th></tr></thead><tbody>${lines.map((line, i) => `<tr><th scope="row">指标 ${i + 1}</th><td>${wikiS2Cell(line, 200)}</td><td>未提供</td><td><span class="wiki-s2-opinion" data-tone="none">待验证</span></td></tr>`).join('')}</tbody></table>` : '<p><span class="wiki-s2-missing">未提供</span> 交付报告里没有读到验证计划的指标。</p>'}</section>`;
+ return `<section class="wiki-s2-card" data-s2-metrics><h2>${v1t('指标与可比条件')}</h2>
+  <p class="wiki-s2-muted">${v1t('下面是交付报告里的验证计划。目前没有统一的实测数值和可比条件，')}<b>${v1t('不画效果排名')}</b>${v1t('。单位、条件和可比性还没核实，不画图。')}</p>
+  ${lines.length ? `<table class="wiki-s2-compare"><thead><tr><th scope="col">${v1t('指标')}</th><th scope="col">${v1t('准备测什么')}</th><th scope="col">${v1t('实测值')}</th><th scope="col">${v1t('对照实验')}</th></tr></thead><tbody>${lines.map((line, i) => `<tr><th scope="row">${v1t('指标 {n}', {n: i + 1})}</th><td>${wikiS2Cell(line, 200)}</td><td>${v1t('未提供')}</td><td><span class="wiki-s2-opinion" data-tone="none">${v1t('待验证')}</span></td></tr>`).join('')}</tbody></table>` : `<p><span class="wiki-s2-missing">${v1t('未提供')}</span> ${v1t('交付报告里没有读到验证计划的指标。')}</p>`}</section>`;
 }
 
 function wikiS2Matrix(model, state) {
  const keyOfEvidence = new Map((model.evidence || []).map(row => [row.evidence_id, wikiS2Key(row.work_id, row.version_id)]));
  const columns = model.literature.filter(lit => model.routes.some(route => (route.evidenceIds || []).some(id => keyOfEvidence.get(id) === lit.key)));
  const open = state.card && model.literature.find(lit => lit.key === state.card);
- return `<section class="wiki-s2-card" data-s2-matrix><h2>证据关系矩阵</h2>
-  <p class="wiki-s2-muted">只画候选方向到来源的引用关系。空格表示没有保存绑定，不等于不相关；引用数不是相似度，也不是推荐或评分。</p>
-  ${columns.length ? `<div class="wiki-s2-scroll"><table class="wiki-s2-compare"><thead><tr><th scope="col">方向</th>${columns.map(lit => `<th scope="col">${esc(lit.title)}</th>`).join('')}</tr></thead><tbody>
-  ${model.routes.map(route => `<tr><th scope="row">方向 ${esc(route.letter)}</th>${columns.map(lit => (route.evidenceIds || []).some(id => keyOfEvidence.get(id) === lit.key)
-   ? `<td><button type="button" class="wiki-s2-dot" data-s2-card="${esc(lit.key)}" aria-label="打开 ${esc(lit.title)} 的来源卡">●</button></td>` : '<td><span class="wiki-s2-muted">未绑定</span></td>').join('')}</tr>`).join('')}</tbody></table></div>`
-   : '<p><span class="wiki-s2-missing">还没有</span> 保存的候选没有绑定到任何来源。</p>'}
-  <p class="wiki-s2-muted">文献之间的关系：未提供。当前保存的契约没有给出明确关系，不能用共同标签推断。</p>
-  ${open ? `<details open class="wiki-s2-fold"><summary>来源卡 · ${esc(open.title)}</summary><pre>${esc(JSON.stringify(open.raw, null, 2))}</pre></details>` : ''}</section>`;
+ return `<section class="wiki-s2-card" data-s2-matrix><h2>${v1t('证据关系矩阵')}</h2>
+  <p class="wiki-s2-muted">${v1t('只画候选方向到来源的引用关系。空格表示没有保存绑定，不等于不相关；引用数不是相似度，也不是推荐或评分。')}</p>
+  ${columns.length ? `<div class="wiki-s2-scroll"><table class="wiki-s2-compare"><thead><tr><th scope="col">${v1t('方向')}</th>${columns.map(lit => `<th scope="col">${esc(lit.title)}</th>`).join('')}</tr></thead><tbody>
+  ${model.routes.map(route => `<tr><th scope="row">${v1t('方向 {n}', {n: esc(route.letter)})}</th>${columns.map(lit => (route.evidenceIds || []).some(id => keyOfEvidence.get(id) === lit.key)
+   ? `<td><button type="button" class="wiki-s2-dot" data-s2-card="${esc(lit.key)}" aria-label="${v1t('打开 {n} 的来源卡', {n: esc(lit.title)})}">●</button></td>` : `<td><span class="wiki-s2-muted">${v1t('未绑定')}</span></td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+   : `<p><span class="wiki-s2-missing">${v1t('还没有')}</span> ${v1t('保存的候选没有绑定到任何来源。')}</p>`}
+  <p class="wiki-s2-muted">${v1t('文献之间的关系：未提供。当前保存的契约没有给出明确关系，不能用共同标签推断。')}</p>
+  ${open ? `<details open class="wiki-s2-fold"><summary>${v1t('来源卡 · {n}', {n: esc(open.title)})}</summary><pre>${esc(JSON.stringify(open.raw, null, 2))}</pre></details>` : ''}</section>`;
 }
 
 function wikiS2Literature(model, state) {
- if (!model?.literature) return `<section class="wiki-s2-card" data-s2-literature><h2>文献对比</h2><p><span class="wiki-s2-missing">还没有</span> 当前读取到的保存记录里没有文献对比数据（后台没有给这个页面提供它）。</p></section>`;
+ if (!model?.literature) return `<section class="wiki-s2-card" data-s2-literature><h2>${v1t('文献对比')}</h2><p><span class="wiki-s2-missing">${v1t('还没有')}</span> ${v1t('当前读取到的保存记录里没有文献对比数据（后台没有给这个页面提供它）。')}</p></section>`;
  const lits = model.literature, pages = Math.max(1, Math.ceil(lits.length / wikiS2ChipPage));
  state.litPage = Math.max(0, Math.min(state.litPage, pages - 1));
  const chosen = lits.filter(lit => state.lit.includes(lit.key));
  const chips = lits.slice(state.litPage * wikiS2ChipPage, (state.litPage + 1) * wikiS2ChipPage).map(lit =>
-  `<button type="button" class="wiki-s2-chip" data-s2-lit="${esc(lit.key)}" aria-pressed="${state.lit.includes(lit.key)}">${esc(lit.title)} <span class="wiki-s2-opinion" data-tone="none">${esc(lit.tag ?? '类型未提供')}</span></button>`).join('');
+  `<button type="button" class="wiki-s2-chip" data-s2-lit="${esc(lit.key)}" aria-pressed="${state.lit.includes(lit.key)}">${esc(lit.title)} <span class="wiki-s2-opinion" data-tone="none">${esc(lit.tag ?? v1t('类型未提供'))}</span></button>`).join('');
  let rows = wikiS2LitRows.map(([key, label]) => ({key, label, value:lit => lit.rows[key] ?? null}));
  if (state.hideSame && chosen.length > 1) rows = rows.filter(row => new Set(chosen.map(lit => JSON.stringify(row.value(lit)))).size > 1);
- return `<section class="wiki-s2-card" data-s2-literature><h2>文献对比</h2><p class="wiki-s2-muted">选 2–3 篇并排对照。这里比较的是原始来源卡（含论文、官方报告和数据指南），不是统一的全文论文表。没提供的字段写「未提供」。</p>
-  <div class="wiki-s2-chips" role="group" aria-label="选择来源">${chips}</div>${state.litNote ? `<p class="wiki-s2-warnline" role="status">${esc(state.litNote)}</p>` : ''}
-  ${pages > 1 ? `<div class="wiki-s2-pager"><button type="button" class="hs-button" data-s2-litpage="-1" ${state.litPage === 0 ? 'disabled' : ''}>上一页</button><span>第 ${state.litPage + 1} 页，共 ${pages} 页</span><button type="button" class="hs-button" data-s2-litpage="1" ${state.litPage + 1 === pages ? 'disabled' : ''}>下一页</button></div>` : ''}
-  <label class="wiki-s2-hide"><input type="checkbox" data-s2-hide ${state.hideSame ? 'checked' : ''}> 隐藏相同字段</label>
-  ${chosen.length ? `<div class="wiki-s2-scroll" tabindex="0" aria-label="文献对照表"><table class="wiki-s2-compare"><thead><tr><th scope="col">对照维度</th>${chosen.map(lit => `<th scope="col">${esc(lit.title)}</th>`).join('')}</tr></thead><tbody>
-  ${rows.map(row => `<tr><th scope="row">${row.label}</th>${chosen.map(lit => `<td>${wikiS2Cell(row.value(lit), 240)}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p><button type="button" class="hs-button" data-s2-card-open="${esc(chosen[0].key)}">查看完整来源卡</button></p>`
-   : '<div class="wiki-s2-dashed">选 2–3 篇并排对照</div>'}
-  ${state.card && chosen.find(lit => lit.key === state.card) ? `<details open class="wiki-s2-fold"><summary>来源卡 · ${esc(chosen.find(lit => lit.key === state.card).title)}</summary><pre>${esc(JSON.stringify(chosen.find(lit => lit.key === state.card).raw, null, 2))}</pre></details>` : ''}</section>`;
+ return `<section class="wiki-s2-card" data-s2-literature><h2>${v1t('文献对比')}</h2><p class="wiki-s2-muted">${v1t('选 2–3 篇并排对照。这里比较的是原始来源卡（含论文、官方报告和数据指南），不是统一的全文论文表。没提供的字段写「未提供」。')}</p>
+  <div class="wiki-s2-chips" role="group" aria-label="${v1t('选择来源')}">${chips}</div>${state.litNote ? `<p class="wiki-s2-warnline" role="status">${esc(state.litNote)}</p>` : ''}
+  ${pages > 1 ? `<div class="wiki-s2-pager"><button type="button" class="hs-button" data-s2-litpage="-1" ${state.litPage === 0 ? 'disabled' : ''}>${v1t('上一页')}</button><span>${v1t('第 {n} 页，共 {pages} 页', {n: state.litPage + 1, pages})}</span><button type="button" class="hs-button" data-s2-litpage="1" ${state.litPage + 1 === pages ? 'disabled' : ''}>${v1t('下一页')}</button></div>` : ''}
+  <label class="wiki-s2-hide"><input type="checkbox" data-s2-hide ${state.hideSame ? 'checked' : ''}> ${v1t('隐藏相同字段')}</label>
+  ${chosen.length ? `<div class="wiki-s2-scroll" tabindex="0" aria-label="${v1t('文献对照表')}"><table class="wiki-s2-compare"><thead><tr><th scope="col">${v1t('对照维度')}</th>${chosen.map(lit => `<th scope="col">${esc(lit.title)}</th>`).join('')}</tr></thead><tbody>
+  ${rows.map(row => `<tr><th scope="row">${row.label}</th>${chosen.map(lit => `<td>${wikiS2Cell(row.value(lit), 240)}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p><button type="button" class="hs-button" data-s2-card-open="${esc(chosen[0].key)}">${v1t('查看完整来源卡')}</button></p>`
+   : `<div class="wiki-s2-dashed">${v1t('选 2–3 篇并排对照')}</div>`}
+  ${state.card && chosen.find(lit => lit.key === state.card) ? `<details open class="wiki-s2-fold"><summary>${v1t('来源卡 · {n}', {n: esc(chosen.find(lit => lit.key === state.card).title)})}</summary><pre>${esc(JSON.stringify(chosen.find(lit => lit.key === state.card).raw, null, 2))}</pre></details>` : ''}</section>`;
 }
 
 function wikiS2SaveRow(model) {
@@ -428,14 +428,14 @@ function wikiS2SaveRow(model) {
  const material = matching[0], draft = material && typeof m9Draft === 'function' ? m9Draft(material) : null;
  const busy = typeof m9 !== 'undefined' && m9.busy;
  const note = typeof m9 !== 'undefined' && typeof n9Message === 'function' ? n9Message(m9.status) : '';
- if (!material) return `<section class="wiki-s2-card" data-s2-saverow><div class="wiki-s2-actions"><span><button type="button" class="hs-button" disabled>保存当前文献与路线比较</button><small class="wiki-s2-reason">现在还不能做这一步：保存比较清单要先接入一份候选包材料</small></span><span><button type="button" class="hs-button" disabled>恢复已保存比较</button><small class="wiki-s2-reason">现在还不能做这一步：还没有已保存的比较</small></span></div></section>`;
- return `<section class="wiki-s2-card" data-s2-saverow><div class="wiki-s2-actions"><span><button type="button" class="hs-button" data-n9-choice-save="${esc(material.id)}" ${busy ? 'disabled' : ''}>保存当前文献与路线比较</button>${busy ? '<small class="wiki-s2-reason">正在保存，请稍等</small>' : ''}</span>
-  <span><button type="button" class="hs-button" data-n9-choice-restore="${esc(material.id)}" ${busy || !draft?.selection ? 'disabled' : ''}>恢复已保存比较</button>${!busy && !draft?.selection ? '<small class="wiki-s2-reason">还没有已保存的比较</small>' : ''}</span></div>
-  <p role="status" class="wiki-s2-muted">${esc(note || (draft?.selection ? '已有保存的比较清单；未提交正式选择' : '还没有保存过比较清单；保存不会提交正式选择'))}</p></section>`;
+ if (!material) return `<section class="wiki-s2-card" data-s2-saverow><div class="wiki-s2-actions"><span><button type="button" class="hs-button" disabled>${v1t('保存当前文献与路线比较')}</button><small class="wiki-s2-reason">${v1t('现在还不能做这一步：保存比较清单要先接入一份候选包材料')}</small></span><span><button type="button" class="hs-button" disabled>${v1t('恢复已保存比较')}</button><small class="wiki-s2-reason">${v1t('现在还不能做这一步：还没有已保存的比较')}</small></span></div></section>`;
+ return `<section class="wiki-s2-card" data-s2-saverow><div class="wiki-s2-actions"><span><button type="button" class="hs-button" data-v1-write data-n9-choice-save="${esc(material.id)}" ${busy ? 'disabled' : ''}>${v1t('保存当前文献与路线比较')}</button>${busy ? `<small class="wiki-s2-reason">${v1t('正在保存，请稍等')}</small>` : ''}</span>
+  <span><button type="button" class="hs-button" data-n9-choice-restore="${esc(material.id)}" ${busy || !draft?.selection ? 'disabled' : ''}>${v1t('恢复已保存比较')}</button>${!busy && !draft?.selection ? `<small class="wiki-s2-reason">${v1t('还没有已保存的比较')}</small>` : ''}</span></div>
+  <p role="status" class="wiki-s2-muted">${esc(note || (draft?.selection ? v1t('已有保存的比较清单；未提交正式选择') : v1t('还没有保存过比较清单；保存不会提交正式选择')))}</p></section>`;
 }
 
 function wikiS2LiteratureTab(model, state) {
- if (!model || model.blocked || !model.routes.length) return '<section class="wiki-s2-card"><p>这个课题还没有 Stage 2 候选包，这里暂时是空的。</p></section>';
+ if (!model || model.blocked || !model.routes.length) return `<section class="wiki-s2-card"><p>${v1t('这个课题还没有 Stage 2 候选包，这里暂时是空的。')}</p></section>`;
  return `${model.origin === 'archive' ? '' : wikiS2SaveRow(model)}${wikiS2Literature(model, state)}${model.literature ? wikiS2Matrix(model, state) : ''}${wikiS2Metrics(model)}`;
 }
 
@@ -446,11 +446,11 @@ function wikiS2MaterialsTab(app) {
  const m = typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
  const waiting = m?.code === 'stage2-controller-current-input-required';
  const row = delivered
-  ? `<div class="wiki-s2-package"><b>这个课题的 Stage 1 文献包</b><span>${index ? index.papers.length + ' 篇文献' : '条数：还没有（这里没有读取它的文献清单）'}</span><span class="wiki-s2-st" data-tone="${waiting ? 'wait' : 'done'}">${waiting ? '等待接收' : '已接收'}</span><span class="wiki-s2-opinion" data-tone="none">只读</span></div>`
-  : '<p class="wiki-s2-package">Stage 2 在等这个课题的 Stage 1 文献包</p>';
+  ? `<div class="wiki-s2-package"><b>${v1t('这个课题的 Stage 1 文献包')}</b><span>${index ? v1t('{n} 篇文献', {n: index.papers.length}) : v1t('条数：还没有（这里没有读取它的文献清单）')}</span><span class="wiki-s2-st" data-tone="${waiting ? 'wait' : 'done'}">${waiting ? v1t('等待接收') : v1t('已接收')}</span><span class="wiki-s2-opinion" data-tone="none">${v1t('只读')}</span></div>`
+  : `<p class="wiki-s2-package">${v1t('Stage 2 在等这个课题的 Stage 1 文献包')}</p>`;
  const imported = typeof p9 !== 'undefined' && p9.shown;
- return `<section class="wiki-s2-card" data-s2-materials><h2>材料</h2>${row}
-  ${imported ? '<p role="status">已核验导入材料，下面显示该版本；还没有生成新研究。</p>' : ''}
+ return `<section class="wiki-s2-card" data-s2-materials><h2>${v1t('材料')}</h2>${row}
+  ${imported ? `<p role="status">${v1t('已核验导入材料，下面显示该版本；还没有生成新研究。')}</p>` : ''}
   ${typeof m9Panel === 'function' ? m9Panel(app) : ''}</section>`;
 }
 
@@ -487,8 +487,8 @@ function wikiS2Store(ref, name, value) {
 
 function wikiS2Banner(app, model) {
  // Origin of what is shown, when it is not this project's own Stage 2.
- if (model?.origin === 'import') return '<p class="wiki-s2-line" data-s2-import>本页显示的是接入的候选包，不是本课题自己的 Stage 2。 <span class="wiki-s2-opinion" data-tone="archive">导入</span></p>';
- if (model?.origin === 'archive') return `<p class="wiki-s2-line" data-s2-archive>本页显示的是${model.synthetic ? '合成样例' : '历史归档'}，只读。 <span class="wiki-s2-opinion" data-tone="${model.synthetic ? 'synth' : 'archive'}">${model.synthetic ? '合成样例' : '历史归档'}</span></p>`;
+ if (model?.origin === 'import') return `<p class="wiki-s2-line" data-s2-import>${v1t('本页显示的是接入的候选包，不是本课题自己的 Stage 2。')} <span class="wiki-s2-opinion" data-tone="archive">${v1t('导入')}</span></p>`;
+ if (model?.origin === 'archive') return `<p class="wiki-s2-line" data-s2-archive>${v1t('本页显示的是{n}，只读。', {n: model.synthetic ? v1t('合成样例') : v1t('历史归档')})} <span class="wiki-s2-opinion" data-tone="${model.synthetic ? 'synth' : 'archive'}">${model.synthetic ? v1t('合成样例') : v1t('历史归档')}</span></p>`;
  return '';
 }
 
@@ -498,8 +498,8 @@ function wikiS2Page(app) {
   `<button type="button" role="tab" id="wiki-s2-${key}" aria-selected="${key === state.tab}" tabindex="${key === state.tab ? 0 : -1}" aria-controls="wiki-s2-panel" data-s2-tab="${key}">${label}</button>`).join('')}</div>`;
  const panel = state.tab === 'literature' ? wikiS2LiteratureTab(model, state) : state.tab === 'materials' ? wikiS2MaterialsTab(app) : wikiS2CompareTab(app, model, state);
  const unbound = model && !model.blocked && model.routes.length && model.bound !== true && model.origin !== 'native'
-  ? '<p class="wiki-s2-unbound" data-s2-unbound><span class="wiki-s2-unbound-tag">! 没有绑定</span> 这份候选和某个课题的 Stage 1 文献包之间没有正式的绑定记录。系统的建议不会自动批准进入 Stage 3。</p>' : '';
- return `<section data-wiki-s2 aria-label="选方向">${wikiS2ConnBlock(app)}${unbound}${typeof wikiRecordBlock === 'function' ? wikiRecordBlock(2) : wikiHarnessRecord()}${wikiS2Receipt(model)}${wikiS2Banner(app, model)}${tabs}
+  ? `<p class="wiki-s2-unbound" data-s2-unbound><span class="wiki-s2-unbound-tag">${v1t('! 没有绑定')}</span> ${v1t('这份候选和某个课题的 Stage 1 文献包之间没有正式的绑定记录。系统的建议不会自动批准进入 Stage 3。')}</p>` : '';
+ return `<section data-wiki-s2 aria-label="${v1t('选方向')}">${wikiS2ConnBlock(app)}${unbound}${typeof wikiRecordBlock === 'function' ? wikiRecordBlock(2) : wikiHarnessRecord()}${wikiS2Receipt(model)}${wikiS2Banner(app, model)}${tabs}
   <div role="tabpanel" id="wiki-s2-panel" aria-labelledby="wiki-s2-${state.tab}">${panel}</div>${wikiS2TechDetails(model)}</section>`;
 }
 
@@ -507,14 +507,14 @@ function wikiS2TechDetails(model) {
  const rows = [['project_ref', rt.ref], ['input_version', rt.overview?.project?.input_version], ['revision', rt.overview?.project?.revision],
   ['origin', model?.origin], ...(model?.routes || []).flatMap(route => [['candidate ' + route.letter, route.id + ' · v' + route.version], ['evidence ' + route.letter, (route.evidenceIds || []).join(' · ') || null]])]
   .filter(([, value]) => value !== undefined && value !== null);
- return `<details class="wiki-s2-tech wiki-s2-page-tech" data-s2-tech><summary>本页技术细节</summary><dl>${rows.map(([key, value]) => `<div><dt>${esc(key)}</dt><dd><code>${esc(value)}</code></dd></div>`).join('')}</dl></details>`;
+ return `<details class="wiki-s2-tech wiki-s2-page-tech" data-s2-tech><summary>${v1t('本页技术细节')}</summary><dl>${rows.map(([key, value]) => `<div><dt>${esc(key)}</dt><dd><code>${esc(value)}</code></dd></div>`).join('')}</dl></details>`;
 }
 
 function wikiS2Heading(html) {
  const topic = rt.overview?.project?.brief?.original_description || rt.savedRun?.entry?.label;
  return String(html)
-  .replace(/<p class="hs-eyebrow">[^<]*<\/p>/, '<p class="hs-eyebrow">Stage 2 · 选方向</p>')
-  .replace(/<h1>[^<]*<\/h1>(?:<p>[^<]*<\/p>)?/, '<h1>' + esc(topic || '选方向') + '</h1>');
+  .replace(/<p class="hs-eyebrow">[^<]*<\/p>/, `<p class="hs-eyebrow">${v1t('Stage 2 · 选方向')}</p>`)
+  .replace(/<h1>[^<]*<\/h1>(?:<p>[^<]*<\/p>)?/, '<h1>' + esc(topic || v1t('选方向')) + '</h1>');
 }
 
 // wikiS2 wiring: nothing above this line touches the document or the global handlers.
@@ -530,18 +530,18 @@ stage2 = function (app) {
 
 function wikiS2StatusText(app) {
  const model = wikiS2Model();
- if (model?.missing) return {now:'这份归档没有保存 Stage 2 的结果', next:'没有可看的候选', human:'不需要你操作'};
- if (model?.blocked) return {now:'保存的结果没有通过核对，没有显示', next:'点「重新读取」再读一次', human:'不需要你操作'};
- if (model?.receipt) return {now:'你已选定方向', next:'进入 Stage 3 请求生成研究计划', human:'不需要你操作'};
- if (model?.routes.length && model.origin === 'archive') return {now:`${model.routes.length} 个候选已保存（${model.synthetic ? '合成样例' : '历史归档'}）`, next:'只读查看比较', human:'不需要你操作'};
- if (model?.routes.length && model.origin === 'import') return {now:`${model.routes.length} 个候选来自接入的候选包`, next:'比较后保存本机草稿', human:'这份候选包不能提交正式选择'};
- if (model?.routes.length) return {now:`${model.routes.length} 个候选已比较好，等你选`, next:'比较后在「你的决定」里选一个方向', human:'等你 · 选一个方向'};
+ if (model?.missing) return {now:v1t('这份归档没有保存 Stage 2 的结果'), next:v1t('没有可看的候选'), human:v1t('不需要你操作')};
+ if (model?.blocked) return {now:v1t('保存的结果没有通过核对，没有显示'), next:v1t('点「重新读取」再读一次'), human:v1t('不需要你操作')};
+ if (model?.receipt) return {now:v1t('你已选定方向'), next:v1t('进入 Stage 3 请求生成研究计划'), human:v1t('不需要你操作')};
+ if (model?.routes.length && model.origin === 'archive') return {now:`${v1t('{length} 个候选已保存（{n}）', {length: model.routes.length, n: model.synthetic ? v1t('合成样例') : v1t('历史归档')})}`, next:v1t('只读查看比较'), human:v1t('不需要你操作')};
+ if (model?.routes.length && model.origin === 'import') return {now:`${v1t('{length} 个候选来自接入的候选包', {length: model.routes.length})}`, next:v1t('比较后保存本机草稿'), human:v1t('这份候选包不能提交正式选择')};
+ if (model?.routes.length) return {now:`${v1t('{length} 个候选已比较好，等你选', {length: model.routes.length})}`, next:v1t('比较后在「你的决定」里选一个方向'), human:v1t('等你 · 选一个方向')};
  const m = typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
  if (!m) return null;
  const line = wikiS2ConnectionLine(m), req = m.connected ? wikiS2RequestLine() : null;
  const row = req && ['plain', 'run', 'warn'].includes(req.tone) ? req : line;
- const human = row.tone === 'wait' || row.buttons.some(button => button.primary || button.attr === 'connect') ? '等你 · ' + (row.buttons[0]?.label || row.tag) : '不需要你操作';
- return {now:'还没有候选。' + row.text, next:row.buttons[0]?.label ? '使用「' + row.buttons[0].label + '」' : '等这一步完成', human};
+ const human = row.tone === 'wait' || row.buttons.some(button => button.primary || button.attr === 'connect') ? v1t('等你 · {action}', {action: row.buttons[0]?.label || row.tag}) : v1t('不需要你操作');
+ return {now:v1t('还没有候选。{text}', {text: row.text}), next:row.buttons[0]?.label ? v1t('使用「{label}」', {label: row.buttons[0].label}) : v1t('等这一步完成'), human};
 }
 
 const wikiS2After = v7AfterRender;
@@ -550,7 +550,7 @@ v7AfterRender = function (app) {
  const panel = app.el.querySelector('[data-wiki-s2]'), shell = app.el.querySelector('[data-wiki-shell]');
  if (!panel || !wikiS2Active(app)) return;
  const badge = app.el.querySelector('.hs-preview');
- if (badge) badge.textContent = 'Wiki V1 · 本地记录';
+ if (badge) badge.textContent = v1t('Wiki V1 · 本地记录');
  if (shell) {
   const info = shell.querySelectorAll('dd'), status = wikiS2StatusText(app);
   if (status && info.length >= 3) { info[0].textContent = status.now; info[1].textContent = status.next; info[2].textContent = status.human; }
@@ -558,7 +558,7 @@ v7AfterRender = function (app) {
   const old = shell.querySelector('[data-s2-tag]');
   const connected = typeof v9ConnectionConnected === 'function' && v9ConnectionConnected('stage2-controller');
   if (first && connected && wikiS2CandidatesSaved()) {
-   if (!old) first.insertAdjacentHTML('afterend', '<span class="wiki-s2-tag" data-s2-tag>已接通 · 候选已保存</span>');
+   if (!old) first.insertAdjacentHTML('afterend', `<span class="wiki-s2-tag" data-s2-tag>${v1t('已接通 · 候选已保存')}</span>`);
   } else old?.remove();
  }
  if (!panel.dataset.s2Chooser) {
@@ -567,7 +567,7 @@ v7AfterRender = function (app) {
   if (chooser && rt.ref) {
    const details = document.createElement('details');
    details.className = 'hs-panel wiki-s2-project';
-   details.innerHTML = '<summary>切换项目</summary>';
+   details.innerHTML = `<summary>${v1t('切换项目')}</summary>`;
    chooser.before(details);
    details.append(chooser);
    panel.after(details);
@@ -600,7 +600,7 @@ document.addEventListener('click', event => {
  if (data.s2Lit) {
   state.litNote = '';
   if (state.lit.includes(data.s2Lit)) state.lit = state.lit.filter(key => key !== data.s2Lit);
-  else if (state.lit.length >= 3) state.litNote = '最多并排 3 个，请先取消一个';
+  else if (state.lit.length >= 3) state.litNote = v1t('最多并排 3 个，请先取消一个');
   else state.lit.push(data.s2Lit);
   return wikiS2Repaint(app, `[data-s2-lit="${CSS.escape(data.s2Lit)}"]`);
  }

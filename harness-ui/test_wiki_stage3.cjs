@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+require('./v1_text_shim.cjs');
 const test = require('node:test');
 
 const read = name => fs.readFileSync(path.join(__dirname, name), 'utf8');
@@ -233,10 +234,13 @@ test('reading never sends a write: the bridge read is one GET and the page code 
  assert.deepEqual(Array.from(requests[0]), ['/api/projects/project-a/stage3/planning']);
 });
 
-test('page is inactive outside Chinese Stage 3 so the other languages keep the old page', () => {
+test('page is active for zh, en and tw Stage 3 and inactive on other stages', () => {
  const f = fixture({view:directionView()});
  f.app.lang = 'en';
- assert.equal(page(f), '<later/>');
+ assert.match(page(f), /Stage 3 · Research plan & review/);
+ f.app.lang = 'tw';
+ assert.match(page(f), /Stage 3 · 研究計畫與評審/);
+ f.app.lang = 'zh';
  f.app.lang = 'zh'; f.app.stage = 2;
  assert.equal(page(f), '<later/>');
 });

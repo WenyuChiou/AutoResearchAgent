@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+require('./v1_text_shim.cjs');
 const test = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, 'wiki-stage1-ops.js'), 'utf8');

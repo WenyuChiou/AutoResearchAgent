@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+require('./v1_text_shim.cjs');
 const source = fs.readFileSync(path.join(__dirname, 'wiki-stage1.js'), 'utf8');
 const start = source.indexOf('function wikiS1Metrics(index, state) {'), end = source.indexOf('\n}\n', start) + 3;
 const ctx = vm.createContext({wikiS1Check: row => row.relation || 'unchecked'});

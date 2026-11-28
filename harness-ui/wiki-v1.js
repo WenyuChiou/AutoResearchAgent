@@ -5,9 +5,8 @@ const v1StageNames = ['文献与证据', '比较与选方向', '研究计划与�
 const v1LaterNames = {4:'实验执行', 5:'分析与图表', 6:'写作与投稿'};
 const v1OriginNames = {local:'本地项目', archive:'历史归档', synthetic:'合成样例', unknown:'来历未标注'};
 
-// Batch 1 (home, project files, history, settings) is translated; Stage pages keep the previous pages in en/tw until batch 2.
 function v1On(app) {
- return !!app && v1Lang(app) && (v1StageLang(app) || app.page !== 'workspace') && typeof wikiHomeProjectOpened === 'function';
+ return !!app && v1Lang(app) && typeof wikiHomeProjectOpened === 'function';
 }
 
 function v1Page(app) {
@@ -199,7 +198,7 @@ function v1StatusMarkup(v) {
  const you = v.you ? `${v.you.wait ? `<span class="v1-wait">${v1t('等你')}</span> ` : ''}${esc(v.you.text)}` : `<span class="v1-muted">${v1t('不需要你操作')}</span>`;
  const button = v.button ? `<button type="button" class="v1-btn ${v.button.primary === false ? '' : 'primary'}" ${v.button.attrs || ''} ${v.button.disabled ? 'disabled' : ''}>${esc(v.button.label)}</button>${v.button.disabled ? `<small class="v1-reason">${esc(v.button.disabled)}</small>` : ''}` : '';
  return `<section class="v1-status st-${v.tone}" role="status" data-v1-status="${v.tone}">
-  <div><span class="v1-k">${v1t('现在')}</span><p><b>${esc(v.now[0])}</b>${esc(v.now[1] || '')}</p></div>
+  <div><span class="v1-k">${v1t('现在')}</span><p><b>${esc(v.now[0])}</b>${v1Locale() === 'zh' || !v.now[1] ? '' : ' '}${esc(v.now[1] || '')}</p></div>
   <div><span class="v1-k">${v1t('下一步')}</span><p>${esc(v.next)}</p></div>
   <div class="v1-you"><span class="v1-k">${v1t('需要你')}</span><p>${you}</p>${button}</div>
  </section>`;
@@ -448,8 +447,8 @@ v1PageStatus.s2 = app => {
  const model = wikiS2Model(), status = wikiS2StatusText(app);
  if (!status) return null;
  const human = String(status.human || '');
- const waiting = /^等你/.test(human);
- const you = human === '不需要你操作' ? null : {wait:waiting, text:human.replace(/^等你\s*·\s*/, '')};
+ const waitWord = v1t('等你'), waiting = human.startsWith(waitWord);
+ const you = human === v1t('不需要你操作') ? null : {wait:waiting, text:waiting ? human.slice(waitWord.length).replace(/^[\s·]+/, '') : human};
  if (model?.blocked) return {tone:'wait', now:v1Split(status.now), next:v1t('重新读取一次。'), you:null, button:{label:v1t('重新读取'), attrs:'data-v1-reload', primary:false}};
  if (model?.receipt) return {tone:'done', now:v1Split(status.now), next:status.next + v1t('。'), you, button:{label:v1t('去 Stage 3'), attrs:'data-stage="3"'}};
  if (model?.routes?.length) return {tone:waiting ? 'wait' : 'done', now:v1Split(status.now), next:status.next + v1t('。'), you,
@@ -499,9 +498,9 @@ v1PageStatus.s3 = app => {
  }
  if (!basis) return {tone:'off', now:[v1t('还没有规划。'), v1t('Stage 2 还没有选定方向，Stage 3 不会生成计划。')], next:v1t('先到 Stage 2 选一个方向。'), you:null, button:{label:v1t('去 Stage 2'), attrs:'data-stage="2"', primary:false}};
  const request = typeof wikiS3RequestLine === 'function' ? wikiS3RequestLine(view || (v93.basis && v93Matches(v93.basis, basis) ? v93.view : null)) : null;
- const requestGate = request?.tag === '还没请求' ? request.buttons[0]?.gate : request?.tag === '等你授权' && request.grant?.gate !== '请先勾选确认' ? request.grant?.gate : '';
+ const requestGate = request?.tag === v1t('还没请求') ? request.buttons[0]?.gate : request?.tag === v1t('等你授权') && request.grant?.gate !== v1t('请先勾选确认') ? request.grant?.gate : '';
  if (request && requestGate) return {tone:'off', now:[v1t('还没有规划。'), `${v1t('已经接通，但现在不能生成计划：{requestGate}。', {requestGate})}`], next:v1t('条件满足后在下面「本课题的 Stage 3」里请求生成计划。'), you:null};
- if (request && ['还没请求', '等你授权'].includes(request.tag)) return {tone:'wait', now:[v1t('还没有规划。'), v1t('已经接通，还没有保存的计划。')], next:v1t('在下面「本课题的 Stage 3」里请求生成计划；生成前会先请你授权。'), you:{wait:true, text:v1t('请求生成计划')}};
+ if (request && [v1t('还没请求'), v1t('等你授权')].includes(request.tag)) return {tone:'wait', now:[v1t('还没有规划。'), v1t('已经接通，还没有保存的计划。')], next:v1t('在下面「本课题的 Stage 3」里请求生成计划；生成前会先请你授权。'), you:{wait:true, text:v1t('请求生成计划')}};
  if (request) return {tone:request.tone === 'err' ? 'err' : request.tone === 'run' ? 'run' : 'off', now:[v1t('还没有规划。'), /[。]$/.test(request.text) ? request.text : request.text + v1t('。')], next:v1t('看下面「本课题的 Stage 3」里请求一行的说明。'), you:null};
  return {tone:'off', now:[v1t('还没有规划。'), v1t('已经有选定的方向，但还没有保存的计划。')], next:v1t('接通本课题的 Stage 3 后，请求生成计划。'), you:null};
 };

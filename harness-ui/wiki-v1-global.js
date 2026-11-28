@@ -273,7 +273,7 @@ function v1gSettings() {
   </ol></section>`;
  const lang = `<section class="v1-panel" data-v1g-block="lang"><h2>${v1t('界面语言')}</h2>
   <select class="v1-field" data-language aria-label="${v1t('界面语言')}"><option value="zh" ${app.lang === 'zh' ? 'selected' : ''}>简体中文</option><option value="tw" ${app.lang === 'tw' ? 'selected' : ''}>繁體中文</option><option value="en" ${app.lang === 'en' ? 'selected' : ''}>English</option></select>
-  <p class="v1-hint">${v1t('只换界面。论文标题、引文和你写的内容保持原文，缺译文的会标出来。')}</p></section>`;
+  <p class="v1-hint">${v1t('只换界面。论文标题、引文和你写的内容保持原文；缺译文时回退显示简体，写入类卡片会置灰并注明。')}</p></section>`;
  const stage = app.stage <= 3 ? `Stage ${app.stage} · ${v1t(v1gStageName[app.stage])}` : `Stage ${app.stage}`;
  const topic = `<section class="v1-panel" data-v1g-block="topic"><h2>${v1t('当前课题')}</h2>
   ${rt.ref ? `<p>${esc((typeof v1ProjectTitle === 'function' && v1ProjectTitle()) || v1t('标题未提供'))}</p><p class="v1-hint">${v1t('现在在 {n}。项目标识和输入版本在本页技术细节里。', {n: esc(stage)})}</p>` : `<p class="v1-muted">${v1t('还没有打开课题。')}</p>`}

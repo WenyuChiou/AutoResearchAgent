@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+require('./v1_text_shim.cjs');
 const test = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, 'wiki-stage2.js'), 'utf8');
@@ -249,10 +250,13 @@ test('status bar text follows the page state and nothing is written when it is c
   assert.equal(live.__writes.length, 0);
 });
 
-test('only the zh Wiki page replaces the earlier Stage 2; other languages and stages are untouched', () => {
+test('the Wiki page replaces the earlier Stage 2 in zh, en and tw; other stages are untouched', () => {
   const ctx = load();
   ctx.__app.lang = 'en';
-  assert.equal(ctx.stage2(ctx.__app), 'earlier');
+  assert.match(ctx.stage2(ctx.__app), /Stage 2 · Choose direction/);
+  assert.doesNotMatch(ctx.stage2(ctx.__app), /选方向/);
+  ctx.__app.lang = 'tw';
+  assert.match(ctx.stage2(ctx.__app), /Stage 2 · 選擇方向|Stage 2 · 選方向/);
   ctx.__app.lang = 'zh';
   assert.match(ctx.stage2(ctx.__app), /Stage 2 · 选方向/);
   assert.match(ctx.stage2(ctx.__app), /<h1>题目 &lt;x&gt;<\/h1>/);

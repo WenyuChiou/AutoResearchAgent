@@ -1,18 +1,18 @@
 // Wiki V1 Stage 1. Only project-bound persisted output is projected here.
-const wikiS1Tabs = {sources:'来源与图谱', evidence:'证据', synthesis:'跨文献综合'};
+const wikiS1Tabs = v1Lazy({sources:'来源与图谱', evidence:'证据', synthesis:'跨文献综合'});
 const wikiS1Groups = ['#6fb7e9','#e2a23b','#3fbf9a','#d98bb5','#e6803a','#a99be0'];
 // Saved coverage rows may carry only a question (often in English). Never show "undefined".
 function wikiS1GroupTitle(row, i) {
  const text = typeof row?.description === 'string' && row.description.trim() || typeof row?.title === 'string' && row.title.trim();
- return text || `需求 ${i + 1}`;
+ return text || `${v1t('需求 {n}', {n: i + 1})}`;
 }
-const wikiS1Decisions = {include:'纳入', exclude:'排除', pending:'待定', missing:'未提供'};
-const wikiS1Relations = {supports:'支持', partial:'部分支持', contradicts:'不支持', pending:'待判断',
- unclear:'不明确', unverifiable:'无法核对', unverified:'未核对', context:'背景信息'};
-const wikiS1Checks = {all:'全部', supports:'✓ 支持', partial:'◐ 部分支持', contradicts:'✕ 不支持', unchecked:'○ 未核对'};
+const wikiS1Decisions = v1Lazy({include:'纳入', exclude:'排除', pending:'待定', missing:'未提供'});
+const wikiS1Relations = v1Lazy({supports:'支持', partial:'部分支持', contradicts:'不支持', pending:'待判断',
+ unclear:'不明确', unverifiable:'无法核对', unverified:'未核对', context:'背景信息'});
+const wikiS1Checks = v1Lazy({all:'全部', supports:'✓ 支持', partial:'◐ 部分支持', contradicts:'✕ 不支持', unchecked:'○ 未核对'});
 
 function wikiS1Active(app) {
- return app.wikiS1Enabled === true && app.page === 'workspace' && app.stage === 1 && app.lang === 'zh';
+ return app.wikiS1Enabled === true && app.page === 'workspace' && app.stage === 1 && v1StageLang(app);
 }
 
 function wikiS1Index() {
@@ -83,15 +83,15 @@ function wikiS1Metrics(index, state) {
  const located = claims.filter(row=>row.locator).length;
  const evaluated = claims.filter(row=>wikiS1Check(row)!=='unchecked').length;
  const included = state.sources.filter(row=>row.decision?.status==='include').length;
- const count = (amount,total) => index ? `<strong>${amount}</strong>${total !== undefined ? ' / '+total : ''}` : '<strong class="wiki-s1-none">还没有</strong>';
+ const count = (amount,total) => index ? `<strong>${amount}</strong>${total !== undefined ? ' / '+total : ''}` : `<strong class="wiki-s1-none">${v1t('还没有')}</strong>`;
  const cells = [
-  [count(included,state.sources.length),'来源已纳入','分母是这份交付的文献数','工程记录','来源已纳入'],
-  [count(located),'条证据定位','有保存出处位置的证据条目','工程记录','证据定位'],
-  [count(evaluated,claims.length),'证据已核对','核对后才能当作研究依据','研究结果','证据已核对'],
-  [count(state.groups.length),'个需求分组','一篇文献可以属于多个分组','工程记录','需求分组']
+  [count(included,state.sources.length),v1t('来源已纳入'),v1t('分母是这份交付的文献数'),v1t('工程记录'),v1t('来源已纳入')],
+  [count(located),v1t('条证据定位'),v1t('有保存出处位置的证据条目'),v1t('工程记录'),v1t('证据定位')],
+  [count(evaluated,claims.length),v1t('证据已核对'),v1t('核对后才能当作研究依据'),v1t('研究结果'),v1t('证据已核对')],
+  [count(state.groups.length),v1t('个需求分组'),v1t('一篇文献可以属于多个分组'),v1t('工程记录'),v1t('需求分组')]
  ];
  // Without a saved delivery there is no number: 「还没有 个需求分组」 read badly, so the label comes first and carries no unit.
- return `<div class="wiki-s1-metrics">${cells.map(([value,title,note,tag,plain])=>`<div><div>${index ? `${value} <b>${title}</b>` : `<b>${plain}</b> ${value}`}</div><small>${note}</small><span class="${tag==='研究结果'?'wiki-s1-res':''}">${tag}</span></div>`).join('')}</div>`;
+ return `<div class="wiki-s1-metrics">${cells.map(([value,title,note,tag,plain])=>`<div><div>${index ? `${value} <b>${title}</b>` : `<b>${plain}</b> ${value}`}</div><small>${note}</small><span class="${tag===v1t('研究结果')?'wiki-s1-res':''}">${tag}</span></div>`).join('')}</div>`;
 }
 
 function wikiS1PaperMeta(row) {
@@ -103,28 +103,28 @@ function wikiS1SourceList(state) {
  const sources = wikiS1VisibleSources(state);
  const counts = Object.entries(wikiS1Decisions).map(([key,label]) =>
   [label,sources.filter(row=>(row.decision?.status || 'missing')===key).length]);
- return `<div class="wiki-s1-chips" role="group" aria-label="按需求分组筛选">
- <button type="button" data-s1-group="" aria-pressed="${!group}">全部 ${state.sources.length}</button>
+ return `<div class="wiki-s1-chips" role="group" aria-label="${v1t('按需求分组筛选')}">
+ <button type="button" data-s1-group="" aria-pressed="${!group}">${v1t('全部 {length}', {length: state.sources.length})}</button>
  ${state.groups.map(row=>`<button type="button" data-s1-group="${esc(row.id)}" title="${esc(row.question || row.title)}" aria-pressed="${row===group}"><i style="--s1-color:${row.color}"></i>${esc(row.title)} ${row.works.size}</button>`).join('')}
- </div><p class="wiki-s1-muted">筛选结果 · ${counts.filter(([label,count])=>label!=='未提供'||count).map(([label,count])=>label+' '+count).join(' · ')}（共 ${sources.length} 篇）</p>
+ </div><p class="wiki-s1-muted">${v1t('筛选结果 · {n}（共 {length} 篇）', {n: counts.filter(([label,count])=>label!==v1t('未提供')||count).map(([label,count])=>label+' '+count).join(' · '), length: sources.length})}</p>
  <div class="wiki-s1-list" ${sources.length>=30?'data-s1-long-list':''}>${sources.map(row=>`<button type="button" data-s1-paper="${esc(row.paper.work_id)}" aria-pressed="${row.paper.work_id===state.selected}">
- <span class="wiki-s1-muted">${row.number}</span><span><strong>${esc(row.paper.title)}</strong><small>${wikiS1PaperMeta(row)} ${row.groups.map(g=>`<span><i style="--s1-color:${g.color}"></i>${esc(g.title)}</span>`).join(' ')} · ${row.claims.length} 条证据</small></span>
- <span class="wiki-s1-decision">${wikiS1Decisions[row.decision?.status] || wikiS1Decisions.missing}</span></button>`).join('') || '<p>这个分组没有来源。</p>'}</div>`;
+ <span class="wiki-s1-muted">${row.number}</span><span><strong>${esc(row.paper.title)}</strong><small>${v1t('{n} {n2} · {length} 条证据', {n: wikiS1PaperMeta(row), n2: row.groups.map(g=>`<span><i style="--s1-color:${g.color}"></i>${esc(g.title)}</span>`).join(' '), length: row.claims.length})}</small></span>
+ <span class="wiki-s1-decision">${wikiS1Decisions[row.decision?.status] || wikiS1Decisions.missing}</span></button>`).join('') || `<p>${v1t('这个分组没有来源。')}</p>`}</div>`;
 }
 
 function wikiS1Selected(state) {
  const row = wikiS1VisibleSources(state).find(item=>item.paper.work_id===state.selected);
- if (!row) return '<p>当前分组没有可查看的来源。</p>';
- return `<article class="wiki-s1-selection"><small>已选中 · 来源 ${row.number}</small><h3>${esc(row.paper.title)}</h3>
- <p>${wikiS1PaperMeta(row)}</p><button type="button" class="hs-button" data-s1-tab="evidence">看这篇的证据</button></article>`;
+ if (!row) return `<p>${v1t('当前分组没有可查看的来源。')}</p>`;
+ return `<article class="wiki-s1-selection"><small>${v1t('已选中 · 来源 {number}', {number: row.number})}</small><h3>${esc(row.paper.title)}</h3>
+ <p>${wikiS1PaperMeta(row)}</p><button type="button" class="hs-button" data-s1-tab="evidence">${v1t('看这篇的证据')}</button></article>`;
 }
 
 // DESIGN 2.5「平面视图提示」, 3.2: shown only while the view was switched to 2D automatically, on every repaint.
 const wikiS1FlatText = '已切换到平面视图。这台电脑显示 3D 不够流畅。内容和选中的论文都没有变。';
 function wikiS1FlatNotice(state) {
- if (state.graphLost) return '<div class="wiki-s1-fallback" data-s1-fallback role="status">图形没有加载出来；可以用左边的来源清单，内容没有变。</div>';
+ if (state.graphLost) return `<div class="wiki-s1-fallback" data-s1-fallback role="status">${v1t('图形没有加载出来；可以用左边的来源清单，内容没有变。')}</div>`;
  if (!state.auto2d) return '<div class="wiki-s1-fallback" data-s1-fallback role="status" hidden></div>';
- return `<div class="wiki-s1-fallback" data-s1-fallback role="status"><span>${wikiS1FlatText}${state.no3d ? '这台电脑现在打不开 3D。' : ''}</span><button type="button" class="hs-button" data-s1-keep3d>仍然用 3D</button></div>`;
+ return `<div class="wiki-s1-fallback" data-s1-fallback role="status"><span>${v1t(wikiS1FlatText)}${state.no3d ? v1t('这台电脑现在打不开 3D。') : ''}</span><button type="button" class="hs-button" data-s1-keep3d>${v1t('仍然用 3D')}</button></div>`;
 }
 function wikiS1Keep3d() { try { return sessionStorage.getItem('wiki-s1-keep3d') === '1'; } catch (_) { return false; } }
 function wikiS1AutoFlat(app, graph) {
@@ -155,32 +155,32 @@ function wikiS1WatchFrames(app, graph) {
 }
 
 function wikiS1Graph(state) {
- return `<section class="wiki-s1-card wiki-s1-graph"><h2>文献星图</h2>
+ return `<section class="wiki-s1-card wiki-s1-graph"><h2>${v1t('文献星图')}</h2>
  <div class="wiki-s1-tools">
- <div role="group" aria-label="星图维度">${[3,2].map(mode=>`<button type="button" data-s1-mode="${mode}" aria-pressed="${state.mode===mode}">${mode}D</button>`).join('')}</div>
- <button type="button" data-s1-graph="all">查看全图</button><button type="button" data-s1-graph="focus">聚焦所选</button>
- <label><input type="checkbox" data-s1-labels ${state.labels?'checked':''}>显示标签</label>
- <details data-s1-more ${state.more?'open':''}><summary>更多</summary><div>
-  <button type="button" data-s1-graph="fit">适应窗口</button><button type="button" data-s1-graph="expand">展开画布</button>
-  <label><input type="checkbox" data-s1-related ${state.related?'checked':''}>显示相似线</label>
-  <p class="wiki-s1-muted">节点按需求分组着色。核对状态可在证据页查看。</p>
-  <p class="wiki-s1-muted">Tab 进入节点，Enter 或空格选中。拖动旋转或平移，滚轮缩放。</p>
+ <div role="group" aria-label="${v1t('星图维度')}">${[3,2].map(mode=>`<button type="button" data-s1-mode="${mode}" aria-pressed="${state.mode===mode}">${mode}D</button>`).join('')}</div>
+ <button type="button" data-s1-graph="all">${v1t('查看全图')}</button><button type="button" data-s1-graph="focus">${v1t('聚焦所选')}</button>
+ <label><input type="checkbox" data-s1-labels ${state.labels?'checked':''}>${v1t('显示标签')}</label>
+ <details data-s1-more ${state.more?'open':''}><summary>${v1t('更多')}</summary><div>
+  <button type="button" data-s1-graph="fit">${v1t('适应窗口')}</button><button type="button" data-s1-graph="expand">${v1t('展开画布')}</button>
+  <label><input type="checkbox" data-s1-related ${state.related?'checked':''}>${v1t('显示相似线')}</label>
+  <p class="wiki-s1-muted">${v1t('节点按需求分组着色。核对状态可在证据页查看。')}</p>
+  <p class="wiki-s1-muted">${v1t('Tab 进入节点，Enter 或空格选中。拖动旋转或平移，滚轮缩放。')}</p>
  </div></details>
  </div>${wikiS1FlatNotice(state)}
  <div class="wiki-s1-atlas" data-wiki-s1-atlas></div>
- <p class="wiki-s1-muted">颜色表示分组。相似线来自相同的已保存需求，距离不表示证据强弱。</p>
+ <p class="wiki-s1-muted">${v1t('颜色表示分组。相似线来自相同的已保存需求，距离不表示证据强弱。')}</p>
  <div data-s1-selected>${wikiS1Selected(state)}</div></section>`;
 }
 
 function wikiS1Evidence(index, state) {
  const row = wikiS1VisibleSources(state).find(item=>item.paper.work_id===state.selected);
- if (!row) return '<section class="wiki-s1-card"><h2>证据</h2><p>当前分组没有可查看的来源。</p></section>';
- if (!row.claims.length) return '<section class="wiki-s1-card"><h2>证据</h2><p>这篇文献还没有保存的证据。</p></section>';
+ if (!row) return `<section class="wiki-s1-card"><h2>${v1t('证据')}</h2><p>${v1t('当前分组没有可查看的来源。')}</p></section>`;
+ if (!row.claims.length) return `<section class="wiki-s1-card"><h2>${v1t('证据')}</h2><p>${v1t('这篇文献还没有保存的证据。')}</p></section>`;
  const sourceById = new Map((index.sources || []).map(source=>[source.source_id,source]));
  const claims = row.claims.filter(claim=>state.check==='all'||wikiS1Check(claim)===state.check);
- return `<section class="wiki-s1-card"><h2>证据 · ${esc(row.paper.title)}</h2>
- <p class="wiki-s1-muted">${wikiS1PaperMeta(row)} · ${row.claims.length} 条保存证据 <button type="button" class="hs-button" data-s1-tab="sources">换一篇</button></p>
- <div class="wiki-s1-chips" role="group" aria-label="按核对状态筛选">${Object.entries(wikiS1Checks).map(([key,label])=>`<button type="button" data-s1-check="${key}" aria-pressed="${key===state.check}">${label} ${key==='all'?row.claims.length:row.claims.filter(claim=>wikiS1Check(claim)===key).length} / ${row.claims.length}</button>`).join('')}</div>
+ return `<section class="wiki-s1-card"><h2>${v1t('证据 · {n}', {n: esc(row.paper.title)})}</h2>
+ <p class="wiki-s1-muted">${v1t('{n} · {length} 条保存证据', {n: wikiS1PaperMeta(row), length: row.claims.length})} <button type="button" class="hs-button" data-s1-tab="sources">${v1t('换一篇')}</button></p>
+ <div class="wiki-s1-chips" role="group" aria-label="${v1t('按核对状态筛选')}">${Object.entries(wikiS1Checks).map(([key,label])=>`<button type="button" data-s1-check="${key}" aria-pressed="${key===state.check}">${label} ${key==='all'?row.claims.length:row.claims.filter(claim=>wikiS1Check(claim)===key).length} / ${row.claims.length}</button>`).join('')}</div>
  ${claims.map(claim=>{
   const check = wikiS1Check(claim), verifier = claim.core_event?.payload?.verifier;
   const located = Number.isSafeInteger(claim.start) && Number.isSafeInteger(claim.end) && claim.start < claim.end;
@@ -193,37 +193,37 @@ function wikiS1Evidence(index, state) {
    } catch (_) { /* Missing or invalid bound source URL. */ }
   }
   return `<article class="wiki-s1-claim" data-s1-claim>
-   <div><b data-s1-review="${check}">${wikiS1Checks[check]}</b><p class="wiki-s1-muted">${check==='unchecked'?'没有保存的人工核对结论':'记录标明由人工核对'}${verifier?.actor_type==='agent'?' · 有代理记录':''}</p></div>
-   <div><strong>${esc(claim.text || '主张未提供')}</strong><blockquote>${esc(claim.quote || '引文原文未提供')}</blockquote>
-   ${wikiS1Relations[claim.relation] ? `<small>保存时标注为：${wikiS1Relations[claim.relation]}</small>` : ''}</div>
-   <div><b>出处位置</b><p>${located ? '保存文本第 '+claim.start+'–'+claim.end+' 字符' : '出处位置未提供'}</p>
-   ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">打开原文网页</a>` : '<small>原文链接未提供</small>'}
-   <details><summary>查看原记录</summary><pre class="live-record">${esc(JSON.stringify(claim,null,2))}</pre></details></div>
+   <div><b data-s1-review="${check}">${wikiS1Checks[check]}</b><p class="wiki-s1-muted">${check==='unchecked'?v1t('没有保存的人工核对结论'):v1t('记录标明由人工核对')}${verifier?.actor_type==='agent'?' ' + v1t('· 有代理记录'):''}</p></div>
+   <div><strong>${esc(claim.text || v1t('主张未提供'))}</strong><blockquote>${esc(claim.quote || v1t('引文原文未提供'))}</blockquote>
+   ${wikiS1Relations[claim.relation] ? `<small>${v1t('保存时标注为：{n}', {n: wikiS1Relations[claim.relation]})}</small>` : ''}</div>
+   <div><b>${v1t('出处位置')}</b><p>${located ? v1t('保存文本第 {start}–{end} 字符', {start: claim.start, end: claim.end}) : v1t('出处位置未提供')}</p>
+   ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${v1t('打开原文网页')}</a>` : `<small>${v1t('原文链接未提供')}</small>`}
+   <details><summary>${v1t('查看原记录')}</summary><pre class="live-record">${esc(JSON.stringify(claim,null,2))}</pre></details></div>
   </article>`;
- }).join('') || '<p role="status">这一类没有记录。</p>'}</section>`;
+ }).join('') || `<p role="status">${v1t('这一类没有记录。')}</p>`}</section>`;
 }
 
 function wikiS1Synthesis(state) {
- return `<div class="wiki-s1-columns wiki-s1-synthesis"><section class="wiki-s1-card"><h2>每个需求有多少文献</h2>
- <p class="wiki-s1-muted">一篇文献可以属于多个需求。</p>
+ return `<div class="wiki-s1-columns wiki-s1-synthesis"><section class="wiki-s1-card"><h2>${v1t('每个需求有多少文献')}</h2>
+ <p class="wiki-s1-muted">${v1t('一篇文献可以属于多个需求。')}</p>
  ${state.groups.length ? state.groups.map(group=>`<div class="wiki-s1-bar"><span>${esc(group.title)}</span>
- <progress max="${state.sources.length || 1}" value="${group.works.size}" aria-label="${esc(group.title)}" style="--s1-color:${group.color}"></progress><small>${group.works.size} / ${state.sources.length}</small></div>`).join('') : '<p>需求分组未提供。</p>'}
- </section><section class="wiki-s1-card"><h2>文献合起来说明了什么</h2><p class="wiki-s1-muted">当前交付没有跨文献综合记录。</p>
- <div class="wiki-s1-synthesis-grid">${['多篇一致','互相矛盾','还没人做'].map(title=>`<section><h3>${title}</h3><p>未提供</p></section>`).join('')}</div></section></div>`;
+ <progress max="${state.sources.length || 1}" value="${group.works.size}" aria-label="${esc(group.title)}" style="--s1-color:${group.color}"></progress><small>${group.works.size} / ${state.sources.length}</small></div>`).join('') : `<p>${v1t('需求分组未提供。')}</p>`}
+ </section><section class="wiki-s1-card"><h2>${v1t('文献合起来说明了什么')}</h2><p class="wiki-s1-muted">${v1t('当前交付没有跨文献综合记录。')}</p>
+ <div class="wiki-s1-synthesis-grid">${[v1t('多篇一致'),v1t('互相矛盾'),v1t('还没人做')].map(title=>`<section><h3>${title}</h3><p>${v1t('未提供')}</p></section>`).join('')}</div></section></div>`;
 }
 
 function wikiS1Results(app) {
  const index = wikiS1Index();
  const state = wikiS1State(app,index);
- let panel = '<section class="wiki-s1-card"><h2>文献与证据</h2><p>当前项目还没有可读取的文献交付。</p></section>';
+ let panel = `<section class="wiki-s1-card"><h2>${v1t('文献与证据')}</h2><p>${v1t('当前项目还没有可读取的文献交付。')}</p></section>`;
  if (index) {
   if (state.tab==='evidence') panel = wikiS1Evidence(index,state);
   else if (state.tab==='synthesis') panel = wikiS1Synthesis(state);
-  else panel = `<div class="wiki-s1-columns"><section class="wiki-s1-card"><h2>来源清单</h2><div data-s1-list>${wikiS1SourceList(state)}</div></section>${state.sources.length?wikiS1Graph(state):'<section class="wiki-s1-card"><h2>文献星图</h2><p>这一份交付没有可绘制的文献。</p></section>'}</div>`;
+  else panel = `<div class="wiki-s1-columns"><section class="wiki-s1-card"><h2>${v1t('来源清单')}</h2><div data-s1-list>${wikiS1SourceList(state)}</div></section>${state.sources.length?wikiS1Graph(state):`<section class="wiki-s1-card"><h2>${v1t('文献星图')}</h2><p>${v1t('这一份交付没有可绘制的文献。')}</p></section>`}</div>`;
  }
- return `<section data-wiki-s1 aria-label="文献与证据结果">
+ return `<section data-wiki-s1 aria-label="${v1t('文献与证据结果')}">
  ${wikiS1Metrics(index,index?state:{sources:[],groups:[]})}
- <div class="wiki-s1-tabs" role="tablist" aria-label="文献与证据">${Object.entries(wikiS1Tabs).map(([key,label])=>`<button type="button" role="tab" id="wiki-s1-${key}" aria-selected="${key===state.tab}" tabindex="${key===state.tab?0:-1}" aria-controls="wiki-s1-panel" data-s1-tab="${key}">${label}</button>`).join('')}</div>
+ <div class="wiki-s1-tabs" role="tablist" aria-label="${v1t('文献与证据')}">${Object.entries(wikiS1Tabs).map(([key,label])=>`<button type="button" role="tab" id="wiki-s1-${key}" aria-selected="${key===state.tab}" tabindex="${key===state.tab?0:-1}" aria-controls="wiki-s1-panel" data-s1-tab="${key}">${label}</button>`).join('')}</div>
  <div role="tabpanel" id="wiki-s1-panel" aria-labelledby="wiki-s1-${state.tab}">${panel}</div>
  </section>`;
 }
@@ -231,7 +231,7 @@ function wikiS1Results(app) {
 function wikiS1LiveResults(app) {
  // Keep the original results target so live operations can still insert their controls.
  const results=wikiS1Results(app);
- return results+`<details class="lp-results" data-local-results="1" data-wiki-s1-output ${app.wikiS1.outputs?'open':''}><summary><strong>保存输出与文献审阅</strong></summary><div class="lp-result-body">${liveFiles()}</div></details>`;
+ return results+`<details class="lp-results" data-local-results="1" data-wiki-s1-output ${app.wikiS1.outputs?'open':''}><summary><strong>${v1t('保存输出与文献审阅')}</strong></summary><div class="lp-result-body">${liveFiles()}</div></details>`;
 }
 
 const wikiS1CanonicalResults = canonicalStage1Results;
@@ -330,31 +330,31 @@ v7AfterRender = function(app) {
  const panel=app.el.querySelector('[data-wiki-s1]'), shell=app.el.querySelector('[data-wiki-shell]');
  if (!panel || !shell || !wikiS1Active(app)) return;
  const badge=app.el.querySelector('.hs-preview');
- if (badge) badge.textContent='Wiki V1 · 本地记录';
+ if (badge) badge.textContent=v1t('Wiki V1 · 本地记录');
  if (!shell.nextElementSibling?.matches('[data-wiki-record]')) {
   shell.insertAdjacentHTML('afterend',typeof wikiRecordBlock==='function'?wikiRecordBlock(1):wikiHarnessRecord(typeof v1S1Record==='function'?v1S1Record():undefined));
   shell.nextElementSibling.after(panel);
   const heading=app.el.querySelector('.hs-heading');
   if (heading?.querySelector('h1')) {
    const topic = rt.overview?.project?.brief?.original_description || rt.savedRun?.entry?.label;
-   heading.querySelector('.hs-eyebrow').textContent='Stage 1 · 文献与证据';
-   heading.querySelector('h1').textContent=topic || '文献与证据';
+   heading.querySelector('.hs-eyebrow').textContent=v1t('Stage 1 · 文献与证据');
+   heading.querySelector('h1').textContent=topic || v1t('文献与证据');
    if (topic && heading.querySelector('h1 + p')?.textContent===topic) heading.querySelector('h1 + p').remove();
   }
   const index=wikiS1Index();
   const info=shell.querySelectorAll('dd');
   if (index && shell.dataset.shellState==='saved') {
-   info[0].textContent += `。已保存 ${index.papers.length} 篇文献、${index.claims.length} 条证据。`;
+   info[0].textContent += `${v1t('。已保存 {length} 篇文献、{length2} 条证据。', {length: index.papers.length, length2: index.claims.length})}`;
   }
   const project=rt.overview?.project;
   if ((project?.project_ref===rt.ref && project?.execution_authorized===false) || wikiHomeArchiveBound(rt.ref)) {
-   info[2].textContent += '。当前没有研究执行授权。';
+   info[2].textContent += v1t('。当前没有研究执行授权。');
   }
   const chooser=app.el.querySelector('.lp-topic,.canonical-project-switch');
   if (chooser && rt.ref) {
    const details=document.createElement('details');
    details.className='hs-panel wiki-s1-project';
-   details.innerHTML='<summary>切换项目</summary>';
+   details.innerHTML=`<summary>${v1t('切换项目')}</summary>`;
    chooser.before(details);
    details.append(chooser);
    panel.after(details);
