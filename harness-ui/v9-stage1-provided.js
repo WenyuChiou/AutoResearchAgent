@@ -1,7 +1,7 @@
 // Explicit uploaded-source admission; never authorize query/model/review work.
 const s1Provided={drafts:{},requests:{},busy:false,states:{}};
 const s1ProvidedCard=m9Card;
-function s1ProvidedState(id){return s1Provided.states[id]??={open:false,message:'',error:''};}
+function s1ProvidedState(id){return s1Provided.states[id]??={open:false,message:'',error:'',ack:false};}
 try{
  const cached=JSON.parse(sessionStorage.getItem('v9-provided-requests')||'{}');
  if(cached&&typeof cached==='object'&&!Array.isArray(cached))s1Provided.requests=cached;
@@ -21,9 +21,13 @@ function s1ProvidedForm(m){
  if(!m9.catalog?.stage1_provided_admission)return original+`<p>${rl('此构建未接通已存来源登记。文件上传不等于 Stage1 来源、阅读或交付。','Saved-source admission is unavailable in this build. Upload is not a Stage1 source, reading or delivery.')}</p>`;
  const d=s1Provided.drafts[m.id]||{},state=s1ProvidedState(m.id);
  const fields=[['title','原件题名','Original title'],['authors','作者（每行一位）','Authors (one per line)'],['year','年份','Year'],['version','原件版本','Source version'],['url','原始来源 URL','Original source URL'],['doi','DOI（可留空）','DOI (optional)'],['type','原始类型（如 text/plain）','Original type (e.g. text/plain)'],['reason','保存理由与材料性质','Reason and material scope']];
- return original+`<details data-provided-form="${rx(m.id)}" ${state.open?'open':''}><summary>${rl('登记为研究者导入的已保存材料（不是检索结果）','Register as a researcher-imported saved material (not a search result)')}</summary><p>${rl('只登记已上传原件及其身份声明，不表示身份核实、筛选、全文阅读或 Stage1 完成。不启动查询或模型。','Records uploaded bytes and declared identity only; no verification, screening, full reading, Stage1 completion, query or model call.')}</p>${fields.map(([key,zh,en])=>s1ProvidedField(m.id,key,rl(zh,en),d[key]||'')).join('')}${rt.overview?.stage1?.ledger?'':`<p role="note">${rl('这个课题还没有 Stage 1 账本：先在「运行与操作」里完成检索规划并初始化，才能登记。','This topic has no Stage 1 ledger yet: finish the search plan and initialization under Run and operations first.')}</p>`}<button class="hs-button" data-provided-submit="${rx(m.id)}" ${s1Provided.busy||!rt.overview?.stage1?.ledger?'disabled':''}>${rl('确认登记此来源（离线）','Confirm this source registration (offline)')}</button><p role="status">${rx(state.message)}</p>${state.error?`<p role="alert">${rx(state.error)}</p>`:''}</details>`;
+ return original+`<details data-provided-form="${rx(m.id)}" ${state.open?'open':''}><summary>${rl('登记为研究者导入的已保存材料（不是检索结果）','Register as a researcher-imported saved material (not a search result)')}</summary><p>${rl('只登记已上传原件及其身份声明，不表示身份核实、筛选、全文阅读或 Stage1 完成。不启动查询或模型。','Records uploaded bytes and declared identity only; no verification, screening, full reading, Stage1 completion, query or model call.')}</p>${fields.map(([key,zh,en])=>s1ProvidedField(m.id,key,rl(zh,en),d[key]||'')).join('')}<p role="note">${rl('登记后这条材料不能删除；在它被筛成「排除」之前，本课题不能生成正式交付（目前的交付格式还不能交付研究者提供的材料）。','Once registered this material cannot be deleted; until it is screened out this topic cannot produce a formal delivery (the delivery format cannot yet deliver researcher-provided material).')}</p><label><input type="checkbox" data-provided-ack="${rx(m.id)}" ${state.ack?'checked':''}> ${rl('我已看到并确认以上后果','I have read and confirm the above consequence')}</label>${rt.overview?.stage1?.ledger?'':`<p role="note">${rl('这个课题还没有 Stage 1 账本：先在「运行与操作」里完成检索规划并初始化，才能登记。','This topic has no Stage 1 ledger yet: finish the search plan and initialization under Run and operations first.')}</p>`}<button class="hs-button" data-provided-submit="${rx(m.id)}" ${s1Provided.busy||!rt.overview?.stage1?.ledger||!state.ack?'disabled':''}>${rl('确认登记此来源（离线）','Confirm this source registration (offline)')}</button><p role="status">${rx(state.message)}</p>${state.error?`<p role="alert">${rx(state.error)}</p>`:''}</details>`;
 }
 m9Card=function(m){return s1ProvidedCard(m)+s1ProvidedForm(m);};
+document.addEventListener('change',e=>{
+ const n=e.target;if(!n.matches?.('[data-provided-ack]'))return;
+ s1ProvidedState(n.dataset.providedAck).ack=!!n.checked;livePaint();
+});
 document.addEventListener('input',e=>{
  const n=e.target;if(!n.matches('[data-provided-field]'))return;
  const d=s1Provided.drafts[n.dataset.providedId]??={};d[n.dataset.providedField]=n.value;
@@ -34,6 +38,7 @@ document.addEventListener('click',async e=>{
  const material=m9Current().find(m=>m.id===id&&m.project_ref===rt.ref&&m.stage===1);
  if(!material||!m9.catalog?.stage1_provided_admission){const state=s1ProvidedState(id);state.open=true;state.error='provided-material-current-view-required';livePaint();return;}
  const state=s1ProvidedState(id);state.open=true;
+ if(!state.ack){state.error='provided-consequence-ack-required';livePaint();return;}
  const d=s1Provided.drafts[id]||{},project=rt.overview?.project,ledger=rt.overview?.stage1?.ledger;
  state.error='';state.message='';
  try{

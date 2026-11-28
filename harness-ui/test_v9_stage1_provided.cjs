@@ -10,8 +10,10 @@ function fixture({fail=null,cache={}}={}){
   document:{addEventListener:(kind,fn)=>(listeners[kind]??=[]).push(fn)},livePaint(){},m9Load:async()=>{},
   liveRefresh:async()=>{rt.overview.project.revision=10;rt.overview.stage1.ledger.state_sha256='d'.repeat(64);},
   canonicalOldRequest:async(url,body)=>{calls.push(JSON.parse(JSON.stringify({url,body})));if(fail){const e=fail;fail=null;throw e;}return {key:body.key,status:'saved'};}};
+ ctx.__listeners=listeners;
  vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'v9-stage1-provided.js'),'utf8'),ctx);
  async function fill(){
+  for(const fn of listeners.change)fn({target:{matches:()=>true,dataset:{providedAck:material.id},checked:true}});
   for(const [key,value] of Object.entries({title:'Authored test',authors:'First Author\nSecond Author',year:'2024',version:'v1',url:'https://example.org/test',type:'text/plain',reason:'Engineering only'})){
    for(const fn of listeners.input)fn({target:{matches:()=>true,dataset:{providedId:material.id,providedField:key},value}});
   }
@@ -51,10 +53,28 @@ test('HTTP 200 unknown receipts remain unconfirmed on same-key replay',async()=>
 
 test('without a Stage 1 ledger the form says what to do first and the button is disabled',()=>{
  const f=fixture();
+ for(const fn of f.ctx.__listeners.change)fn({target:{matches:()=>true,dataset:{providedAck:f.material.id},checked:true}});
  assert.doesNotMatch(f.html(),/no Stage 1 ledger yet/);
  assert.doesNotMatch(f.html(),/data-provided-submit="file-a" disabled/);
  f.rt.overview.stage1.ledger=null;
  assert.match(f.html(),/no Stage 1 ledger yet/);
  assert.match(f.html(),/data-provided-submit="file-a" disabled/);
  assert.doesNotMatch(f.html(),/unreviewed/);
+});
+
+test('the form states the consequence and a request is only sent after the researcher confirms it',async()=>{
+ const f=fixture();
+ assert.match(f.html(),/cannot be deleted/);
+ assert.match(f.html(),/data-provided-ack="file-a"/);
+ assert.match(f.html(),/data-provided-submit="file-a" disabled/);
+ for(const [key,value] of Object.entries({title:'T',authors:'A',year:'2024',version:'v1',url:'https://example.org/t',type:'text/plain',reason:'r'})){
+  for(const fn of f.ctx.__listeners.input)fn({target:{matches:()=>true,dataset:{providedId:f.material.id,providedField:key},value}});
+ }
+ await f.click();
+ assert.equal(f.calls.length,0);
+ assert.match(f.html(),/provided-consequence-ack-required/);
+ for(const fn of f.ctx.__listeners.change)fn({target:{matches:()=>true,dataset:{providedAck:f.material.id},checked:true}});
+ assert.doesNotMatch(f.html(),/data-provided-submit="file-a" disabled/);
+ await f.click();
+ assert.equal(f.calls.length,1);
 });

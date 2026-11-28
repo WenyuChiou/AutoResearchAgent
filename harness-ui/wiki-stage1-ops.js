@@ -395,7 +395,8 @@ function wsRunTab(app) {
 }
 
 // Backend codes never appear as body text (DESIGN 2.6, 8.0); the raw value stays in technical details.
-const wsCodeWords = {'saved-import-bytes-recorded':'已获取（保存了原文字节）', 'saved-import-intent-recorded':'已获取（保存了导入记录）',
+const wsCodeWords = {
+ 'stage1-provided-candidate-delivery-unsupported':'课题里有研究者提供、尚未排除的材料，目前的交付格式不支持：请先把它筛成排除，或等交付格式支持后再交付。','saved-import-bytes-recorded':'已获取（保存了原文字节）', 'saved-import-intent-recorded':'已获取（保存了导入记录）',
  'not-started':'还没开始', 'available':'可以做', 'unavailable':'现在不能做', 'blocked':'被拦下', 'held':'暂停待处理', 'failed':'失败',
  'saved':'已保存', 'pending':'待处理', 'required':'需要先做', 'recorded':'已记录', 'unknown':'未提供'};
 function wsPlain(value) {
