@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 from research_workspace_native.project_host import ProjectHost
 from stage1_deliverable.common import sha
 from stage1_ledger.journal import canonical
+from research_workspace_native.project_stage1_library import row_origin
 from test_project_stage1_library import Stage1LibraryFixture, library_authenticate
 
 
@@ -140,6 +141,7 @@ class ProjectStage1LibraryHttpTests(Stage1LibraryFixture, unittest.TestCase):
             self.assertEqual(canonical(detail["row"]), canonical(row))
             self.assertEqual(sha(canonical(detail["row"])), sha(canonical(row)))
             self.assertEqual(summary["work_id"], row["work_id"])
+            self.assertEqual(summary["origin"], row_origin(row))
             self.assertEqual(summary["selected_version_id"], row["selected_version_id"])
             self.assertEqual(summary["reading"]["complete_body_reading"], "Unknown")
             self.assertIsNone(summary["relevance"]["score"])

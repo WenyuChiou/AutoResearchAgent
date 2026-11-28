@@ -23,10 +23,13 @@ from .project_stage1_delivery import (
     ProjectStage1DeliveryService,
     _raw,
     _records_match,
+    _refuse_open_provided,
     _screening_library,
 )
 from .project_stage1_sources import describe_source, source_record
 from .session_api import SessionApiError, _check
+
+PROVIDED_QUERY_TEXT = "researcher-provided saved material (no search query)"
 
 MAX_ENTRIES = 1024
 MAX_RECORDS = 256
@@ -1021,6 +1024,7 @@ class ProjectStage1RecordsService:
 
     def _records(self, context, entries):
         ledger = context[4]
+        _refuse_open_provided(ledger)
         sources = [
             entry["payload"]
             for entry in entries
@@ -1158,7 +1162,12 @@ class ProjectStage1RecordsService:
                 continue
             candidate = ledger.candidates()[decision["subject_id"]]
             discovery = candidate["discoveries"][0]
-            started = events[discovery["query_id"]]
+            # A researcher-provided saved material has no query; it was not found by a search.
+            started = (
+                {"arguments": {"query": PROVIDED_QUERY_TEXT}}
+                if discovery["query_id"] is None
+                else events[discovery["query_id"]]
+            )
             screening.append(
                 dict(
                     decision_id=decision["event_id"],

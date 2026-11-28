@@ -34,6 +34,7 @@ from .project_run_authority import RunActionGuard
 
 
 SAVED_OPERATIONS = {
+    "stage1-admit-saved-candidate",
     "stage1-claim",
     "stage1-coverage",
     "stage1-screen",

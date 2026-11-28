@@ -154,3 +154,13 @@ m9Panel = function (app) {
   <section class="ws-m9-card"><h3>接着往后用</h3>${wsM9Continue(materials)}</section></div>
  </div>`;
 };
+
+// Provided-material registration (v9-stage1-provided.js) shown under a registered Stage 1 upload (DESIGN 8.12).
+// It records the uploaded bytes and the researcher's identity claim only: no query, model, screening or reading.
+const wsProvidedPrevRow = wsM9Row;
+wsM9Row = function (m) {
+ const row = wsProvidedPrevRow(m);
+ if (typeof s1ProvidedForm !== 'function') return row;
+ const form = s1ProvidedForm(m);
+ return form ? row + `<tr class="ws-m9-provided"><td colspan="7">${form}</td></tr>` : row;
+};

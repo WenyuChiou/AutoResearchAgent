@@ -21,7 +21,8 @@ from stage1_deliverable.screening_records import artifacts as screening_artifact
 from stage1_deliverable.screening_records import (
     read_artifacts as read_screening_artifacts,
 )
-from stage1_ledger.journal import canonical
+from stage1_ledger.identity import work_key
+from stage1_ledger.journal import canonical, digest
 from stage1_ledger.validation import validate_run
 from research_workspace_native.project_stage1_library import _project
 
@@ -457,6 +458,74 @@ class SavedStage1RecordsTests(unittest.TestCase):
         self.assertEqual(ledger.events(), events)
         self.assertNotIn(work, ledger.coverage_state().evidence.decisions)
         self.runner.assert_not_called()
+
+    def provided_work(self, ledger, decision):
+        """Register one researcher-provided saved material, optionally with a screening decision."""
+        from test_stage1_ledger import SYNTHETIC
+
+        record = deepcopy(SYNTHETIC)
+        key = work_key(record)
+        data = b"category,value food,100"
+        result = ledger.admit_saved_candidate(
+            record=record,
+            material=data,
+            material_sha256=digest(data),
+            source_uri="https://example.org/table",
+            original_type="text/csv",
+            actor="alice",
+            reason="researcher-provided-test",
+            expected_state_sha256=ledger.state_hash(),
+            expected_manifest_sha256=digest(canonical(ledger.manifest)),
+            work_id="work-" + digest(key.encode()),
+            version_id="version-" + digest(canonical([key, record["version"]])),
+        )
+        if decision:
+            ref = ledger.candidates()[result["work_id"]]["discoveries"][0]["source_ref"]
+            ledger.decide(
+                result["work_id"],
+                decision,
+                reason="relevant-evidence" if decision == "include" else "not-relevant",
+                rationale="test decision",
+                evidence_refs=[ref],
+                actor="agent",
+            )
+        return result["work_id"]
+
+    def test_screened_out_provided_work_produces_records_page_path(self):
+        fixture = self.two_sources()
+        self.register_all(fixture)
+        ledger = fixture["ledger"]
+        work = self.provided_work(ledger, "exclude")
+        fixture["checkpoint"] = ledger.checkpoint()
+        offer = self.produce(fixture)
+        saved = self.delivery._context(fixture["ref"])[1]["stage1_delivery_offers"][
+            offer["offer_ref"]
+        ]
+        records = read_json(saved["records_path"])
+        row = next(d for d in records["screening"] if d["work_id"] == work)
+        self.assertEqual(row["status"], "exclude")
+        self.assertIn("no search query", row["query"])
+        paper = next(p for p in records["papers"] if p["work_id"] == work)
+        self.assertEqual(paper["reading_status"], "discovery-only")
+        self.runner.assert_not_called()
+
+    def assert_open_provided_refused(self, decision):
+        fixture = self.two_sources()
+        self.register_all(fixture)
+        ledger = fixture["ledger"]
+        self.provided_work(ledger, decision)
+        fixture["checkpoint"] = ledger.checkpoint()
+        with self.assertRaises(SessionApiError) as caught:
+            self.produce(fixture)
+        self.assertEqual(
+            caught.exception.args[0], "stage1-provided-candidate-delivery-unsupported"
+        )
+
+    def test_undecided_provided_work_is_refused_with_the_stable_reason(self):
+        self.assert_open_provided_refused(None)
+
+    def test_included_provided_work_is_refused_with_the_stable_reason(self):
+        self.assert_open_provided_refused("include")
 
     def test_exact_span_rejects_repeated_quote_wrong_offset_and_missing_claim(self):
         fixture = self.two_sources()

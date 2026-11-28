@@ -397,7 +397,8 @@ function wsRunTab(app) {
 }
 
 // Backend codes never appear as body text (DESIGN 2.6, 8.0); the raw value stays in technical details.
-const wsCodeWords = {'saved-import-bytes-recorded':'已获取（保存了原文字节）', 'saved-import-intent-recorded':'已获取（保存了导入记录）',
+const wsCodeWords = {
+ 'stage1-provided-candidate-delivery-unsupported':'课题里有研究者提供、尚未排除的材料，目前的交付格式不支持：请先把它筛成排除，或等交付格式支持后再交付。','saved-import-bytes-recorded':'已获取（保存了原文字节）', 'saved-import-intent-recorded':'已获取（保存了导入记录）',
  'not-started':'还没开始', 'available':'可以做', 'unavailable':'现在不能做', 'blocked':'被拦下', 'held':'暂停待处理', 'failed':'失败',
  'saved':'已保存', 'pending':'待处理', 'required':'需要先做', 'recorded':'已记录', 'unknown':'未提供'};
 function wsPlain(value) {
@@ -642,7 +643,7 @@ function wsCandidatePanel() {
  const selected = current && realCurrent(current) ? current.row?.work_id : null;
  return `<div class="wiki-s1-columns"><section class="wiki-s1-card"><h2>已保存的检索候选 · ${esc(library.total)}</h2>
  <p class="wiki-s1-muted">这是当前查询的输出，还不是正式交付。来源、阅读和纳入决定要分别审阅。</p>
- <div class="ws-scroll"><table class="ws-table"><thead><tr><th scope="col">论文</th><th scope="col">年份</th><th scope="col">来源状态</th><th scope="col">筛选状态</th></tr></thead><tbody>${library.rows.map(row => `<tr ${row.work_id === selected ? 'class="ws-sel"' : ''}><td><button type="button" class="ws-link" data-real-paper="${esc(row.index)}">${esc(row.title ?? '未提供')}</button></td><td>${esc(row.year ?? '未提供')}</td><td>${esc(wsPlain(row.source_status))}${wsRaw(row.source_status)}</td><td>${esc(wsScreenNames[row.screening_status] || row.screening_status || '未提供')}</td></tr>`).join('')}</tbody></table></div>
+ <div class="ws-scroll"><table class="ws-table"><thead><tr><th scope="col">论文</th><th scope="col">年份</th><th scope="col">来源状态</th><th scope="col">筛选状态</th></tr></thead><tbody>${library.rows.map(row => `<tr ${row.work_id === selected ? 'class="ws-sel"' : ''}><td><button type="button" class="ws-link" data-real-paper="${esc(row.index)}">${esc(row.title ?? '未提供')}</button>${row.origin === 'provided-saved-material' ? '<br><small class="wiki-s1-muted">研究者导入的已保存材料 · 不是检索结果</small>' : ''}</td><td>${esc(row.year ?? '未提供')}</td><td>${esc(wsPlain(row.source_status))}${wsRaw(row.source_status)}</td><td>${esc(wsScreenNames[row.screening_status] || row.screening_status || '未提供')}</td></tr>`).join('')}</tbody></table></div>
  ${library.next_offset !== null && library.next_offset !== undefined ? wsBtn('读取更多候选', 'data-v7-workflow="library-next"', wsLock()) : ''}</section>
  <section class="wiki-s1-card">${selected ? `<h2>${esc(current.row?.metadata?.title || selected)}</h2>${wsPaperProcess(selected)}` : '<h2>这篇的处理</h2><p class="wiki-s1-muted">点左边一篇论文，才会在这里做筛选、来源获取和阅读。</p>'}</section></div>`;
 }

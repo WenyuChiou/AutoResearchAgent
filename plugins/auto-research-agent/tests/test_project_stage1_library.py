@@ -11,7 +11,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cli"))
 import research_workspace_native.project_stage1_library as library_module
 from research_workspace_native.project_intake import ProjectIntakeService
 from research_workspace_native.project_stage1 import ProjectStage1Service
-from research_workspace_native.project_stage1_library import ProjectStage1LibraryService
+from research_workspace_native.project_stage1_library import (
+    ProjectStage1LibraryService,
+    row_origin,
+)
 from research_workspace_native.session_api import SessionApiError
 from stage1_coverage.run import CoverageLedger
 from stage1_deliverable.common import sha
@@ -265,6 +268,8 @@ class ProjectStage1LibraryTests(Stage1LibraryFixture, unittest.TestCase):
             rows[self.work_by_name[name]]
             for name in ("retained", "excluded", "pending", "unscreened")
         )
+        for row in rows.values():
+            self.assertEqual(row_origin(row), "search-result")
         self.assertEqual(retained["counts"]["discoveries"], 2)
         self.assertEqual(retained["counts"]["distinct_queries"], 2)
         self.assertEqual(retained["counts"]["recorded_rounds"], 1)
