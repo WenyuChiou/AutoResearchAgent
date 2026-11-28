@@ -21,7 +21,7 @@ function load({calls = 1, view = {}} = {}) {
   v93ReadSaved:async () => { reads.push(1); },
   liveRequest:async (p, body) => { posts.push({p, body:JSON.parse(JSON.stringify(body))}); return ctx.answer(p, body); },
   answer:(p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:'c'.repeat(64), status:'intent-recorded'}),
-  document:{addEventListener() {}}
+  document:{listeners:{}, addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }}
  });
  vm.runInContext(fs.readFileSync(path.join(__dirname, 'wiki-stage3-plan-request.js'), 'utf8'), ctx);
  return {ctx, posts, reads};
@@ -270,4 +270,33 @@ test('review P2-5: a timed-out submission_error without request_sha256 is not re
   assert.equal(row.tag, '结果未知', JSON.stringify(error));
   assert.equal(row.grant, undefined);
  }
+});
+
+test('review P2-5: the re-read after a write is forced, so a read already in flight cannot swallow it', async () => {
+ const {ctx} = load();
+ const calls = [];
+ ctx.v93ReadSaved = async (...args) => { calls.push(args); };
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'prepare');
+ assert.equal(calls.length, 1);
+ assert.equal(calls[0][2], true, 'third argument force=true');
+});
+
+test('review P2-7: recovering from the saved result is a write: it says so, and the button waits for its own tick', async () => {
+ const sha = 'c'.repeat(64);
+ const {ctx, posts} = load({view:{job:{status:'execution-unknown', request_sha256:sha, key:request.key}, recovery_pin_available:true}});
+ ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-p', key:body.key, request_sha256:sha, status:'completed', outcome:'saved'});
+ const html = ctx.wikiS3RequestMarkup(ctx.v93.view);
+ assert.match(html, /只挂上已经保存的结果，不会重新生成/);
+ assert.match(html, /data-s3-plan-recover-check/);
+ assert.equal(line(ctx).buttons.find(b => b.act === 'recover').gate, '请先勾选确认');
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'recover');
+ assert.equal(posts.length, 0, 'no tick, nothing sent');
+ // Tick, then recover once.
+ for (const fn of ctx.document.listeners.change) fn({target:{matches:selector => selector === '[data-s3-plan-recover-check]', checked:true}});
+ assert.equal(line(ctx).buttons.find(b => b.act === 'recover').gate, '');
+ await ctx.wikiS3PlanAction(ctx.apps[0], 'recover');
+ assert.equal(posts.length, 1);
+ assert.match(posts[0].p, /stage3\/planning\/recover$/);
+ // The tick is consumed: a second recover needs a new tick.
+ assert.equal(line(ctx).buttons.find(b => b.act === 'recover').gate, '请先勾选确认');
 });

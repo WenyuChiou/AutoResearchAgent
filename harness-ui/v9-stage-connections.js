@@ -78,6 +78,8 @@ async function v9ReadConnection(view, afterWrite=false) {
   // The Stage 2 adapter can be present while Stage 3 uses the original static bootstrap binding.
   if (stage==='stage3-planning' && !afterWrite && v9Stage2OnlyDiscovery(response,basis)) {
     view.stage2Only = true;
+    // What the Stage 2 row says (e.g. no run configuration in this launch) is all the page learns about this launch.
+    view.stage2Reason = response.connections['stage2-controller']?.reason || null;
     return null;
   }
   const row=v9ConnectionRow(response,basis,stage);
@@ -165,7 +167,7 @@ function v9ConnectionAction(view) {
 }
 async function v9ConnectionRead(view) {
   if (!v9ConnectionCurrent(view) || view.reading) return;
-  view.reading = true; view.http=null; view.legacyMissing=false; view.stage2Only=false; view.row = null; view.error = ''; livePaint();
+  view.reading = true; view.http=null; view.legacyMissing=false; view.stage2Only=false; view.stage2Reason=null; view.row = null; view.error = ''; livePaint();
   try { view.row = await v9ReadConnection(view); }
   catch (error) { view.error = error.message; view.http = error.status; }
   finally { view.reading = false; if (v9ConnectionCurrent(view)) livePaint(); }
@@ -261,6 +263,7 @@ function v9ConnectionModel(app) {
   const view = v9ConnectionView, row = view.row, unknown = v9ConnectionPending();
   const action = v9ConnectionAction(view), code = view.error || row?.reason;
   return {phase: 'ready', stage, basis, view, row, code, unknown, action, http: view.http,
+    stage2Only: !!view.stage2Only, stage2Reason: view.stage2Reason || null,
     token: JSON.stringify([stage, view.epoch, ...Object.values(basis)]),
     reading: !!view.reading, writing: v9ConnectionWriting, canWrite: v9ConnectionCanWrite(),
     noLocks: typeof globalThis.navigator?.locks?.request !== 'function',

@@ -9,6 +9,13 @@ import os
 from pathlib import Path, PurePosixPath
 
 
+# A run manifest embeds the full runtime code inventory (one path + SHA-256 per
+# file, about 216 bytes per file: 2,952,195 bytes for the 13,696-file trial
+# runtime on 2026-11-27). 32 MB holds about 150,000 files, over five times a
+# large 27,000-file virtual environment, while still bounding what a reader
+# loads into memory from a file it has not authenticated yet.
+MAX_MANIFEST_BYTES = 32 * 1024 * 1024
+
 STREAMS = {
     "QueryEvent": "query_events.jsonl",
     "CandidateRevision": "candidates.jsonl",
