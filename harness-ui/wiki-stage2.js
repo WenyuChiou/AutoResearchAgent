@@ -357,7 +357,7 @@ function wikiS2InputTable() {
 }
 
 function wikiS2CompareTab(app, model, state) {
- if (model?.missing) return '<section class="wiki-s2-empty" data-s2-missing><h2>这份归档没有 Stage 2 的结果</h2><p>归档保存时还没有到 Stage 2，所以这里没有候选。</p></section>';
+ if (model?.missing) return '<section class="wiki-s2-empty" data-s2-missing><h2>这份归档没有 Stage 2 的结果</h2><p>归档里没有保存 Stage 2 的结果，所以这里没有候选。</p></section>';
  if (model?.blocked) return `<section class="wiki-s2-empty" data-s2-blocked role="alert"><h2>保存的结果没有通过核对</h2><p>保存的结果没有通过核对，没有显示，也不会用示例内容补上。</p><button type="button" class="hs-button" data-wiki-stage2-action="read">重新读取</button><details class="wiki-s2-tech"><summary>技术细节</summary><code>${esc(model.blocked)}</code></details></section>`;
  if (!model || !model.routes.length) return wikiS2InputTable();
  return `${wikiS2Opinions(model)}${wikiS2CompareTable(app, model, state)}${wikiS2Reviews(model)}${wikiS2Decision(app, model, state)}`;
