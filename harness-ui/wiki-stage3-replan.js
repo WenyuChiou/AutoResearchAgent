@@ -110,8 +110,10 @@ function wikiS3RpLine(view) {
  if (!wikiS3RpObj(request) || request.mode !== wikiS3RpMode || typeof request.key !== 'string' || !request.key) return {...base, tone:'warn', tag:'读不出来', text:'后台说可以重新生成，但没有给出可发送的请求，页面不发。', buttons:[read]};
  const edits = wikiS3RpEdits(view), editsGate = wikiS3RpEditsGate(edits), inspect = {label:'只读核对', act:'inspect', gate:lock};
  const mine = wikiS3Rp.unknown.get(rt.ref);
- if (view.submission_in_progress || job?.status === 'dispatching') return {...base, edits, tone:'run', tag:'处理中', text:'正在按修改稿重新生成计划和评审。不需要你操作', buttons:[read]};
- if (job?.status === 'execution-unknown') {
+ // Processing only while a submission is really under way (the Host says so, or this page's own request is in flight). A job left in
+ // dispatching with none is a result unknown: the call may have gone out (the Host counts dispatching as result_unknown, recover accepts it).
+ if (view.submission_in_progress || wikiS3Rp.busy.has(rt.ref)) return {...base, edits, tone:'run', tag:'处理中', text:'正在按修改稿重新生成计划和评审。不需要你操作', buttons:[read]};
+ if (job?.status === 'execution-unknown' || job?.status === 'dispatching') {
   const pin = job.recovery_pin_available === true;
   return {...base, edits, tone:'warn', tag:'结果未知', recoverSha:pin ? job.request_sha256 : null,
    text:'上次生成的结果还不清楚：模型可能已经调用过。原请求已保留，不会自动重发；先只读核对' + (pin ? '，也可以从已保存的结果恢复（只挂上已经保存的结果，不会重新生成）' : ''),

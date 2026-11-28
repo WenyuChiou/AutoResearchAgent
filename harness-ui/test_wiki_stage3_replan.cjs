@@ -360,7 +360,8 @@ test('double click sends one request; busy is kept per project when the user lea
  assert.equal(posts.length, 1, 'the second click sends nothing');
  ctx.rt.ref = 'project-b'; line(ctx);
  ctx.rt.ref = 'project-r'; line(ctx);
- assert.match(line(ctx).grant.gate, /正在保存，请稍等/);
+ assert.equal(line(ctx).tag, '处理中', 'this page request in flight: processing, no run button');
+ assert.equal(line(ctx).grant, undefined);
  await act(ctx, 'run');
  assert.equal(posts.length, 1, 'still one after leaving and coming back');
  release(); await first;
@@ -376,7 +377,7 @@ test('double click sends one request; busy is kept per project when the user lea
 });
 
 test('other states: processing, failed, saved, not available with its reason, unreadable job, a status this page does not know', () => {
- assert.equal(line(load({view:withJob({}, {status:'dispatching'})}).ctx).tag, '处理中');
+ assert.equal(line(load({view:withJob({}, {status:'dispatching'})}).ctx).tag, '结果未知', 'dispatching with no submission of this page is a result unknown (review P2-2)');
  assert.equal(line(load({view:{submission_in_progress:true}}).ctx).tag, '处理中');
  assert.equal(line(load({view:withJob({}, {status:'completed', outcome:'failed'})}).ctx).tag, '规划失败');
  assert.equal(line(load({view:withJob({}, {status:'completed', outcome:'saved'})}).ctx).tag, '计划已保存');
@@ -472,4 +473,37 @@ test('recover is offered only where the Host says recovery_pin_available, with i
  const nopin = load({view:withJob({}, {status:'execution-unknown', recovery_pin_available:false})});
  assert.equal(line(nopin.ctx).buttons.map(b => b.act).join(), 'inspect,read');
  assert.match(textOf(html(cur.ctx)), /当时冻结的修改清单（3 处，只读）/);
+});
+
+test('review P2-2: a job left in dispatching with no submission of this page in flight is 结果未知; processing only while this page or the Host is submitting', async () => {
+ // No pin: only the read-only check; never a run, prepare or recover.
+ let {ctx} = load({view:withJob({}, {status:'dispatching', recovery_pin_available:false})});
+ let row = line(ctx);
+ assert.equal(row.tag, '结果未知');
+ assert.equal(row.buttons.map(b => b.act).join(), 'inspect,read');
+ assert.equal(row.grant, undefined);
+ assert.doesNotMatch(row.text, /不需要你操作/);
+ assert.doesNotMatch(html(ctx), /data-s3-rp="(run|prepare|recover)"|data-s3-rp-recover-check/);
+ // With the Host's pin: recovery is offered, behind its own tick, and attaches the saved result (no resend).
+ const pinned = load({view:withJob({}, {status:'dispatching', recovery_pin_available:true})});
+ row = line(pinned.ctx);
+ assert.equal(row.tag, '结果未知');
+ assert.equal(row.buttons.map(b => b.act).join(), 'inspect,recover,read');
+ assert.equal(row.buttons[1].gate, '请先勾选确认');
+ assert.match(html(pinned.ctx), /data-s3-rp-recover-check/);
+ await act(pinned.ctx, 'recover');
+ assert.equal(pinned.posts.length, 0, 'no tick, nothing sent');
+ for (const fn of pinned.ctx.document.listeners.change) fn({target:{matches:selector => selector === '[data-s3-rp-recover-check]', checked:true, dataset:{s3RpSha:SHA}}});
+ pinned.ctx.answer = (p, body) => ({kind:'ProjectStage3PlanningJob', project_ref:'project-r', key:body.key, request_sha256:SHA, status:'completed', outcome:'saved'});
+ await act(pinned.ctx, 'recover');
+ assert.equal(pinned.posts.length, 1);
+ assert.match(pinned.posts[0].p, /planning\/recover$/);
+ assert.equal(pinned.posts[0].body.confirmed, undefined);
+ // Submitting now (the Host says so, or this page's own request is in flight): still 处理中.
+ assert.equal(line(load({view:{...withJob({}, {status:'dispatching'}), submission_in_progress:true}}).ctx).tag, '处理中');
+ const flight = load({view:withJob({}, {status:'dispatching'})});
+ vm.runInContext("wikiS3Rp.busy.set('project-r', 'run')", flight.ctx);
+ assert.equal(line(flight.ctx).tag, '处理中');
+ vm.runInContext("wikiS3Rp.busy.clear()", flight.ctx);
+ assert.equal(line(flight.ctx).tag, '结果未知');
 });
