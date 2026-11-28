@@ -136,7 +136,7 @@ function wsQuota(inCard = false) {
  if (!b) return `<div class="ws-quota ws-quota-gray"><b>${v1t('额度')}</b><span>${v1t('还没有这一段的运行许可')}</span></div>`;
  const num = value => Number.isFinite(Number(value)) ? `<code>${esc(value)}</code>` : `<code>${v1t('未提供')}</code>`;
  const usedPart = Number.isSafeInteger(used) ? `${v1t('已用 {n} /', {n: num(used)})} ` : '';
- return `<div class="ws-quota"><b>${v1t('额度')}</b><span>${v1t('模型调用 {usedPart}上限 {n} · 检索 上限 {n2} · 每次最多 {n3} 秒', {usedPart, n: num(b.model_calls), n2: num(b.search_calls), n3: num(b.seconds)})}</span><em class="ws-ntag">${v1t('工程记录')}</em><small>${v1t('有效期以服务读到的运行许可为准，页面没有读到到期时间')}</small></div>`;
+ return `<div class="ws-quota"><b>${v1t('额度')}</b><span>${v1t('模型调用 {usedPart}上限 {n} · 检索 上限 {n2} · 总共最多 {n3} 秒', {usedPart, n: num(b.model_calls), n2: num(b.search_calls), n3: num(b.seconds)})}</span><em class="ws-ntag">${v1t('工程记录')}</em><small>${v1t('有效期以服务读到的运行许可为准，页面没有读到到期时间')}</small></div>`;
 }
 
 // ---------- scope page (8.6) ----------

@@ -230,7 +230,7 @@ function v1gQuota(d) {
  const calls = pick('model_calls'), search = pick('search_calls'), seconds = pick('seconds');
  if (![calls, search, seconds].some(value => value !== null)) return `<div class="v1-quota none"><span class="v1-qk">${v1t('额度')}</span>${v1t('没有整轮同意书；每一步的上限写在那一步的授权卡里。')}</div>`;
  const zero = [calls, search, seconds].every(value => value === 0);
- return `<div class="v1-quota ${zero ? 'none' : ''}"><span class="v1-qk">${v1t('额度')}</span><span>${v1t('模型调用 上限')} <b>${calls ?? v1t('未提供')}</b></span><span>${v1t('检索 上限')} <b>${search ?? v1t('未提供')}</b></span><span>${v1t('每次最多')} <b>${seconds ?? v1t('未提供')}</b> ${v1t('秒')}</span><em class="v1-ntag">${v1t('工程记录')}</em>${zero ? `<span class="v1-qnote">${v1t('这次启动的上限都是 0：不会调用模型，也不会检索。')}</span>` : ''}</div>
+ return `<div class="v1-quota ${zero ? 'none' : ''}"><span class="v1-qk">${v1t('额度')}</span><span>${v1t('模型调用 上限')} <b>${calls ?? v1t('未提供')}</b></span><span>${v1t('检索 上限')} <b>${search ?? v1t('未提供')}</b></span><span>${v1t('总共最多')} <b>${seconds ?? v1t('未提供')}</b> ${v1t('秒')}</span><em class="v1-ntag">${v1t('工程记录')}</em>${zero ? `<span class="v1-qnote">${v1t('这次启动的上限都是 0：不会调用模型，也不会检索。')}</span>` : ''}</div>
   <small class="v1-small">${v1t('已用次数：服务没有报告，未提供。项目资源上限（不是金额）。已预留模型调用：{n}。已报告金额（不是费用上限）：{n2}。货币上限：未提供。', {n: num(d?.callsReserved) ? d.callsReserved : v1t('未提供'), n2: typeof d?.monetaryCost === 'number' ? d.monetaryCost : v1t('未提供')})}</small>`;
 }
 function v1gSettings() {
