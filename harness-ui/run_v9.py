@@ -27,13 +27,16 @@ def private_directory(path):
 
 def main(argv=None):
     selection = argparse.ArgumentParser(add_help=False)
-    selection.add_argument('--ui-state-root', type=Path, required=True)
-    selection.add_argument('--incoming-root', type=Path, required=True)
+    wants_help = run_v7.asks_for_help(sys.argv[1:] if argv is None else argv)
+    selection.add_argument('--ui-state-root', type=Path, required=not wants_help)
+    selection.add_argument('--incoming-root', type=Path, required=not wants_help)
     selection.add_argument('--display-translations', type=Path)
     selection.add_argument('--review-sources', type=Path)
     selection.add_argument('--review-sources-sha256')
     add_chat_arguments(selection)
     selected, rest = selection.parse_known_args(sys.argv[1:] if argv is None else argv)
+    if wants_help:
+        return run_v7.main(rest)  # prints the full option help and exits
     validate_chat_options(selected)
     state = private_directory(selected.ui_state_root)
     incoming = private_directory(selected.incoming_root)

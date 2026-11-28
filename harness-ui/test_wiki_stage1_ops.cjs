@@ -151,6 +151,20 @@ assert.equal(ctx.wsPhaseRows()[2].reason, '查询执行还没接通');
 assert.doesNotMatch(ctx.wsPhaseRows()[2].reason, /运行许可/);
 rt.overview.stage1.progress.phases[2] = {phase_id:'query', status:'required', reason:'query-permission-required'};
 assert.equal(ctx.wsPhaseRows()[2].reason, '没有这一段的运行许可', 'with a query service, the permission reason still applies');
+// Follow-up 3 / 2: ledger present, no query count, no query service: the host says 「unknown」, the buttons say 「还没接通」.
+rt.overview.stage1.progress.phases[2] = {phase_id:'query', status:'unknown', reason:'query-permission-required'};
+assert.equal(rt.overview.stage1.query_execution, undefined);
+{
+ const row = ctx.wsPhaseRows()[2];
+ assert.equal(row.reason, '查询执行还没接通');
+ assert.equal(row.kind, 'idle', 'not connected is not 被拦下');
+ assert.equal(row.label, '还没接通');
+ assert.equal(row.raw.status, 'unknown', 'the host own word stays in the raw record');
+}
+rt.overview.stage1.query_execution = {authorization_offer:null};
+assert.equal(ctx.wsPhaseRows()[2].kind, 'block', 'with a query service an unknown count is still unknown');
+assert.equal(ctx.wsPhaseRows()[2].reason, '没有这一段的运行许可');
+delete rt.overview.stage1.query_execution;
 // Scope not confirmed: the plan row is not asking for you yet.
 rt = makeRt(false, {wsProg:{state:'absent'}}); ctx = load(rt);
 assert.equal(ctx.wsPhaseRows()[0].label, '等你');
@@ -361,11 +375,11 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  const block = fs.readFileSync(path.join(__dirname,'wiki-stage1-materials.js'),'utf8');
  const v1 = block.slice(block.indexOf('// ---------- Wiki V1 materials panel'));
  const app = {lang:'zh', page:'workspace', stage:2};
- const state = {archive:false, canonical:false, code:'', fields:['a', 'b', 'c']};
+ const state = {archive:false, canonical:false, origin:'', code:'', fields:['a', 'b', 'c']};
  const listeners = [], patched = [];
  const wrap = {set outerHTML(html) { patched.push(html); }};
  app.el = {querySelector:selector => selector === '[data-n9-action="import"]' ? {closest:() => wrap} : null};
- const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '', rt:{ref:'project-a'}, document:{addEventListener:(type, fn) => { if (type === 'input') listeners.push(fn); }},
+ const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '', rt:{ref:'project-a', list:[{project_ref:'project-a'}]}, wikiHomeRow:() => ({origin:state.origin || 'local'}), document:{addEventListener:(type, fn) => { if (type === 'input') listeners.push(fn); }},
   wsTag:(k, l) => `<tag>${l}</tag>`, wsBtn:(l, a, r) => `<span class="b"><button ${a} ${r ? 'disabled' : ''}>${l}</button>${r ? '<small>' + r + '</small>' : ''}</span>`, wsMaterialsDownloads:() => '',
   wikiHomeArchiveBound:() => state.archive, canonicalReadonly:() => state.canonical,
   v9ConnectionModel:() => ({phase:'ready', code:state.code}),
@@ -375,6 +389,8 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  const button = () => { const html = mc.m9Panel(app), at = html.indexOf('data-n9-action="import"'); return html.slice(html.lastIndexOf('<span class="b">', at), html.indexOf('</span>', at) + 7); };
  assert.doesNotMatch(button(), /disabled/, 'a configured, writable project with the three fields filled can register');
  state.archive = true; assert.match(button(), /disabled.*历史归档，不能在这里改/s); state.archive = false;
+ // Follow-up 3 / 1: a saved sample is archive-bound too, but is worded as a sample.
+ state.archive = true; state.origin = 'synthetic'; assert.match(button(), /disabled.*这是保存的样例，不能在这里改/s); assert.doesNotMatch(button(), /历史归档/); state.archive = false; state.origin = '';
  state.canonical = true; assert.match(button(), /disabled.*保存的样例，不能在这里改/s); state.canonical = false;
  state.code = 'stage2-controller-profile-unavailable'; assert.match(button(), /disabled.*没有提供 Stage 2 的运行配置/s); state.code = '';
  mc.m9.sourcePath = ''; assert.match(button(), /disabled.*请先填好上面的三项/s);

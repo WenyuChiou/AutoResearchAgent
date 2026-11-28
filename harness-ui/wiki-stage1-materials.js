@@ -101,6 +101,9 @@ function wsM9Continue(materials) {
 // Stage 2 run configuration cannot register a packet: the click used to send POST /api/v9/import-packet and get a 409.
 function wsM9ImportGate(app) {
  const ref = typeof rt !== 'undefined' ? rt.ref : null;
+ // A saved sample is also "archive bound", so it has to be told apart first (the home table calls it 合成样例).
+ const listed = typeof rt !== 'undefined' && Array.isArray(rt.list) ? rt.list.find(item => item.project_ref === ref) : null;
+ if (listed && typeof wikiHomeRow === 'function' && wikiHomeRow(listed).origin === 'synthetic') return '这是保存的样例，不能在这里改';
  if (typeof wikiHomeArchiveBound === 'function' && wikiHomeArchiveBound(ref)) return '这是历史归档，不能在这里改';
  if (typeof canonicalReadonly === 'function' && canonicalReadonly()) return '这是保存的样例，不能在这里改';
  const conn = typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
