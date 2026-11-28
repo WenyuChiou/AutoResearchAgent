@@ -15,7 +15,10 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-wiki-home-shell="true"]) {
 #harness-trace-workbench-v6 .hs-product[data-wiki-home-shell="true"] {
  border:0; border-radius:0; box-shadow:none; min-height:100vh;
 }
-.wiki-home { display:grid; gap:24px; }
+/* One shrinkable column, and grid items may shrink below their content: an input's intrinsic width (~490px) otherwise
+   became the minimum width of the whole page on a 390px screen. */
+.wiki-home { display:grid; grid-template-columns:minmax(0,1fr); gap:24px; }
+.wiki-home > *, .wiki-home-top > * { min-width:0; }
 .wiki-home h1,.wiki-home h2,.wiki-home h3,.wiki-home p { margin:0; }
 .wiki-home h1 { font-size:28px; line-height:1.3; }
 .wiki-home h2,.wiki-home h3 { font-size:20px; line-height:1.35; }
@@ -68,7 +71,8 @@ body:has(#harness-trace-workbench-v6 .hs-product[data-wiki-home-shell="true"]) {
 .wiki-home-filters { display:flex; flex-wrap:wrap; gap:8px; }
 .wiki-home-filters button { min-height:36px; border-radius:20px; font-size:14px; font-weight:400; padding:4px 12px; }
 .wiki-home-filters button[aria-pressed="true"] { background:#192f40; color:white; border-color:#192f40; }
-.wiki-home-table { overflow-x:auto; }
+/* position:relative so the absolutely placed hidden 「操作」 label stays inside this scroll box instead of widening the page. */
+.wiki-home-table { overflow-x:auto; position:relative; }
 .wiki-home-table table,.wiki-record table { border-collapse:collapse; width:100%; font-size:15px; }
 .wiki-home-table :is(th,td),.wiki-record :is(th,td) { padding:16px; text-align:left; border-bottom:1px solid #dde5e2; overflow-wrap:anywhere; }
 .wiki-home-table thead th { background:#f8f8f4; color:#566772; font-size:14px; }
