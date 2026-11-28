@@ -331,7 +331,7 @@ v7AfterRender = function(app) {
  const badge=app.el.querySelector('.hs-preview');
  if (badge) badge.textContent='Wiki V1 · 本地记录';
  if (!shell.nextElementSibling?.matches('[data-wiki-record]')) {
-  shell.insertAdjacentHTML('afterend',wikiHarnessRecord(typeof v1S1Record==='function'?v1S1Record():undefined));
+  shell.insertAdjacentHTML('afterend',typeof wikiRecordBlock==='function'?wikiRecordBlock(1):wikiHarnessRecord(typeof v1S1Record==='function'?v1S1Record():undefined));
   shell.nextElementSibling.after(panel);
   const heading=app.el.querySelector('.hs-heading');
   if (heading?.querySelector('h1')) {

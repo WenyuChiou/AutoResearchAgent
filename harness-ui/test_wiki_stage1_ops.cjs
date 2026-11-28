@@ -323,7 +323,7 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  const mc = vm.createContext({esc:v => String(v), apps:[app], v1On:() => true, m9Panel:() => 'old', n9Message:v => v || '',
   wsTag:(k, l) => `<tag>${l}</tag>`, wsBtn:(l, a, r) => `<button ${a}>${l}</button>${r || ''}`, wsMaterialsDownloads:() => '',
   m9:{catalog:{materials:[], operations:[], drafts:[]}, busy:false, error:'', status:'', target:{}, notes:{}, sourcePath:'', importPath:'', packetHash:''},
-  m9Current:() => mc.m9.catalog.materials, m9Draft:() => null});
+  m9Current:() => mc.m9.catalog?.materials || [], m9Draft:() => null});
  vm.runInContext(v1, mc);
  assert.match(mc.m9Panel(app), /还没有登记材料。/);
  assert.match(mc.m9Panel(app), /不会自动标记为已读、已纳入或已批准/);
@@ -331,5 +331,14 @@ assert.match(archive.wsMaterialsTab({}), /这是历史归档，不能在这里�
  mc.m9.catalog.materials.push({id:'file-1', kind:'manual-file', status:'registered', name:'a.pdf', stage:1, bytes:2048, registered_at:'2026-11-27T08:00:00Z'});
  assert.match(mc.m9Panel(app), /1 份。文件已按原始字节保存，没有启动研究。/);
  assert.match(mc.m9Panel(app), /data-n9-file="file-1"/);
+ // Review P2-b: while the list is being read, or when the read failed, the header does not say "none yet".
+ const saved = mc.m9.catalog;
+ mc.m9.catalog = null;
+ assert.doesNotMatch(mc.m9Panel(app), /还没有登记材料/);
+ assert.match(mc.m9Panel(app), /正在读取保存记录/);
+ mc.m9.error = 'HTTP 503';
+ assert.doesNotMatch(mc.m9Panel(app), /还没有登记材料/);
+ assert.match(mc.m9Panel(app), /这次没有读到已保存的材料/);
+ mc.m9.catalog = saved; mc.m9.error = '';
 }
 console.log('PASS Stage 1 ops: scope page, auto-advance states, run table, delivery decision, paper card, evidence review, materials.');

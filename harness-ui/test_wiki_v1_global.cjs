@@ -71,6 +71,28 @@ html = page('files');
 assert.match(html, /这次没有读出来，可以再试一次/);
 assert.match(text(html), /这份文件这次没有读出来/);
 app.v1gFileError = null; app.v1gOpen = null;
+// Review P2-a: a failed download is named as a download failure; a later successful download clears the note.
+await (async () => {
+ const content = 'x', sha = [...new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(content)))].map(b => b.toString(16).padStart(2, '0')).join('');
+ rt.atlas.files[0].sha256 = sha;
+ Object.assign(context, {crypto:globalThis.crypto, TextEncoder, Uint8Array, Blob, URL:{createObjectURL:() => 'blob:x', revokeObjectURL() {}}, liveAtlasPath:() => '/atlas'});
+ context.document.createElement = () => ({click() {}, remove() {}});
+ context.document.body = {append() {}};
+ let fail = true;
+ context.liveRequest = async () => { if (fail) throw Error('HTTP 503'); return {file:{file_ref:'r1', sha256:sha, content, filename:'references.bib'}}; };
+ const click = async dataset => { const button = {disabled:false, dataset}; for (const fn of listeners.click) await fn({target:{closest:() => button}, preventDefault() {}, stopImmediatePropagation() {}}); };
+ app.v1gOpen = 'f0';
+ await click({v1gDownload:'0'});
+ assert.match(page('files'), /这次没有下载成功，可以再试一次/);
+ assert.match(text(page('files')), /刚才下载没有成功；保存的文件没有变，可以再点一次「下载」/);
+ fail = false;
+ await click({v1gDownload:'0'});
+ assert.equal(app.v1gFileError, null, 'the earlier failure note is gone after a successful download');
+ assert.doesNotMatch(text(page('files')), /没有下载成功/);
+ rt.atlas.files[0].sha256 = '1'.repeat(64);
+ context.liveRequest = () => { throw Error('no request in markup'); };
+})();
+app.v1gFileError = null; app.v1gOpen = null;
 
 // History: plain words, newest first, result tags, filters, raw record highlighted on request.
 rt.history = {project_ref:'project-a', actions:[

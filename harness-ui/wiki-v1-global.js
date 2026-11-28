@@ -88,7 +88,7 @@ function v1gPreview(row) {
  if (row.file) {
   const file = rt.file?.file_ref === row.file.file_ref ? rt.file : null;
   const failed = v1gFileFailure(row.file);
-  text = file ? file.content : apps[0].v1gLoading === row.file.file_ref ? '正在读取这份文件…' : failed ? '这份文件这次没有读出来；保存的文件没有变，可以再点一次「打开」。' : '这份文件还没有读出来。';
+  text = file ? file.content : apps[0].v1gLoading === row.file.file_ref ? '正在读取这份文件…' : failed?.download ? '刚才下载没有成功；保存的文件没有变，可以再点一次「下载」。' : failed ? '这份文件这次没有读出来；保存的文件没有变，可以再点一次「打开」。' : '这份文件还没有读出来。';
   meta = `${row.file.path} · ${row.file.mime === 'application/x-bibtex' ? 'BibTeX' : 'Markdown'} 文本`;
  } else if (row.preview === 'papers') {
   text = (index.papers || []).map((paper, i) => `${i + 1}. ${paper.title || '标题未提供'}${paper.year ? '（' + paper.year + '）' : ''}`).join('\n');
@@ -154,6 +154,8 @@ document.addEventListener('click', async event => {
    const name = dot > 0 ? `${file.filename.slice(0, dot)}-v${version}${file.filename.slice(dot)}` : `${file.filename}-v${version}`;
    const blob = new Blob([file.content], {type:f.mime || 'text/plain'}), url = URL.createObjectURL(blob), a = document.createElement('a');
    a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+   // A later success clears this file's earlier failure note (review P2-a).
+   if (v1gFileFailure(f)) { app.v1gFileError = null; livePaint(); }
   } catch (error) {
    const f = rt.atlas?.files?.[Number(data.v1gDownload)];
    app.v1gFileError = {ref:rt.ref, file:f?.file_ref, code:error.message, download:true}; livePaint();
@@ -315,11 +317,7 @@ const v1gPrevRender = render;
 render = function (app) {
  v1gPrevRender(app);
  if (!app.el.dataset.v1) return;
- // DESIGN 2.1 / 8.4: the Codex chat drawer is not built in V1. Stage pages keep its place on the right edge as a
- // plain label (not a button), grey dot = not connected, saying it is not open yet.
- if (['s1', 's2', 's3', 'later'].includes(app.el.dataset.v1) && !app.el.querySelector('[data-v1-drawer-tab]')) {
-  app.el.querySelector('.hs-main')?.insertAdjacentHTML('beforeend', '<div class="v1-drawer-tab" data-v1-drawer-tab role="note" aria-label="Codex 对话：还没有开放"><i class="v1-dot" aria-hidden="true"></i><span>Codex 对话</span><small>还没有开放</small></div>');
- }
+ // The Codex chat drawer (wiki-chat.js) owns the right-edge tab; no second placeholder tag is drawn here.
  const content = app.el.querySelector('.hs-content');
  const alerts = v1gEnvAlerts();
  if (!content || !alerts.length) return;

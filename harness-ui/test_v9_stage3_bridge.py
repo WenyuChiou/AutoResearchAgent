@@ -27,7 +27,7 @@ class WikiStage3DiagramTests(unittest.TestCase):
             stderr=subprocess.STDOUT,
             text=True,
             encoding="utf-8",
-            timeout=60,
+            timeout=180,  # whole-suite cap; each page action is limited separately (10 s) inside the .cjs helper
             check=False,
             shell=False,
         )

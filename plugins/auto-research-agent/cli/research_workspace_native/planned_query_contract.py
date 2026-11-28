@@ -8,7 +8,7 @@ import time
 
 from stage1_brief.brief import validate_bound_plan, validate_brief
 from stage1_deliverable.common import canonical, private_output, reject_links, sha
-from stage1_ledger.journal import decode
+from stage1_ledger.journal import MAX_MANIFEST_BYTES, decode
 from stage1_coverage.run import CoverageLedger
 from stage1_retrieval.receipt import check_pin
 from stage1_retrieval.runtime_identity import verify_identity
@@ -170,7 +170,9 @@ def inspect_registration(ref, item, *, require_ready=True, allow_closed=False):
     )
     validate_bound_plan(item["plan_root"], item["brief_path"])
     manifest_raw = raw_file(
-        Path(item["ledger_root"]) / "run_manifest.json", item["ledger_manifest_sha256"]
+        Path(item["ledger_root"]) / "run_manifest.json",
+        item["ledger_manifest_sha256"],
+        maximum=MAX_MANIFEST_BYTES,  # embeds the runtime inventory; see journal
     )
     manifest = decode(manifest_raw, "query ledger manifest")
     require(manifest["mode"] == "research-hub-cli", "query-live-runtime-required")

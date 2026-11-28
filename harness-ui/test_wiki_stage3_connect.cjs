@@ -34,4 +34,17 @@ assert.doesNotMatch(unknown.text, /Stage 2/);
 assert.equal(line({noLocks:true, action:'connect'}).tag, 'shared', 'without cross-tab locks it is view-only');
 assert.equal(line({code:'something-else'}).text, '核对不了 Stage 3');
 
+// Real reply of a launch with no Stage 3 interface and no Stage 2 selection (zero-quota copy): GET /connections carries
+// only the stage2-controller row (unavailable, stage2-controller-profile-unavailable). The page used to fall through
+// to the generic 「核对不了」; it now names the missing run configuration (or the missing interface).
+const noS2 = line({stage2Only:true, stage2Reason:'stage2-controller-profile-unavailable'});
+assert.equal(noS2.tag, '缺运行配置', 'Stage 2 row without a run configuration is written as a missing configuration');
+assert.equal(noS2.buttons[0].page, 'settings');
+assert.doesNotMatch(noS2.text, /核对不了/);
+const noIface = line({stage2Only:true, stage2Reason:'stage2-continuation-activation-required'});
+assert.equal(noIface.tag, '没带接通功能');
+assert.match(noIface.text, /Stage 3 的接通功能/);
+assert.equal(line({stage2Only:true, stage2Reason:null}).tag, '没带接通功能');
+
+
 console.log('PASS Stage 3 connection ladder: connectable shows 接通本课题, selection missing only on its own reason, profile, connected, unknown, view-only, other.');

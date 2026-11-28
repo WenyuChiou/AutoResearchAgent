@@ -65,8 +65,9 @@ sidebar = function(app) {
   return `<button type="button" class="v1-flow-item" data-stage="${stage}" aria-current="${page === 's' + stage ? 'page' : 'false'}" ${disabled ? 'disabled' : ''}><span class="v1-flow-num">${stage}</span><span class="v1-flow-body"><b>${v1StageNames[stage - 1]}</b><small><i class="v1-dot ${shownTone}"></i>${shownLine}</small></span></button>`;
  }).join('');
  const later = [4, 5, 6].map(stage => `<button type="button" class="v1-later-item" data-stage="${stage}" aria-current="${page === 'later' && app.stage === stage ? 'page' : 'false'}" ${!opened || locked ? 'disabled' : ''}>${stage} ${v1LaterNames[stage]}</button>`).join('') + (!opened || locked ? `<small class="v1-later-why">${locked ? '上次提交还没确认' : '先打开一个课题'}</small>` : '');
- return `<aside class="hs-sidebar v1-side">
+ return `<aside class="hs-sidebar v1-side" id="v1-side" ${app.v1MenuOpen ? 'data-open' : ''}>
   <div class="hs-brand v1-brand"><span class="hs-logo">h</span><div><strong>Wiki V1</strong><small>RESEARCH WIKI</small></div></div>
+  <button type="button" class="v1-menu-btn" data-v1-menu aria-controls="v1-side" aria-expanded="${app.v1MenuOpen ? 'true' : 'false'}">菜单</button>
   <nav class="v1-nav" aria-label="全局">${nav('workspace', '工作台')}${nav('files', '项目文件')}${nav('history', '操作历史')}${nav('settings', '连接与设置')}</nav>
   <div class="v1-side-label">研究流程</div>
   <nav class="v1-flow" aria-label="研究流程">${flow}</nav>
@@ -292,6 +293,37 @@ document.addEventListener('click', event => {
  else if (button.hasAttribute('data-v1-reload')) liveRefresh(rt.ref, {list:true});
  else liveRecover();
 }, true);
+// Narrow screens (<= 900px, see wiki-v1.css): the sidebar is a top bar and this button opens its menu. The state lives on
+// the app so a repaint keeps it; Enter/Space reach it as a click. Escape, a click outside, or picking an item closes it.
+function v1MenuSet(app, open, focus) {
+ if (!app) return;
+ app.v1MenuOpen = !!open;
+ const side = app.el.querySelector?.('.v1-side');
+ const button = side?.querySelector('[data-v1-menu]');
+ if (side) side.toggleAttribute('data-open', !!open);
+ if (button) { button.setAttribute('aria-expanded', open ? 'true' : 'false'); if (focus) button.focus(); }
+}
+window.addEventListener('click', event => {
+ const app = apps[0];
+ if (!app || !app.v1MenuOpen && !event.target.closest?.('[data-v1-menu]')) return;
+ const toggle = event.target.closest?.('[data-v1-menu]');
+ if (toggle) v1MenuSet(app, !app.v1MenuOpen);
+ else if (!event.target.closest?.('.v1-side') || event.target.closest?.('[data-page],[data-stage]')) v1MenuSet(app, false);
+}, true);
+window.addEventListener('keydown', event => {
+ const app = apps[0];
+ if (event.key === 'Escape' && app?.v1MenuOpen) v1MenuSet(app, false, app.el.querySelector('.v1-side')?.contains(document.activeElement));
+}, true);
+
+// Tabbing out of the menu area (focus moves to something outside the sidebar) closes it; focus is not pulled back to the button.
+window.addEventListener('focusout', event => {
+ const app = apps[0], to = event.relatedTarget;
+ if (!app?.v1MenuOpen || !to) return;
+ const side = app.el.querySelector?.('.v1-side');
+ if (side && !side.contains(to)) v1MenuSet(app, false);
+}, true);
+// Crossing the 900px breakpoint either way (a window dragged wide and back) must not leave the menu open or aria-expanded stale.
+window.matchMedia?.('(max-width: 900px)')?.addEventListener?.('change', () => v1MenuSet(apps[0], false));
 document.addEventListener('toggle', event => {
  if (event.target.matches?.('[data-v1-later]') && event.target.isConnected) apps[0].v1LaterOpen = event.target.open;
  // A background repaint (a read finishing) re-renders the top bar; keep the topic menu open if the user opened it.
@@ -303,6 +335,20 @@ document.addEventListener('click', event => {
  if (!summary) return;
  apps[0].v1SwitchOpen = !summary.parentElement.open;
  apps[0].v1SwitchRef = rt.ref;
+}, true);
+// Keeping the menu open across repaints must not keep it open forever (review P2-d): a click anywhere outside the
+// menu, or Escape, closes it. Listened on window so a page handler that stops the event cannot skip this.
+function v1SwitchClose(app) {
+ if (!app?.v1SwitchOpen) return;
+ app.v1SwitchOpen = false;
+ const menu = app.el.querySelector?.('[data-v1-switch]');
+ if (menu) menu.open = false;
+}
+window.addEventListener('click', event => {
+ if (!event.target.closest?.('[data-v1-switch]')) v1SwitchClose(apps[0]);
+}, true);
+window.addEventListener('keydown', event => {
+ if (event.key === 'Escape') v1SwitchClose(apps[0]);
 }, true);
 
 // ---------- Stage 1 status (DESIGN 3.2, 8.6) ----------
@@ -423,7 +469,7 @@ function v1S3Plan() {
  return basis && v93Matches(v93.basis, basis) && v93.view?.plan ? v93.view : null;
 }
 v1StageStatus[3] = () => {
- if (v1S3Plan()) return ['等你做决定', 'wait'];
+ if (v1S3Plan()) return typeof wikiS3DecStatus === 'function' && wikiS3DecStatus() ? ['已保存决定', 'done'] : ['等你做决定', 'wait'];
  return ['还没有规划', ''];
 };
 v1PageStatus.s3 = app => {
@@ -432,6 +478,8 @@ v1PageStatus.s3 = app => {
  if (basis && v93.busy) return {tone:'run', now:['正在读取已保存的规划。', '不会重新生成。'], next:'读完后这里会写计划和评审的情况。', you:null};
  if (basis && v93Matches(v93.errorBasis, basis) && v93.error) return {tone:'err', now:['读取规划没有完成。', '没有读到已保存的规划，也没有重新生成。'], next:'重新读取；原因在读取详情里。', you:{text:'重新读取'}, button:{label:'重新读取', attrs:'data-v93-read', primary:false}};
  if (view) {
+  const decided = typeof wikiS3DecStatus === 'function' ? wikiS3DecStatus() : null;
+  if (decided) return decided;
   const review = typeof wikiS3Review === 'function' ? wikiS3Review(view) : null;
   return {tone:'wait', now:['计划写好了。', review?.findings?.length ? `评审给了 ${review.findings.length} 条意见。` : '还没有评审意见（后台读取不返回评审）。'],
    next:'看完计划和评审后做决定。', you:{wait:true, text:'对计划做决定'}, button:{label:'去做决定', attrs:'data-v1-goto="s3-decide"', primary:false}};
@@ -439,10 +487,21 @@ v1PageStatus.s3 = app => {
  // Without a connected Stage 3 the saved-selection read (v93Identity) is unavailable; go by what /connections says.
  const conn = !basis && typeof v9ConnectionModel === 'function' ? v9ConnectionModel(app) : null;
  if (conn?.phase === 'ready' && !conn.unknown) {
+  if (conn.action === 'reconnect') return {tone:'wait', now:['Stage 3 未接通。', conn.reconnectError ? '上次点「重新接通」没有成功；规划登记仍然保存着。' : '规划登记已保存；如果上次是强行关闭，这次启动后会先显示未接通。'],
+  next:conn.reconnectError ? '可以再点一次下面的「重新接通」；原因代码在接通块的技术细节里。' : '点下面的「重新接通」恢复，不会重复执行任何步骤，也不会新增记录。', you:{wait:true, text:'重新接通'}};
   if (conn.action === 'connect') return {tone:'wait', now:['还没有规划。', 'Stage 3 还没有接通；接通只是登记，不会启动研究。'], next:'在下面的接通块点「接通本课题」。', you:{wait:true, text:'接通本课题'}};
+  // Connected but no selection read: not "cannot connect" (review P2-c).
+  if (conn.connected) return {tone:'off', now:['还没有规划。', 'Stage 3 已接通，但这次没有读到选定的方向。'], next:'重新读取一次。', you:null, button:{label:'重新读取', attrs:'data-v1-reload', primary:false}};
+  // The reply carried the Stage 2 row only: this launch has no Stage 3 interface, so the page cannot tell whether a selection exists.
+  if (conn.stage2Only) return {tone:'off', now:['还没有规划。', 'Stage 3 现在接不上，原因写在下面的接通块里。'], next:'按接通块里的说法处理。', you:null};
   if (conn.code && conn.code !== 'stage3-current-selection-required') return {tone:'off', now:['还没有规划。', 'Stage 3 现在接不上，原因写在下面的接通块里。'], next:'按接通块里的说法处理。', you:null};
  }
  if (!basis) return {tone:'off', now:['还没有规划。', 'Stage 2 还没有选定方向，Stage 3 不会生成计划。'], next:'先到 Stage 2 选一个方向。', you:null, button:{label:'去 Stage 2', attrs:'data-stage="2"', primary:false}};
+ const request = typeof wikiS3RequestLine === 'function' ? wikiS3RequestLine(view || (v93.basis && v93Matches(v93.basis, basis) ? v93.view : null)) : null;
+ const requestGate = request?.tag === '还没请求' ? request.buttons[0]?.gate : request?.tag === '等你授权' && request.grant?.gate !== '请先勾选确认' ? request.grant?.gate : '';
+ if (request && requestGate) return {tone:'off', now:['还没有规划。', `已经接通，但现在不能生成计划：${requestGate}。`], next:'条件满足后在下面「本课题的 Stage 3」里请求生成计划。', you:null};
+ if (request && ['还没请求', '等你授权'].includes(request.tag)) return {tone:'wait', now:['还没有规划。', '已经接通，还没有保存的计划。'], next:'在下面「本课题的 Stage 3」里请求生成计划；生成前会先请你授权。', you:{wait:true, text:'请求生成计划'}};
+ if (request) return {tone:request.tone === 'err' ? 'err' : request.tone === 'run' ? 'run' : 'off', now:['还没有规划。', /[。]$/.test(request.text) ? request.text : request.text + '。'], next:'看下面「本课题的 Stage 3」里请求一行的说明。', you:null};
  return {tone:'off', now:['还没有规划。', '已经有选定的方向，但还没有保存的计划。'], next:'接通本课题的 Stage 3 后，请求生成计划。', you:null};
 };
 document.addEventListener('click', event => {

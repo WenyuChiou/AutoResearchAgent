@@ -240,3 +240,23 @@ test('page is inactive outside Chinese Stage 3 so the other languages keep the o
  f.app.lang = 'zh'; f.app.stage = 2;
  assert.equal(page(f), '<later/>');
 });
+
+test('review P2-5: a forced read runs while an older read is in flight, and only the newest answer is kept', async () => {
+ const bridge = read('v9-stage3-bridge.js');
+ const body = bridge.slice(bridge.indexOf('async function v93ReadSaved'), bridge.indexOf("document.addEventListener('click'", bridge.indexOf('async function v93ReadSaved')));
+ const pending = [];
+ const ctx = {rt:{epoch:1}, v93:{busy:false, sequence:0}, livePaint:() => {}, v93Identity:() => ({...basis}), v93Matches:(a, b) => a.project_ref === b.project_ref,
+  projectPath:(ref, suffix) => '/api/projects/' + ref + '/' + suffix, liveRequest:() => new Promise(resolve => pending.push(resolve))};
+ vm.createContext(ctx);
+ vm.runInContext(body.replace(/^\/\/.*$/m, ''), ctx);
+ const first = ctx.v93ReadSaved({stage:3}, {...basis});
+ const skipped = ctx.v93ReadSaved({stage:3}, {...basis});
+ assert.equal(pending.length, 1, 'without force an in-flight read means no second request');
+ const forced = ctx.v93ReadSaved({stage:3}, {...basis}, true);
+ assert.equal(pending.length, 2, 'force reads again');
+ pending[0]({...basis, plan:null, marker:'old'});
+ pending[1]({...basis, plan:null, marker:'new'});
+ await Promise.all([first, skipped, forced]);
+ assert.equal(ctx.v93.view.marker, 'new');
+ assert.equal(ctx.v93.busy, false);
+});
