@@ -1989,13 +1989,36 @@ function v1Lazy(value) {
 }
 
 // ---------- Cards that write (authorize, confirm, request, decide) ----------
-// A card whose text fell back to Simplified in the current language cannot be acted on: the person would be
+// A card whose text fell back to Simplified Chinese in the current language cannot be acted on: the person would be
 // authorizing something described in a language they chose not to read. zh is never gated.
 function v1CardGate(markup) {
  if (v1Locale() === 'zh' || !String(markup).includes(V1_MARK)) return {ok:true, reason:''};
  return {ok:false, reason:v1t('这段说明还没有本语言版本，请切到简体中文再操作')};
 }
 const V1_WRITE = '[data-v1-write]';
+const V1_SUBMIT = V1_WRITE + ', button[type="submit"], input[type="submit"]';
+// Characters that exist only in Simplified Chinese: a Traditional text that still contains one was not translated.
+const V1_SIMPLIFIED = /[这个课题还没后页点档项设为过时间导览载够发称线续决问许额检运连资护验证编选历状态观览图读写数类们针备权开关闭条红绿软户属创从应议华单规则轮稳传认计协级结构节环获说请对该进动务区参经统众优传办励劳势压历县双变叶号启员听团国块声处备头夹奖妇学实宝导层岁岛币带帮广库总惯报拥择据携损换摇断无旧显晓来杂极标样桥检楼权欢气汇浅测济满灭灯灵热爱现盖监盘码确离种积称笔系紧级纪约组绍绝继续维综缘编缩网罗联职肤胜脑舰艺节药获规视觉订讨让训记许论设访证评识诉译试话详语误谁调谈贝负贡财责贤败货质购贴贸费资赛赞赶趋跃践软轻载较辅输辩边迟运远递适遗邮钟钢铁银锁错键镜长门闭问间闻阅队阶际陈陆险随隐难页顶项顺须预领频题颜额风飞饭馆驱验鱼鸟麦黄齐龄]/;
+// True when a Simplified text would still read as Simplified if shown in the current language (so it needs a translation).
+function v1NeedsText(zh) {
+ const lang = v1Locale();
+ if (lang === 'en') return V1_CJK.test(zh);
+ if (lang === 'tw') return V1_SIMPLIFIED.test(zh);
+ return false;
+}
+// rl(zh, en, tw) keeps its own call shape; a missing, empty or still-Simplified en/tw entry carries the marker too.
+function v1RlMark(text, zh) {
+ if (v1Locale() === 'zh') return text;
+ if (typeof text !== 'string' || !text.trim()) return String(zh) + V1_MARK;
+ if (text === zh && v1NeedsText(zh)) return text + V1_MARK;
+ return text;
+}
+
+function v1ApplyGate(card, gate, writeSelector) {
+ if (gate.ok) { delete card.dataset.v1Gated; return; }
+ card.dataset.v1Gated = '1';
+ for (const button of card.querySelectorAll ? card.querySelectorAll(writeSelector) : []) { button.disabled = true; button.dataset.v1Gated = '1'; }
+}
 // The card of a write button: the nearest [data-v1-card] or section. Called after every render (outermost hook).
 function v1GateCards(root) {
  if (!root || v1Locale() === 'zh') return;
@@ -2012,14 +2035,35 @@ function v1GateCards(root) {
   if (!card.querySelector('[data-v1-gate-note]')) card.insertAdjacentHTML('afterbegin', `<p class="ws-why v1-gate-why" role="status" data-v1-gate-note>${gate.reason}</p>`);
  }
 }
+// A card built by a separate script that does not use v1t()/rl() (the Stage 2 selection component, in its own shadow
+// root). pairs = [[key, text in the current language, Simplified text]] from the component; host = its outer element.
+// A pair is a fallback when the current text is missing, empty, or still Simplified. Gated = the host carries
+// data-v1-gated, which v1GateEvent turns into "nothing is sent". Returns the gate.
+function v1GateComponent(host, pairs, writeSelector) {
+ if (!host) return {ok:true, reason:''};
+ const lang = v1Locale();
+ const missing = lang === 'zh' || !Array.isArray(pairs) ? [] : pairs.filter(([, here, zh]) => typeof here !== 'string' || !here.trim() || (here === zh && v1NeedsText(zh))).map(pair => pair[0]);
+ const gate = missing.length ? {ok:false, reason:v1t('这段说明还没有本语言版本，请切到简体中文再操作'), missing} : {ok:true, reason:'', missing};
+ const inside = host.shadowRoot || host;
+ v1ApplyGate(host, gate, writeSelector || 'button[type="submit"]');
+ if (host.shadowRoot) for (const button of host.shadowRoot.querySelectorAll(writeSelector || 'button[type="submit"]')) { if (!gate.ok) button.disabled = true; }
+ const before = host.previousElementSibling;
+ const note = before && before.dataset && before.dataset.v1GateNote !== undefined ? before : null;
+ if (!gate.ok && !note && host.insertAdjacentHTML) host.insertAdjacentHTML('beforebegin', `<p class="ws-why v1-gate-why" role="status" data-v1-gate-note>${gate.reason}</p>`);
+ if (gate.ok && note) note.remove();
+ return gate;
+}
 // Click, Enter and submit inside a gated card never reach the card's own handlers, so no request can be sent from it.
+// Shadow roots: the event is retargeted to the host at window level, so the real origin and the gated card come from
+// the composed path.
 function v1GateEvent(event) {
- const target = event?.target;
- if (!target?.closest) return false;
- const card = target.closest('[data-v1-gated]');
+ const path = event?.composedPath ? event.composedPath() : [event?.target];
+ const origin = path[0];
+ if (!origin?.closest) return false;
+ const card = path.find(node => node?.dataset?.v1Gated === '1') || origin.closest('[data-v1-gated]');
  if (!card) return false;
- const write = !!target.closest(V1_WRITE + ', button[type="submit"], input[type="submit"]');
- const enter = event.type === 'keydown' && event.key === 'Enter' && !/^textarea$/i.test(target.tagName || '');
+ const write = !!origin.closest(V1_SUBMIT);
+ const enter = event.type === 'keydown' && event.key === 'Enter' && !/^textarea$/i.test(origin.tagName || '');
  if (!(write || enter || event.type === 'submit')) return false;
  event.preventDefault();
  event.stopImmediatePropagation();

@@ -166,7 +166,7 @@ function wikiStage2RequestBody(state) {
       ? label("暂时无法读取回执，请再查一次保存状态", "The receipt could not be read. Check its saved status again.", "暫時無法讀取回執。請再查一次儲存狀態。")
       : label("候选请求状态待核对，原记录仍保留。", "The candidate request status needs checking. Original records are retained.", "候選請求狀態待核對，原紀錄仍保留。"));
   return `<div data-wiki-stage2-request-row><p role="status">${rx(message)}</p><div class="n9-page-actions">
-      ${status === "ready" && mayRequest ? `<button type="button" class="hs-button hs-button-primary" data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
+      ${status === "ready" && mayRequest ? `<button type="button" class="hs-button hs-button-primary" data-v1-write data-wiki-stage2-action="request" ${state.busy ? "disabled" : ""}>${label("请求生成候选", "Request candidates", "請求產生候選")}</button>` : ""}
       ${state && !pathConflict ? `<button type="button" class="hs-button" data-wiki-stage2-action="read" ${state.busy ? "disabled" : ""}>${label("查看保存状态", "Check saved status", "查看儲存狀態")}</button>` : ""}
     </div></div>`;
 }

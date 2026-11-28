@@ -140,7 +140,7 @@ function wikiHomeMarkup() {
      <label for="wiki-home-topic">${v1t('研究标题')}</label>
      <div class="wiki-home-entry">
       <input id="wiki-home-topic" data-live-topic required maxlength="240" placeholder="${v1t('例如：人口老龄化如何影响家庭消费')}" value="${esc(rt.topicDraft)}" ${disabled}>
-      <button type="submit" class="wiki-home-button primary" ${disabled}>${rt.busy && rt.pending && !rt.pending.ref ? v1t('正在保存…') : v1t('开始')}</button>
+      <button type="submit" class="wiki-home-button primary" data-v1-write ${disabled}>${rt.busy && rt.pending && !rt.pending.ref ? v1t('正在保存…') : v1t('开始')}</button>
      </div>
      <details ${rt.homeMore?'open':''} data-wiki-home-more><summary>${v1t('更多（可以不填）')}</summary>
       <label for="wiki-home-question">${v1t('想回答的问题')}</label>

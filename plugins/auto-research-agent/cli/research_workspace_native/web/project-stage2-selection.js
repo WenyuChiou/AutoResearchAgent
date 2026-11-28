@@ -934,6 +934,8 @@
       return true;
     },
     setLanguage(language) { if(!Object.hasOwn(words,language) || disposed) return false; byId("language").value=language; if(active) render(); return true; },
+    // Read-only dump for the Wiki page: [key, text in the current language, Simplified text]; the page decides which are fallbacks.
+    textPairs() { const here=words[byId("language").value]||{},zh=words["zh-CN"]||{}; return Object.keys(zh).filter(k=>typeof zh[k]==="string").map(k=>[k,typeof here[k]==="string"?here[k]:"",zh[k]]); },
     state() { return {active:isActive(),pending:busy,reading,uncertain,submitted:!!lastBody || intentTransactions.size>0,recovery:recovery && {...recovery}}; },
     hasVerifiedSavedChoice, readbackLockCode,
     reconcile:readBack,

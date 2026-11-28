@@ -203,6 +203,8 @@ function v93MountChoice(app){
  record.focus=null;
  if(record.language!==v93Language(app)){record.instance.setLanguage(v93Language(app));record.language=v93Language(app);}
  record.instance.resume();
+ // A card built by this separate script: gate it when its text for the current language is missing or still Simplified.
+ if(typeof v1GateComponent==='function')v1GateComponent(record.element,record.instance.textPairs?.(),'button[type="submit"]');
 }
 function v93QuestionResourceUses(view, questionRef){
  const cards=Array.isArray(view.direction_context?.preferred_cards)?view.direction_context.preferred_cards:[];

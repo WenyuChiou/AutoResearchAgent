@@ -227,7 +227,7 @@ function v9ConnectionPanel(app) {
   else if (row?.status === 'connected') message = rl('本课题已接通。已核对接通登记；执行与交付须另查原记录。','This project is connected. Registration was verified. Execution and delivery have separate records.');
   else if (row?.status === 'connectable') message = rl('本课题还没有接通。可以登记当前配置，登记不会启动研究。','This project is ready to connect. Registering the current configuration does not start research.');
   const token = rx(JSON.stringify([stage, view.epoch, ...Object.values(basis)]));
-  const button = (action, label, disabled) => `<button type="button" class="hs-button" data-v9-connection="${action}" data-connection-basis="${token}" ${disabled?'disabled':''}>${label}</button>`;
+  const button = (action, label, disabled) => `<button type="button" class="hs-button" ${action === 'read' ? '' : 'data-v1-write'} data-v9-connection="${action}" data-connection-basis="${token}" ${disabled?'disabled':''}>${label}</button>`;
   const labels={connect:rl('接通本课题','Connect this project'),reconnect:rl('重新接通','Reconnect','重新接通'),publish:rl('生成本课题的启用提议','Publish the project activation offer'),
     activate:rl('同意这份提议并启用 Stage 2','Confirm this offer and activate Stage 2')};
   const controls=!unknown && action?button(action,labels[action],!v9ConnectionCanWrite()||v9ConnectionWriting):'';

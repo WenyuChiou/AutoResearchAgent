@@ -34,7 +34,8 @@ document.addEventListener('toggle',event=>{
  try{const raw=JSON.stringify([...livePanelStates]);if(raw.length<=24576)sessionStorage.setItem(livePanelStorage,raw);}catch(_){/* Keep working with bounded memory if storage is unavailable. */}
 },true);
 const rx = value => esc(value == null ? 'Unknown' : typeof value === 'object' ? JSON.stringify(value) : String(value));
-const rl = (zh,en,tw=zh) => translated(apps[0],[zh,en,tw]);
+// A missing, empty or still-Simplified en/tw entry carries the V1 fallback marker (wiki-v1-text.js), so a card can tell.
+const rl = (zh,en,tw=zh) => { const text=translated(apps[0],[zh,en,tw]); return typeof v1RlMark==='function'?v1RlMark(text,zh):text; };
 const liveWikiLang = app => typeof v1Lang==='function' ? v1Lang(app) : app?.lang==='zh';
 const liveWikiHomeActive = () => typeof wikiHomeProjectOpened==='function' && liveWikiLang(apps[0]) && apps[0].page==='home';
 const phaseNames={scope:['确认范围','Scope'],planning:['查询规划','Planning'],query:['查询与来源','Query & sources'],screening:['文献筛选','Screening'],reading:['阅读与证据','Reading'],coverage:['覆盖检查','Coverage'],delivery:['保存交付','Delivery']};
