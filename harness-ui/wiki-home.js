@@ -294,6 +294,13 @@ document.addEventListener('click', event => {
   const target = app.el.querySelector(button.dataset.wikiHomeFocus === 'topic' ? '#wiki-home-topic' : '.wiki-home-decisions');
   target?.scrollIntoView({behavior:'smooth', block:'center'});
   if (button.dataset.wikiHomeFocus === 'topic') target?.focus({preventScroll:true});
+  // 「看这三处」: the list is already on screen on a one-screen page, so scrolling shows nothing. Move focus to it and mark it.
+  if (button.dataset.wikiHomeFocus === 'decisions' && target) {
+   target.setAttribute('tabindex', '-1');
+   target.focus({preventScroll:true});
+   target.classList.add('wiki-home-flash');
+   setTimeout(() => target.classList.remove('wiki-home-flash'), 2000);
+  }
  }
  else if (button.hasAttribute('data-wiki-home-filter')) wikiHomeFilter(app, button.dataset.wikiHomeFilter);
  else if (button.hasAttribute('data-wiki-home-retry')) liveRefresh(null, {list:true});
