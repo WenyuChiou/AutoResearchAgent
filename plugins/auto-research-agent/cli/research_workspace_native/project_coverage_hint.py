@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from stage1_coverage.requirements import compare_with_scope, minimum_requirement
+from .coverage_requirements import compare_with_scope, minimum_requirement
 from stage1_ledger.journal import decode
 
 

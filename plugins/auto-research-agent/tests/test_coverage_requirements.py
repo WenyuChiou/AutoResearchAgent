@@ -10,7 +10,10 @@ PLUGIN = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PLUGIN / "cli"))
 # ruff: noqa: E402 -- load the repository CLI without installing it.
 from research_workspace_native.project_coverage_hint import coverage_requirement_hint
-from stage1_coverage.requirements import compare_with_scope, minimum_requirement
+from research_workspace_native.coverage_requirements import (
+    compare_with_scope,
+    minimum_requirement,
+)
 
 
 SECONDS = dict(approved_seconds=10**6, seconds_per_attempt=90)
