@@ -18,6 +18,7 @@ import re
 import threading
 
 from stage1_deliverable.common import canonical, private_output, sha
+from stage1_retrieval import verification_clock
 from .controller import InjectedSessionController
 from .model_input_profile import (
     input_limit,
@@ -391,6 +392,8 @@ class SessionApi:
             valid = valid and controller.thread_id == binding["thread_id"]
             checked = dict(binding, connection_id=controller.connection_id)
             _check(valid and verifier(deepcopy(checked)) is True, "source-check-failed")
+        except verification_clock.LocalVerificationBudgetExceeded:
+            raise  # Slow local verification, not a changed source: own 503.
         except SessionLeaseExpired:
             raise SessionApiError("session-lease-expired") from None
         except Exception:
@@ -424,7 +427,12 @@ class SessionApi:
                     "saved-source-binding-differs",
                 )
                 yield controller, principal, binding, state
-            except (SessionApiError, TimeoutError, ConnectionError):
+            except (
+                SessionApiError,
+                TimeoutError,
+                ConnectionError,
+                verification_clock.LocalVerificationBudgetExceeded,
+            ):
                 raise
             except Exception:
                 raise SessionApiError("session-unavailable") from None

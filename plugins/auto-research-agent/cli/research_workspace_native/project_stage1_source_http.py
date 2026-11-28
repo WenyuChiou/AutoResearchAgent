@@ -2,6 +2,7 @@
 
 import re
 
+from stage1_retrieval import verification_clock
 from .session_api import SessionApiError
 from .transport import _decode
 
@@ -90,5 +91,7 @@ def handle_sources(handler, method):
         handler.close_connection = True
     except (ValueError, UnicodeError, KeyError, TypeError):
         handler._reply(400, {"error": "project-input-rejected"})
+    except verification_clock.LocalVerificationBudgetExceeded:
+        handler._reply(503, {"error": verification_clock.BUDGET_CODE})
     except Exception:
         handler._reply(500, {"error": "stage1-source-operation-failed"})

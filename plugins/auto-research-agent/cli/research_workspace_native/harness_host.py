@@ -7,6 +7,7 @@ import sqlite3
 from urllib.parse import parse_qs
 
 from stage1_deliverable.common import private_output, safe_path, sha
+from stage1_retrieval import verification_clock
 from .harness_ops import HarnessOps
 from .http import token_authenticator
 from .session_api import SessionApiError
@@ -198,5 +199,7 @@ def handle_operations(handler, method):
         handler._reply(error.status, result)
     except (TimeoutError, OSError):
         handler.close_connection = True  # Saved actions remain queryable.
+    except verification_clock.LocalVerificationBudgetExceeded:
+        handler._reply(503, {"error": verification_clock.BUDGET_CODE})
     except Exception:
         handler._reply(500, {"error": "harness-service-failure"})

@@ -73,6 +73,7 @@ class Meter:
         per_file_seconds=None,
         max_passes=None,
         max_seconds=None,
+        enforce=True,
     ):
         # Module constants are read at construction so one scope keeps one budget.
         self.base_seconds = BASE_SECONDS if base_seconds is None else base_seconds
@@ -82,6 +83,10 @@ class Meter:
         )
         self.max_passes = MAX_PASSES if max_passes is None else max_passes
         self.max_seconds = MAX_SECONDS if max_seconds is None else max_seconds
+        # enforce=False: the meter only measures and caps how far a deadline
+        # may move; it never raises. Used where a new failure point would be
+        # worse than the old timing (an HTTP write after its intent is saved).
+        self.enforce = enforce
         self._lock = threading.Lock()
         self._closed, self._passes, self._files = 0.0, 0, 0
         self._active, self._since = 0, None
@@ -113,7 +118,7 @@ class Meter:
 
     def _begin(self, files):
         with self._lock:
-            if self._passes >= self.max_passes:
+            if self.enforce and self._passes >= self.max_passes:
                 raise LocalVerificationBudgetExceeded(
                     BUDGET_CODE + ": pass bound exceeded"
                 )
@@ -169,7 +174,7 @@ def local_verification(files):
     except BaseException:
         meter._end()
         raise
-    if meter._end():
+    if meter._end() and meter.enforce:
         raise LocalVerificationBudgetExceeded(BUDGET_CODE)
 
 
