@@ -160,14 +160,19 @@ function wikiS3RpEditsMarkup(view, edits) {
 function wikiS3RpAttempts(view) {
  const list = Array.isArray(view?.replan?.attempts) ? view.replan.attempts : [];
  const current = view?.replan?.request?.key;
- return list.filter(item => wikiS3RpObj(item) && typeof item.key === 'string' && typeof item.request_sha256 === 'string' && item.key !== current);
+ // Every entry is kept (an unreadable one is shown as such); only the current request's own key is left out.
+ return list.filter(item => !(wikiS3RpObj(item) && typeof item.key === 'string' && item.key === current));
 }
 function wikiS3RpAttemptRow(item, lock) {
+ // The Host marks an attempt it could not read with an error (on the entry or on its job), or sends it without key / request_sha256:
+ // shown as unreadable, read-only, with no button at all, whatever else it claims (even a recovery pin).
+ if (!wikiS3RpObj(item) || typeof item.key !== 'string' || !item.key || typeof item.request_sha256 !== 'string' || typeof item.error === 'string' || (wikiS3RpObj(item.job) && typeof item.job.error === 'string')) {
+  return {tone:'warn', tag:'读不出来', text:'这份记录读不了。只读，页面不会对它发任何请求。', buttons:[], recoverSha:null, unreadable:true};
+ }
  const unknown = item.result_unknown === true, pin = unknown && item.recovery_pin_available === true;
  const buttons = unknown ? [{label:'只读核对', act:'inspect', gate:lock}, ...(pin ? [{label:'从已保存结果恢复', act:'recover', gate:lock || (wikiS3RpRecoverTicked(item.request_sha256) ? '' : '请先勾选确认')}] : [])] : [];
  let tone = 'warn', tag, text;
- if (wikiS3RpObj(item.job) && typeof item.job.error === 'string') { tag = '读不出来'; text = wikiS3RpCode(item.job.error) + '不会重发。'; }
- else if (unknown) { tag = '结果未知'; text = '调用可能已经发出、额度可能已经花掉；只能只读核对，不会重发' + (pin ? '，也可以从已保存的结果恢复（只挂上已经保存的结果）' : '') + '。'; }
+ if (unknown) { tag = '结果未知'; text = '调用可能已经发出、额度可能已经花掉；只能只读核对，不会重发' + (pin ? '，也可以从已保存的结果恢复（只挂上已经保存的结果）' : '') + '。'; }
  else if (item.outcome === 'refused-before-call') { tag = '已拒绝，没有调用模型'; text = '这次在调用模型之前被拒绝，没有花额度。'; }
  else if (item.outcome === 'failed') { tone = 'err'; tag = '规划失败'; text = '这次调用过模型，规划失败；失败记录保留。'; }
  else if (item.status === 'intent-recorded') { tone = 'wait'; tag = '已准备，没运行'; text = '这份作业只准备过，没有调用模型。'; }
@@ -178,19 +183,19 @@ function wikiS3RpRecoverBox(sha) {
  return `<label class="ws-check" data-s3-rp-recover><input type="checkbox" data-s3-rp-recover-check data-s3-rp-sha="${wikiS3Escape(sha)}" ${wikiS3RpRecoverTicked(sha) ? 'checked' : ''}> 我确认：只把已经保存的结果挂上，不会重新生成，也不会再调用模型</label>`;
 }
 function wikiS3RpHistory(view) {
- const items = wikiS3RpAttempts(view), omitted = Number.isSafeInteger(view?.replan?.attempts_omitted) ? view.replan.attempts_omitted : 0;
+ const items = wikiS3RpAttempts(view), omitted = Number.isSafeInteger(view?.replan?.attempts_omitted) && view.replan.attempts_omitted > 0 ? view.replan.attempts_omitted : 0;
  if (!items.length && !omitted) return '';
  const lock = wikiS3RpLock();
  const err = wikiS3Rp.error?.target ? `<div class="wiki-s2-conn-row" data-tone="warn" data-s3-rp-history-error><span class="wiki-s2-st" data-tone="warn">${wikiS3Rp.error.refused ? '被拦下' : '出错'}</span><p>${wikiS3Escape(wikiS3Rp.error.refused ? wikiS3RpCode(wikiS3Rp.error.code) + '没有重发，原记录没有变。' : '这一步没有完成；原记录没有变，不会自动重发。')}</p></div><details class="wiki-s2-tech"><summary>技术细节</summary><code>${wikiS3Escape(wikiS3Rp.error.code)}</code></details>` : '';
  const rows = items.map(item => {
   const row = wikiS3RpAttemptRow(item, lock);
-  const buttons = row.buttons.map(button => `<span><button type="button" class="hs-button" data-s3-rp="${button.act}" data-s3-rp-target="${wikiS3Escape(item.key)}" ${button.gate ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${button.gate ? `<small class="wiki-s2-reason" data-s3-rp-why>${wikiS3Escape(button.gate)}</small>` : ''}</span>`).join('');
-  const frozen = wikiS3RpFrozen(item.revision_input);
+  const buttons = row.buttons.map(button => `<span><button type="button" class="hs-button" data-s3-rp="${button.act}" data-s3-rp-target="${wikiS3Escape(item?.key)}" ${button.gate ? 'disabled' : ''}>${wikiS3Escape(button.label)}</button>${button.gate ? `<small class="wiki-s2-reason" data-s3-rp-why>${wikiS3Escape(button.gate)}</small>` : ''}</span>`).join('');
+  const frozen = row.unreadable ? wikiS3RpFrozen(null) : wikiS3RpFrozen(item?.revision_input);
   const list = frozen.known && frozen.changes.length ? `<details class="wiki-s2-tech"><summary>当时冻结的修改清单（${frozen.changes.length} 处，只读）</summary>${wikiS3RpEditsMarkup(view, frozen)}</details>` : '';
-  const codes = [item.key, item.status, item.outcome].filter(code => typeof code === 'string' && code);
-  return `<li data-s3-rp-attempt="${wikiS3Escape(item.key)}"><div class="wiki-s2-conn-row" data-tone="${row.tone}"><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${row.recoverSha ? wikiS3RpRecoverBox(row.recoverSha) : ''}${list}<details class="wiki-s2-tech"><summary>技术细节</summary>${codes.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details></li>`;
+  const codes = [item?.key, item?.status, item?.outcome, item?.error, item?.job?.error].filter(code => typeof code === 'string' && code);
+  return `<li data-s3-rp-attempt="${wikiS3Escape(typeof item?.key === 'string' ? item.key : '')}"><div class="wiki-s2-conn-row" data-tone="${row.tone}"><span class="wiki-s2-st" data-tone="${row.tone}">${wikiS3Escape(row.tag)}</span><p>${wikiS3Escape(row.text)}</p><div class="wiki-s2-actions">${buttons}</div></div>${row.recoverSha ? wikiS3RpRecoverBox(row.recoverSha) : ''}${list}<details class="wiki-s2-tech"><summary>技术细节</summary>${codes.map(code => `<code>${wikiS3Escape(code)}</code>`).join(' ')}</details></li>`;
  }).join('');
- return `<div class="ws3-rp-history" data-s3-rp-history><h4>以前按修改稿生成的作业（只读，共 ${items.length} 份）</h4>${omitted ? `<p class="wiki-s1-muted">另有 ${omitted} 份更早的没有列出。</p>` : ''}${err}<ul>${rows}</ul></div>`;
+ return `<div class="ws3-rp-history" data-s3-rp-history><h4>以前按修改稿生成的作业（只读，共 ${items.length} 份）</h4>${omitted ? `<p class="wiki-s1-muted">另有 ${omitted} 份结果已经明确的旧作业没有列出（结果未知的一定会列出）。</p>` : ''}${err}<ul>${rows}</ul></div>`;
 }
 function wikiS3RpMarkup(view) {
  const row = wikiS3RpLine(view);
@@ -244,7 +249,7 @@ async function wikiS3RpAction(app, act, target = '') {
  if (act === 'failure') { wikiS3Rp.showFailure = !wikiS3Rp.showFailure; return livePaint(); }
  // The gate is checked again right before sending: the button may have been drawn before the state changed.
  // An older attempt (history block) can only be checked read-only or recovered; never run or prepared.
- const attempt = target ? wikiS3RpAttempts(view).find(item => item.key === target) : null;
+ const attempt = target ? wikiS3RpAttempts(view).find(item => wikiS3RpObj(item) && item.key === target) : null;
  if (target && (!attempt || !['inspect', 'recover'].includes(act))) return;
  const row = attempt ? wikiS3RpAttemptRow(attempt, wikiS3RpLock()) : wikiS3RpLine(view);
  const offered = row?.buttons.find(button => button.act === act);
@@ -299,7 +304,7 @@ document.addEventListener('change', event => {
  if (!event.target.matches?.('[data-s3-rp-recover-check]')) return;
  const sha = event.target.dataset?.s3RpSha, basis = v93Identity(), view = basis && v93Matches(v93.basis, basis) ? v93.view : null;
  // Only a request_sha256 the page itself lists (the current job or an older attempt) can be ticked.
- const known = [wikiS3RpState(view).job?.request_sha256, ...wikiS3RpAttempts(view).map(item => item.request_sha256)];
+ const known = [wikiS3RpState(view).job?.request_sha256, ...wikiS3RpAttempts(view).map(item => item?.request_sha256)];
  wikiS3Rp.recoverCheck = event.target.checked && typeof sha === 'string' && known.includes(sha) ? sha : null;
  livePaint();
 });

@@ -423,7 +423,7 @@ test('older attempts stay in a read-only history after a new key: result unknown
  assert.match(out, /data-s3-rp-history/);
  assert.equal((out.match(/data-s3-rp-attempt=/g) || []).length, 3, 'the current request is not repeated in the history');
  assert.match(text, /共 3 份/);
- assert.match(text, /另有 3 份更早的没有列出/);
+ assert.match(text, /另有 3 份结果已经明确的旧作业没有列出/);
  assert.match(text, /调用可能已经发出、额度可能已经花掉；只能只读核对，不会重发/);
  assert.match(text, /这次在调用模型之前被拒绝，没有花额度/);
  assert.match(text, /这份作业只准备过，没有调用模型/);
@@ -506,4 +506,48 @@ test('review P2-2: a job left in dispatching with no submission of this page in 
  assert.equal(line(flight.ctx).tag, '处理中');
  vm.runInContext("wikiS3Rp.busy.clear()", flight.ctx);
  assert.equal(line(flight.ctx).tag, '结果未知');
+});
+
+test('9cebb0ad: an attempt the Host could not read (error entry, error job, no key, not an object) is 这份记录读不了: read-only, no button, the rest still shown', async () => {
+ const good = attempt({key:'stage3-replan-good', request_sha256:H('1'), status:'completed', outcome:'refused-before-call', result_unknown:false});
+ const list = [attempt({key:'stage3-replan-e1', request_sha256:H('2'), recovery_pin_available:true, job:{error:'stage3-replan-job-unreadable'}}),
+  {key:'stage3-replan-e2', request_sha256:H('3'), error:'stage3-replan-job-unreadable', result_unknown:true, recovery_pin_available:true},
+  {request_sha256:H('4'), status:'completed', result_unknown:true}, null, 'text', good];
+ const {ctx, posts} = load({view:withAttempts(list, {attempts_omitted:1})});
+ const out = html(ctx), text = textOf(out);
+ assert.equal((text.match(/这份记录读不了/g) || []).length, 5, 'every unreadable entry says so');
+ assert.match(text, /这次在调用模型之前被拒绝，没有花额度/, 'the readable one is still shown');
+ assert.doesNotMatch(out, /data-s3-rp-target=/, 'no history button at all: the readable one is not result-unknown, the others are unreadable');
+ assert.equal((out.match(/data-s3-rp-edits>/g) || []).length, 1, 'an unreadable entry shows no list; only the readable one does');
+ assert.doesNotMatch(out, /data-s3-rp-recover-check/);
+ assert.ok(!out.replace(/<details class="wiki-s2-tech">[\s\S]*?<\/details>/g, '').includes('stage3-replan-job-unreadable'), 'the raw code is only in the technical details');
+ assert.ok(out.includes('stage3-replan-job-unreadable'));
+ for (const key of ['stage3-replan-e1', 'stage3-replan-e2', 'stage3-replan-nokey']) for (const name of ['inspect', 'recover', 'run', 'prepare']) await act(ctx, name, key);
+ for (const name of ['inspect', 'recover']) await act(ctx, name, null);
+ assert.equal(posts.length, 0, 'nothing can be sent for an unreadable entry');
+ assert.match(text, /共 6 份/);
+});
+
+test('9cebb0ad: 另有 N 份 equals attempts_omitted and does not claim they are older than a kept result-unknown one', () => {
+ const {ctx} = load({view:withAttempts([attempt()], {attempts_omitted:7})});
+ const text = textOf(html(ctx));
+ assert.match(text, /另有 7 份结果已经明确的旧作业没有列出（结果未知的一定会列出）/);
+ assert.doesNotMatch(text, /更早的没有列出/);
+ assert.doesNotMatch(textOf(html(load({view:withAttempts([attempt()], {attempts_omitted:0})}).ctx)), /没有列出/);
+ for (const bad of [-1, 1.5, '3', null]) assert.doesNotMatch(textOf(html(load({view:withAttempts([attempt()], {attempts_omitted:bad})}).ctx)), /另有/, JSON.stringify(bad));
+});
+
+test('9cebb0ad: sixteen newest plus result-unknown ones kept (more than sixteen shown): all unknown ones have the read-only check, oldest first order kept', () => {
+ const settled = i => attempt({key:`stage3-replan-s${i}`, request_sha256:H(String.fromCharCode(97 + (i % 6))) , status:'completed', outcome:'failed', result_unknown:false});
+ const unknown = i => attempt({key:`stage3-replan-u${i}`, request_sha256:H(String(i)), status:'dispatching', result_unknown:true});
+ // oldest first, as the Host sends: two unknown ones sit among the old rows, 16 settled ones, 4 more settled were cut.
+ const list = [unknown(1), ...Array.from({length:8}, (_, i) => settled(i)), unknown(2), ...Array.from({length:8}, (_, i) => settled(8 + i))];
+ const {ctx} = load({view:withAttempts(list, {attempts_omitted:4})});
+ const out = html(ctx), text = textOf(out);
+ assert.equal((out.match(/data-s3-rp-attempt=/g) || []).length, 18);
+ assert.match(text, /共 18 份/);
+ assert.match(text, /另有 4 份结果已经明确的旧作业没有列出/);
+ const checks = [...out.matchAll(/data-s3-rp="inspect" data-s3-rp-target="([^"]+)"/g)].map(m => m[1]);
+ assert.deepEqual(checks, ['stage3-replan-u1', 'stage3-replan-u2']);
+ assert.ok(out.indexOf('stage3-replan-u1') < out.indexOf('stage3-replan-s0') && out.indexOf('stage3-replan-s7') < out.indexOf('stage3-replan-u2'), 'the Host order is kept');
 });
