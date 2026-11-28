@@ -19,7 +19,10 @@ from stage3_plan.storage import inspect_package
 from .session_api import SessionApiError
 from .http import MAX_BODY
 from .transport import _decode
-from .project_stage3_planning import SOURCE_FIELDS
+from .project_stage3_planning import SOURCE_FIELDS, default_key
+from .project_stage3_replan import FIELDS as REPLAN_FIELDS
+from .project_stage3_replan import MODE as REPLAN_MODE
+from .project_stage3_replan import ProjectStage3Replan, newest
 from .project_stage3_direction_planning import DIRECTION_FIELDS
 from .project_stage3_decision import check_shape, read_decisions, record_decision
 from .project_stage3_feedback import fits_response, read_feedback, record_feedback
@@ -53,6 +56,7 @@ class ProjectStage3Http:
         self._closed = False
         self._owner_closed = False
         self.material_resolver = None
+        self.replan = ProjectStage3Replan(self)
 
     def check_open(self):
         with self._lock:
@@ -80,6 +84,10 @@ class ProjectStage3Http:
                         # A damaged decision log must not take the whole plan page
                         # down; say so in the field instead.
                         decided = {"error": error.code}
+                    if view.get("unreadable_plans") and "error" not in decided:
+                        # A newer replanned plan exists but cannot be read; the
+                        # page shows this and "accept" is refused meanwhile.
+                        decided = dict(decided, newer_plan_unreadable=True)
                     candidate = dict(view, host_decision=decided)
                     if fits_response(candidate):
                         view = candidate
@@ -96,6 +104,9 @@ class ProjectStage3Http:
                         omitted = dict(view, host_decision=summary)
                         if fits_response(omitted):
                             view = omitted  # say so; never drop it silently
+                    view = self.replan.decorate(
+                        credential, ref, view, configured["jobs"], check_deadline
+                    )
             return view
 
     def _view(self, credential, ref, *, check_deadline=None):
@@ -123,8 +134,8 @@ class ProjectStage3Http:
         if view["selection_request_sha256"] is None:
             return result
         body = {name: view[name] for name in SOURCE_FIELDS if name != "key"}
-        body["key"] = "stage3-" + digest(
-            [ref, view["input_version"], view["selection_request_sha256"]]
+        body["key"] = default_key(
+            ref, view["input_version"], view["selection_request_sha256"]
         )
         result["default_request"] = body
         configured = self.service.bindings.get(ref)
@@ -136,42 +147,48 @@ class ProjectStage3Http:
                 jobs._key(body["key"])
             )
             if item is not None:
-                body = dict(body, request_sha256=digest(item["payload"]))
-                pin = self.recovery_pins.get((ref, body["key"], body["request_sha256"]))
-                if (
-                    item["status"] != "completed"
-                    or (item["evidence"] or {}).get("outcome") != "saved"
-                ):
-                    pin = None
-                inspect = self.service.inspect_saved if pin else self.service.inspect
-                result["job"] = inspect(
-                    credential, ref, body, check_deadline=check_deadline
+                body, result["job"], plan, result["recovery_pin_available"] = (
+                    self._saved_job(credential, ref, jobs, body, item, check_deadline)
                 )
                 result["default_request"] = body
-                result["recovery_pin_available"] = (
-                    ref,
-                    body["key"],
-                    body["request_sha256"],
-                ) in self.recovery_pins
-                if result["job"]["outcome"] == "saved":
-                    read = jobs.inspect_saved if pin else jobs.inspect
-                    verified = read(
-                        body["key"],
-                        expected_request_sha256=body["request_sha256"],
-                        current_checkpoint=item["payload"]["checkpoint"],
-                        **({"expected_plan_manifest_sha256": pin} if pin else {}),
-                    )["result"]["plan"]
-                    from stage3_plan.storage import inspect_completed_package
-
-                    inspect_package_view = (
-                        inspect_completed_package if pin else inspect_package
-                    )
-                    result["plan"] = inspect_package_view(
-                        verified["package"], verified["manifest_sha256"]
-                    )["artifacts"]["plan.json"]
+                if plan is not None:
+                    result["plan"] = plan
+            if result["plan"] is not None:
+                # A saved replan from a manual revision becomes the displayed plan;
+                # without one the view is unchanged.
+                result = newest(self, credential, ref, jobs, result, check_deadline)
         if check_deadline:
             check_deadline()
         return result
+
+    def _saved_job(self, credential, ref, jobs, body, item, check_deadline):
+        """Public job and, when saved, its verified plan (pinned read if trusted)."""
+        body = dict(body, request_sha256=digest(item["payload"]))
+        pin = self.recovery_pins.get((ref, body["key"], body["request_sha256"]))
+        if (
+            item["status"] != "completed"
+            or (item["evidence"] or {}).get("outcome") != "saved"
+        ):
+            pin = None
+        inspect = self.service.inspect_saved if pin else self.service.inspect
+        job = inspect(credential, ref, body, check_deadline=check_deadline)
+        recovery = (ref, body["key"], body["request_sha256"]) in self.recovery_pins
+        plan = None
+        if job["outcome"] == "saved":
+            read = jobs.inspect_saved if pin else jobs.inspect
+            verified = read(
+                body["key"],
+                expected_request_sha256=body["request_sha256"],
+                current_checkpoint=item["payload"]["checkpoint"],
+                **({"expected_plan_manifest_sha256": pin} if pin else {}),
+            )["result"]["plan"]
+            from stage3_plan.storage import inspect_completed_package
+
+            inspect_package_view = inspect_completed_package if pin else inspect_package
+            plan = inspect_package_view(
+                verified["package"], verified["manifest_sha256"]
+            )["artifacts"]["plan.json"]
+        return body, job, plan, recovery
 
     def admit_feedback(self, ref, body, action):
         """Serialize local feedback writes for the same project."""
@@ -221,12 +238,15 @@ class ProjectStage3Http:
             )
 
     def admit_run(self, credential, ref, body, check_deadline):
+        replan = type(body) is dict and body.get("mode") == REPLAN_MODE
         if (
             type(body) is not dict
             or set(body)
             != (
                 DIRECTION_FIELDS
                 if body.get("mode") == "direction-intent"
+                else REPLAN_FIELDS
+                if replan
                 else SOURCE_FIELDS
             )
             | {"request_sha256", "confirmed"}
@@ -234,7 +254,8 @@ class ProjectStage3Http:
         ):
             raise SessionApiError("explicit-stage3-planning-required", 400)
         self.check_open()
-        job = self.service.inspect(
+        # A replan also refuses a changed revision here, before the 202 ack.
+        job = (self.replan.admit if replan else self.service.inspect)(
             credential,
             ref,
             {name: value for name, value in body.items() if name != "confirmed"},
@@ -351,6 +372,7 @@ def handle_planning(handler, method):
                 raise SessionApiError("stage3-planning-object-required", 400)
             handler._remaining()
             service = transport.service
+            replan = body.get("mode") == REPLAN_MODE
             if action == "run":
                 running, result = transport.admit_run(
                     token, ref, body, handler._remaining
@@ -372,7 +394,9 @@ def handle_planning(handler, method):
                     handler.close_connection = True
                     # Reuse this existing authenticated request thread after its
                     # response. The original adapter still owns the native limit.
-                    service.run(token, ref, body, check_deadline=transport.check_open)
+                    (transport.replan.run if replan else service.run)(
+                        token, ref, body, check_deadline=transport.check_open
+                    )
                     return
             elif action == "decide":
                 check_shape(body)
@@ -394,7 +418,7 @@ def handle_planning(handler, method):
                 pin = transport.recovery_pins.get(identity)
                 if pin is None:
                     raise SessionApiError("trusted-stage3-recovery-pin-required", 409)
-                result = service.recover(
+                result = (transport.replan.recover if replan else service.recover)(
                     token,
                     ref,
                     body,
@@ -402,7 +426,7 @@ def handle_planning(handler, method):
                     check_deadline=handler._remaining,
                 )
             else:
-                result = getattr(service, action)(
+                result = getattr(transport.replan if replan else service, action)(
                     token, ref, body, check_deadline=handler._remaining
                 )
         handler._remaining()
