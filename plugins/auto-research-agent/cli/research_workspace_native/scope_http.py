@@ -3,6 +3,7 @@
 from pathlib import Path
 import re
 
+from stage1_retrieval import verification_clock
 from .http import REF
 from .scope_api import ScopeApi
 from .session_api import SessionApiError
@@ -96,5 +97,7 @@ class ScopeWikiSessionHandler(WikiSessionHandler):
             self._reply(409, {"error": "scope-rejected"})
         except TimeoutError:
             self._reply(408, {"error": "request-timeout"})
+        except verification_clock.LocalVerificationBudgetExceeded:
+            self._reply(503, {"error": verification_clock.BUDGET_CODE})
         except Exception:
             self._reply(500, {"error": "service-failure"})
