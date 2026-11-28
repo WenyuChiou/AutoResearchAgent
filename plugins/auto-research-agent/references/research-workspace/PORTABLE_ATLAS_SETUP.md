@@ -167,6 +167,8 @@ text, stage research completion and scientific improvement are separate states.
 Remote public hosting also needs a separate authenticated access layer; this
 launcher intentionally binds loopback rather than exposing credentials publicly.
 
+> **Compatibility only.** This page describes the old launcher `run-project-workspace.py`. The single entry point is the Research Wiki: `harness-ui/Start-Wiki.ps1` (or `harness-ui/run_v9.py`); see `harness-ui/QUICKSTART.md`.
+
 ## Universal topic portal and optional Stage1 queries
 
 Run `examples/run-project-workspace.py` from a complete checkout with its explicit

@@ -643,5 +643,35 @@ with patch('subprocess.Popen', side_effect=git_only):
             self.assertEqual((receipt["native_calls"], receipt["model_calls"]), (0, 0))
 
 
+class CompatibilityNoticeTests(unittest.TestCase):
+    """The launcher is compatibility-only: a hint on a terminal, nothing for scripts."""
+
+    class Stream:
+        def __init__(self, tty):
+            self.tty, self.text = tty, ""
+
+        def isatty(self):
+            return self.tty
+
+        def write(self, value):
+            self.text += value
+
+        def flush(self):
+            pass
+
+    def test_terminal_gets_one_line_naming_the_wiki_entry(self):
+        stream = self.Stream(True)
+        LAUNCHER["compat_notice"](stream)
+        self.assertEqual(stream.text, LAUNCHER["COMPAT_NOTICE"] + chr(10))
+        self.assertIn("Start-Wiki.ps1", stream.text)
+        self.assertIn("compatibility only", stream.text)
+
+    def test_scripts_and_pipes_see_nothing(self):
+        stream = self.Stream(False)
+        LAUNCHER["compat_notice"](stream)
+        self.assertEqual(stream.text, "")
+        LAUNCHER["compat_notice"](object())
+
+
 if __name__ == "__main__":
     unittest.main()

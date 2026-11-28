@@ -25,6 +25,28 @@ RUN_REQUEST_REFUSAL = (
     "Stage 1 run grant), or use the old launcher run-project-workspace.py for a command-line "
     "whole-run request."
 )
+FULL_SOURCE_REFUSAL = (
+    "--enable-stage1-full-source and --stage1-full-notes-root are not supported by the Wiki "
+    "(run_v7/run_v9): full-source analysis only runs inside a command-line whole-run request, "
+    "which the Wiki refuses. Use the old launcher run-project-workspace.py for that mode."
+)
+HELP_EPILOG = """This is the single entry point of the Research Wiki; on Windows start it with harness-ui/Start-Wiki.ps1.
+
+Zero quota (default): --repo, --source-helper-sha256, --projects-root, --ui-state-root, --incoming-root and
+--run-limits harness-ui/zero-limits.json. Nothing here calls a model or searches.
+
+Real Stage 1 needs, on top of that, only registrations (they grant nothing; each step is still authorized
+in the page, or by a Stage 1 run grant): --stage1-query-runtime(+sha256) and --stage1-materials-root;
+--enable-public-sources; --enable-content-model with --model, --codex and --codex-home;
+--enable-stage1-run (needs the model and public sources; lets the page create a run grant).
+
+Not supported here (refused at start-up): --stage1-run-request(+sha256), --enable-stage1-full-source and
+--stage1-full-notes-root. The old launcher run-project-workspace.py supports them but is kept for
+compatibility only.
+Also available: --check-only and --prepare-only (no HTTP), --existing-stage23-store, --views-config
+(+sha256) for saved views, --native-stage1-config (saved cases only, not new topics), --chat-* (the Codex
+chat; off unless all given) and the Stage 2/3 profile and config options.
+"""
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
        "connect-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; "
        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
@@ -144,18 +166,30 @@ def close_services(services, host):
         raise errors[0]
 
 
+def asks_for_help(argv):
+    """True when -h or --help is itself one of the arguments (exact match, no abbreviations)."""
+    probe = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    probe.add_argument("-h", "--help", action="store_true")
+    found, _ = probe.parse_known_args(list(argv))
+    return found.help
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     selection = argparse.ArgumentParser(add_help=False)
-    selection.add_argument("--repo", type=Path, required=True)
+    wants_help = asks_for_help(argv)
+    selection.add_argument("--repo", type=Path, required=not wants_help)
     selected, _ = selection.parse_known_args(argv)
-    repo = selected.repo.resolve()
+    # --repo is required; only a help request may omit it, then this checkout supplies the parser.
+    repo = (selected.repo or Path(__file__).resolve().parent.parent).resolve()
     launcher = repo / LAUNCHER
     if not launcher.is_file():
         raise ValueError("selected checkout lacks the production workspace launcher")
     boot = runpy.run_path(str(launcher))
     parser = boot["parser"]()
     parser.description = __doc__
+    parser.epilog = HELP_EPILOG
+    parser.formatter_class = argparse.RawDescriptionHelpFormatter
     parser.add_argument("--run-limits", type=Path, required=True,
                         help="Explicit project resource envelope JSON, not research authorization or acceptance")
     parser.add_argument('--native-stage1-config', type=Path)
@@ -175,6 +209,8 @@ def main(argv=None):
         # The Wiki host never runs a command-line request: dropping it silently would
         # let an operator believe a whole-run grant had started.
         raise ValueError(RUN_REQUEST_REFUSAL)
+    if getattr(args, 'enable_stage1_full_source', False) or getattr(args, 'stage1_full_notes_root', None) is not None:
+        raise ValueError(FULL_SOURCE_REFUSAL)
     args.repo = repo
     from wiki_stage23_services import configure_services, validate_args
     validate_args(args)

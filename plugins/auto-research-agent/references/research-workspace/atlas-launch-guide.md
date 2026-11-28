@@ -14,6 +14,8 @@ assets and project/authentication context. A downloaded single HTML file, anothe
 person's localhost URL or an old port cannot replace a running local Wiki.
 The quick start preserves the reviewed v6 layout and starts no research or model.
 
+> **Compatibility only.** This page describes the old launcher `run-project-workspace.py`. The single entry point is the Research Wiki: `harness-ui/Start-Wiki.ps1` (or `harness-ui/run_v9.py`); see `harness-ui/QUICKSTART.md`.
+
 ## Saved-view review on merged main
 
 Run the repository example to inspect Stage 1 and Stage 2 in a browser. It builds

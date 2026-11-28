@@ -538,6 +538,8 @@ project; selecting a new project never relabels a historical package as its
 result. Stage2 uses the same project identity when admitted, with execution
 still deferred here; Stage3-6 remain planned/unconnected.
 
+> **Compatibility only.** This page describes the old launcher `run-project-workspace.py`. The single entry point is the Research Wiki: `harness-ui/Start-Wiki.ps1` (or `harness-ui/run_v9.py`); see `harness-ui/QUICKSTART.md`.
+
 When starting `run-project-workspace.py`, pass the existing private, pinned
 `--views-config <views.json> --views-sha256 <SHA256>` alongside the existing
 project/runtime flags. `/` redirects to the first registered view, preserving
