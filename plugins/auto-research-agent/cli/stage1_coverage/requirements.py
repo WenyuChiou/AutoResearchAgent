@@ -42,20 +42,45 @@ def minimum_requirement(*, planned_query_count, backend_count, stop_policy):
     )
 
 
-def compare_with_scope(requirement, *, approved_rounds, approved_search_attempts):
-    """Add the approved scope and whether it can reach the gate. Hint only, never a refusal."""
+PROBE_SECONDS = 30  # one runtime probe is reserved before the first search attempt
+
+
+def compare_with_scope(
+    requirement,
+    *,
+    approved_rounds,
+    approved_search_attempts,
+    approved_seconds,
+    seconds_per_attempt,
+):
+    """Add the approved scope and whether it can reach the gate. Hint only, never a refusal.
+
+    Every search attempt, expansions included, reserves ``seconds_per_attempt`` (the pin timeout
+    plus a 30 s margin) and the probe reserves 30 s, so the reserved seconds can run out before the
+    attempts do.
+    """
     rounds = _count(approved_rounds, "approved_rounds", 0)
     attempts = _count(approved_search_attempts, "approved_search_attempts", 0)
+    seconds = _count(approved_seconds, "approved_seconds", 0)
+    per_attempt = _count(seconds_per_attempt, "seconds_per_attempt", 1)
+    plan_rounds_too_small = (
+        requirement["plan_max_rounds"] < requirement["min_closed_rounds"]
+    )
     rounds_enough = (
-        rounds >= requirement["min_closed_rounds"]
-        and requirement["plan_max_rounds"] >= requirement["min_closed_rounds"]
+        rounds >= requirement["min_closed_rounds"] and not plan_rounds_too_small
     )
     attempts_enough = attempts >= requirement["min_search_attempts"]
+    min_seconds = PROBE_SECONDS + requirement["min_search_attempts"] * per_attempt
+    seconds_enough = seconds >= min_seconds
     return dict(
         requirement,
         approved_rounds=rounds,
         approved_search_attempts=attempts,
+        approved_seconds=seconds,
+        min_reserved_seconds=min_seconds,
+        plan_rounds_too_small=plan_rounds_too_small,
         rounds_enough=rounds_enough,
         search_attempts_enough=attempts_enough,
-        can_reach_coverage_gate=rounds_enough and attempts_enough,
+        seconds_enough=seconds_enough,
+        can_reach_coverage_gate=rounds_enough and attempts_enough and seconds_enough,
     )

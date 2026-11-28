@@ -176,9 +176,12 @@ class ProjectQueryVersionCases(unittest.TestCase):
                 hint["min_closed_rounds"] * hint["searches_per_round"]
                 + hint["expansions_min"],
             )
+            self.assertEqual(hint["approved_seconds"], limits["max_reserved_seconds"])
             self.assertEqual(
                 hint["can_reach_coverage_gate"],
-                hint["rounds_enough"] and hint["search_attempts_enough"],
+                hint["rounds_enough"]
+                and hint["search_attempts_enough"]
+                and hint["seconds_enough"],
             )
             self.assertNotIn("coverage_requirement", view["authorization_offer"])
             self.assertIsNone(view["bootstrap_offer"])
