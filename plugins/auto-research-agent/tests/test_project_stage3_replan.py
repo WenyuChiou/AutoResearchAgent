@@ -1051,7 +1051,9 @@ class ReplanAttemptWindowTests(ReplanFixture, unittest.TestCase):
         keys, omitted = self.attempts()
         self.assertEqual((keys, omitted), ([body["key"]] + clones[2:], 2))
         row = self.view()["replan"]["attempts"][0]
-        self.assertEqual((row["status"], row["result_unknown"]), ("execution-unknown", True))
+        self.assertEqual(
+            (row["status"], row["result_unknown"]), ("execution-unknown", True)
+        )
 
     def test_one_unreadable_job_does_not_fail_the_whole_view(self):
         body, _, _ = self.prepare_replan()

@@ -122,9 +122,7 @@ def _newest(jobs, rows):
         if event["kind"] == "intents-recorded":
             order.setdefault(event["payload"]["key"], event["revision"])
     rows = sorted(rows, key=lambda item: order.get(item["key"], 0))
-    keep = [
-        item["status"] in {"dispatching", "execution-unknown"} for item in rows
-    ]
+    keep = [item["status"] in {"dispatching", "execution-unknown"} for item in rows]
     room = MAX_ATTEMPTS - sum(keep)
     for index in range(len(rows) - 1, -1, -1):
         if room <= 0:
