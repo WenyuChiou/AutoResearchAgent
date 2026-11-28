@@ -3,6 +3,7 @@
 import re
 
 from stage1_deliverable.common import sha
+from stage1_retrieval import verification_clock
 from .stage_actions import StageActions
 from .session_api import SessionApiError
 from .transport import _decode
@@ -85,5 +86,7 @@ def handle_stages(handler, method):
         handler._reply(error.status, {"error": error.code})
     except (TimeoutError, OSError):
         handler.close_connection = True
+    except verification_clock.LocalVerificationBudgetExceeded:
+        handler._reply(503, {"error": verification_clock.BUDGET_CODE})
     except Exception:
         handler._reply(500, {"error": "stage-service-failure"})
