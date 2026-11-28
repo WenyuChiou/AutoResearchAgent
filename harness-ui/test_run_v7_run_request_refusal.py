@@ -117,6 +117,49 @@ class RunRequestRefusalTests(unittest.TestCase):
                 self.assertIn("old launcher", message)
         self.assertFalse(self.projects.exists())
 
+    def test_repo_is_required_unless_help_is_asked(self):
+        with self.assertRaises(SystemExit) as caught:
+            run_v7.main(["--projects-root", str(self.projects)])
+        self.assertNotEqual(caught.exception.code, 0)
+        self.assertFalse(self.projects.exists())
+        self.assertTrue(run_v7.asks_for_help(["--repo", str(REPO), "-h"]))
+        self.assertTrue(run_v7.asks_for_help(["--help"]))
+        self.assertFalse(run_v7.asks_for_help(["--hel"]))
+        self.assertFalse(
+            run_v7.asks_for_help(["--repo", "x-h", "--projects-root", "--helpful"])
+        )
+
+    def test_run_v9_refuses_full_source_options_too(self):
+        state, incoming = self.tmp / "state", self.tmp / "incoming"
+        state.mkdir()
+        incoming.mkdir()
+        env = dict(os.environ)
+        env["PYTHONPATH"] = os.pathsep.join(
+            [str(HERE), str(PLUGIN / "cli"), str(PLUGIN / "tests")]
+        )
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(HERE / "run_v9.py"),
+                "--ui-state-root",
+                str(state),
+                "--incoming-root",
+                str(incoming),
+                *self.base,
+                "--enable-stage1-full-source",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=self.tmp,
+            timeout=60,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--enable-stage1-full-source", result.stderr)
+        self.assertIn("old launcher", result.stderr)
+        self.assertEqual(result.stdout.strip(), "")
+        self.assertFalse(self.projects.exists())
+
     def test_help_names_the_single_entry_and_the_unsupported_options(self):
         env = dict(os.environ)
         env["PYTHONPATH"] = os.pathsep.join(

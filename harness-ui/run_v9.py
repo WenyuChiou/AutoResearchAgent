@@ -27,7 +27,7 @@ def private_directory(path):
 
 def main(argv=None):
     selection = argparse.ArgumentParser(add_help=False)
-    wants_help = any(item in ('-h', '--help') for item in (sys.argv[1:] if argv is None else argv))
+    wants_help = run_v7.asks_for_help(sys.argv[1:] if argv is None else argv)
     selection.add_argument('--ui-state-root', type=Path, required=not wants_help)
     selection.add_argument('--incoming-root', type=Path, required=not wants_help)
     selection.add_argument('--display-translations', type=Path)

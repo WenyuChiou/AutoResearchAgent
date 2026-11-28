@@ -166,14 +166,22 @@ def close_services(services, host):
         raise errors[0]
 
 
+def asks_for_help(argv):
+    """True when -h or --help is itself one of the arguments (exact match, no abbreviations)."""
+    probe = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    probe.add_argument("-h", "--help", action="store_true")
+    found, _ = probe.parse_known_args(list(argv))
+    return found.help
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     selection = argparse.ArgumentParser(add_help=False)
-    wants_help = any(item in ("-h", "--help") for item in argv)
-    selection.add_argument("--repo", type=Path, required=not wants_help,
-                           default=Path(__file__).resolve().parent.parent)
+    wants_help = asks_for_help(argv)
+    selection.add_argument("--repo", type=Path, required=not wants_help)
     selected, _ = selection.parse_known_args(argv)
-    repo = selected.repo.resolve()
+    # --repo is required; only a help request may omit it, then this checkout supplies the parser.
+    repo = (selected.repo or Path(__file__).resolve().parent.parent).resolve()
     launcher = repo / LAUNCHER
     if not launcher.is_file():
         raise ValueError("selected checkout lacks the production workspace launcher")
