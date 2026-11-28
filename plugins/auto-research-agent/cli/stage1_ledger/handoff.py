@@ -87,8 +87,10 @@ def handoff(manifest, state, events, refs, gate, action):
                 metadata_identity=candidate["identity_status"],
                 identity_review=review["identity_status"] if review else "not-assessed",
                 source_ref=discovery["source_ref"],
+                # Conservative and the same rule as the Wiki page: a work the researcher
+                # supplied at any point is marked, even if a search also found it.
                 origin=PROVIDED_ORIGIN
-                if discovery.get("provided")
+                if any(d.get("provided") for d in candidate["discoveries"])
                 else "search-result",
             )
         )
